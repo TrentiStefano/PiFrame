@@ -5,6 +5,7 @@
 ## Commands
 
 ```bash
+pnpm run check             # inner loop: type checking + flutter analyze (+ the test files you pass)
 pnpm run verify            # CI checks + release validation
 pnpm run pr                # verify + push the branch + open the PR (gh pr create)
 ```
@@ -21,6 +22,32 @@ Options (they work for both commands; with `pnpm` they go after `--`):
 | `--verbose` | prints the output of every step instead of saving it and printing only errors |
 
 `pnpm run pr` also takes `gh pr create` arguments, for example `pnpm run pr -- --title "fix: ..." --body "..."`. Without a title and body it uses `--fill` (from the commits).
+
+## The inner loop: `check`
+
+`pnpm run check` is the fast tier to run after every small change. It runs the `check` tier of the shared step list in the **current working tree**, uncommitted changes included: no `pnpm install`, no worktree, no merge with `origin/main`, no cache. It assumes `pnpm run setup` has been run once.
+
+1. `pnpm -r run build` (agentd and the e2e tests type-check against the other packages' built `.d.ts`; a fresh or stale `dist/` would give false errors)
+2. `pnpm -r run lint` (`tsc --noEmit` for every TypeScript package)
+3. `flutter analyze` on `pi_frame_protocol`, `pi_frame_theme` and `pi_frame`
+4. each test file passed as an argument, routed by its path:
+   - `*_test.dart` inside one of the Flutter projects → `flutter test <path>` in that project
+   - `*.test.mjs`, `*.test.cjs`, `*.test.js` → `node --test <path>` from the repository root. TypeScript tests run from their build output (for example `apps/agentd/dist/pi/test/jsonlFramer.test.js`), which step 1 refreshes.
+
+Any other path fails before anything runs, with a message naming the supported kinds. Paths may be relative to the folder you run the command from.
+
+```text
+# (each step's own output omitted)
+$ pnpm run check -- apps/pi_frame/test/agents_config_model_test.dart tools/guardrails/test/steps.test.mjs
+[1/5] Build TypeScript packages ... ok (9.5s)
+[2/5] TypeScript lint (tsc --noEmit) ... ok (6.6s)
+[3/5] Flutter analyze (all projects) ... ok (39.9s)
+[4/5] Flutter test apps/pi_frame/test/agents_config_model_test.dart ... ok (17.7s)
+[5/5] Node test tools/guardrails/test/steps.test.mjs ... ok (0.5s)
+✔ check: all 5 steps passed in 74.2s.
+```
+
+The `check` tier is local only: `ci.yml` follows the `ci` tier, so adding a step to `check` does not change the workflow. `check` passing does not mean "ready for a PR"; only `verify` does.
 
 ## What it checks
 
