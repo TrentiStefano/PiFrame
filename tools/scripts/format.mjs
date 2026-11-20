@@ -10,17 +10,17 @@
  * Exit code 0 when everything is (or now is) formatted.
  */
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const IS_WIN = process.platform === 'win32';
 
-const DART_DIRS = ['packages/pi_frame_protocol', 'packages/pi_frame_theme', 'apps/pi_frame'].flatMap((p) => [
-  `${p}/lib`,
-  `${p}/test`
-]);
-// TypeScript and Node tooling. The Flutter web glue (apps/pi_frame/web), the website and generated output are not ours to format.
+const FLUTTER_PROJECTS = JSON.parse(readFileSync(path.join(REPO, 'tools/scripts/flutter-projects.json'), 'utf8'));
+const DART_DIRS = FLUTTER_PROJECTS.flatMap((p) => [`${p}/lib`, `${p}/test`]);
+// TypeScript and Node tooling. Everything else (Markdown, YAML, JSON, the website, the Flutter web glue) is also
+// listed in .prettierignore, so an editor or a bare `prettier --write .` leaves it alone too.
 const TS_GLOBS = ['apps/agentd', 'packages/pcp-spec', 'packages/pcp-ts', 'test/e2e', 'tools'].map(
   (dir) => `${dir}/**/*.{ts,mts,cts,js,mjs,cjs}`
 );
@@ -68,11 +68,15 @@ for (const name of chosen.length > 0 ? chosen : Object.keys(FORMATTERS)) {
   const result = spawnSync(cmd, args, { cwd: REPO, stdio: 'inherit', shell });
   if (result.status === 0) continue;
   failed = true;
-  if (result.error) console.error(`${label}: could not run ${cmd} (${result.error.message}).`);
-  console.error(
-    check
-      ? `\n✖ ${label} files are not formatted (listed above). Fix: pnpm run format -- ${name}, then commit the result.`
-      : `\n✖ ${label} formatting failed (see the output above).`
-  );
+  // Both formatters exit 1 for "files need formatting"; anything else (a syntax error, a missing tool) is a failure to run.
+  if (check && result.status === 1) {
+    console.error(
+      `\n✖ ${label} files are not formatted (listed above). Fix: pnpm run format -- ${name}, then commit the result.\n` +
+        `  If the output above says the command was not found instead, install it (see docs/install.md).`
+    );
+  } else {
+    const why = result.error ? result.error.message : `exit code ${result.status}`;
+    console.error(`\n✖ ${label} formatter could not run (${why}). Fix the error printed above, then run it again.`);
+  }
 }
 process.exit(failed ? 1 : 0);

@@ -1,7 +1,8 @@
 const { spawnSync } = require('child_process');
 const path = require('path');
 
-const dirs = ['packages/pi_frame_protocol', 'packages/pi_frame_theme', 'apps/pi_frame'];
+// The Flutter/Dart projects, shared by the setup, analyze, test and format scripts.
+const dirs = require('./flutter-projects.json');
 
 const cmd = process.platform === 'win32' ? 'flutter.bat' : 'flutter';
 
