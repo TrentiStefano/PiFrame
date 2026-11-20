@@ -4,6 +4,23 @@ This document collects diagnoses, root causes and fixes for known problems in th
 
 ---
 
+## Git Changes tab unexpectedly collapses when toggling the Agents/Tasks sidecar
+
+**Symptom:** with the Git Changes companion pane or tab open, minimizing and then maximizing or reopening the Agents or Tasks sidecar pane caused the Git Changes tab to automatically collapse to its strip.
+
+**Cause:** `_workspace` in `app_shell.dart` registered an `onOpened` callback on `AgentActivitySidecar` that unconditionally called `_collapsePane(WorkspacePane.git)`. Whenever the sidecar was reopened or toggled, this handler forcibly minimized the Git Changes pane regardless of screen width.
+
+**Fix:** removed the automatic collapse of `WorkspacePane.git` from `onOpened` in `app_shell.dart`. User-opened companion panes and tabs are now preserved when the Agents or Tasks sidecar is toggled or reopened.
+
+Check from source:
+
+```bash
+cd apps/pi_frame
+flutter test test/layout_persistence_test.dart
+```
+
+---
+
 ## Windows crash with `0xc0000005` in `window_manager_plugin.dll`
 
 **Symptom:** on Windows, the application crashed shortly after launching with exit code `0xc0000005` (access violation) reported in Windows Event Viewer inside `window_manager_plugin.dll` at offset `0x000000000000aceb`.
