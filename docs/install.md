@@ -564,3 +564,7 @@ When PiFrame is updated to a new release, the first time the app is opened after
 - **Per-release persistence:** remembers the last seen version in `~/.piframe/changelog_state.json` so the popup appears only once per release and never on brand new installs.
 - **On-demand review:** you can also review the current release notes at any time from **Settings → Updates → Release notes** (`Note di rilascio`).
 - **Always complete:** the popup's changelog (`apps/pi_frame/assets/CHANGELOG.md`) is generated from the root `CHANGELOG.md` and not committed. `pnpm run setup` (and `pnpm run sync:changelog`, `run:app`, `run:app:dev`, the packaging scripts and the release workflow) generate it before Flutter runs or builds, and `pnpm run check:version` fails, without writing, when it is missing or stale, so a release can no longer ship without its own entry.
+
+## 32. Agent guard for the human-approved label (development)
+
+Coding agents working on this repository (Claude Code, pi, Codex) cannot apply the `human-approved` label or create, edit or delete labels: the committed project settings, extension and rules block those `gh` commands, and only the maintainer approves in the GitHub UI. pi and Codex apply them after you trust the project once in each tool. Details: [`docs/pr-verification.md`](pr-verification.md#agent-guard).

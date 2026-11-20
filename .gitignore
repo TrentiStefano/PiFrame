@@ -109,7 +109,9 @@ daemon.log*
 *.token
 *.pid
 crash-*.log
-.pi/
+# pi: only the shared project extensions (the agent guard) are committed.
+.pi/*
+!.pi/extensions/
 
 # ==============================================================================
 # Environment & Secrets
@@ -153,7 +155,11 @@ Thumbs.db
 !.vscode/launch.json
 !.vscode/extensions.json
 
-.claude/
+# Claude Code: shared project settings and hooks are committed. The skills folder holds symlinks from the skills
+# installer, worktrees are per-machine agent checkouts, and settings.local.json is personal.
+.claude/skills/
+.claude/worktrees/
+.claude/settings.local.json
 # ==============================================================================
 # Showcase recording masters (large; regenerate with tools/showcase/post.py)
 # ==============================================================================
