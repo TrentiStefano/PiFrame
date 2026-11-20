@@ -199,8 +199,8 @@ void main() {
   for (final preOpened in [false, true]) {
     testWidgets(
       preOpened
-          ? 'entering a session with the agents panel open collapses Git Changes'
-          : 'opening the agents panel collapses Git Changes',
+          ? 'entering a session with the agents panel open preserves Git Changes'
+          : 'opening the agents panel preserves Git Changes',
       (tester) async {
         tester.view.physicalSize = const Size(1920, 1080);
         tester.view.devicePixelRatio = 1.0;
@@ -261,7 +261,7 @@ void main() {
           find.byKey(const ValueKey('agent-activity-panel')),
           findsOneWidget,
         );
-        expect(find.byTooltip('Espandi pannello Modifiche Git'), findsOneWidget);
+        expect(find.byTooltip('Collassa pannello Git changes'), findsOneWidget);
       },
     );
   }

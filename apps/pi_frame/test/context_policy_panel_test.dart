@@ -207,7 +207,7 @@ void main() {
 
     await tester.tap(dropdownFinder);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Shared · github-copilot').last);
+    await tester.tap(find.text('github-copilot').last);
     await tester.pumpAndSettle();
     expect(session.selectedModels, ['github-copilot/shared-id']);
   });
