@@ -6,7 +6,7 @@
  * create|edit|delete`. It is a speed bump, not a security boundary.
  */
 
-import { APPROVAL_LABEL } from './approval.mjs';
+import { APPROVAL_LABEL } from './label.mjs';
 
 // A word `gh` (or `gh.exe`, possibly behind a path), not part of a longer word such as `github` or `gh-pages`.
 const GH_WORD = /(?<![\w.-])gh(?:\.exe)?(?![\w.-])/gi;

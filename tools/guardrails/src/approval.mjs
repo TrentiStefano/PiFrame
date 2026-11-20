@@ -10,12 +10,11 @@
  * and GitHub and calls it. See docs/pr-verification.md.
  */
 import { BASELINE_PATH } from './escape-hatches.mjs';
+import { APPROVAL_LABEL } from './label.mjs';
 import { basename, SCRIPT_FILE, toPosix } from './paths.mjs';
 import { stepList } from './steps.mjs';
 
-// escape-hatches.mjs imports APPROVAL_LABEL back for its messages. Both modules read the other's constants only
-// inside functions, so the import cycle is safe.
-export const APPROVAL_LABEL = 'human-approved';
+export { APPROVAL_LABEL };
 /** Hidden marker that identifies the job's one comment, so it is updated instead of duplicated. */
 export const APPROVAL_MARKER = '<!-- guardrails-approval -->';
 

@@ -6,7 +6,7 @@
  *
  * Pure: no I/O. tools/scripts/audit-escape-hatches.mjs reads the tracked files and the baseline and calls it.
  */
-import { APPROVAL_LABEL } from './approval.mjs';
+import { APPROVAL_LABEL } from './label.mjs';
 import { DART_FILE, SCRIPT_FILE, SOURCE_FILE, TEST_FILE_NAME, toPosix } from './paths.mjs';
 
 export const BASELINE_PATH = 'tools/guardrails/escape-hatch-baseline.json';
