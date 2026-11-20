@@ -381,6 +381,7 @@ class PiAvailableModel {
   final int contextWindow;
   final bool reasoning;
   final List<int> tiers;
+  final String? provider;
 
   const PiAvailableModel({
     required this.id,
@@ -388,11 +389,53 @@ class PiAvailableModel {
     this.contextWindow = 0,
     this.reasoning = false,
     this.tiers = const [],
+    this.provider,
   });
 
+  String? get modelProvider {
+    if (provider != null && provider!.isNotEmpty) return provider;
+    final slash = id.indexOf('/');
+    if (slash > 0) return id.substring(0, slash);
+    final lower = id.toLowerCase();
+    if (lower.startsWith('claude')) return 'anthropic';
+    if (lower.startsWith('gpt') ||
+        lower.startsWith('o1') ||
+        lower.startsWith('o3') ||
+        lower.startsWith('chatgpt')) {
+      return 'openai';
+    }
+    if (lower.startsWith('gemini')) return 'google';
+    if (lower.startsWith('mistral') || lower.startsWith('codestral')) {
+      return 'mistral';
+    }
+    if (lower.startsWith('deepseek')) return 'deepseek';
+    if (lower.startsWith('qwen')) return 'qwen';
+    if (lower.startsWith('llama')) return 'meta';
+    return null;
+  }
+
+  String get displayName {
+    if (name.isNotEmpty && name != id) {
+      return name;
+    }
+    final prov = modelProvider;
+    if (prov != null && id.startsWith('$prov/')) {
+      return id.substring(prov.length + 1);
+    }
+    return name.isNotEmpty ? name : id;
+  }
+
   factory PiAvailableModel.fromJson(Map<String, dynamic> json) {
+    final id = json['id']?.toString() ?? '';
+    String? provider = json['provider']?.toString();
+    if (provider == null || provider.isEmpty) {
+      final slash = id.indexOf('/');
+      if (slash > 0) {
+        provider = id.substring(0, slash);
+      }
+    }
     return PiAvailableModel(
-      id: json['id']?.toString() ?? '',
+      id: id,
       name: json['name']?.toString() ?? json['id']?.toString() ?? '',
       contextWindow: (json['contextWindow'] as num?)?.toInt() ?? 0,
       reasoning: json['reasoning'] == true,
@@ -400,6 +443,7 @@ class PiAvailableModel {
               ?.map((e) => (e as num).toInt())
               .toList() ??
           const [],
+      provider: provider,
     );
   }
 
@@ -409,6 +453,7 @@ class PiAvailableModel {
         'contextWindow': contextWindow,
         'reasoning': reasoning,
         'tiers': tiers,
+        if (modelProvider != null) 'provider': modelProvider,
       };
 
   @override
@@ -420,11 +465,12 @@ class PiAvailableModel {
           name == other.name &&
           contextWindow == other.contextWindow &&
           reasoning == other.reasoning &&
+          modelProvider == other.modelProvider &&
           listEquals(tiers, other.tiers);
 
   @override
-  int get hashCode =>
-      Object.hash(id, name, contextWindow, reasoning, Object.hashAll(tiers));
+  int get hashCode => Object.hash(
+      id, name, contextWindow, reasoning, modelProvider, Object.hashAll(tiers));
 }
 
 @immutable

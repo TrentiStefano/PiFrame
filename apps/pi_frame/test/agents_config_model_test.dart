@@ -288,5 +288,44 @@ void main() {
       });
       expect(withNullAliases.aliases, isEmpty);
     });
+
+    test('PiAvailableModel correctly resolves modelProvider and displayName', () {
+      const explicit = PiAvailableModel(
+        id: 'gpt-4o',
+        name: 'GPT-4o',
+        provider: 'openai',
+      );
+      expect(explicit.modelProvider, 'openai');
+      expect(explicit.displayName, 'GPT-4o');
+
+      const slashModel = PiAvailableModel(
+        id: 'github-copilot/gpt-6-luna',
+        name: 'GPT-6 Luna',
+      );
+      expect(slashModel.modelProvider, 'github-copilot');
+      expect(slashModel.displayName, 'GPT-6 Luna');
+
+      const rawSlashIdNoName = PiAvailableModel(
+        id: 'anthropic/claude-3-5-sonnet',
+        name: '',
+      );
+      expect(rawSlashIdNoName.modelProvider, 'anthropic');
+      expect(rawSlashIdNoName.displayName, 'claude-3-5-sonnet');
+
+      const heuristicModel = PiAvailableModel(
+        id: 'claude-sonnet-4',
+        name: 'Claude Sonnet 4',
+      );
+      expect(heuristicModel.modelProvider, 'anthropic');
+      expect(heuristicModel.displayName, 'Claude Sonnet 4');
+
+      final fromJson = PiAvailableModel.fromJson({
+        'id': 'google/gemini-pro',
+        'name': 'Gemini Pro',
+      });
+      expect(fromJson.modelProvider, 'google');
+      expect(fromJson.displayName, 'Gemini Pro');
+      expect(fromJson.toJson()['provider'], 'google');
+    });
   });
 }

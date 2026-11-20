@@ -601,11 +601,12 @@ void main() {
     // No saved default: the session select shows the Pi default label.
     expect(find.text('Predefinito di Pi'), findsWidgets);
 
-    // Opening the session default select lists both models.
+    // Opening the session default select lists both models and provider subtitle.
     await tester.tap(find.text('Predefinito di Pi').first);
     await tester.pumpAndSettle();
     expect(find.text('Fake Pi Model'), findsWidgets);
     expect(find.text('Fake Fast Model'), findsWidgets);
+    expect(find.text('fake'), findsWidgets);
   });
 
   testWidgets('no packages: Apri Pacchetti calls onOpenPackages', (tester) async {

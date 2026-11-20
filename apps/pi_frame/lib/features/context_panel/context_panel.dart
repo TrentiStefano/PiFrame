@@ -401,24 +401,77 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                   items: _models.map((model) {
                     final name =
                         model['name'] as String? ?? model['id'] as String;
-                    final provider = model['provider']?.toString();
-                    final duplicateName =
-                        _models
-                            .where(
-                              (other) => (other['name'] ?? other['id']) == name,
-                            )
-                            .length >
-                        1;
+                    String? provider = model['provider']?.toString();
+                    if ((provider == null || provider.isEmpty) &&
+                        model['id'] is String) {
+                      final id = model['id'] as String;
+                      final slash = id.indexOf('/');
+                      if (slash > 0) {
+                        provider = id.substring(0, slash);
+                      } else {
+                        final lower = id.toLowerCase();
+                        if (lower.startsWith('claude')) {
+                          provider = 'anthropic';
+                        } else if (lower.startsWith('gpt') ||
+                            lower.startsWith('o1') ||
+                            lower.startsWith('o3') ||
+                            lower.startsWith('chatgpt')) {
+                          provider = 'openai';
+                        } else if (lower.startsWith('gemini')) {
+                          provider = 'google';
+                        } else if (lower.startsWith('mistral') ||
+                            lower.startsWith('codestral')) {
+                          provider = 'mistral';
+                        } else if (lower.startsWith('deepseek')) {
+                          provider = 'deepseek';
+                        } else if (lower.startsWith('qwen')) {
+                          provider = 'qwen';
+                        } else if (lower.startsWith('llama')) {
+                          provider = 'meta';
+                        }
+                      }
+                    }
                     return DropdownMenuItem<String>(
                       value: _modelOptionValue(model),
-                      child: Text(
-                        duplicateName && provider != null
-                            ? '$name · $provider'
-                            : name,
-                        overflow: TextOverflow.ellipsis,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            name,
+                            overflow: TextOverflow.ellipsis,
+                            style: text.body.copyWith(
+                              color: tokens.textPrimary,
+                            ),
+                          ),
+                          if (provider != null && provider.isNotEmpty)
+                            Text(
+                              provider,
+                              overflow: TextOverflow.ellipsis,
+                              style: text.caption.copyWith(
+                                color: tokens.textMuted,
+                              ),
+                            ),
+                        ],
                       ),
                     );
                   }).toList(),
+                  selectedItemBuilder: (context) {
+                    return _models.map((model) {
+                      final name =
+                          model['name'] as String? ?? model['id'] as String;
+                      return Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          name,
+                          overflow: TextOverflow.ellipsis,
+                          style: text.body.copyWith(
+                            color: tokens.textPrimary,
+                          ),
+                        ),
+                      );
+                    }).toList();
+                  },
                   onChanged: sessionLocked
                       ? null
                       : (newModel) {

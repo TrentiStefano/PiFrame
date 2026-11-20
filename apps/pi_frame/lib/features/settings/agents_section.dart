@@ -1266,15 +1266,32 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
   }) {
     // Dropdowns only offer available models
     final items = availableModels.map((m) {
+      final name = m.displayName;
+      final provider = m.modelProvider;
       return DropdownMenuItem<String>(
         value: m.id,
-        child: Text(
-          m.name.isNotEmpty ? m.name : m.id,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: tokens.textPrimary,
-            fontSize: FrameText.fromTokens(tokens).label.fontSize,
-          ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              name,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: tokens.textPrimary,
+                fontSize: FrameText.fromTokens(tokens).label.fontSize,
+              ),
+            ),
+            if (provider != null && provider.isNotEmpty)
+              Text(
+                provider,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: tokens.textMuted,
+                  fontSize: FrameText.fromTokens(tokens).caption.fontSize,
+                ),
+              ),
+          ],
         ),
       );
     }).toList();
@@ -1313,6 +1330,21 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
               isExpanded: true,
               dropdownColor: tokens.surfaceElevated,
               items: items,
+              selectedItemBuilder: (context) {
+                return availableModels.map((m) {
+                  return Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      m.displayName,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: tokens.textPrimary,
+                        fontSize: FrameText.fromTokens(tokens).label.fontSize,
+                      ),
+                    ),
+                  );
+                }).toList();
+              },
               onChanged: enabled ? onChanged : null,
             ),
           ),
