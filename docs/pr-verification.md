@@ -138,3 +138,24 @@ Merged origin/main (2 commit(s)) into the verification worktree.
 - **A count went down**: the message gives the exact edit, for example `"agentd" → "lib": change "as any": 44 to "as any": 43`. Make it in the same commit.
 
 The logic is `auditEscapeHatches` in `tools/guardrails/src/escape-hatches.mjs` (pure, tested with in-memory fixtures in `tools/guardrails/test/escape-hatches.test.mjs`); the script only reads the files (tracked plus untracked, not ignored, as they are on disk) and the baseline.
+
+## Guardrail approval
+
+`.github/workflows/guardrails-approval.yml` runs on every pull-request event (`opened`, `synchronize`, `reopened`, `labeled`, `unlabeled`). It is a separate workflow, not a `ci.yml` job, because `ci.yml`'s jobs must equal the step list's `ci` tier. It fails while the PR loosens a guardrail without a current `human-approved` label:
+
+- **A raised baseline number**: any count in `tools/guardrails/escape-hatch-baseline.json` that is higher on the PR head than at its merge base. Lowering is free.
+- **A guarded path changed**, in either direction: every `analysis_options.yaml`, `tsconfig*.json`, `.prettierrc.json` and `.prettierignore`, any ESLint config (`.eslintrc*`, `.eslintignore`, `eslint.config.*`), `tools/guardrails/**` (except the baseline file, see above), `tools/scripts/format.mjs`, `tools/scripts/flutter-projects.json`, `tools/scripts/audit-escape-hatches.mjs`, `tools/scripts/guardrails-approval.mjs`, `.github/workflows/**`, and the agent guards: `.claude/settings.json`, `.claude/hooks/**`, `.pi/extensions/**`, `.codex/rules/**`.
+
+When approval is needed, the job posts **one** comment (found again by a hidden `<!-- guardrails-approval -->` marker and edited, never duplicated) listing each reason, for example ``agentd lib `as any` 44 → 45`` or ``CI workflow changed: `.github/workflows/ci.yml` ``. To approve, review the PR and add the label in the GitHub UI: the `labeled` event re-runs the job, which turns green and updates the comment; no push is needed. A PR that needs nothing passes silently, without a comment (if an earlier commit needed approval and no longer does, the existing comment says so).
+
+**Staleness.** An approval counts only if the label was added after the latest push. Commit dates are written by whoever commits, so they are never used. The push time is one GitHub records: the creation time of the run itself when a push triggered it (`opened`, `synchronize`, `reopened`), otherwise the creation time of the newest `ci.yml` pull-request run for the head commit (`ci.yml` runs on exactly those events). On a push after approval the job fails, says in the comment that the approval is stale, and removes the label, so approving again is one click. If no push time can be found, any label counts as stale.
+
+**Trust.** The job checks out the PR's **base** commit and runs the approval script from there; the PR head is fetched as data (its baseline file and changed paths) and never executed, so a PR cannot change the logic that judges it. The exception is bootstrap: while the base branch has no approval script, the PR's copy runs. The workflow file itself still comes from the PR (a `pull_request` workflow always does), so review any change to it by eye. Fork PRs get a read-only token: the verdict still holds, only the comment and the label removal are skipped. The token has `contents: read`, `actions: read` (the run times) and `pull-requests: write` (the comment and the label), and the job uses no secrets.
+
+Try it locally (no GitHub access, so no labels: prints the verdict and the comment it would post):
+
+```bash
+node tools/scripts/guardrails-approval.mjs --base origin/main --head HEAD
+```
+
+The logic is `approvalStatus` in `tools/guardrails/src/approval.mjs` (pure, tested in `tools/guardrails/test/approval.test.mjs`); the script only reads git and GitHub and writes the comment. To make the check blocking, mark `Guardrail approval` as a required status check in the branch protection settings (a manual repository setting).

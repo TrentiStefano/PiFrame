@@ -572,3 +572,7 @@ Coding agents working on this repository (Claude Code, pi, Codex) cannot apply t
 ## 33. Escape-hatch ratchet (development)
 
 `pnpm run check`, `pnpm run verify` and CI count the lint suppressions, type escapes and coverage exclusions in each package (`// ignore:`, `@ts-ignore`, `as any`, `: any`, `as unknown as`, `coverage:ignore` and others), split into library and test code, and fail when a count differs from the committed baseline `tools/guardrails/escape-hatch-baseline.json`. A new escape hatch fails with the file, the pattern and how to fix the root cause; a removed one fails until the baseline is lowered, with the exact edit to make. Details: [`docs/pr-verification.md`](pr-verification.md#escape-hatch-ratchet).
+
+## 34. Human approval for loosened guardrails (development)
+
+Pull requests that raise an escape-hatch baseline number or change guardrail configuration (analyzer options, `tsconfig*.json`, Prettier/ESLint configs, `tools/guardrails`, the formatter scripts, workflows, the agent guards) fail the `Guardrail approval` check until the maintainer adds the `human-approved` label in the GitHub UI. The check posts one comment listing exactly what needs approval, re-runs when the label is added, and treats a label added before the latest push as stale (it removes it, so approving again is one click). Lowering a baseline number never needs approval, and PRs that need nothing pass silently. Details: [`docs/pr-verification.md`](pr-verification.md#guardrail-approval).

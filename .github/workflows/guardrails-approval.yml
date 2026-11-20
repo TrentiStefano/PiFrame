@@ -1,0 +1,61 @@
+name: Guardrail approval
+
+# Fails while a pull request loosens a guardrail (raises an escape-hatch baseline number, or changes analyzer,
+# TypeScript, formatter or linter configs, guardrail tooling, workflows or the agent guards) without a current
+# `human-approved` label, and keeps one PR comment listing what needs approval. Adding the label re-runs it; a push
+# after the label makes the approval stale. Logic: tools/guardrails/src/approval.mjs; adapter:
+# tools/scripts/guardrails-approval.mjs. See docs/pr-verification.md#guardrail-approval.
+#
+# Kept out of ci.yml on purpose: ci.yml's jobs must equal the shared step list's `ci` tier (parity test).
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  contents: read
+  actions: read # ci.yml run times (the latest push time GitHub recorded)
+  pull-requests: write # the one comment, and removing a stale label
+
+concurrency:
+  group: guardrails-approval-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  approval:
+    name: Guardrail approval
+    runs-on: ubuntu-24.04
+    steps:
+      # The base commit, so the decision logic is the reviewed one on the base branch, not the PR's own copy.
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 0
+
+      - name: Fetch the pull request head (read as data, never run)
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: git fetch --no-tags origin "+refs/pull/${PR_NUMBER}/head:refs/remotes/pull/head"
+
+      # Bootstrap only: until the base branch has the approval script, run the PR's copy.
+      - name: Use the PR's approval script if the base has none
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ ! -f tools/scripts/guardrails-approval.mjs ]; then
+            echo "::warning::The base branch has no approval script yet; running the pull request's copy."
+            git checkout --detach "$HEAD_SHA"
+          fi
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Check guardrail approval
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          EVENT_ACTION: ${{ github.event.action }}
+        run: node tools/scripts/guardrails-approval.mjs
