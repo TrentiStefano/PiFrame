@@ -5,7 +5,11 @@ import { fileURLToPath } from 'node:url';
 import { stepList } from '../src/index.mjs';
 
 const WORKFLOW = '.github/workflows/ci.yml';
-const workflowText = readFileSync(fileURLToPath(new URL(`../../../${WORKFLOW}`, import.meta.url)), 'utf8');
+// Normalized to LF: Windows checkouts (core.autocrlf) give the workflow CRLF line endings.
+const workflowText = readFileSync(fileURLToPath(new URL(`../../../${WORKFLOW}`, import.meta.url)), 'utf8').replace(
+  /\r\n/g,
+  '\n'
+);
 
 /**
  * Minimal reader for the shape ci.yml uses: `jobs:` -> `  <job>:` -> `steps:` -> `- name:` / `- uses:` items with
