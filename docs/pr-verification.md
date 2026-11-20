@@ -37,10 +37,10 @@ The steps come from one shared step list, `tools/guardrails/src/steps.mjs`. `ver
 7. codegen parity (`tools/codegen/generate.js`: schema, TypeScript and Dart command/event types match)
 8. `pnpm -r run test` (including the step-list and parity tests)
 9. `pnpm run check:notices`
-10. `pnpm run check:version` (synchronized versions)
-11. `check:agentd-bundle` and `smoke:agentd-bundle`
-12. Windows release-name tests
-13. Flutter dependencies (`tools/scripts/setup-flutter.js`)
+10. `check:agentd-bundle` and `smoke:agentd-bundle`
+11. Windows release-name tests
+12. Flutter dependencies (`tools/scripts/setup-flutter.js`; it also generates the in-app changelog)
+13. `node tools/scripts/check-version-sync.mjs` (synchronized versions, and the in-app changelog in check mode)
 14. Dart formatting (`dart format --set-exit-if-changed`)
 15. `flutter analyze` and `flutter test` on `pi_frame_protocol`, `pi_frame_theme` and `pi_frame`
 16. with `--release`: `flutter build web` and `flutter build <desktop>`
@@ -51,6 +51,10 @@ The steps come from one shared step list, `tools/guardrails/src/steps.mjs`. `ver
 `pnpm run format` formats everything; `pnpm run format -- dart` or `-- ts` does one language, and `pnpm run format:check` only checks (what steps 2 and 14 run). Dart uses `dart format` with page width 120 (set in each Dart project's `analysis_options.yaml`); TypeScript and Node tooling (`apps/agentd`, `packages/pcp-*`, `test/e2e`, `tools`) use Prettier with `.prettierrc.json`. `tools/recon/reference/` holds verbatim upstream files and is excluded; `.prettierignore` also lists Markdown, YAML, JSON, the website and the Flutter app so an editor running Prettier agrees with the gate. Prettier uses `endOfLine: "auto"`: Windows checkouts (`core.autocrlf`) have CRLF files while git stores LF, so line endings are left to git. The Dart check covers each project's `lib/` and `test/` (the only Dart folders today); a new Dart folder such as `bin/` or `integration_test/` must be added to `tools/scripts/format.mjs`, and a new Dart project to `tools/scripts/flutter-projects.json`.
 
 The one-time reformat commit is listed in `.git-blame-ignore-revs`: GitHub skips it in blame views automatically; locally run `git config blame.ignoreRevsFile .git-blame-ignore-revs` once. **Other branches** that existed before the reformat: run `pnpm run format` on them and commit before merging, and most conflicts disappear.
+
+## In-app changelog
+
+`apps/pi_frame/assets/CHANGELOG.md` (the post-update popup) is a generated copy of the root `CHANGELOG.md` and is not committed. `node tools/scripts/sync-changelog.mjs` (`pnpm run sync:changelog`) writes it; `pnpm run setup`, `run:app`, `run:app:dev`, the packaging scripts and the release workflow run it before Flutter. Step 13 only checks it: a missing or stale copy fails with the command that fixes it, and nothing is written. If the version check fails after you pulled a new release, run that command (or `pnpm run setup`). The decision logic is `syncChangelog` in `tools/guardrails`.
 
 The full output is in `.git/verify-ci/last.log`. If a step fails, the script prints the last lines and stops: with `pnpm run pr`, nothing is pushed and no PR is opened.
 

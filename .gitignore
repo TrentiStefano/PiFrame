@@ -162,3 +162,8 @@ brag-output/work/
 
 # Promo masters (web versions live in website/assets/video/)
 brag-output/*.mp4
+
+# ==============================================================================
+# Generated in-app changelog (copy of the root CHANGELOG.md, written by tools/scripts/sync-changelog.mjs)
+# ==============================================================================
+apps/pi_frame/assets/CHANGELOG.md

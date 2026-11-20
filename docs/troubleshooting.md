@@ -1257,3 +1257,17 @@ The context, cost and extension chips sat in a reversed horizontal scroll view: 
 ### Fix
 
 The header row is now sequential: title and folder, then the state pill, then the chips. The chips start right after the pill and scroll horizontally when space runs out. At narrow widths the cost chip may stay out of view until you scroll. The `transcript_header_layout_test` test checks that the pill and the chips do not overlap at 480, 800, 1200 and 1584 px.
+
+## Post-update changelog popup missing the latest releases
+
+### Symptoms
+
+After updating to 1.5.1, the "What's new" popup (and **Settings → Updates → Release notes**) did not list the 1.5.0 and 1.5.1 releases. In a development checkout, `pnpm run check:version` fails with `apps/pi_frame/assets/CHANGELOG.md is missing` or `... is stale`.
+
+### Cause
+
+The popup reads `apps/pi_frame/assets/CHANGELOG.md`, which used to be a committed copy of the root `CHANGELOG.md`. The copy drifted, and the version check silently rewrote it and reported success, so `verify` passed and the release shipped the old copy.
+
+### Fix
+
+The in-app copy is now generated and not committed (it is in `.gitignore`). `pnpm run setup`, `pnpm run run:app` / `run:app:dev`, the packaging scripts and the release workflow generate it from the root changelog before Flutter runs or builds. The version check only checks it: if it fails, run `node tools/scripts/sync-changelog.mjs` (or `pnpm run setup`) and run the check again. Update PiFrame to see every release in the popup.
