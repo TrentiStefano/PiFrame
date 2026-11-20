@@ -169,7 +169,7 @@ function increaseMessage(where, expected, actual, pattern, kindHits, changed) {
   const list = files.map(([file, lines]) => `    ${file}:${lines.join(', ')}${changed.has(file) ? ' (changed)' : ''}`);
   return (
     `${where}: ${expected} → ${actual} (+${actual - expected}). A new escape hatch silences a check.\n` +
-    `  Occurrences (files changed on this branch first):\n${list.join('\n')}\n` +
+    `  Occurrences (files changed since the baseline was last updated first):\n${list.join('\n')}\n` +
     `  Fix the root cause: ${pattern.fix}\n` +
     `  Do not raise the baseline to make this pass: an increase needs a human's decision (the \`human-approved\` ` +
     `label on the pull request).`

@@ -34,11 +34,11 @@ const files = [...new Set(listed)]
   .filter((p) => SOURCE.test(p) && fs.existsSync(path.join(REPO, p)))
   .map((p) => ({ path: p, contents: fs.readFileSync(path.join(REPO, p), 'utf8') }));
 
-// Files changed on this branch (against origin/main, when it is known) and in the working tree: listed first.
-const base = git('merge-base', 'HEAD', 'origin/main')?.[0];
+// Files changed since the baseline was last committed (working tree and untracked files included): the counts
+// matched then, so a new escape hatch is in one of them. They are listed first in a failure.
+const since = git('log', '-1', '--format=%H', '--', BASELINE_PATH)?.[0] ?? 'HEAD';
 const changedPaths = [
-  ...(base ? (git('diff', '--name-only', '-z', base, 'HEAD') ?? []) : []),
-  ...(git('diff', '--name-only', '-z', 'HEAD') ?? []),
+  ...(git('diff', '--name-only', '-z', since) ?? []),
   ...(git('ls-files', '-z', '--others', '--exclude-standard') ?? [])
 ];
 
