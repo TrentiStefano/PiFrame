@@ -59,10 +59,13 @@ class NerdStatsBar extends ConsumerWidget {
 
     return Tooltip(
       message: tooltip,
-      waitDuration: const Duration(milliseconds: 300),
+      waitDuration: FrameMotionTokens.tooltipWait,
       child: Container(
         key: const ValueKey('nerd-stats-bar'),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        padding: const EdgeInsets.symmetric(
+          horizontal: FrameSpace.x2,
+          vertical: 3,
+        ),
         decoration: BoxDecoration(
           color: tokens.surfaceElevated.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -71,19 +74,13 @@ class NerdStatsBar extends ConsumerWidget {
         child: isWeb
             ? Text(
                 '$fps FPS',
-                style: TextStyle(
-                  fontFamily: tokens.monoFontFamily,
-                  fontSize: 11,
-                  color: tokens.textSecondary,
-                ),
+                style: FrameText.of(context).mono
+                    .copyWith(color: tokens.textSecondary),
               )
             : Text.rich(
                 TextSpan(
-                  style: TextStyle(
-                    fontFamily: tokens.monoFontFamily,
-                    fontSize: 11,
-                    color: tokens.textSecondary,
-                  ),
+                  style: FrameText.of(context).mono
+                      .copyWith(color: tokens.textSecondary),
                   children: [
                     TextSpan(
                       text: 'CPU ',

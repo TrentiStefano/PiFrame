@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ui' show BoxWidthStyle;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -12,12 +13,16 @@ import '../../data/language/strings_transcript.dart';
 import '../../data/transcript/step_grouping_settings.dart';
 import '../../domain/session/session_state.dart';
 import '../../domain/session/transcript_grouping.dart';
+import '../../ui/frame_activity_indicator.dart';
+import '../../ui/frame_text_shimmer.dart';
 import '../../ui/bottom_anchored_scroll_controller.dart';
 import '../../ui/code/diff_block.dart';
 import '../../ui/frame_snack_bar.dart';
+import '../../ui/motion.dart';
 import '../tool_timeline/tool_card.dart';
 import 'rich_content.dart';
 import 'step_group_expansion.dart';
+import 'task_notification_card.dart';
 
 /// Helper to abbreviate file path in the middle (e.g. 'lib/…/file.dart').
 String abbreviatePath(String path, {int maxLength = 36}) {
@@ -58,16 +63,16 @@ String abbreviateTarget(ToolExecutionState tool) {
   if (path != null && path.toString().trim().isNotEmpty) {
     return abbreviatePath(path.toString().trim());
   }
-  final cmd = tool.args['command'] ??
+  final cmd =
+      tool.args['command'] ??
       tool.args['cmd'] ??
       tool.args['CommandLine'] ??
       tool.args['script'];
   if (cmd != null && cmd.toString().trim().isNotEmpty) {
     return abbreviateCommand(cmd.toString().trim());
   }
-  final pattern = tool.args['pattern'] ??
-      tool.args['query'] ??
-      tool.args['search'];
+  final pattern =
+      tool.args['pattern'] ?? tool.args['query'] ?? tool.args['search'];
   if (pattern != null && pattern.toString().trim().isNotEmpty) {
     return '"${pattern.toString().trim()}"';
   }
@@ -81,7 +86,11 @@ String abbreviateTarget(ToolExecutionState tool) {
 }
 
 /// Extracts title for thinking step (first non-empty line or ~80 chars).
-String thinkingTitle(String text, {int maxLength = 80, String defaultLabel = 'Ragionamento'}) {
+String thinkingTitle(
+  String text, {
+  int maxLength = 80,
+  String defaultLabel = 'Ragionamento',
+}) {
   final trimmed = text.trim();
   if (trimmed.isEmpty) return defaultLabel;
   final firstLine = trimmed.split('\n').first.trim();
@@ -135,9 +144,9 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
   /// long thinking block streamed in).
   late final BottomAnchoredScrollController _stepsScroll =
       BottomAnchoredScrollController(
-    shouldAnchorToBottom: () => widget.block.isRunning && _followLatest,
-    anchorTolerance: 16,
-  );
+        shouldAnchorToBottom: () => widget.block.isRunning && _followLatest,
+        anchorTolerance: 16,
+      );
 
   /// Whether the compact list content is taller than its maximum height.
   bool _stepsOverflow = false;
@@ -208,7 +217,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
   bool _onStepsScroll(ScrollNotification notification) {
     if (notification.depth != 0) return false;
     if (notification is ScrollUpdateNotification &&
-        notification.dragDetails != null ||
+            notification.dragDetails != null ||
         notification is UserScrollNotification) {
       final m = notification.metrics;
       _followLatest = m.pixels >= m.maxScrollExtent - 16;
@@ -228,21 +237,26 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
       stepGroupExpansionProvider(widget.sessionId).notifier,
     );
 
+    final groupKey = widget.block.groupId.isNotEmpty
+        ? widget.block.groupId
+        : widget.block.turnId;
+
     final expanded = expansionState.isGroupExpanded(
       turnId: widget.block.turnId,
+      groupId: groupKey,
       isRunning: widget.block.isRunning,
       autoCollapse: settings.autoCollapse,
-      // Phone-sized screens: start minimized, the user opens it on demand.
-      compactDefault: MediaQuery.sizeOf(context).width < kCompactStepsWidth,
+      // Phone-sized screens or Full mode: start minimized, the user opens it on demand.
+      compactDefault: settings.mode == StepGroupingMode.full ||
+          MediaQuery.sizeOf(context).width < kCompactStepsWidth,
     );
 
-    final fullyExpanded =
-        expansionState.isGroupFullyExpanded(widget.block.turnId);
+    final fullyExpanded = expansionState.isGroupFullyExpanded(groupKey);
     // Auto-collapse at turn end also returns the list to its compact form.
     if (!expanded && fullyExpanded) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          expansionNotifier.setGroupFullyExpanded(widget.block.turnId, false);
+          expansionNotifier.setGroupFullyExpanded(groupKey, false);
         }
       });
     }
@@ -253,16 +267,15 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
 
     final latestStepLabel = _formatLatestStep(widget.block.latestStep, strings);
 
+    // Borderless (plan 4.2): the summary row reads like a tool row, and the
+    // expanded steps keep their left rule. Slightly indented to distinguish from
+    // main answers and align with child thoughts.
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 4),
-      decoration: BoxDecoration(
-        color: tokens.surface,
-        borderRadius: BorderRadius.circular(tokens.radiusMd),
-        border: Border.all(
-          color: widget.block.failed
-              ? tokens.danger.withValues(alpha: 0.6)
-              : tokens.borderStrong,
-        ),
+      margin: const EdgeInsets.only(
+        left: 20,
+        top: FrameSpace.x1,
+        bottom: FrameSpace.x1,
+        right: FrameSpace.x1,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -276,10 +289,11 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
             latestStepLabel: latestStepLabel,
             onTap: () {
               expansionNotifier.toggleGroup(
-                widget.block.turnId,
+                groupKey,
                 expanded,
-                runningTurnId:
-                    widget.block.isRunning ? widget.block.turnId : null,
+                runningTurnId: widget.block.isRunning
+                    ? widget.block.turnId
+                    : null,
               );
               widget.onExpansionChanged?.call();
             },
@@ -298,10 +312,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                 padding: const EdgeInsets.only(left: 12),
                 decoration: BoxDecoration(
                   border: Border(
-                    left: BorderSide(
-                      color: tokens.borderStrong,
-                      width: 1.0,
-                    ),
+                    left: BorderSide(color: tokens.borderStrong, width: 1.0),
                   ),
                 ),
                 child: _buildStepList(
@@ -327,6 +338,9 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
     required StepGroupExpansionState expansionState,
     required StepGroupExpansionNotifier expansionNotifier,
   }) {
+    final groupKey = widget.block.groupId.isNotEmpty
+        ? widget.block.groupId
+        : widget.block.turnId;
     final steps = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -374,14 +388,9 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
             child: Padding(
               padding: const EdgeInsets.only(top: 6),
               child: TextButton.icon(
-                key: ValueKey(
-                  'step_group_expand_all_${widget.block.groupId}',
-                ),
+                key: ValueKey('step_group_expand_all_${widget.block.groupId}'),
                 onPressed: () {
-                  expansionNotifier.setGroupFullyExpanded(
-                    widget.block.turnId,
-                    true,
-                  );
+                  expansionNotifier.setGroupFullyExpanded(groupKey, true);
                   widget.onExpansionChanged?.call();
                 },
                 style: TextButton.styleFrom(
@@ -394,11 +403,14 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                   visualDensity: VisualDensity.compact,
                   textStyle: TextStyle(
                     fontFamily: tokens.uiFontFamily,
-                    fontSize: 12,
+                    fontSize: FrameText.of(context).label.fontSize,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                icon: const Icon(Icons.keyboard_double_arrow_down, size: 16),
+                icon: const Icon(
+                  Icons.keyboard_double_arrow_down_outlined,
+                  size: FrameSize.icon,
+                ),
                 label: Text(
                   strings.stepGroupShowAllSteps(widget.block.steps.length),
                 ),
@@ -427,6 +439,10 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
         defaultLabel: strings?.transcriptReasoning ?? 'Ragionamento',
       );
     }
+    if (step is SubagentNotificationStep) {
+      final data = TaskNotificationData.tryParse(step.entry.text);
+      return data?.summary ?? 'Subagent';
+    }
     return '';
   }
 
@@ -445,31 +461,28 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
     final stepCount = widget.block.stepCount;
 
     String headerLabel;
-    Widget statusIcon;
+    Widget? statusIcon;
 
     if (isRunning) {
-      statusIcon = SizedBox(
-        width: 14,
-        height: 14,
-        child: CircularProgressIndicator(
-          strokeWidth: 2,
-          color: tokens.agentWorking,
-        ),
-      );
-      headerLabel = latestStepLabel.isNotEmpty
-          ? '${strings.stepGroupWorking} · $latestStepLabel'
+      statusIcon = null;
+      final rawLabel = latestStepLabel.isNotEmpty
+          ? latestStepLabel
           : strings.stepGroupWorking;
+      final cleanLabel = rawLabel
+          .replaceAll(RegExp(r'[\.…]+$'), '')
+          .trimRight();
+      headerLabel = '$cleanLabel...';
     } else if (aborted) {
       statusIcon = Icon(
         Icons.stop_circle_outlined,
-        size: 15,
+        size: FrameSize.icon,
         color: tokens.textMuted,
       );
       headerLabel = strings.stepGroupStopped(stepCount);
     } else if (failed) {
       statusIcon = Icon(
         Icons.error_outline,
-        size: 15,
+        size: FrameSize.icon,
         color: tokens.danger,
       );
       headerLabel = strings.stepGroupStoppedWithErrors(stepCount);
@@ -482,13 +495,13 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
               child: Icon(
                 Icons.error_outline,
                 key: const ValueKey('step_group_steps_failed_icon'),
-                size: 15,
+                size: FrameSize.icon,
                 color: tokens.warning,
               ),
             )
           : Icon(
               Icons.check_circle_outline,
-              size: 15,
+              size: FrameSize.icon,
               color: tokens.agentSettled,
             );
       if (widget.block.elapsed != null) {
@@ -509,37 +522,74 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
       label: headerLabel,
       child: InkWell(
         key: ValueKey('step_group_header_${widget.block.groupId}'),
-        borderRadius: BorderRadius.circular(tokens.radiusMd),
+        borderRadius: BorderRadius.circular(tokens.radiusSm),
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          child: Row(
-            children: [
-              statusIcon,
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  headerLabel,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: isRunning
-                        ? tokens.agentWorking
-                        : failed
-                            ? tokens.danger
-                            : tokens.textSecondary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
+        child: SizedBox(
+          height: FrameSize.rowList,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2),
+            child: Row(
+              children: [
+                if (statusIcon != null) ...[
+                  statusIcon,
+                  const SizedBox(width: 8),
+                ],
+                Expanded(
+                  child: AnimatedSwitcher(
+                    duration: FrameMotion.stepFadeIn,
+                    reverseDuration: FrameMotion.stepFadeOut,
+                    switchInCurve: FrameMotion.stepFadeCurve,
+                    switchOutCurve: FrameMotion.stepFadeCurve,
+                    transitionBuilder: (child, animation) {
+                      return FadeTransition(opacity: animation, child: child);
+                    },
+                    layoutBuilder: (currentChild, previousChildren) {
+                      return Stack(
+                        alignment: AlignmentDirectional.centerStart,
+                        children: <Widget>[
+                          ...previousChildren,
+                          ?currentChild,
+                        ],
+                      );
+                    },
+                    child: isRunning
+                        ? FrameTextShimmer(
+                            key: ValueKey<String>(
+                              '${widget.block.steps.length}_$headerLabel',
+                            ),
+                            text: headerLabel,
+                            baseColor: tokens.textMuted,
+                            highlightColor: tokens.textPrimary,
+                            style: TextStyle(
+                              fontSize: FrameText.of(context).label.fontSize,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          )
+                        : Text(
+                            headerLabel,
+                            key: ValueKey<String>(headerLabel),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: failed
+                                  ? tokens.danger
+                                  : tokens.textSecondary,
+                              fontSize: FrameText.of(context).label.fontSize,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Icon(
-                expanded ? Icons.expand_less : Icons.expand_more,
-                size: 16,
-                color: tokens.textSecondary,
-              ),
-            ],
+                const SizedBox(width: 8),
+                Icon(
+                  expanded
+                      ? Icons.expand_less_outlined
+                      : Icons.expand_more_outlined,
+                  size: FrameSize.icon,
+                  color: tokens.textSecondary,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -581,9 +631,19 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
       );
     }
     if (step is IntermediateTextStep) {
-      return _buildIntermediateTextStep(
+      return _buildIntermediateTextStep(step: step, tokens: tokens);
+    }
+    if (step is SubagentNotificationStep) {
+      return _buildSubagentNotificationStep(
+        context: context,
         step: step,
         tokens: tokens,
+        strings: strings,
+        isExpanded: expansionState.isStepExpanded(step.id),
+        onToggle: () {
+          expansionNotifier.toggleStep(step.id);
+          widget.onExpansionChanged?.call();
+        },
       );
     }
     return const SizedBox.shrink();
@@ -622,23 +682,20 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
               borderRadius: BorderRadius.circular(tokens.radiusSm),
               onTap: onToggle,
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 4,
-                  vertical: 3,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     Icon(
                       Icons.psychology_outlined,
-                      size: 14,
+                      size: FrameSize.icon,
                       color: tokens.thinking,
                     ),
                     const SizedBox(width: 6),
                     Text(
                       strings.transcriptReasoning,
-                      style: const TextStyle(
-                        fontSize: 11.5,
+                      style: TextStyle(
+                        fontSize: FrameText.of(context).caption.fontSize,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -650,7 +707,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: tokens.textMuted,
-                          fontSize: 11,
+                          fontSize: FrameText.of(context).caption.fontSize,
                         ),
                       ),
                     ),
@@ -659,7 +716,8 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                       SizedBox(
                         width: 10,
                         height: 10,
-                        child: CircularProgressIndicator(
+                        child: FrameActivityIndicator(
+                          size: 10,
                           strokeWidth: 1.5,
                           color: tokens.agentWorking,
                         ),
@@ -668,9 +726,9 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                     const SizedBox(width: 4),
                     Icon(
                       effectiveExpanded
-                          ? Icons.expand_less
-                          : Icons.expand_more,
-                      size: 15,
+                          ? Icons.expand_less_outlined
+                          : Icons.expand_more_outlined,
+                      size: FrameSize.icon,
                       color: tokens.textSecondary,
                     ),
                   ],
@@ -687,7 +745,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: tokens.textMuted,
-                  fontSize: 10.5,
+                  fontSize: FrameText.of(context).caption.fontSize,
                   height: 1.3,
                 ),
               ),
@@ -698,17 +756,15 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
               padding: const EdgeInsets.only(left: 10),
               decoration: BoxDecoration(
                 border: Border(
-                  left: BorderSide(
-                    color: tokens.borderStrong,
-                    width: 2,
-                  ),
+                  left: BorderSide(color: tokens.borderStrong, width: 2),
                 ),
               ),
               child: SelectableText(
                 step.text,
+                selectionWidthStyle: BoxWidthStyle.tight,
                 style: TextStyle(
                   color: tokens.textSecondary,
-                  fontSize: 12,
+                  fontSize: FrameText.of(context).label.fontSize,
                   height: 1.5,
                 ),
               ),
@@ -762,20 +818,17 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
               borderRadius: BorderRadius.circular(tokens.radiusSm),
               onTap: onToggle,
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 4,
-                  vertical: 3,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
                 child: Row(
                   children: [
                     Icon(
                       getToolIcon(step.toolName),
-                      size: 14,
+                      size: FrameSize.icon,
                       color: isError
                           ? tokens.agentError
                           : isRunning
-                              ? tokens.agentWorking
-                              : toolColor,
+                          ? tokens.agentWorking
+                          : toolColor,
                     ),
                     const SizedBox(width: 6),
                     Flexible(
@@ -787,7 +840,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               color: tokens.textSecondary,
-                              fontSize: 11.5,
+                              fontSize: FrameText.of(context).caption.fontSize,
                               fontFamily: tokens.uiFontFamily,
                               fontWeight: FontWeight.w600,
                             ),
@@ -801,7 +854,9 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   color: tokens.syntaxString,
-                                  fontSize: 11,
+                                  fontSize: FrameText.of(context)
+                                      .caption
+                                      .fontSize,
                                   fontFamily: tokens.monoFontFamily,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -820,9 +875,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                         ),
                         decoration: BoxDecoration(
                           color: tokens.surfaceElevated,
-                          borderRadius: BorderRadius.circular(
-                            tokens.radiusSm,
-                          ),
+                          borderRadius: BorderRadius.circular(tokens.radiusSm),
                           border: Border.all(color: tokens.border),
                         ),
                         child: Row(
@@ -840,7 +893,9 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                               durationText,
                               style: TextStyle(
                                 color: tokens.textMuted,
-                                fontSize: 9.5,
+                                fontSize: FrameText.of(context)
+                                    .caption
+                                    .fontSize,
                                 fontFamily: tokens.monoFontFamily,
                                 fontWeight: FontWeight.w500,
                               ),
@@ -854,7 +909,8 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                       SizedBox(
                         width: 12,
                         height: 12,
-                        child: CircularProgressIndicator(
+                        child: FrameActivityIndicator(
+                          size: 12,
                           strokeWidth: 1.5,
                           color: tokens.agentWorking,
                         ),
@@ -862,19 +918,21 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                     else if (isError)
                       Icon(
                         Icons.error_outline,
-                        size: 14,
+                        size: FrameSize.icon,
                         color: tokens.agentError,
                       )
                     else
                       Icon(
                         Icons.check_circle_outline,
-                        size: 14,
+                        size: FrameSize.icon,
                         color: tokens.agentSettled,
                       ),
                     const SizedBox(width: 4),
                     Icon(
-                      isExpanded ? Icons.expand_less : Icons.expand_more,
-                      size: 14,
+                      isExpanded
+                          ? Icons.expand_less_outlined
+                          : Icons.expand_more_outlined,
+                      size: FrameSize.icon,
                       color: tokens.textMuted,
                     ),
                   ],
@@ -884,13 +942,15 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
           ),
 
           // Expanded detail: Input & Output with Show all / Show less toggle
-          if (isExpanded)
-            _ToolStepExpandedView(
+          FrameExpandable(
+            expanded: isExpanded,
+            child: _ToolStepExpandedView(
               key: ValueKey('tool_step_expanded_${step.id}'),
               step: step,
               tokens: tokens,
               strings: strings,
             ),
+          ),
         ],
       ),
     );
@@ -917,6 +977,140 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
           opacity: 0.9,
           child: RichContent(text: step.text, cwd: cwd),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSubagentNotificationStep({
+    required BuildContext context,
+    required SubagentNotificationStep step,
+    required FrameTokens tokens,
+    required AppStrings strings,
+    required bool isExpanded,
+    required VoidCallback onToggle,
+  }) {
+    final data = TaskNotificationData.tryParse(step.entry.text);
+    final summary = data?.summary ?? 'Subagent completed';
+    final status = data?.status ?? 'Done';
+    final isError =
+        status.toLowerCase().contains('error') ||
+        status.toLowerCase().contains('failed');
+    final isWrappedUp =
+        status.toLowerCase().contains('turn limit') ||
+        status.toLowerCase().contains('wrapped');
+
+    String? durationText;
+    if (data?.durationMs != null) {
+      final totalSeconds = (data!.durationMs! / 1000).round();
+      if (totalSeconds < 60) {
+        durationText = '${totalSeconds}s';
+      } else {
+        final m = totalSeconds ~/ 60;
+        final s = totalSeconds % 60;
+        durationText = '${m}m ${s}s';
+      }
+    }
+
+    final cwd = ref.watch(
+      sessionStateFamily(widget.sessionId).select((s) => s.cwd),
+    );
+
+    return Padding(
+      key: ValueKey('subagent_step_${step.id}'),
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Semantics(
+            button: true,
+            expanded: isExpanded,
+            label: summary,
+            child: InkWell(
+              key: ValueKey('subagent_step_header_${step.id}'),
+              borderRadius: BorderRadius.circular(tokens.radiusSm),
+              onTap: onToggle,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.smart_toy_outlined,
+                      size: FrameSize.icon,
+                      color: tokens.accent,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        summary,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: FrameText.of(context).caption.fontSize,
+                          fontWeight: FontWeight.w600,
+                          color: tokens.textPrimary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    if (durationText != null) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 5,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: tokens.surfaceElevated,
+                          borderRadius: BorderRadius.circular(tokens.radiusSm),
+                          border: Border.all(color: tokens.border),
+                        ),
+                        child: Text(
+                          durationText,
+                          style: TextStyle(
+                            color: tokens.textMuted,
+                            fontSize: FrameText.of(context).caption.fontSize,
+                            fontFamily: tokens.monoFontFamily,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                    ],
+                    Icon(
+                      isError
+                          ? Icons.error_outline
+                          : isWrappedUp
+                          ? Icons.warning_amber_outlined
+                          : Icons.check_circle_outline,
+                      size: FrameSize.icon,
+                      color: isError
+                          ? tokens.agentError
+                          : isWrappedUp
+                          ? tokens.signalWarning
+                          : tokens.agentSettled,
+                    ),
+                    const SizedBox(width: 4),
+                    Icon(
+                      isExpanded
+                          ? Icons.expand_less_outlined
+                          : Icons.expand_more_outlined,
+                      size: FrameSize.icon,
+                      color: tokens.textMuted,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          FrameExpandable(
+            expanded: isExpanded,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 6, bottom: 4),
+              child: data != null
+                  ? TaskNotificationCard(data: data, cwd: cwd)
+                  : RichContent(text: step.entry.text, cwd: cwd),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1001,15 +1195,12 @@ class _ToolStepExpandedViewState extends State<_ToolStepExpandedView> {
                   parsed.summaryText!,
                   style: TextStyle(
                     color: tokens.textSecondary,
-                    fontSize: 11,
+                    fontSize: FrameText.of(context).caption.fontSize,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
               ),
-            DiffBlock(
-              diffText: parsed.diffText!,
-              filename: parsed.filename,
-            ),
+            DiffBlock(diffText: parsed.diffText!, filename: parsed.filename),
             if (hasInput || (hasOutput && parsed.diffText != tool.output))
               const SizedBox(height: 8),
           ],
@@ -1023,12 +1214,12 @@ class _ToolStepExpandedViewState extends State<_ToolStepExpandedView> {
                   strings.stepGroupInput,
                   style: TextStyle(
                     color: tokens.textMuted,
-                    fontSize: 10.5,
+                    fontSize: FrameText.of(context).caption.fontSize,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 InkWell(
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(context.tokens.radiusSm),
                   onTap: () {
                     Clipboard.setData(ClipboardData(text: prettyInput));
                     FrameSnackBar.show(
@@ -1055,7 +1246,7 @@ class _ToolStepExpandedViewState extends State<_ToolStepExpandedView> {
                           strings.stepsGroupCopy,
                           style: TextStyle(
                             color: tokens.textMuted,
-                            fontSize: 10,
+                            fontSize: FrameText.of(context).caption.fontSize,
                           ),
                         ),
                       ],
@@ -1076,9 +1267,10 @@ class _ToolStepExpandedViewState extends State<_ToolStepExpandedView> {
                 _showAllInput || !isInputLong
                     ? prettyInput
                     : _truncateText(prettyInput),
+                selectionWidthStyle: BoxWidthStyle.tight,
                 style: TextStyle(
                   color: tokens.syntaxNumber,
-                  fontSize: 11,
+                  fontSize: FrameText.of(context).caption.fontSize,
                   fontFamily: tokens.monoFontFamily,
                   height: 1.4,
                 ),
@@ -1103,15 +1295,14 @@ class _ToolStepExpandedViewState extends State<_ToolStepExpandedView> {
                         : strings.stepGroupShowAll,
                     style: TextStyle(
                       color: tokens.accent,
-                      fontSize: 10.5,
+                      fontSize: FrameText.of(context).caption.fontSize,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
               ),
             ],
-            if (hasOutput && parsed.diffText == null)
-              const SizedBox(height: 8),
+            if (hasOutput && parsed.diffText == null) const SizedBox(height: 8),
           ],
 
           // Output Section (only if not already shown as diff)
@@ -1123,12 +1314,12 @@ class _ToolStepExpandedViewState extends State<_ToolStepExpandedView> {
                   strings.stepGroupOutput,
                   style: TextStyle(
                     color: tokens.textMuted,
-                    fontSize: 10.5,
+                    fontSize: FrameText.of(context).caption.fontSize,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
                 InkWell(
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(context.tokens.radiusSm),
                   onTap: () {
                     Clipboard.setData(ClipboardData(text: tool.output));
                     FrameSnackBar.show(
@@ -1155,7 +1346,7 @@ class _ToolStepExpandedViewState extends State<_ToolStepExpandedView> {
                           strings.stepsGroupCopy,
                           style: TextStyle(
                             color: tokens.textMuted,
-                            fontSize: 10,
+                            fontSize: FrameText.of(context).caption.fontSize,
                           ),
                         ),
                       ],
@@ -1176,11 +1367,12 @@ class _ToolStepExpandedViewState extends State<_ToolStepExpandedView> {
                 _showAllOutput || !isOutputLong
                     ? tool.output
                     : _truncateText(tool.output),
+                selectionWidthStyle: BoxWidthStyle.tight,
                 style: TextStyle(
                   color: tool.isError
                       ? tokens.agentError
                       : tokens.textSecondary,
-                  fontSize: 11,
+                  fontSize: FrameText.of(context).caption.fontSize,
                   fontFamily: tokens.monoFontFamily,
                   height: 1.4,
                 ),
@@ -1205,7 +1397,7 @@ class _ToolStepExpandedViewState extends State<_ToolStepExpandedView> {
                         : strings.stepGroupShowAll,
                     style: TextStyle(
                       color: tokens.accent,
-                      fontSize: 10.5,
+                      fontSize: FrameText.of(context).caption.fontSize,
                       fontWeight: FontWeight.w600,
                     ),
                   ),

@@ -62,9 +62,9 @@ void main() {
 
       await tester.pump();
 
-      expect(find.text('Task Agente (Todo)'), findsOneWidget);
+      expect(find.text('Task agente'), findsOneWidget);
       expect(find.text('First Task'), findsOneWidget);
-      expect(find.text('Second Task'), findsOneWidget);
+      expect(find.text('Second Task...'), findsOneWidget);
       expect(find.byType(Checkbox), findsNWidgets(2));
 
       // Click on checkbox for Task 2 to complete it
@@ -161,6 +161,133 @@ void main() {
       // Now expanded
       expect(find.byKey(const ValueKey('todo-popdown-panel')), findsOneWidget);
       expect(find.text('Fix bug'), findsOneWidget);
+    });
+
+    testWidgets('TodoPopDown filters newly added tasks and shows all on button click', (tester) async {
+      final initialTasks = [
+        const TodoItem(id: 1, subject: 'Old task 1', status: 'completed'),
+        const TodoItem(id: 2, subject: 'Old task 2', status: 'pending'),
+        const TodoItem(id: 3, subject: 'Newly added task 3', status: 'pending'),
+      ];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            todosFamily('session-filter-test').overrideWith(
+              (ref) => _MockTodoNotifier(ref, 'session-filter-test', initialTasks),
+            ),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: TodoPopDown(
+                sessionId: 'session-filter-test',
+                isExpanded: true,
+                hideBookTab: true,
+                filterTaskIds: {3},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Only the newly added task 3 is displayed initially
+      expect(find.text('Newly added task 3'), findsOneWidget);
+      expect(find.text('Old task 1'), findsNothing);
+      expect(find.text('Old task 2'), findsNothing);
+
+      // Filter banner is displayed
+      expect(find.byKey(const ValueKey('todo-show-all-filter-btn')), findsOneWidget);
+
+      // Tap show all
+      await tester.tap(find.byKey(const ValueKey('todo-show-all-filter-btn')));
+      await tester.pumpAndSettle();
+
+      // Now all 3 tasks are visible
+      expect(find.text('Old task 1'), findsOneWidget);
+      expect(find.text('Old task 2'), findsOneWidget);
+      expect(find.text('Newly added task 3'), findsOneWidget);
+    });
+
+    testWidgets('does not show redundant status badge cards on task rows', (tester) async {
+      final initialTasks = [
+        const TodoItem(id: 1, subject: 'Done Item', status: 'completed'),
+        const TodoItem(id: 2, subject: 'Doing Item', status: 'in_progress'),
+        const TodoItem(id: 3, subject: 'Pending Item', status: 'pending'),
+      ];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            todosFamily('session-badge-test').overrideWith(
+              (ref) => _MockTodoNotifier(ref, 'session-badge-test', initialTasks),
+            ),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: TodoPopDown(sessionId: 'session-badge-test'),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Badges must not exist
+      expect(find.text('COMPLETED'), findsNothing);
+      expect(find.text('COMPLETATO'), findsNothing);
+      expect(find.text('IN PROGRESS'), findsNothing);
+      expect(find.text('IN CORSO'), findsNothing);
+      expect(find.text('PENDING'), findsNothing);
+      expect(find.text('IN ATTESA'), findsNothing);
+
+      // In-progress item has shimmering three dots suffix
+      expect(find.text('Doing Item...'), findsOneWidget);
+      expect(find.text('Done Item'), findsOneWidget);
+      expect(find.text('Pending Item'), findsOneWidget);
+    });
+
+    testWidgets('bottom add task button reveals input field and submits task', (tester) async {
+      final initialTasks = [
+        const TodoItem(id: 1, subject: 'First Task', status: 'completed'),
+      ];
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            todosFamily('session-add-test').overrideWith(
+              (ref) => _MockTodoNotifier(ref, 'session-add-test', initialTasks),
+            ),
+          ],
+          child: const MaterialApp(
+            home: Scaffold(
+              body: TodoPopDown(sessionId: 'session-add-test'),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // The bottom add task button is present
+      final addBtnFinder = find.byKey(const ValueKey('todo-add-task-btn'));
+      expect(addBtnFinder, findsOneWidget);
+
+      // Tap bottom add task button
+      await tester.tap(addBtnFinder);
+      await tester.pumpAndSettle();
+
+      // Input field is now visible
+      final fieldFinder = find.byKey(const ValueKey('todo-add-task-field'));
+      expect(fieldFinder, findsOneWidget);
+
+      // Enter task title and submit
+      await tester.enterText(fieldFinder, 'Brand new task');
+      await tester.tap(find.byKey(const ValueKey('todo-add-task-submit')));
+      await tester.pumpAndSettle();
+
+      // Task is added and input field closes
+      expect(find.text('Brand new task'), findsOneWidget);
+      expect(find.byKey(const ValueKey('todo-add-task-field')), findsNothing);
+      expect(find.byKey(const ValueKey('todo-add-task-btn')), findsOneWidget);
     });
   });
 

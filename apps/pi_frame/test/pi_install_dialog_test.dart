@@ -77,8 +77,8 @@ void main() {
     await tester.tap(find.text('Open Dialog'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Installazione Pi Coding Agent'), findsOneWidget);
-    expect(find.text('Pi Coding Agent non rilevato'), findsOneWidget);
+    expect(find.text('Installazione Pi coding agent'), findsOneWidget);
+    expect(find.text('Pi coding agent non rilevato'), findsOneWidget);
     expect(find.byKey(const ValueKey('pi-install-later-btn')), findsOneWidget);
     expect(find.byKey(const ValueKey('pi-install-now-btn')), findsOneWidget);
   });
@@ -94,7 +94,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('pi-install-later-btn')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Installazione Pi Coding Agent'), findsNothing);
+    expect(find.text('Installazione Pi coding agent'), findsNothing);
     expect(fakeService.markCompletedCalled, isTrue);
   });
 

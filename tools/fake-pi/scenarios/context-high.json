@@ -1,0 +1,167 @@
+{
+  "name": "context-high",
+  "description": "Usage reaches about 92 percent of a 128k context before compaction.",
+  "events": [
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_start"
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "turn_start"
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "user",
+          "content": "{{prompt}}",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "user",
+          "content": "{{prompt}}",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "assistant",
+          "content": []
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 110000,
+          "output": 500,
+          "total": 110500
+        },
+        "assistantMessageEvent": {
+          "type": "text_start",
+          "contentIndex": 0
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 117000,
+          "output": 900,
+          "total": 117900
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": "Context usage is now near the configured limit."
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "compaction_start",
+        "reason": "threshold"
+      }
+    },
+    {
+      "event": {
+        "type": "compaction_end",
+        "result": {
+          "tokensBefore": 117900,
+          "tokensAfter": 24000,
+          "estimatedTokensAfter": 24000,
+          "cost": 0.03
+        },
+        "aborted": false,
+        "willRetry": false
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "Context usage is now near the configured limit."
+            }
+          ],
+          "usage": {
+            "input": 117000,
+            "output": 900,
+            "total": 117900
+          }
+        }
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "turn_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "Context was compacted successfully."
+            }
+          ]
+        },
+        "toolResults": []
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_end",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "text",
+                "text": "Context was compacted successfully."
+              }
+            ]
+          }
+        ],
+        "willRetry": false
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_settled"
+      }
+    }
+  ],
+  "stats": {
+    "tokens": {
+      "input": 117000,
+      "output": 900,
+      "total": 117900
+    },
+    "cost": 0.03,
+    "contextUsage": {
+      "tokens": 117760,
+      "contextWindow": 128000,
+      "percent": 92
+    }
+  }
+}

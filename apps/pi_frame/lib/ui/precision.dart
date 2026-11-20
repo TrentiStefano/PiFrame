@@ -7,7 +7,10 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 /// Pointer feedback does not delay or animate keyboard activation.
 class PressFeedback extends StatefulWidget {
   final Widget child;
-  const PressFeedback({super.key, required this.child});
+
+  /// False for disabled controls: they never scale on press.
+  final bool enabled;
+  const PressFeedback({super.key, required this.child, this.enabled = true});
   @override
   State<PressFeedback> createState() => _PressFeedbackState();
 }
@@ -23,6 +26,7 @@ class _PressFeedbackState extends State<PressFeedback> {
     final tokens = context.tokens;
     return Listener(
       onPointerDown: (event) {
+        if (!widget.enabled) return;
         if (event.kind == PointerDeviceKind.mouse ||
             event.kind == PointerDeviceKind.touch) {
           setState(() => _pressed = true);
@@ -31,7 +35,9 @@ class _PressFeedbackState extends State<PressFeedback> {
       onPointerUp: (_) => _release(),
       onPointerCancel: (_) => _release(),
       child: AnimatedScale(
-        scale: _pressed && !MediaQuery.disableAnimationsOf(context) ? 0.97 : 1,
+        scale: _pressed && widget.enabled && !MediaQuery.disableAnimationsOf(context)
+            ? 0.97
+            : 1,
         duration: MediaQuery.disableAnimationsOf(context)
             ? Duration.zero
             : tokens.pressDuration,
@@ -63,7 +69,7 @@ class _LaunchRevealState extends State<LaunchReveal>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 620),
+    duration: FrameMotionTokens.launchReveal,
   );
   bool _started = false;
   bool _startScheduled = false;

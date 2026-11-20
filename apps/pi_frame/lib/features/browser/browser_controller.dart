@@ -37,17 +37,17 @@ class WebBrowserNotifier extends StateNotifier<WebBrowserState> {
     WebBookmark(
       title: 'Google',
       url: 'https://www.google.com',
-      icon: Icons.travel_explore,
+      icon: Icons.travel_explore_outlined,
     ),
     WebBookmark(
       title: 'YouTube',
       url: 'https://www.youtube.com',
-      icon: Icons.play_circle_outline,
+      icon: Icons.play_circle_outlined,
     ),
     WebBookmark(
       title: 'GitHub',
       url: 'https://github.com',
-      icon: Icons.code,
+      icon: Icons.code_outlined,
     ),
     WebBookmark(
       title: 'pub.dev',
@@ -57,12 +57,12 @@ class WebBrowserNotifier extends StateNotifier<WebBrowserState> {
     WebBookmark(
       title: 'Stack Overflow',
       url: 'https://stackoverflow.com',
-      icon: Icons.help_outline,
+      icon: Icons.help_outlined,
     ),
     WebBookmark(
       title: 'Flutter Docs',
       url: 'https://docs.flutter.dev',
-      icon: Icons.flutter_dash,
+      icon: Icons.flutter_dash_outlined,
     ),
   ];
 

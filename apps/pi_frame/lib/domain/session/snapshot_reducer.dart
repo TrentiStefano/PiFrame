@@ -229,13 +229,14 @@ List<SessionEntry> parseSessionEntries(Iterable<Map> rawList) {
         entryToolCalls.isEmpty) {
       // An empty assistant message can still carry how the turn ended
       // (e.g. a provider error). Keep that on the previous assistant entry.
-      if (role == 'assistant' && entries.isNotEmpty) {
+      if (role == 'assistant') {
         final terminal = terminalStopMetadata(message);
-        if (terminal != null && entries.last.role == 'assistant') {
-          final last = entries.removeLast();
-          entries.add(
-            last.copyWith(metadata: {...?last.metadata, ...terminal}),
-          );
+        final stopped =
+            terminal == null ? null : applyTerminalStop(entries, terminal);
+        if (stopped != null) {
+          entries
+            ..clear()
+            ..addAll(stopped);
         }
       }
       continue;

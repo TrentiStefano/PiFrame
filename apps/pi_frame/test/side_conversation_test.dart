@@ -135,6 +135,11 @@ class FakeSidePcpClient extends PcpClient {
   }
 
   @override
+  Future<({List<Map<String, dynamic>> subagents, Map<String, dynamic> live})>
+  getSubagentsWithLive(String sessionId) async =>
+      (subagents: await getSubagents(sessionId), live: const <String, dynamic>{});
+
+  @override
   Future<List<Map<String, dynamic>>> getSubagents(String sessionId) async {
     return [];
   }
@@ -205,7 +210,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Submit via icon button
-      final sendBtn = find.byIcon(Icons.arrow_upward);
+      final sendBtn = find.byIcon(Icons.arrow_upward_outlined);
       expect(sendBtn, findsOneWidget);
       await tester.tap(sendBtn);
       await tester.pumpAndSettle();
@@ -244,7 +249,7 @@ void main() {
       await tester.enterText(textField, '/btw can you explain this test?');
       await tester.pumpAndSettle();
 
-      final sendBtn = find.byIcon(Icons.arrow_upward);
+      final sendBtn = find.byIcon(Icons.arrow_upward_outlined);
       await tester.tap(sendBtn);
       await tester.pumpAndSettle();
 
@@ -453,7 +458,7 @@ void main() {
 
       // Read-only badge visible
       expect(find.byKey(const ValueKey('side-read-only-badge')), findsOneWidget);
-      expect(find.text('Side · read-only'), findsOneWidget);
+      expect(find.text('Laterale · sola lettura'), findsOneWidget);
 
       // Model visible
       expect(find.text('gpt-4o'), findsOneWidget);
@@ -516,7 +521,7 @@ void main() {
     });
 
     testWidgets(
-      'Close sends side.close after confirmation and confirms nothing is lost from main',
+      'Close without a draft sends side.close at once and keeps main intact',
       (tester) async {
         final container = ProviderContainer(
           overrides: [
@@ -545,24 +550,13 @@ void main() {
         );
         await tester.pumpAndSettle();
 
-        // Tap close button in header
+        // Tap close button in header. No draft: closes at once, no dialog.
         final closeBtn = find.byKey(const ValueKey('side-close-btn'));
         expect(closeBtn, findsOneWidget);
         await tester.tap(closeBtn);
         await tester.pumpAndSettle();
 
-        // Confirmation dialog appears
-        expect(find.text('Chiudi conversazione laterale'), findsOneWidget);
-        expect(
-          find.text('Nessun dato andrà perso nella conversazione principale.'),
-          findsOneWidget,
-        );
-
-        // Confirm close
-        final confirmBtn = find.byKey(const ValueKey('side-confirm-close-btn'));
-        expect(confirmBtn, findsOneWidget);
-        await tester.tap(confirmBtn);
-        await tester.pumpAndSettle();
+        expect(find.text('Chiudi conversazione laterale'), findsNothing);
 
         final closeCmds =
             fakeClient.sentCommands.where((c) => c.type == 'side.close').toList();
@@ -573,6 +567,53 @@ void main() {
         final sideThread = container.read(sideThreadFamily('parent_session'));
         expect(sideThread.isClosed, isTrue);
         expect(sideThread.isOpen, isFalse);
+      },
+    );
+
+    testWidgets(
+      'Close with a draft in the mini composer asks before closing',
+      (tester) async {
+        final container = ProviderContainer(
+          overrides: [
+            pcpClientProvider.overrideWithValue(fakeClient),
+            activeSessionIdProvider.overrideWith((ref) => 'parent_session'),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        final sideNotifier =
+            container.read(sideThreadFamily('parent_session').notifier);
+        await sideNotifier.openSide();
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              theme: ThemeData.dark().copyWith(
+                extensions: const [FrameTokens.dark],
+              ),
+              home: const Scaffold(
+                body: SidePanel(sessionId: 'parent_session'),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.enterText(
+          find.byKey(const ValueKey('side-mini-composer-input')),
+          'unsent draft',
+        );
+        await tester.tap(find.byKey(const ValueKey('side-close-btn')));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Chiudi conversazione laterale'), findsOneWidget);
+        await tester.tap(find.text('Annulla'));
+        await tester.pumpAndSettle();
+
+        final closeCmds =
+            fakeClient.sentCommands.where((c) => c.type == 'side.close');
+        expect(closeCmds, isEmpty);
       },
     );
 
@@ -757,6 +798,67 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(container.read(sideThreadFamily('parent_session')).isOpen, isFalse);
+    });
+
+    testWidgets(
+        'Multiple side conversations are stored in session history and selectable via pills',
+        (tester) async {
+      final container = ProviderContainer(
+        overrides: [
+          pcpClientProvider.overrideWithValue(fakeClient),
+          activeSessionIdProvider.overrideWith((ref) => 'parent_session'),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      final sideNotifier =
+          container.read(sideThreadFamily('parent_session').notifier);
+
+      // Open first conversation
+      await sideNotifier.openSide(question: 'First question about architecture');
+      var state = container.read(sideThreadFamily('parent_session'));
+      expect(state.conversations.length, 1);
+      expect(state.conversations.first.title,
+          'First question about architecture');
+
+      // Open second conversation
+      await sideNotifier.openSide(question: 'Second question about tests');
+      state = container.read(sideThreadFamily('parent_session'));
+      expect(state.conversations.length, 2);
+      expect(state.conversations.last.title, 'Second question about tests');
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(
+              extensions: const [FrameTokens.dark],
+            ),
+            home: const Scaffold(
+              body: SidePanel(sessionId: 'parent_session'),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Both pills are rendered in the conversation bar
+      expect(find.text('First question about architecture'), findsOneWidget);
+      expect(find.text('Second question about tests'), findsOneWidget);
+
+      // Tap on first pill to select it
+      await tester.tap(find.text('First question about architecture'));
+      await tester.pumpAndSettle();
+
+      state = container.read(sideThreadFamily('parent_session'));
+      expect(state.selectedConversationId, state.conversations.first.id);
+
+      // Tap + button to create a third conversation
+      await tester.tap(find.byKey(const ValueKey('side-new-conversation-btn')));
+      await tester.pumpAndSettle();
+
+      state = container.read(sideThreadFamily('parent_session'));
+      expect(state.conversations.length, 3);
     });
   });
 }

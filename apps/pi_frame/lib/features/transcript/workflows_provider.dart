@@ -152,8 +152,63 @@ final workflowsFamily = Provider.autoDispose.family<List<WorkflowItem>, String>(
   final (entries, activeTools) = ref.watch(
     sessionStateFamily(sessionId).select((s) => (s.entries, s.activeToolCalls)),
   );
-  return parseWorkflows(entries, activeTools.values);
+  final runs = parseWorkflows(entries, activeTools.values);
+  if (!runs.any((run) => run.isRunning)) return runs;
+  final unlinked = ref.watch(subagentsFamily(sessionId)).where((s) => s.isUnlinked).toList();
+  final now = DateTime.now().millisecondsSinceEpoch;
+  return settleIdleWorkflows(
+    runs,
+    unlinked,
+    activeToolCallIds: activeTools.keys.toSet(),
+    now: now,
+    // The worker reports nothing running (or is gone): no workflow can be.
+    nothingRunning: ref
+        .watch(subagentLiveStateFamily(sessionId))
+        .idleFor(kWorkflowLiveIdle, now),
+  );
 });
+
+/// How long every agent of a running workflow must have been quiet before the
+/// run counts as over. Matches the daemon's idle limit for child sessions.
+const kWorkflowIdleMs = 10 * 60 * 1000;
+
+/// How long the worker must report nothing running before a workflow counts
+/// as over: long enough to span the gap between two phases.
+const kWorkflowLiveIdle = Duration(seconds: 20);
+
+/// A run is "running" until its `<task-notification>` arrives. When that never
+/// comes (the Pi worker restarted, the run was killed) the run stayed active
+/// forever, so a run whose agents all settled and stayed quiet for
+/// [kWorkflowIdleMs] is shown as completed. Runs without agents are left alone.
+List<WorkflowItem> settleIdleWorkflows(
+  List<WorkflowItem> runs,
+  List<SubagentItem> unlinked, {
+  required Set<String> activeToolCallIds,
+  required int now,
+  bool nothingRunning = false,
+}) {
+  final children = workflowChildren(runs, unlinked);
+  return [
+    for (final run in runs)
+      if (!run.isRunning || activeToolCallIds.contains(run.toolCallId))
+        run
+      else if (nothingRunning)
+        run.copyWith(status: 'completed', endedAt: now)
+      else
+        _settleIfIdle(run, children[run.id] ?? const [], now),
+  ];
+}
+
+WorkflowItem _settleIfIdle(WorkflowItem run, List<SubagentItem> agents, int now) {
+  if (agents.isEmpty || agents.any((agent) => agent.isRunning)) return run;
+  var lastActivity = run.timestamp;
+  for (final agent in agents) {
+    final at = agent.updatedAt ?? agent.startedAt;
+    if (at != null && at > lastActivity) lastActivity = at;
+  }
+  if (now - lastActivity < kWorkflowIdleMs) return run;
+  return run.copyWith(status: 'completed', endedAt: lastActivity);
+}
 
 /// Splits child sessions the daemon could not tie to an `Agent` call between
 /// the workflow runs whose lifetime covers their start. Runs are matched

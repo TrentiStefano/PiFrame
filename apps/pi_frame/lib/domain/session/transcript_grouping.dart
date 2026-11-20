@@ -10,6 +10,10 @@ enum StepGroupingMode {
 
   /// Group a turn whenever it has at least one intermediate step (thinking, tool call, intermediate text).
   always,
+
+  /// Super-compact mode: compacts all intermediate steps and non-final answers into a single group,
+  /// showing only the user message, an expandable step indicator with elapsed time, and the final answer.
+  full,
 }
 
 /// Bundles the live/in-progress state for the active turn in a transcript.
@@ -58,22 +62,26 @@ class TranscriptLiveState {
   /// Derives live state directly from a [SessionState].
   factory TranscriptLiveState.fromSession(SessionState session) {
     final lastEntry = session.entries.isNotEmpty ? session.entries.last : null;
-    final lastStopReason =
-        lastEntry?.metadata?['stopReason']?.toString().toLowerCase();
+    final lastStopReason = lastEntry?.metadata?['stopReason']
+        ?.toString()
+        .toLowerCase();
     final lastCancelled = lastEntry?.metadata?['cancelled'] == true;
 
-    final lastUserEntry =
-        session.entries.reversed.where((e) => e.role == 'user').firstOrNull;
+    final lastUserEntry = session.entries.reversed
+        .where((e) => e.role == 'user')
+        .firstOrNull;
     final hasUserSendError = lastUserEntry?.metadata?['sendError'] != null;
 
-    final hasActiveError = session.agentStatus.name.toLowerCase().contains('error') ||
+    final hasActiveError =
+        session.agentStatus.name.toLowerCase().contains('error') ||
         session.activeToolCalls.values.any((t) => t.isError) ||
         lastStopReason == 'error' ||
         hasUserSendError;
 
     final isAborted = lastStopReason == 'aborted' || lastCancelled;
 
-    final isRunning = session.agentStatus.name == 'working' ||
+    final isRunning =
+        session.agentStatus.name == 'working' ||
         session.agentStatus.name == 'retrying' ||
         session.agentStatus.name == 'compacting' ||
         session.isStreaming;
@@ -168,6 +176,35 @@ final class StepsGroupBlock extends TranscriptBlock {
       'StepsGroupBlock($groupId, stepCount: $stepCount, isRunning: $isRunning, hasError: $hasError)';
 }
 
+/// An intermediate assistant response rendered outside the compacted step groups,
+/// between groups of intermediate tool and thinking steps.
+final class IntermediateTextBlock extends TranscriptBlock {
+  /// Assistant entry stripped of thinking and tool calls.
+  final SessionEntry entry;
+
+  /// Identifier of the turn.
+  final String turnId;
+
+  const IntermediateTextBlock({required this.entry, required this.turnId});
+
+  String get text => entry.text;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is IntermediateTextBlock &&
+          runtimeType == other.runtimeType &&
+          entry == other.entry &&
+          turnId == other.turnId;
+
+  @override
+  int get hashCode => Object.hash(entry, turnId);
+
+  @override
+  String toString() =>
+      'IntermediateTextBlock(entry: ${entry.id}, turnId: $turnId)';
+}
+
 /// The final assistant response of a turn, rendered as text only.
 /// Any thinking or tool calls associated with the original entry belong to the [StepsGroupBlock].
 final class FinalTextBlock extends TranscriptBlock {
@@ -177,10 +214,7 @@ final class FinalTextBlock extends TranscriptBlock {
   /// Identifier of the turn.
   final String turnId;
 
-  const FinalTextBlock({
-    required this.entry,
-    required this.turnId,
-  });
+  const FinalTextBlock({required this.entry, required this.turnId});
 
   String get text => entry.text;
 
@@ -204,7 +238,8 @@ final class LiveTailBlock extends TranscriptBlock {
   bool get hasText => text.trim().isNotEmpty;
 
   @override
-  String toString() => 'LiveTailBlock(turnId: $turnId, text: "$text", isRunning: $isRunning)';
+  String toString() =>
+      'LiveTailBlock(turnId: $turnId, text: "$text", isRunning: $isRunning)';
 }
 
 /// Sealed base class for items inside a [StepsGroupBlock].
@@ -252,11 +287,7 @@ final class ToolStep extends StepItem {
   @override
   final int? timestamp;
 
-  const ToolStep({
-    required this.id,
-    required this.tool,
-    this.timestamp,
-  });
+  const ToolStep({required this.id, required this.tool, this.timestamp});
 
   String get toolName => tool.toolName;
   String get toolCallId => tool.toolCallId;
@@ -270,7 +301,8 @@ final class ToolStep extends StepItem {
       durationMs != null ? Duration(milliseconds: durationMs!) : null;
 
   @override
-  String toString() => 'ToolStep($id, name: $toolName, isRunning: $isRunning, isError: $isError)';
+  String toString() =>
+      'ToolStep($id, name: $toolName, isRunning: $isRunning, isError: $isError)';
 }
 
 /// An intermediate assistant text block that occurred prior to later tool calls or assistant messages.
@@ -293,6 +325,35 @@ final class IntermediateTextStep extends StepItem {
   String toString() => 'IntermediateTextStep($id, text: "$text")';
 }
 
+/// A completed subagent notification step inside a [StepsGroupBlock].
+final class SubagentNotificationStep extends StepItem {
+  @override
+  final String id;
+  final SessionEntry entry;
+  @override
+  final int? timestamp;
+
+  const SubagentNotificationStep({
+    required this.id,
+    required this.entry,
+    this.timestamp,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SubagentNotificationStep &&
+          runtimeType == other.runtimeType &&
+          id == other.id &&
+          entry == other.entry;
+
+  @override
+  int get hashCode => Object.hash(id, entry);
+
+  @override
+  String toString() => 'SubagentNotificationStep($id)';
+}
+
 /// Internal helper model holding entries for a single turn.
 class _TurnData {
   final String turnId;
@@ -308,6 +369,15 @@ class _TurnData {
   });
 }
 
+bool _isSubagentNotificationEntry(SessionEntry entry) {
+  if (entry.role == 'custom') {
+    final customType = entry.metadata?['customType']?.toString();
+    if (customType == 'subagent-notification') return true;
+    if (entry.text.contains('<task-notification>')) return true;
+  }
+  return false;
+}
+
 /// Pure function grouping transcript entries according to [mode] and [live] state.
 ///
 /// Guarantees NO LOSS: every entry's text, thinking, and tool calls appear in exactly
@@ -316,6 +386,7 @@ List<TranscriptBlock> groupTranscript({
   required List<SessionEntry> entries,
   required StepGroupingMode mode,
   required TranscriptLiveState live,
+  bool showIntermediateAnswers = true,
 }) {
   // Pre-filter internal/junk messages exactly like transcript_view
   final cleanEntries = entries.where((e) => !e.isJunkOrInternal).toList();
@@ -326,17 +397,15 @@ List<TranscriptBlock> groupTranscript({
       for (final entry in cleanEntries) EntryBlock(entry),
     ];
     if (live.isRunning && (live.hasContent || live.streamingText.isNotEmpty)) {
-      final lastUser =
-          cleanEntries.reversed.where((e) => e.role == 'user').firstOrNull;
-      final turnId = (lastUser?.metadata?['optimisticId'] as String?) ??
+      final lastUser = cleanEntries.reversed
+          .where((e) => e.role == 'user')
+          .firstOrNull;
+      final turnId =
+          (lastUser?.metadata?['optimisticId'] as String?) ??
           lastUser?.id ??
           'turn_start';
       result.add(
-        LiveTailBlock(
-          turnId: turnId,
-          text: live.streamingText,
-          live: live,
-        ),
+        LiveTailBlock(turnId: turnId, text: live.streamingText, live: live),
       );
     }
     return result;
@@ -347,7 +416,13 @@ List<TranscriptBlock> groupTranscript({
   final output = <TranscriptBlock>[];
 
   for (final turn in turns) {
-    _processTurn(turn: turn, mode: mode, live: live, output: output);
+    _processTurn(
+      turn: turn,
+      mode: mode,
+      live: live,
+      output: output,
+      showIntermediateAnswers: showIntermediateAnswers,
+    );
   }
 
   return output;
@@ -399,8 +474,9 @@ List<_TurnData> _partitionTurns(List<SessionEntry> entries) {
 
   for (int u = 0; u < userIndices.length; u++) {
     final userIdx = userIndices[u];
-    final nextUserIdx =
-        u + 1 < userIndices.length ? userIndices[u + 1] : entries.length;
+    final nextUserIdx = u + 1 < userIndices.length
+        ? userIndices[u + 1]
+        : entries.length;
     final isLast = u == userIndices.length - 1;
     final userEntry = entries[userIdx];
     final nonUserEntries = entries.sublist(userIdx + 1, nextUserIdx);
@@ -425,95 +501,32 @@ void _processTurn({
   required StepGroupingMode mode,
   required TranscriptLiveState live,
   required List<TranscriptBlock> output,
+  bool showIntermediateAnswers = true,
 }) {
-  final assistantEntries =
-      turn.nonUserEntries.where((e) => e.role == 'assistant').toList();
+  final assistantEntries = turn.nonUserEntries
+      .where((e) => e.role == 'assistant')
+      .toList();
 
   final hasCommittedThinking = assistantEntries.any(
     (e) => e.thinking != null && e.thinking!.trim().isNotEmpty,
   );
   final hasStreamingThinking =
-      turn.isLastTurn && live.isRunning && live.streamingThinking.trim().isNotEmpty;
-  final hasThinking = hasCommittedThinking || hasStreamingThinking;
+      turn.isLastTurn &&
+      live.isRunning &&
+      live.streamingThinking.trim().isNotEmpty;
 
-  final hasCommittedTools =
-      assistantEntries.any((e) => e.toolCalls.isNotEmpty);
+  final hasCommittedTools = assistantEntries.any((e) => e.toolCalls.isNotEmpty);
   final hasActiveTools =
       turn.isLastTurn && live.isRunning && live.activeToolCalls.isNotEmpty;
   final hasTools = hasCommittedTools || hasActiveTools;
 
-  // An intermediate text step exists if an assistant message with text is followed
-  // by another assistant message or tool calls.
-  bool hasCommittedIntermediateText = false;
-  if (assistantEntries.length > 1) {
-    hasCommittedIntermediateText =
-        assistantEntries.sublist(0, assistantEntries.length - 1).any(
-              (e) => e.text.trim().isNotEmpty,
-            );
-  }
-  if (!hasCommittedIntermediateText && assistantEntries.isNotEmpty) {
-    final last = assistantEntries.last;
-    if (last.text.trim().isNotEmpty &&
-        (last.toolCallsAfterText.isNotEmpty || hasActiveTools)) {
-      hasCommittedIntermediateText = true;
-    }
-  }
-
-  final hasIntermediateSteps =
-      hasThinking || hasTools || hasCommittedIntermediateText;
-
-  final bool shouldGroup;
-  switch (mode) {
-    case StepGroupingMode.off:
-      shouldGroup = false;
-      break;
-    case StepGroupingMode.withThinking:
-      shouldGroup = hasThinking;
-      break;
-    case StepGroupingMode.always:
-      shouldGroup = hasIntermediateSteps;
-      break;
-  }
-
-  // If not grouped, render turn in classic entry order
-  if (!shouldGroup) {
-    if (turn.userEntry != null) {
-      output.add(EntryBlock(turn.userEntry!));
-    }
-    for (final entry in turn.nonUserEntries) {
-      output.add(EntryBlock(entry));
-    }
-    if (turn.isLastTurn && live.isRunning && (live.hasContent || live.streamingText.isNotEmpty)) {
-      output.add(
-        LiveTailBlock(
-          turnId: turn.turnId,
-          text: live.streamingText,
-          live: live,
-        ),
-      );
-    }
-    return;
-  }
-
-  // GROUPED TURN
-  // 1. User entry (if any) is emitted first
-  if (turn.userEntry != null) {
-    output.add(EntryBlock(turn.userEntry!));
-  }
-
   // Identify final assistant entry candidate (if any).
-  // Trailing assistant entries with empty text and no tool calls (e.g. trailing thinking-only)
-  // allow the immediately preceding assistant entry with non-empty text and no tool calls
-  // to be chosen as final text.
+  // While the turn is actively running, no committed entry is final yet.
+  // Only once the turn completes (or stops running) is the last assistant entry final.
   SessionEntry? finalAssistantEntry;
-  if (!hasActiveTools &&
-      !(turn.isLastTurn &&
-          live.isRunning &&
-          live.streamingText.trim().isNotEmpty)) {
+  if (!hasActiveTools && !(turn.isLastTurn && live.isRunning)) {
     for (int i = assistantEntries.length - 1; i >= 0; i--) {
       final asst = assistantEntries[i];
-      // Tool calls merged from an earlier text-less message ran before this
-      // text; only tool calls after the text make it intermediate.
       if (asst.toolCallsAfterText.isNotEmpty) {
         break;
       }
@@ -531,11 +544,380 @@ void _processTurn({
     }
   }
 
-  // Collect step items in chronological order
+  // An intermediate text step exists if an assistant message with text is not the final assistant entry,
+  // or if an assistant message has tool calls after its text.
+  bool hasCommittedIntermediateText = assistantEntries
+      .where((e) => e.id != finalAssistantEntry?.id)
+      .any((e) => e.text.trim().isNotEmpty);
+  if (!hasCommittedIntermediateText && assistantEntries.isNotEmpty) {
+    final last = assistantEntries.last;
+    if (last.text.trim().isNotEmpty &&
+        (last.toolCallsAfterText.isNotEmpty || hasActiveTools)) {
+      hasCommittedIntermediateText = true;
+    }
+  }
+
+  // Thinking encompasses explicit model thinking as well as intermediate reasoning answers.
+  final hasThinking =
+      hasCommittedThinking ||
+      hasStreamingThinking ||
+      hasCommittedIntermediateText;
+
+  final hasSubagents = turn.nonUserEntries.any(_isSubagentNotificationEntry);
+
+  final hasIntermediateSteps =
+      hasThinking ||
+      hasTools ||
+      hasCommittedIntermediateText ||
+      hasSubagents ||
+      (mode == StepGroupingMode.full && turn.isLastTurn && live.isRunning);
+
+  final bool shouldGroup;
+  switch (mode) {
+    case StepGroupingMode.off:
+      shouldGroup = false;
+      break;
+    case StepGroupingMode.withThinking:
+      shouldGroup = hasThinking;
+      break;
+    case StepGroupingMode.always:
+    case StepGroupingMode.full:
+      shouldGroup = hasIntermediateSteps;
+      break;
+  }
+
+  // If not grouped, render turn in classic entry order
+  if (!shouldGroup) {
+    if (turn.userEntry != null) {
+      output.add(EntryBlock(turn.userEntry!));
+    }
+    for (final entry in turn.nonUserEntries) {
+      // A turn answered straight away, with no steps at all, still ends in
+      // the agent's final answer: show it as one, in the same card and text
+      // colour as an answer after steps. Turns left ungrouped by the mode
+      // (tools without thinking under "with thinking") keep the classic
+      // layout, and an entry with tool calls or thinking is never stripped.
+      final isPlainFinalAnswer =
+          !hasIntermediateSteps &&
+          entry.id == finalAssistantEntry?.id &&
+          entry.toolCalls.isEmpty &&
+          (entry.thinking == null || entry.thinking!.trim().isEmpty);
+      output.add(
+        isPlainFinalAnswer
+            ? FinalTextBlock(entry: entry, turnId: turn.turnId)
+            : EntryBlock(entry),
+      );
+    }
+    if (turn.isLastTurn &&
+        live.isRunning &&
+        (live.hasContent || live.streamingText.isNotEmpty)) {
+      output.add(
+        LiveTailBlock(
+          turnId: turn.turnId,
+          text: live.streamingText,
+          live: live,
+        ),
+      );
+    }
+    return;
+  }
+
+  // GROUPED TURN
+  // 1. User entry (if any) is emitted first
+  if (turn.userEntry != null) {
+    output.add(EntryBlock(turn.userEntry!));
+  }
+
+  // Error and abort detection
+  final hasEntryError = turn.nonUserEntries.any(
+    (e) =>
+        e.metadata?['sendError'] != null ||
+        e.metadata?['stopReason'] == 'error' ||
+        (e.role == 'bashExecution' &&
+            e.metadata?['exitCode'] is int &&
+            e.metadata!['exitCode'] != 0),
+  );
+  final hasUserSendError = turn.userEntry?.metadata?['sendError'] != null;
+  final lastAssistant = assistantEntries.lastOrNull;
+  final hasTurnEndError =
+      lastAssistant?.metadata?['stopReason'] == 'error' ||
+      turn.nonUserEntries.any((e) => e.metadata?['sendError'] != null);
+  final hasEntryAbort = turn.nonUserEntries.any(
+    (e) =>
+        e.metadata?['stopReason'] == 'aborted' ||
+        e.metadata?['cancelled'] == true,
+  );
+  final isAborted = hasEntryAbort || (turn.isLastTurn && live.aborted);
+  final isTurnRunning = turn.isLastTurn && live.isRunning;
+  final isFailed =
+      !isAborted &&
+      (hasTurnEndError ||
+          hasUserSendError ||
+          (turn.isLastTurn && live.hasError));
+  final hasGeneralError =
+      hasEntryError ||
+      hasUserSendError ||
+      isAborted ||
+      (turn.isLastTurn && live.hasError);
+
+  if (mode != StepGroupingMode.full &&
+      showIntermediateAnswers &&
+      hasCommittedIntermediateText) {
+    // Multi-group flow: intermediate answers are emitted OUTSIDE the step groups,
+    // separated by compacted intermediate steps.
+    final currentSteps = <StepItem>[];
+    int groupIndex = 0;
+
+    void emitGroup({int? endTimestampMs, bool isTrailing = false}) {
+      if (currentSteps.isEmpty) return;
+
+      final groupId = groupIndex == 0
+          ? 'steps_${turn.turnId}'
+          : 'steps_${turn.turnId}_$groupIndex';
+      final stepCount = currentSteps
+          .where(
+            (s) =>
+                s is ThinkingStep ||
+                s is ToolStep ||
+                s is SubagentNotificationStep,
+          )
+          .length;
+      final latestStep = currentSteps.last;
+
+      Duration? elapsed;
+      final userTimestamp = turn.userEntry?.timestamp;
+      if (userTimestamp != null && userTimestamp > 0) {
+        int? endTimestamp = endTimestampMs;
+        if (endTimestamp == null) {
+          for (final s in currentSteps.reversed) {
+            if (s is ToolStep && s.startedAt != null && s.startedAt! > 0) {
+              final startedMs = normalizeTimestampToMs(s.startedAt!);
+              endTimestamp = startedMs + (s.durationMs ?? 0);
+              break;
+            } else if (s.timestamp != null && s.timestamp! > 0) {
+              endTimestamp = normalizeTimestampToMs(s.timestamp!);
+              break;
+            }
+          }
+        }
+        if (endTimestamp != null) {
+          final startMs = normalizeTimestampToMs(userTimestamp);
+          if (endTimestamp >= startMs) {
+            elapsed = Duration(milliseconds: endTimestamp - startMs);
+          }
+        }
+      }
+
+      final hasToolError = currentSteps.whereType<ToolStep>().any(
+        (s) => s.isError,
+      );
+      final hasSubagentError = currentSteps
+          .whereType<SubagentNotificationStep>()
+          .any(
+            (s) =>
+                s.entry.metadata?['failed'] == true ||
+                s.entry.metadata?['isError'] == true ||
+                s.entry.metadata?['status'] == 'failed' ||
+                s.entry.metadata?['status'] == 'error' ||
+                s.entry.metadata?['sendError'] != null,
+          );
+      final isRunningNow = isTurnRunning && isTrailing;
+      final groupHasError = hasToolError || hasSubagentError;
+
+      output.add(
+        StepsGroupBlock(
+          groupId: groupId,
+          turnId: turn.turnId,
+          steps: List<StepItem>.unmodifiable(currentSteps),
+          isRunning: isRunningNow,
+          hasError: groupHasError,
+          aborted: isAborted,
+          failed: isTrailing && isFailed,
+          stepCount: stepCount,
+          elapsed: elapsed,
+          latestStep: latestStep,
+        ),
+      );
+      groupIndex++;
+      currentSteps.clear();
+    }
+
+    for (final entry in turn.nonUserEntries) {
+      if (_isSubagentNotificationEntry(entry)) {
+        currentSteps.add(
+          SubagentNotificationStep(
+            id: '${entry.id}_subagent',
+            entry: entry,
+            timestamp: entry.timestamp,
+          ),
+        );
+        continue;
+      }
+
+      if (entry.role != 'assistant') {
+        emitGroup();
+        output.add(EntryBlock(entry));
+        continue;
+      }
+
+      // Assistant entry
+      if (entry.thinking != null && entry.thinking!.trim().isNotEmpty) {
+        currentSteps.add(
+          ThinkingStep(
+            id: '${entry.id}_thinking',
+            text: entry.thinking!.trim(),
+            isStreaming: false,
+            timestamp: entry.timestamp,
+          ),
+        );
+      }
+
+      final toolsBeforeText = entry.toolCallsBeforeText;
+      for (int t = 0; t < toolsBeforeText; t++) {
+        final tool = entry.toolCalls[t];
+        currentSteps.add(
+          ToolStep(
+            id: tool.toolCallId.isNotEmpty
+                ? tool.toolCallId
+                : '${entry.id}_tool_$t',
+            tool: tool,
+            timestamp: tool.startedAt ?? entry.timestamp,
+          ),
+        );
+      }
+
+      if (entry.id == finalAssistantEntry?.id) {
+        final endMs = entry.timestamp > 0
+            ? normalizeTimestampToMs(entry.timestamp)
+            : null;
+        emitGroup(endTimestampMs: endMs);
+        output.add(
+          FinalTextBlock(
+            entry: SessionEntry(
+              id: entry.id,
+              role: entry.role,
+              text: entry.text,
+              thinking: null,
+              toolCalls: const [],
+              timestamp: entry.timestamp,
+              metadata: entry.metadata,
+            ),
+            turnId: turn.turnId,
+          ),
+        );
+      } else if (entry.text.trim().isNotEmpty) {
+        final endMs = entry.timestamp > 0
+            ? normalizeTimestampToMs(entry.timestamp)
+            : null;
+        emitGroup(endTimestampMs: endMs);
+        output.add(
+          IntermediateTextBlock(
+            entry: SessionEntry(
+              id: entry.id,
+              role: entry.role,
+              text: entry.text,
+              thinking: null,
+              toolCalls: const [],
+              timestamp: entry.timestamp,
+              metadata: entry.metadata,
+            ),
+            turnId: turn.turnId,
+          ),
+        );
+      }
+
+      for (int t = toolsBeforeText; t < entry.toolCalls.length; t++) {
+        final tool = entry.toolCalls[t];
+        currentSteps.add(
+          ToolStep(
+            id: tool.toolCallId.isNotEmpty
+                ? tool.toolCallId
+                : '${entry.id}_tool_$t',
+            tool: tool,
+            timestamp: tool.startedAt ?? entry.timestamp,
+          ),
+        );
+      }
+    }
+
+    if (turn.isLastTurn && live.isRunning) {
+      if (live.streamingThinking.trim().isNotEmpty) {
+        currentSteps.add(
+          ThinkingStep(
+            id: 'live_${turn.turnId}_thinking',
+            text: live.streamingThinking.trim(),
+            isStreaming: true,
+          ),
+        );
+      }
+
+      if (hasActiveTools) {
+        final existingToolIds = {
+          for (final s in currentSteps.whereType<ToolStep>()) s.toolCallId,
+        };
+        for (int t = 0; t < live.activeToolCalls.length; t++) {
+          final tool = live.activeToolCalls[t];
+          if (tool.toolCallId.isNotEmpty &&
+              existingToolIds.contains(tool.toolCallId)) {
+            continue;
+          }
+          final stepId = tool.toolCallId.isNotEmpty
+              ? tool.toolCallId
+              : 'live_${turn.turnId}_tool_$t';
+          currentSteps.add(
+            ToolStep(id: stepId, tool: tool, timestamp: tool.startedAt),
+          );
+        }
+      }
+
+      final hasCandidateLiveText =
+          live.streamingText.trim().isNotEmpty && !hasActiveTools;
+
+      if (hasCandidateLiveText) {
+        emitGroup(isTrailing: true);
+        output.add(
+          LiveTailBlock(
+            turnId: turn.turnId,
+            text: live.streamingText,
+            live: live,
+          ),
+        );
+      } else {
+        final hadSteps = currentSteps.isNotEmpty;
+        emitGroup(isTrailing: true);
+        if (live.streamingText.isNotEmpty || !hadSteps) {
+          output.add(
+            LiveTailBlock(
+              turnId: turn.turnId,
+              text: live.streamingText,
+              live: live,
+            ),
+          );
+        }
+      }
+    } else {
+      emitGroup(isTrailing: true);
+    }
+    return;
+  }
+
+  // Legacy single-group flow (when showIntermediateAnswers is false)
   final steps = <StepItem>[];
 
-  for (final asst in assistantEntries) {
-    // 1. Thinking step
+  for (final entry in turn.nonUserEntries) {
+    if (_isSubagentNotificationEntry(entry)) {
+      steps.add(
+        SubagentNotificationStep(
+          id: '${entry.id}_subagent',
+          entry: entry,
+          timestamp: entry.timestamp,
+        ),
+      );
+      continue;
+    }
+    if (entry.role != 'assistant') continue;
+
+    final asst = entry;
     if (asst.thinking != null && asst.thinking!.trim().isNotEmpty) {
       steps.add(
         ThinkingStep(
@@ -547,21 +929,20 @@ void _processTurn({
       );
     }
 
-    // 2. Tool calls that ran before the text (merged from an earlier
-    // text-less message), kept in chronological order.
     final toolsBeforeText = asst.toolCallsBeforeText;
     for (int t = 0; t < toolsBeforeText; t++) {
       final tool = asst.toolCalls[t];
       steps.add(
         ToolStep(
-          id: tool.toolCallId.isNotEmpty ? tool.toolCallId : '${asst.id}_tool_$t',
+          id: tool.toolCallId.isNotEmpty
+              ? tool.toolCallId
+              : '${asst.id}_tool_$t',
           tool: tool,
           timestamp: tool.startedAt ?? asst.timestamp,
         ),
       );
     }
 
-    // 3. Text step (intermediate text)
     if (asst.id != finalAssistantEntry?.id && asst.text.trim().isNotEmpty) {
       steps.add(
         IntermediateTextStep(
@@ -573,7 +954,6 @@ void _processTurn({
       );
     }
 
-    // 4. Tool calls after the text
     for (int t = toolsBeforeText; t < asst.toolCalls.length; t++) {
       final tool = asst.toolCalls[t];
       final stepId = tool.toolCallId.isNotEmpty
@@ -589,7 +969,6 @@ void _processTurn({
     }
   }
 
-  // Live items for running active turn
   if (turn.isLastTurn && live.isRunning) {
     if (live.streamingThinking.trim().isNotEmpty) {
       steps.add(
@@ -602,7 +981,6 @@ void _processTurn({
     }
 
     if (live.streamingText.trim().isNotEmpty && hasActiveTools) {
-      // Live text was followed by active tool calls -> intermediate
       steps.add(
         IntermediateTextStep(
           id: 'live_${turn.turnId}_text',
@@ -617,28 +995,29 @@ void _processTurn({
       };
       for (int t = 0; t < live.activeToolCalls.length; t++) {
         final tool = live.activeToolCalls[t];
-        if (tool.toolCallId.isNotEmpty && existingToolIds.contains(tool.toolCallId)) {
+        if (tool.toolCallId.isNotEmpty &&
+            existingToolIds.contains(tool.toolCallId)) {
           continue;
         }
         final stepId = tool.toolCallId.isNotEmpty
             ? tool.toolCallId
             : 'live_${turn.turnId}_tool_$t';
-        steps.add(
-          ToolStep(
-            id: stepId,
-            tool: tool,
-            timestamp: tool.startedAt,
-          ),
-        );
+        steps.add(ToolStep(id: stepId, tool: tool, timestamp: tool.startedAt));
       }
     }
   }
 
-  final stepCount =
-      steps.where((s) => s is ThinkingStep || s is ToolStep).length;
+  final stepCount = steps
+      .where(
+        (s) =>
+            s is ThinkingStep ||
+            s is ToolStep ||
+            s is SubagentNotificationStep ||
+            s is IntermediateTextStep,
+      )
+      .length;
   final latestStep = steps.isNotEmpty ? steps.last : null;
 
-  // Compute elapsed time from turn start to last step or final entry
   Duration? elapsed;
   final userTimestamp = turn.userEntry?.timestamp;
   if (userTimestamp != null && userTimestamp > 0) {
@@ -671,89 +1050,68 @@ void _processTurn({
     }
   }
 
-  // Error and abort detection
   final hasToolError = steps.whereType<ToolStep>().any((s) => s.isError);
-  final hasEntryError = turn.nonUserEntries.any(
-    (e) =>
-        e.metadata?['sendError'] != null ||
-        e.metadata?['stopReason'] == 'error' ||
-        (e.role == 'bashExecution' &&
-            e.metadata?['exitCode'] is int &&
-            e.metadata!['exitCode'] != 0),
+  final hasSubagentError = steps.whereType<SubagentNotificationStep>().any(
+    (s) =>
+        s.entry.metadata?['failed'] == true ||
+        s.entry.metadata?['isError'] == true ||
+        s.entry.metadata?['status'] == 'failed' ||
+        s.entry.metadata?['status'] == 'error' ||
+        s.entry.metadata?['sendError'] != null,
   );
-  final hasUserSendError = turn.userEntry?.metadata?['sendError'] != null;
-  // Pi retries failed requests, so only the last assistant message decides
-  // whether the turn ended in error.
-  final lastAssistant = assistantEntries.lastOrNull;
-  final hasTurnEndError =
-      lastAssistant?.metadata?['stopReason'] == 'error' ||
-      turn.nonUserEntries.any((e) => e.metadata?['sendError'] != null);
-  final hasEntryAbort = turn.nonUserEntries.any(
-    (e) =>
-        e.metadata?['stopReason'] == 'aborted' ||
-        e.metadata?['cancelled'] == true,
-  );
-
-  final isAborted = hasEntryAbort || (turn.isLastTurn && live.aborted);
-  // The turn failed only if the turn itself ended in error. Failed tool calls
-  // (e.g. a non-zero bash exit the agent then worked around) do not fail a
-  // turn that reached its final answer; they only flag it with an error icon.
-  // A settled turn that has no final answer and stopped right on a failed
-  // tool call also ended in failure.
-  final isTurnRunning = turn.isLastTurn && live.isRunning;
   final lastStep = steps.isNotEmpty ? steps.last : null;
-  final endedOnFailedTool = !isTurnRunning &&
+  final endedOnFailedTool =
+      !isTurnRunning &&
       finalAssistantEntry == null &&
       lastStep is ToolStep &&
       lastStep.isError;
-  final isFailed = !isAborted &&
+  final legacyFailed =
+      !isAborted &&
       (hasTurnEndError ||
           hasUserSendError ||
           endedOnFailedTool ||
           (turn.isLastTurn && live.hasError));
-  final hasError = hasToolError ||
-      hasEntryError ||
-      hasUserSendError ||
-      isAborted ||
-      (turn.isLastTurn && live.hasError);
+  final legacyError = hasToolError || hasSubagentError || hasGeneralError;
 
   final stepsGroup = StepsGroupBlock(
     groupId: 'steps_${turn.turnId}',
     turnId: turn.turnId,
     steps: steps,
     isRunning: turn.isLastTurn && live.isRunning,
-    hasError: hasError,
+    hasError: legacyError,
     aborted: isAborted,
-    failed: isFailed,
+    failed: legacyFailed,
     stepCount: stepCount,
     elapsed: elapsed,
     latestStep: latestStep,
   );
 
-  // Position StepsGroupBlock and milestones
-  // Ordering rule: milestones before the first step appear before the group;
-  // group is positioned where the first step appears; mid-turn milestones appear
-  // after the group; final text appears after mid-turn milestones.
-  final firstStepIdx = turn.nonUserEntries.indexWhere((e) => e.role == 'assistant');
+  final firstStepIdx = turn.nonUserEntries.indexWhere(
+    (e) => e.role == 'assistant' || _isSubagentNotificationEntry(e),
+  );
 
   if (firstStepIdx == -1) {
-    // All steps are live / no assistant entries yet
-    output.add(stepsGroup);
+    if (steps.isNotEmpty || (turn.isLastTurn && live.isRunning)) {
+      output.add(stepsGroup);
+    }
     for (final m in turn.nonUserEntries) {
-      output.add(EntryBlock(m));
+      if (!_isSubagentNotificationEntry(m)) {
+        output.add(EntryBlock(m));
+      }
     }
   } else {
-    // Milestones prior to the first step
     for (int i = 0; i < firstStepIdx; i++) {
       output.add(EntryBlock(turn.nonUserEntries[i]));
     }
+    if (steps.isNotEmpty || (turn.isLastTurn && live.isRunning)) {
+      output.add(stepsGroup);
+    }
 
-    // Steps group placed at first step position
-    output.add(stepsGroup);
-
-    // Remaining entries: milestones and final text
     for (int i = firstStepIdx; i < turn.nonUserEntries.length; i++) {
       final entry = turn.nonUserEntries[i];
+      if (_isSubagentNotificationEntry(entry)) {
+        continue;
+      }
       if (entry.role != 'assistant') {
         output.add(EntryBlock(entry));
       } else if (entry.id == finalAssistantEntry?.id) {
@@ -775,7 +1133,6 @@ void _processTurn({
     }
   }
 
-  // Trailing streaming candidate final text
   if (turn.isLastTurn && live.isRunning) {
     final hasCandidateLiveText =
         live.streamingText.trim().isNotEmpty && !hasActiveTools;
@@ -788,7 +1145,6 @@ void _processTurn({
         ),
       );
     } else if (steps.isEmpty) {
-      // Group was empty but live stream is active
       output.add(
         LiveTailBlock(
           turnId: turn.turnId,
@@ -819,6 +1175,26 @@ void assertTranscriptCoverage({
 }) {
   final cleanInput = inputEntries.where((e) => !e.isJunkOrInternal).toList();
   for (final entry in cleanInput) {
+    if (_isSubagentNotificationEntry(entry)) {
+      final matchingEntryBlocks = blocks
+          .whereType<EntryBlock>()
+          .where((b) => b.entry.id == entry.id)
+          .toList();
+      final matchingSteps = blocks
+          .whereType<StepsGroupBlock>()
+          .expand((g) => g.steps)
+          .whereType<SubagentNotificationStep>()
+          .where((s) => s.entry.id == entry.id)
+          .toList();
+      final total = matchingEntryBlocks.length + matchingSteps.length;
+      if (total != 1) {
+        throw AssertionError(
+          'Subagent notification entry ${entry.id} must appear exactly once as EntryBlock or SubagentNotificationStep, found $total',
+        );
+      }
+      continue;
+    }
+
     if (entry.role != 'assistant') {
       final matchingEntryBlocks = blocks
           .whereType<EntryBlock>()
@@ -854,7 +1230,13 @@ void assertTranscriptCoverage({
           .whereType<FinalTextBlock>()
           .where((f) => f.entry.id == entry.id)
           .toList();
-      if (groupedSteps.isNotEmpty || finalBlocks.isNotEmpty) {
+      final intermediateBlocks = blocks
+          .whereType<IntermediateTextBlock>()
+          .where((f) => f.entry.id == entry.id)
+          .toList();
+      if (groupedSteps.isNotEmpty ||
+          finalBlocks.isNotEmpty ||
+          intermediateBlocks.isNotEmpty) {
         throw AssertionError(
           'Assistant entry ${entry.id} appears as EntryBlock AND in grouped steps/final text',
         );
@@ -863,9 +1245,14 @@ void assertTranscriptCoverage({
     }
 
     // Grouped assistant entry: verify thinking, tool calls, and text
-    final allSteps =
-        blocks.whereType<StepsGroupBlock>().expand((g) => g.steps).toList();
+    final allSteps = blocks
+        .whereType<StepsGroupBlock>()
+        .expand((g) => g.steps)
+        .toList();
     final allFinalBlocks = blocks.whereType<FinalTextBlock>().toList();
+    final allIntermediateBlocks = blocks
+        .whereType<IntermediateTextBlock>()
+        .toList();
 
     // 1. Thinking coverage
     if (entry.thinking != null && entry.thinking!.trim().isNotEmpty) {
@@ -879,17 +1266,16 @@ void assertTranscriptCoverage({
         );
       }
       if (matchingThinking.first.text != entry.thinking!.trim()) {
-        throw AssertionError(
-          'Thinking text mismatch for entry ${entry.id}',
-        );
+        throw AssertionError('Thinking text mismatch for entry ${entry.id}');
       }
     }
 
     // 2. Tool calls coverage
     for (int t = 0; t < entry.toolCalls.length; t++) {
       final tool = entry.toolCalls[t];
-      final expectedId =
-          tool.toolCallId.isNotEmpty ? tool.toolCallId : '${entry.id}_tool_$t';
+      final expectedId = tool.toolCallId.isNotEmpty
+          ? tool.toolCallId
+          : '${entry.id}_tool_$t';
       final matchingTools = allSteps
           .whereType<ToolStep>()
           .where((s) => s.id == expectedId)
@@ -907,14 +1293,20 @@ void assertTranscriptCoverage({
           .whereType<IntermediateTextStep>()
           .where((s) => s.id == '${entry.id}_text')
           .toList();
+      final matchingIntermediateBlock = allIntermediateBlocks
+          .where((b) => b.entry.id == entry.id)
+          .toList();
       final matchingFinal = allFinalBlocks
           .where((f) => f.entry.id == entry.id)
           .toList();
 
-      final totalMatches = matchingIntermediate.length + matchingFinal.length;
+      final totalMatches =
+          matchingIntermediate.length +
+          matchingIntermediateBlock.length +
+          matchingFinal.length;
       if (totalMatches != 1) {
         throw AssertionError(
-          'Text of entry ${entry.id} must appear exactly once as IntermediateTextStep or FinalTextBlock, found $totalMatches',
+          'Text of entry ${entry.id} must appear exactly once as IntermediateTextStep, IntermediateTextBlock, or FinalTextBlock, found $totalMatches',
         );
       }
       if (matchingIntermediate.isNotEmpty &&
@@ -923,10 +1315,14 @@ void assertTranscriptCoverage({
           'Intermediate text mismatch for entry ${entry.id}',
         );
       }
-      if (matchingFinal.isNotEmpty && matchingFinal.first.text != entry.text) {
+      if (matchingIntermediateBlock.isNotEmpty &&
+          matchingIntermediateBlock.first.text != entry.text) {
         throw AssertionError(
-          'Final text mismatch for entry ${entry.id}',
+          'Intermediate block text mismatch for entry ${entry.id}',
         );
+      }
+      if (matchingFinal.isNotEmpty && matchingFinal.first.text != entry.text) {
+        throw AssertionError('Final text mismatch for entry ${entry.id}');
       }
     }
   }

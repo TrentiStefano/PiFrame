@@ -25,6 +25,45 @@ class _MockPcpClient extends PcpClient {
 }
 
 void main() {
+  testWidgets('Quick Launch labels use all sessions, not only the latest five', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1280, 900);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          pcpClientProvider.overrideWithValue(null),
+          connectionStateProvider.overrideWith(
+            (ref) => Stream.value(DaemonConnectionState.connected),
+          ),
+          sessionListProvider.overrideWith(
+            (ref) async => [
+              {'id': 'one', 'name': 'PiFrame', 'cwd': '/v1/PiFrame', 'updatedAt': 100},
+              for (var i = 0; i < 4; i++)
+                {'id': 'other-$i', 'name': 'Other $i', 'updatedAt': 90 - i},
+              {'id': 'two', 'name': 'PiFrame', 'cwd': '/v2/PiFrame', 'updatedAt': 1},
+            ],
+          ),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.dark().copyWith(
+            extensions: const [FrameTokens.dark],
+          ),
+          home: const AppShell(),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    // Once as the repository group header, once as the disambiguated session name.
+    expect(find.text('v1 / PiFrame'), findsNWidgets(2));
+    // The second repository is labelled from all sessions too, and is listed now.
+    expect(find.text('v2 / PiFrame'), findsNWidgets(2));
+    expect(find.text('PiFrame'), findsNothing);
+  });
+
   testWidgets('Landing page displays top 5 recent active sessions and switches session on tap', (
     tester,
   ) async {
@@ -105,7 +144,9 @@ void main() {
 
     // Verify recent sessions title is present
     expect(find.text('Sessioni recenti'), findsOneWidget);
-    expect(find.text('Quick Launch'), findsOneWidget);
+    // The welcome surface is a resume list now; it no longer has a Quick Launch heading.
+    expect(find.text('Avvio rapido'), findsNothing);
+    expect(find.text('Quick Launch'), findsNothing);
 
     // Verify the top 5 sessions are rendered
     expect(find.text('Refactor Core Engine'), findsOneWidget);
@@ -117,8 +158,8 @@ void main() {
     // Subagent/worker must be excluded
     expect(find.text('worker#1 subagent'), findsNothing);
 
-    // 6th session must be excluded (only latest 5)
-    expect(find.text('Older Session'), findsNothing);
+    // The welcome lists up to eight recent sessions, so the sixth is shown too
+    expect(find.text('Older Session'), findsOneWidget);
 
     // Tap on session-2 tile to switch to it
     final session2Tile = find.byKey(const ValueKey('quick-launch-session-session-2'));

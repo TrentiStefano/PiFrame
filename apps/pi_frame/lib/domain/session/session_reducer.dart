@@ -492,15 +492,12 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
         // An empty assistant message can still carry how the turn ended
         // (e.g. a provider error). Keep that on the previous assistant entry.
         final terminal = role == 'assistant' ? terminalStopMetadata(msg) : null;
-        if (terminal != null &&
-            current.entries.isNotEmpty &&
-            current.entries.last.role == 'assistant') {
-          final last = current.entries.last;
+        final stopped = terminal == null
+            ? null
+            : applyTerminalStop(current.entries, terminal);
+        if (stopped != null) {
           return current.copyWith(
-            entries: List<SessionEntry>.from(current.entries)
-              ..[current.entries.length - 1] = last.copyWith(
-                metadata: {...?last.metadata, ...terminal},
-              ),
+            entries: stopped,
             streamingTextBlocks: const {},
             lastAppliedSeq: nextSeq,
           );

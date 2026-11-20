@@ -167,7 +167,7 @@ void main() {
       // Check that editor has received generated instruction content
       final editorFinder = find.byKey(const ValueKey('instruction-editor-AGENTS.md'));
       expect(editorFinder, findsOneWidget);
-      expect(find.textContaining('Istruzioni per gli Agenti'), findsOneWidget);
+      expect(find.textContaining('Istruzioni per gli agenti'), findsOneWidget);
       expect(find.textContaining('flutter test'), findsOneWidget);
 
       // Save

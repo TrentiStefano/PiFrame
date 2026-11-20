@@ -1,0 +1,267 @@
+{
+  "name": "edit-files",
+  "description": "Writes a source file and returns a parsed unified diff for review.",
+  "events": [
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_start"
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "turn_start"
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "user",
+          "content": "{{prompt}}",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "user",
+          "content": "{{prompt}}",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "assistant",
+          "content": []
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "toolCall",
+              "id": "write_feature",
+              "name": "write",
+              "arguments": {
+                "path": "src/feature.dart",
+                "content": "class Feature {}\n"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "tool_execution_start",
+        "toolCallId": "write_feature",
+        "toolName": "write",
+        "args": {
+          "path": "src/feature.dart",
+          "content": "class Feature {}\n"
+        }
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "tool_execution_update",
+        "toolCallId": "write_feature",
+        "toolName": "write",
+        "args": {
+          "path": "src/feature.dart",
+          "content": "class Feature {}\n"
+        },
+        "partialResult": "Wrote src/feature.dart."
+      }
+    },
+    {
+      "event": {
+        "type": "tool_execution_end",
+        "toolCallId": "write_feature",
+        "toolName": "write",
+        "result": "Wrote src/feature.dart.",
+        "isError": false
+      }
+    },
+    {
+      "writeFile": {
+        "path": "src/feature.dart",
+        "content": "class Feature {}\n"
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "assistant",
+          "content": []
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "toolCall",
+              "id": "edit_notes",
+              "name": "edit",
+              "arguments": {
+                "path": "notes.md",
+                "oldText": "Status: draft",
+                "newText": "Status: reviewed"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "tool_execution_start",
+        "toolCallId": "edit_notes",
+        "toolName": "edit",
+        "args": {
+          "path": "notes.md",
+          "oldText": "Status: draft",
+          "newText": "Status: reviewed"
+        }
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "tool_execution_update",
+        "toolCallId": "edit_notes",
+        "toolName": "edit",
+        "args": {
+          "path": "notes.md",
+          "oldText": "Status: draft",
+          "newText": "Status: reviewed"
+        },
+        "partialResult": "{\"summary\":\"Updated notes.md\",\"details\":{\"patch\":\"--- a/note"
+      }
+    },
+    {
+      "event": {
+        "type": "tool_execution_end",
+        "toolCallId": "edit_notes",
+        "toolName": "edit",
+        "result": "{\"summary\":\"Updated notes.md\",\"details\":{\"patch\":\"--- a/notes.md\\n+++ b/notes.md\\n@@ -1,2 +1,3 @@\\n # Notes\\n-Status: draft\\n+Status: reviewed\\n+Feature: offline timeline preview\\n\"}}",
+        "isError": false
+      }
+    },
+    {
+      "writeFile": {
+        "path": "notes.md",
+        "content": "# Notes\nStatus: reviewed\nFeature: offline timeline preview\n"
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "assistant",
+          "content": []
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 80,
+          "output": 8,
+          "total": 88
+        },
+        "assistantMessageEvent": {
+          "type": "text_start",
+          "contentIndex": 0
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 80,
+          "output": 24,
+          "total": 104
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": "Added `src/feature.dart` and updated `notes.md`. Review the changes before merging."
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "Added `src/feature.dart` and updated `notes.md`. Review the changes before merging."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "turn_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "Added a small feature and updated the notes."
+            }
+          ]
+        },
+        "toolResults": []
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_end",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "text",
+                "text": "Added a small feature and updated the notes."
+              }
+            ]
+          }
+        ],
+        "willRetry": false
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_settled"
+      }
+    }
+  ]
+}

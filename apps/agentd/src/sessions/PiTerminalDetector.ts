@@ -141,19 +141,43 @@ async function macPiProcesses(): Promise<PiProcessInfo[] | null> {
   }
 }
 
+let processScan: Promise<PiProcessInfo[] | null> | null = null;
+let lastScan: { at: number; result: PiProcessInfo[] | null } | null = null;
+const SCAN_REUSE_MS = 2000;
+
+/**
+ * Checks that run while a scan is in flight share it, and a scan finished less than SCAN_REUSE_MS ago is
+ * reused. On Windows each scan starts PowerShell and compiles a helper, and opening one session checks
+ * ownership up to three times in a row (open, attach, worker start).
+ * shortcut: a terminal started on the same session within SCAN_REUSE_MS of a check is missed by that check.
+ */
+export function forgetLastPiProcessScanForTesting(): void {
+  lastScan = null;
+}
+
+function scanPiProcesses(): Promise<PiProcessInfo[] | null> {
+  if (processScan) return processScan;
+  if (lastScan && Date.now() - lastScan.at < SCAN_REUSE_MS) return Promise.resolve(lastScan.result);
+  const result = process.platform === 'win32'
+    ? windowsPiProcesses()
+    : process.platform === 'darwin'
+      ? macPiProcesses()
+      : process.platform === 'linux'
+        ? linuxPiProcesses()
+        : Promise.resolve(null);
+  processScan = result
+    .then((value) => { lastScan = { at: Date.now(), result: value }; return value; })
+    .finally(() => { processScan = null; });
+  return processScan;
+}
+
 /** True means this session is explicitly open. Null means Pi is open in this project, but session identity is unknown. */
 export async function hasInteractivePiInCwd(
   cwd: string,
   sessionFile?: string | null,
   sessionId?: string,
 ): Promise<boolean | null> {
-  const processes = process.platform === 'win32'
-    ? await windowsPiProcesses()
-    : process.platform === 'darwin'
-      ? await macPiProcesses()
-      : process.platform === 'linux'
-        ? await linuxPiProcesses()
-        : null;
+  const processes = await scanPiProcesses();
   if (processes === null) return null;
   let ambiguous = false;
   for (const process of processes) {

@@ -7,6 +7,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
 import '../../domain/update/semver.dart';
+import '../daemon/daemon_providers.dart';
+import '../platform/platform_environment.dart';
+
+bool hasAvailablePiPackageUpdate(Map<String, dynamic> package) {
+  final source = package['source'];
+  if (source is! String ||
+      source.trim().isEmpty ||
+      package['pinnedVersion'] != null ||
+      package['updateError'] != null) {
+    return false;
+  }
+  final current = SemVer.tryParse(package['version']?.toString());
+  final latest = SemVer.tryParse(package['latestVersion']?.toString());
+  return current != null && latest != null && current < latest;
+}
 
 class PackageUpdateInfo {
   final String name;
@@ -94,140 +109,199 @@ abstract class StartupUpdateChecker {
 
 class DefaultStartupUpdateChecker implements StartupUpdateChecker {
   final http.Client _httpClient;
+  final Future<List<Map<String, dynamic>>> Function() listPackages;
 
-  DefaultStartupUpdateChecker({http.Client? httpClient})
-      : _httpClient = httpClient ?? http.Client();
+  DefaultStartupUpdateChecker({
+    required this.listPackages,
+    http.Client? httpClient,
+  }) : _httpClient = httpClient ?? http.Client();
+
+  void dispose() => _httpClient.close();
 
   @override
   Future<String?> checkCurrentPiVersion() async {
     if (kIsWeb) return null;
-    try {
-      final result = await Process.run(
-        'pi',
-        ['--version'],
-        runInShell: true,
-      ).timeout(const Duration(seconds: 4));
-      if (result.exitCode == 0) {
-        final out = result.stdout.toString().trim();
-        if (out.isNotEmpty) return out;
-      }
-    } catch (_) {}
-    return null;
+    final executable = PlatformEnvironment.findExecutable('pi');
+    if (executable == null) return null;
+    final result = await Process.run(
+      executable,
+      ['--version'],
+      environment: PlatformEnvironment.environment,
+      runInShell: Platform.isWindows,
+    ).timeout(const Duration(seconds: 4));
+    if (result.exitCode != 0) {
+      throw StateError('Pi version check failed: ${result.stderr}');
+    }
+    final version = result.stdout.toString().trim();
+    if (SemVer.tryParse(version) == null) {
+      throw FormatException('Invalid Pi version: $version');
+    }
+    return version;
   }
 
   @override
   Future<String?> checkLatestPiVersion() async {
-    try {
-      final res = await _httpClient.get(
-        Uri.parse(
-          'https://registry.npmjs.org/@earendil-works%2Fpi-coding-agent/latest',
-        ),
-      ).timeout(const Duration(seconds: 4));
-
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body) as Map<String, dynamic>;
-        return data['version']?.toString();
-      }
-    } catch (_) {}
-    return null;
+    final res = await _httpClient
+        .get(
+          Uri.parse(
+            'https://registry.npmjs.org/@earendil-works%2Fpi-coding-agent/latest',
+          ),
+        )
+        .timeout(const Duration(seconds: 4));
+    if (res.statusCode != 200) {
+      throw StateError('Pi registry check failed: HTTP ${res.statusCode}');
+    }
+    final data = jsonDecode(res.body) as Map<String, dynamic>;
+    final version = data['version']?.toString();
+    if (SemVer.tryParse(version) == null) {
+      throw FormatException('Invalid Pi registry version: $version');
+    }
+    return version;
   }
 
   @override
   Future<List<PackageUpdateInfo>> checkOutdatedPackages() async {
     if (kIsWeb) return const [];
-    try {
-      final env = Platform.environment;
-      final home = Platform.isWindows
-          ? (env['USERPROFILE'] ?? 'C:\\Users\\Default')
-          : (env['HOME'] ?? '/tmp');
-      final npmDir = Directory('$home/.pi/agent/npm');
-      if (!npmDir.existsSync()) {
-        return const [];
+    final packages = await listPackages();
+    final outdated = <PackageUpdateInfo>[];
+    for (final package in packages) {
+      final source = package['source']?.toString() ?? '';
+      if (!source.startsWith('npm:') || package['pinnedVersion'] != null) {
+        continue;
       }
-
-      // npm outdated exits with 1 when outdated packages are found.
-      final result = await Process.run(
-        'npm',
-        ['outdated', '--json'],
-        runInShell: true,
-        workingDirectory: npmDir.path,
-      ).timeout(const Duration(seconds: 8));
-
-      final stdout = result.stdout.toString().trim();
-      if (stdout.isEmpty || !stdout.startsWith('{')) {
-        return const [];
+      if (package['updateError'] != null) {
+        debugPrint('Package update unavailable: ${package['updateError']}');
+        continue;
       }
-
-      final json = jsonDecode(stdout) as Map<String, dynamic>;
-      final list = <PackageUpdateInfo>[];
-      for (final entry in json.entries) {
-        if (entry.value is Map<String, dynamic>) {
-          final pkgMap = entry.value as Map<String, dynamic>;
-          final current = pkgMap['current']?.toString() ?? '';
-          final latest = pkgMap['latest']?.toString() ?? '';
-          if (current.isNotEmpty && latest.isNotEmpty && current != latest) {
-            list.add(
-              PackageUpdateInfo(
-                name: entry.key,
-                currentVersion: current,
-                latestVersion: latest,
-              ),
-            );
-          }
-        }
+      final current = package['version']?.toString();
+      final latest = package['latestVersion']?.toString();
+      final currentVersion = SemVer.tryParse(current);
+      final latestVersion = SemVer.tryParse(latest);
+      if (currentVersion == null || latestVersion == null) {
+        throw StateError(
+          'Cannot verify versions for $source. '
+          'Restart the daemon after updating PiFrame.',
+        );
       }
-      return list;
-    } catch (_) {
-      return const [];
+      if (hasAvailablePiPackageUpdate(package)) {
+        outdated.add(
+          PackageUpdateInfo(
+            name: package['name']?.toString() ?? source,
+            currentVersion: current!,
+            latestVersion: latest!,
+          ),
+        );
+      }
     }
+    return outdated;
   }
 }
 
 final startupUpdateCheckerProvider = Provider<StartupUpdateChecker>((ref) {
-  return DefaultStartupUpdateChecker();
+  final checker = DefaultStartupUpdateChecker(
+    listPackages: () async {
+      final client = ref.read(pcpClientProvider);
+      if (client == null) throw StateError('Daemon disconnected.');
+      final result = await client.listPiPackages(checkUpdates: true);
+      final data = result['data'] as Map<String, dynamic>? ?? result;
+      final packages = data['packages'];
+      if (packages is! List) {
+        throw const FormatException('Invalid Pi package list.');
+      }
+      return packages.cast<Map<String, dynamic>>();
+    },
+  );
+  ref.onDispose(checker.dispose);
+  return checker;
 });
 
 class StartupUpdatesNotifier extends StateNotifier<StartupUpdateState> {
   final Ref _ref;
+  Future<void>? _pendingCheck;
 
   StartupUpdatesNotifier(this._ref) : super(const StartupUpdateState());
 
   StartupUpdateChecker get _checker => _ref.read(startupUpdateCheckerProvider);
 
-  Future<void> checkUpdates() async {
-    if (state.isChecking) return;
+  Future<void> checkUpdates() {
+    if (!mounted) return Future.value();
+    if (_pendingCheck != null) return _pendingCheck!;
+    final check = _checkUpdates();
+    _pendingCheck = check;
+    return check.whenComplete(() {
+      if (identical(_pendingCheck, check)) _pendingCheck = null;
+    });
+  }
+
+  Future<void> _checkUpdates() async {
     state = state.copyWith(isChecking: true, error: null);
-
+    String? currentPi;
+    String? latestPi;
+    var outdatedPackages = state.outdatedPackages;
+    var piHasUpdate = state.piHasUpdate;
+    final errors = <String>[];
     try {
-      final currentPi = await _checker.checkCurrentPiVersion();
-      final latestPi = await _checker.checkLatestPiVersion();
-
-      bool piHasUpdate = false;
-      if (currentPi != null && latestPi != null) {
-        final curSemVer = SemVer.tryParse(currentPi);
-        final latSemVer = SemVer.tryParse(latestPi);
-        if (curSemVer != null && latSemVer != null) {
-          piHasUpdate = curSemVer.compareTo(latSemVer) < 0;
-        } else {
-          piHasUpdate = currentPi.trim() != latestPi.trim();
-        }
-      }
-
-      final outdatedPkgs = await _checker.checkOutdatedPackages();
-
-      state = state.copyWith(
-        isChecking: false,
-        hasChecked: true,
-        piHasUpdate: piHasUpdate,
-        currentPiVersion: currentPi,
-        latestPiVersion: latestPi,
-        outdatedPackages: outdatedPkgs,
-      );
+      currentPi = await _checker.checkCurrentPiVersion();
+      latestPi = await _checker.checkLatestPiVersion();
+      piHasUpdate = _hasNewerVersion(currentPi, latestPi);
     } catch (e) {
+      errors.add(e.toString());
+    }
+    try {
+      outdatedPackages = await _checker.checkOutdatedPackages();
+    } catch (e) {
+      errors.add(e.toString());
+    }
+    if (!mounted) return;
+    final error = errors.isEmpty ? null : errors.join('\n');
+    if (error != null) debugPrint('Startup update check failed: $error');
+    state = StartupUpdateState(
+      hasChecked: true,
+      piHasUpdate: piHasUpdate,
+      currentPiVersion: currentPi,
+      latestPiVersion: latestPi,
+      outdatedPackages: outdatedPackages,
+      isDismissed: state.isDismissed,
+      error: error,
+    );
+  }
+
+  bool _hasNewerVersion(String? current, String? latest) {
+    if (current == null || latest == null) return false;
+    return SemVer.parse(current) < SemVer.parse(latest);
+  }
+
+  Future<void> refreshPackages() {
+    if (!mounted) return Future.value();
+    final refresh = (_pendingCheck ?? Future<void>.value()).then<void>((
+      _,
+    ) async {
+      if (!mounted) return;
+      await _refreshPackages();
+    });
+    _pendingCheck = refresh;
+    return refresh.whenComplete(() {
+      if (identical(_pendingCheck, refresh)) _pendingCheck = null;
+    });
+  }
+
+  Future<void> _refreshPackages() async {
+    state = state.copyWith(isChecking: true);
+    try {
+      final packages = await _checker.checkOutdatedPackages();
+      if (!mounted) return;
       state = state.copyWith(
         isChecking: false,
         hasChecked: true,
-        error: e.toString(),
+        outdatedPackages: packages,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      debugPrint('Package update check failed: $error');
+      state = state.copyWith(
+        isChecking: false,
+        hasChecked: true,
+        error: error.toString(),
       );
     }
   }
@@ -239,5 +313,5 @@ class StartupUpdatesNotifier extends StateNotifier<StartupUpdateState> {
 
 final startupUpdatesProvider =
     StateNotifierProvider<StartupUpdatesNotifier, StartupUpdateState>((ref) {
-  return StartupUpdatesNotifier(ref);
-});
+      return StartupUpdatesNotifier(ref);
+    });

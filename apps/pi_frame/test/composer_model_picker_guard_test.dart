@@ -145,7 +145,7 @@ void main() {
     final menuItems = find.byType(PopupMenuItem<Map<String, dynamic>>);
     expect(menuItems, findsNWidgets(2));
     expect(
-      find.descendant(of: menuItems, matching: find.byIcon(Icons.check)),
+      find.descendant(of: menuItems, matching: find.byIcon(Icons.check_outlined)),
       findsOneWidget,
     );
 

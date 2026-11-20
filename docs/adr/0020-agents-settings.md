@@ -74,3 +74,7 @@ Implement subagent discovery, validation, atomic locking, and context enforcemen
 - **Direct Import of Pi's `SettingsManager`:** Rejected. `SettingsManager` is not part of Pi's stable public SDK and importing internal dist modules couples PiFrame tightly to internal release packaging, transpilation formats, and path layouts.
 - **Unvalidated Raw Edits:** Rejected. Allowing clients to write arbitrary fields to `settings.json` risks breaking Pi startup, setting unsupported model IDs, or stripping required options.
 - **Inventing Non-Native Context Window Fields in `settings.json`:** Rejected. Pi and `pi-subagents` ignore unrecognized keys in `agentOverrides`. Using the official extension seam (`subagentOnlyExtensions`) guarantees runtime enforcement through Pi's native model-switching API.
+
+## Update (2026-11-18): tintinweb per-agent overrides
+
+`@tintinweb/pi-subagents` reads a subagent's `model` / `thinking` only from the agent file's frontmatter and ignores `subagents.agentOverrides` and `subagentOnlyExtensions`. With tintinweb installed, PiFrame therefore writes Model/Thinking overrides of **user-scope** agents into that agent file's `model:` / `thinking:` line (only that line changes; `<file>.piframe-backup` is made; the replaced line is recorded in `~/.piframe/subagent-frontmatter-originals.json` so reset restores it exactly). `settings.json` still gets the override when nicobailon `pi-subagents` is installed too. Per-agent context limits are reported as unsupported (`context.unsupportedReason`) when only tintinweb is installed.

@@ -1,0 +1,372 @@
+{
+  "name": "subagents",
+  "description": "Two background agents show progress, then agent and workflow notifications complete.",
+  "events": [
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_start"
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "turn_start"
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "user",
+          "content": "{{prompt}}",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "user",
+          "content": "{{prompt}}",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "assistant",
+          "content": []
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "toolCall",
+              "id": "agent_review",
+              "name": "agent",
+              "arguments": {
+                "subagent_type": "reviewer",
+                "description": "Review the Dart changes for correctness."
+              }
+            },
+            {
+              "type": "toolCall",
+              "id": "agent_tests",
+              "name": "agent",
+              "arguments": {
+                "subagent_type": "worker",
+                "description": "Check the offline test coverage."
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "tool_execution_start",
+        "toolCallId": "agent_review",
+        "toolName": "agent",
+        "args": {
+          "subagent_type": "reviewer",
+          "description": "Review the Dart changes for correctness."
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "tool_execution_start",
+        "toolCallId": "agent_tests",
+        "toolName": "agent",
+        "args": {
+          "subagent_type": "worker",
+          "description": "Check the offline test coverage."
+        }
+      }
+    },
+    {
+      "delayMs": 1000,
+      "event": {
+        "type": "tool_execution_update",
+        "toolCallId": "agent_review",
+        "toolName": "agent",
+        "args": {
+          "subagent_type": "reviewer",
+          "description": "Review the Dart changes for correctness."
+        },
+        "partialResult": "Agent started in background.\nProgress: 25% — reviewing files and tests."
+      }
+    },
+    {
+      "delayMs": 1000,
+      "event": {
+        "type": "tool_execution_update",
+        "toolCallId": "agent_tests",
+        "toolName": "agent",
+        "args": {
+          "subagent_type": "worker",
+          "description": "Check the offline test coverage."
+        },
+        "partialResult": "Agent started in background.\nProgress: 25% — reviewing files and tests."
+      }
+    },
+    {
+      "delayMs": 1000,
+      "event": {
+        "type": "tool_execution_update",
+        "toolCallId": "agent_review",
+        "toolName": "agent",
+        "args": {
+          "subagent_type": "reviewer",
+          "description": "Review the Dart changes for correctness."
+        },
+        "partialResult": "Agent started in background.\nProgress: 50% — reviewing files and tests."
+      }
+    },
+    {
+      "delayMs": 1000,
+      "event": {
+        "type": "tool_execution_update",
+        "toolCallId": "agent_tests",
+        "toolName": "agent",
+        "args": {
+          "subagent_type": "worker",
+          "description": "Check the offline test coverage."
+        },
+        "partialResult": "Agent started in background.\nProgress: 50% — reviewing files and tests."
+      }
+    },
+    {
+      "delayMs": 1000,
+      "event": {
+        "type": "tool_execution_update",
+        "toolCallId": "agent_review",
+        "toolName": "agent",
+        "args": {
+          "subagent_type": "reviewer",
+          "description": "Review the Dart changes for correctness."
+        },
+        "partialResult": "Agent started in background.\nProgress: 75% — reviewing files and tests."
+      }
+    },
+    {
+      "delayMs": 1000,
+      "event": {
+        "type": "tool_execution_update",
+        "toolCallId": "agent_tests",
+        "toolName": "agent",
+        "args": {
+          "subagent_type": "worker",
+          "description": "Check the offline test coverage."
+        },
+        "partialResult": "Agent started in background.\nProgress: 75% — reviewing files and tests."
+      }
+    },
+    {
+      "delayMs": 1000,
+      "event": {
+        "type": "tool_execution_update",
+        "toolCallId": "agent_review",
+        "toolName": "agent",
+        "args": {
+          "subagent_type": "reviewer",
+          "description": "Review the Dart changes for correctness."
+        },
+        "partialResult": "Agent started in background.\nProgress: 100% — reviewing files and tests."
+      }
+    },
+    {
+      "delayMs": 1000,
+      "event": {
+        "type": "tool_execution_update",
+        "toolCallId": "agent_tests",
+        "toolName": "agent",
+        "args": {
+          "subagent_type": "worker",
+          "description": "Check the offline test coverage."
+        },
+        "partialResult": "Agent started in background.\nProgress: 100% — reviewing files and tests."
+      }
+    },
+    {
+      "event": {
+        "type": "tool_execution_end",
+        "toolCallId": "agent_review",
+        "toolName": "agent",
+        "result": "Agent started in background.",
+        "isError": false
+      }
+    },
+    {
+      "event": {
+        "type": "tool_execution_end",
+        "toolCallId": "agent_tests",
+        "toolName": "agent",
+        "result": "Agent started in background.",
+        "isError": false
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "assistant",
+          "content": []
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "toolCall",
+              "id": "workflow_call",
+              "name": "SubagentWorkflow",
+              "arguments": {
+                "name": "Offline verification",
+                "script": "---\nname: Offline verification\ndescription: Check simulator scenarios\n---\nRun the test suite."
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "tool_execution_start",
+        "toolCallId": "workflow_call",
+        "toolName": "SubagentWorkflow",
+        "args": {
+          "name": "Offline verification",
+          "script": "---\nname: Offline verification\ndescription: Check simulator scenarios\n---\nRun the test suite."
+        }
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "tool_execution_update",
+        "toolCallId": "workflow_call",
+        "toolName": "SubagentWorkflow",
+        "args": {
+          "name": "Offline verification",
+          "script": "---\nname: Offline verification\ndescription: Check simulator scenarios\n---\nRun the test suite."
+        },
+        "partialResult": "Task ID: wf_offline-001\nWorkflow \"Offline verification\" star"
+      }
+    },
+    {
+      "event": {
+        "type": "tool_execution_end",
+        "toolCallId": "workflow_call",
+        "toolName": "SubagentWorkflow",
+        "result": "Task ID: wf_offline-001\nWorkflow \"Offline verification\" started\nScript: offline.workflow.js",
+        "isError": false
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "assistant",
+          "content": []
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 80,
+          "output": 8,
+          "total": 88
+        },
+        "assistantMessageEvent": {
+          "type": "text_start",
+          "contentIndex": 0
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 80,
+          "output": 24,
+          "total": 104
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": "Delegated checks are complete.\n\n<task-notification><task-id>agent-review-001</task-id><tool-use-id>agent_review</tool-use-id><status>completed</status><summary>Agent \"reviewer\" finished</summary><result>Review passed.\n```dart\nfinal ready = true;\n```</result><usage><total_tokens>1200</total_tokens><tool_uses>3</tool_uses><context_percent>4</context_percent><duration_ms>8000</duration_ms></usage></task-notification>\n\n<task-notification><task-id>agent-tests-001</task-id><tool-use-id>agent_tests</tool-use-id><status>completed</status><summary>Agent \"worker\" finished</summary><result>Tests passed.\n```dart\nexpect(ok, isTrue);\n```</result><usage><total_tokens>900</total_tokens><tool_uses>2</tool_uses><context_percent>3</context_percent><duration_ms>8000</duration_ms></usage></task-notification>\n\n<task-notification><task-id>wf_offline-001</task-id><tool-use-id>workflow_call</tool-use-id><status>completed</status><summary>Offline verification completed</summary><result>Simulator checks passed.\n```text\n18 scenarios available\n```</result></task-notification>"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "Delegated checks are complete.\n\n<task-notification><task-id>agent-review-001</task-id><tool-use-id>agent_review</tool-use-id><status>completed</status><summary>Agent \"reviewer\" finished</summary><result>Review passed.\n```dart\nfinal ready = true;\n```</result><usage><total_tokens>1200</total_tokens><tool_uses>3</tool_uses><context_percent>4</context_percent><duration_ms>8000</duration_ms></usage></task-notification>\n\n<task-notification><task-id>agent-tests-001</task-id><tool-use-id>agent_tests</tool-use-id><status>completed</status><summary>Agent \"worker\" finished</summary><result>Tests passed.\n```dart\nexpect(ok, isTrue);\n```</result><usage><total_tokens>900</total_tokens><tool_uses>2</tool_uses><context_percent>3</context_percent><duration_ms>8000</duration_ms></usage></task-notification>\n\n<task-notification><task-id>wf_offline-001</task-id><tool-use-id>workflow_call</tool-use-id><status>completed</status><summary>Offline verification completed</summary><result>Simulator checks passed.\n```text\n18 scenarios available\n```</result></task-notification>"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "turn_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "Delegated checks are complete."
+            }
+          ]
+        },
+        "toolResults": []
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_end",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "text",
+                "text": "Delegated checks are complete."
+              }
+            ]
+          }
+        ],
+        "willRetry": false
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_settled"
+      }
+    }
+  ]
+}

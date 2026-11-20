@@ -85,15 +85,16 @@ void main() {
           .first,
     );
     expect(loadMoreFinder, findsOneWidget);
-    // Before click, entry 45 was the first visible message below the button
-    expect(find.textContaining('Transcript entry 45'), findsOneWidget);
+    // Before click, entry 60 is the first loaded message (the window keeps the last
+    // 10 agent answers: entries 60-79)
+    expect(find.textContaining('Transcript entry 60'), findsOneWidget);
 
     // Tap the load more button
     await tester.tap(loadMoreFinder);
     await tester.pumpAndSettle();
 
-    // After loading older messages, entry 45 remains visible right on screen!
-    expect(find.textContaining('Transcript entry 45'), findsOneWidget);
+    // After loading older messages, entry 60 stays where the user was reading.
+    expect(find.textContaining('Transcript entry 60'), findsOneWidget);
     // And the oldest loaded entry (entry 0) is scrolled off above, not jumping in front of user
     expect(find.textContaining('Transcript entry 0'), findsNothing);
   });
@@ -157,7 +158,11 @@ void main() {
     final scrollView = find.byKey(const ValueKey('transcript-scroll'));
     final scrollController = tester.widget<ListView>(scrollView).controller!;
     final beforeOffset = scrollController.offset;
-    final anchor = find.text('Stable transcript message 19');
+    // The live turn renders its prompt as rich text.
+    final anchor = find.textContaining(
+      'Stable transcript message 19',
+      findRichText: true,
+    );
     final before = tester.getTopLeft(anchor).dy;
     await tester.tap(
       find.descendant(

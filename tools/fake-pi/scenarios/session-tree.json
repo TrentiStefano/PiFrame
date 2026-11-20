@@ -1,0 +1,186 @@
+{
+  "name": "session-tree",
+  "description": "Provides a branched session tree and entries with an active leaf.",
+  "events": [
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_start"
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "turn_start"
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "user",
+          "content": "{{prompt}}",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "user",
+          "content": "{{prompt}}",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "assistant",
+          "content": []
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 80,
+          "output": 8,
+          "total": 88
+        },
+        "assistantMessageEvent": {
+          "type": "text_start",
+          "contentIndex": 0
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 80,
+          "output": 24,
+          "total": 104
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": "The session has one active branch and one alternative."
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "The session has one active branch and one alternative."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "turn_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "The session has one active branch and one alternative."
+            }
+          ]
+        },
+        "toolResults": []
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_end",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "text",
+                "text": "The session has one active branch and one alternative."
+              }
+            ]
+          }
+        ],
+        "willRetry": false
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_settled"
+      }
+    }
+  ],
+  "tree": [
+    {
+      "id": "root_user",
+      "role": "user",
+      "summary": "Start a small feature",
+      "isLeaf": false,
+      "isActive": false
+    },
+    {
+      "id": "main_answer",
+      "role": "assistant",
+      "summary": "The current implementation uses a compact API.",
+      "isLeaf": true,
+      "isActive": true
+    },
+    {
+      "id": "branch_answer",
+      "role": "assistant",
+      "summary": "An alternative implementation uses an adapter.",
+      "isLeaf": true,
+      "isActive": false
+    }
+  ],
+  "leafId": "main_answer",
+  "entries": [
+    {
+      "id": "root_user",
+      "parentId": null,
+      "type": "message",
+      "message": {
+        "role": "user",
+        "content": "Start a small feature",
+        "timestamp": 1000
+      }
+    },
+    {
+      "id": "main_answer",
+      "parentId": "root_user",
+      "type": "message",
+      "message": {
+        "role": "assistant",
+        "content": "The current implementation uses a compact API.",
+        "timestamp": 2000
+      }
+    },
+    {
+      "id": "branch_answer",
+      "parentId": "root_user",
+      "type": "message",
+      "message": {
+        "role": "assistant",
+        "content": "An alternative implementation uses an adapter.",
+        "timestamp": 3000
+      }
+    }
+  ]
+}

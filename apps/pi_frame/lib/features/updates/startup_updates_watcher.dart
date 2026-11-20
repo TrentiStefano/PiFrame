@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/update/startup_updates_provider.dart';
+import '../../data/daemon/daemon_providers.dart';
+import '../../data/daemon/pcp_client.dart';
 
 class StartupUpdatesWatcher extends ConsumerStatefulWidget {
   const StartupUpdatesWatcher({super.key});
@@ -15,22 +17,30 @@ class StartupUpdatesWatcher extends ConsumerStatefulWidget {
 }
 
 class _StartupUpdatesWatcherState extends ConsumerState<StartupUpdatesWatcher> {
-  @override
-  void initState() {
-    super.initState();
-    // The web client has no shell/process access: never touch dart:io there.
-    if (kIsWeb) return;
-    // Do not launch unattended shell commands in tests that mount AppShell
-    if (Platform.environment.containsKey('FLUTTER_TEST')) {
+  bool _requested = false;
+
+  void _checkWhenConnected(AsyncValue<DaemonConnectionState> connection) {
+    if (connection.value != DaemonConnectionState.connected) {
+      _requested = false;
       return;
     }
+    if (_requested) return;
+    _requested = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       ref.read(startupUpdatesProvider.notifier).checkUpdates();
     });
   }
 
   @override
   Widget build(BuildContext context) {
+    if (!kIsWeb && !Platform.environment.containsKey('FLUTTER_TEST')) {
+      ref.listen(
+        connectionStateProvider,
+        (_, next) => _checkWhenConnected(next),
+      );
+      _checkWhenConnected(ref.watch(connectionStateProvider));
+    }
     return const SizedBox.shrink();
   }
 }

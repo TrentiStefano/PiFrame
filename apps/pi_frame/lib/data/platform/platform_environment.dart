@@ -72,7 +72,10 @@ class PlatformEnvironment {
         final appData = Platform.environment['APPDATA'];
         final localAppData = Platform.environment['LOCALAPPDATA'];
         if (appData != null) addPath('$appData${sep}npm');
-        if (localAppData != null) addPath('$localAppData${sep}npm');
+        if (localAppData != null) {
+          addPath('$localAppData${sep}npm');
+          addPath('$localAppData${sep}pi-node${sep}current');
+        }
       } else {
         addPath('$home/.local/bin');
         addPath('$home/.local/share/pi-node/current/bin');

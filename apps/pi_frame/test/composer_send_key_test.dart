@@ -20,12 +20,13 @@ class _FakeComposerSession extends SessionStateNotifier {
   _FakeComposerSession({
     String sessionId = 'test-session',
     bool isStreaming = false,
+    AgentStatus? agentStatus,
   }) : super(sessionId, null) {
     state = SessionState(
       sessionId: sessionId,
       sessionName: 'Test Session',
       cwd: '/test/repo',
-      agentStatus: isStreaming ? AgentStatus.working : AgentStatus.idle,
+      agentStatus: agentStatus ?? (isStreaming ? AgentStatus.working : AgentStatus.idle),
       entries: const [],
     );
   }
@@ -75,6 +76,20 @@ Widget _wrapComposer({
 
 void main() {
   group('Composer keyboard send behavior', () {
+    testWidgets('Enter during compaction steers instead of sending a prompt the daemon rejects', (tester) async {
+      final session = _FakeComposerSession(agentStatus: AgentStatus.compacting);
+      final settingsNotifier = ComposerSettingsNotifier()..setSendWithEnter(true);
+      await tester.pumpWidget(_wrapComposer(session: session, settingsNotifier: settingsNotifier));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('composer-minimized-bar')));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'cambia approccio');
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      expect(session.sentPrompts, ['cambia approccio']);
+      expect(session.sentStreamingBehaviors, ['steer']);
+    });
+
     testWidgets('mode OFF: Enter inserts newline & no send, Ctrl+Enter sends', (tester) async {
       final session = _FakeComposerSession();
       final settingsNotifier = ComposerSettingsNotifier();

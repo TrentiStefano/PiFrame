@@ -71,12 +71,14 @@ void main() {
     // Verify header cost display
     expect(find.textContaining('\$79.2230'), findsOneWidget);
 
-    // Tap Cost chip to open breakdown dialog
+    // Tap Cost chip to open breakdown dialog. The chips scroll horizontally
+    // (clipped, starting after the status pill), so scroll it into view first.
+    await tester.ensureVisible(find.textContaining('\$79.2230'));
     await tester.tap(find.textContaining('\$79.2230'));
     await tester.pumpAndSettle();
 
     // Dialog Level 0 Overview
-    expect(find.text('Dettaglio Costi Sessione'), findsOneWidget);
+    expect(find.text('Dettaglio costi sessione'), findsOneWidget);
     expect(find.byKey(const ValueKey('cost-breakdown-agent-row')), findsOneWidget);
 
     // Click on Agent cost row to open Level 1 (Agent Models)
@@ -84,7 +86,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Dialog Level 1: Agent Models
-    expect(find.text('Costi Modelli Agente'), findsOneWidget);
+    expect(find.text('Costi modelli agente'), findsOneWidget);
     expect(find.text('Costo riportato da Pi'), findsOneWidget);
 
     // Check all models and their costs
@@ -169,7 +171,8 @@ void main() {
 
     await tester.pumpAndSettle();
 
-    // Tap Cost chip
+    // Tap Cost chip (scrolled into view: the chips scroll horizontally)
+    await tester.ensureVisible(find.textContaining('\$0.0400'));
     await tester.tap(find.textContaining('\$0.0400'));
     await tester.pumpAndSettle();
 
@@ -177,7 +180,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('cost-breakdown-agent-row')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Costi Modelli Agente'), findsOneWidget);
+    expect(find.text('Costi modelli agente'), findsOneWidget);
     expect(find.text('model-a'), findsOneWidget);
     expect(find.text('\$0.0150'), findsOneWidget);
     expect(find.text('15.0k tokens'), findsOneWidget);

@@ -1,6 +1,5 @@
-import 'package:file_selector/file_selector.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import '../../ui/precision.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_protocol/pi_frame_protocol.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -13,100 +12,12 @@ import 'removed_repos_provider.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_shell.dart';
 import '../../ui/frame_snack_bar.dart';
+import '../dialogs/new_session_dialog.dart';
 
 Future<String?> _chooseSessionDirectory(
   BuildContext context,
   String initialDirectory,
-) => showDialog<String>(
-  context: context,
-  builder: (_) => _SessionDirectoryDialog(initialDirectory: initialDirectory),
-);
-
-class _SessionDirectoryDialog extends ConsumerStatefulWidget {
-  const _SessionDirectoryDialog({required this.initialDirectory});
-  final String initialDirectory;
-
-  @override
-  ConsumerState<_SessionDirectoryDialog> createState() =>
-      _SessionDirectoryDialogState();
-}
-
-class _SessionDirectoryDialogState extends ConsumerState<_SessionDirectoryDialog> {
-  late final TextEditingController _controller = TextEditingController(
-    text: widget.initialDirectory,
-  );
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  Future<void> _pickDirectory() async {
-    try {
-      final directory = await getDirectoryPath();
-      if (mounted && directory != null) {
-        setState(() => _controller.text = directory);
-      }
-    } catch (error) {
-      if (mounted) {
-        FrameSnackBar.show(
-          context,
-          message: ref.read(appStringsProvider).directoryNotAvailable(error),
-        );
-      }
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final strings = ref.watch(appStringsProvider);
-    return AlertDialog(
-      title: Text(strings.newSessionDialogTitle),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          TextField(
-            key: const ValueKey('new-session-cwd'),
-            controller: _controller,
-            autofocus: true,
-            onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(
-              labelText: strings.workingDirectoryLabel,
-              hintText: 'C:\\Projects\\my-project',
-            ),
-          ),
-          if (kIsWeb) ...[
-            const SizedBox(height: 8),
-            Text(
-              strings.browserPathNotice,
-              style: const TextStyle(fontSize: 12),
-            ),
-          ],
-        ],
-      ),
-      actions: [
-        if (!kIsWeb)
-          TextButton.icon(
-            onPressed: _pickDirectory,
-            icon: const Icon(Icons.folder_open_outlined),
-            label: Text(strings.chooseFolderAction),
-          ),
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: Text(strings.cancel),
-        ),
-        FilledButton(
-          onPressed: _controller.text.trim().isEmpty
-              ? null
-              : () => Navigator.pop(context, _controller.text.trim()),
-          child: Text(strings.createAction),
-        ),
-      ],
-    );
-  }
-}
+) => showNewSessionDialog(context, initialDirectory: initialDirectory);
 
 Future<void> createSession(
   BuildContext context,
@@ -155,12 +66,21 @@ Future<void> createSession(
     if (id != null) {
       if (!await switchSessionSafely(context, ref, id)) return;
       ref.invalidate(sessionListProvider);
+    } else {
+      // The daemon accepted the command but returned no session: say so
+      // instead of leaving the user with no feedback.
+      FrameSnackBar.show(
+        context,
+        message: ref.read(appStringsProvider).sessionCreateNoIdNotice,
+        isError: true,
+      );
     }
   } catch (error) {
     if (context.mounted) {
       FrameSnackBar.show(
         context,
         message: ref.read(appStringsProvider).creationFailedNotice(error),
+        isError: true,
       );
     }
   }
@@ -180,7 +100,7 @@ Future<void> deleteSessionWithConfirmation(
       return AlertDialog(
         title: Row(
           children: [
-            Icon(Icons.delete_outline, color: tokens.danger, size: 22),
+            Icon(Icons.delete_outline, color: tokens.danger, size: FrameSize.iconLg),
             const SizedBox(width: 8),
             Expanded(child: Text(strings.deleteSessionDialogTitle)),
           ],
@@ -193,14 +113,14 @@ Future<void> deleteSessionWithConfirmation(
             onPressed: () => Navigator.pop(ctx, false),
             child: Text(strings.cancel),
           ),
-          FilledButton(
+          PressFeedback(enabled: true, child: FilledButton(
             style: FilledButton.styleFrom(
               backgroundColor: tokens.danger,
               foregroundColor: tokens.surface,
             ),
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(strings.deleteAction),
-          ),
+          )),
         ],
       );
     },
@@ -231,6 +151,7 @@ Future<void> deleteSessionWithConfirmation(
       FrameSnackBar.show(
         context,
         message: strings.deletionFailedNotice(error),
+        isError: true,
       );
     }
   }
@@ -252,7 +173,7 @@ Future<void> removeRepoWithConfirmation(
       return AlertDialog(
         title: Row(
           children: [
-            const Icon(Icons.folder_delete_outlined, size: 22),
+            const Icon(Icons.folder_delete_outlined, size: FrameSize.iconLg),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
@@ -268,18 +189,18 @@ Future<void> removeRepoWithConfirmation(
           children: [
             Text(
               strings.repoSessionsCountNotice(folderSessions.length),
-              style: const TextStyle(fontSize: 13),
+              style: FrameText.of(context).body,
             ),
             const SizedBox(height: 16),
             InkWell(
               key: const ValueKey('hide-repo-only-btn'),
               onTap: () => Navigator.pop(ctx, 'hide'),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(tokens.radiusSm),
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   border: Border.all(color: tokens.border),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(tokens.radiusSm),
                 ),
                 child: Row(
                   children: [
@@ -291,12 +212,12 @@ Future<void> removeRepoWithConfirmation(
                         children: [
                           Text(
                             strings.removeOnlyFromViewTitle,
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                            style: FrameText.of(context).body.copyWith(fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             strings.removeOnlyFromViewSubtitle,
-                            style: TextStyle(fontSize: 11, color: tokens.textMuted),
+                            style: FrameText.of(context).caption.copyWith(color: tokens.textMuted),
                           ),
                         ],
                       ),
@@ -309,12 +230,12 @@ Future<void> removeRepoWithConfirmation(
             InkWell(
               key: const ValueKey('delete-all-repo-sessions-btn'),
               onTap: () => Navigator.pop(ctx, 'delete_all'),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(tokens.radiusSm),
               child: Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   border: Border.all(color: tokens.danger.withValues(alpha: 0.3)),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(tokens.radiusSm),
                 ),
                 child: Row(
                   children: [
@@ -326,12 +247,12 @@ Future<void> removeRepoWithConfirmation(
                         children: [
                           Text(
                             strings.deleteAllRepoSessionsTitle,
-                            style: TextStyle(fontWeight: FontWeight.bold, color: tokens.danger, fontSize: 13),
+                            style: FrameText.of(context).body.copyWith(fontWeight: FontWeight.bold, color: tokens.danger),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             strings.deleteAllRepoSessionsSubtitle,
-                            style: TextStyle(fontSize: 11, color: tokens.textMuted),
+                            style: FrameText.of(context).caption.copyWith(color: tokens.textMuted),
                           ),
                         ],
                       ),
@@ -418,6 +339,7 @@ Future<void> removeRepoWithConfirmation(
         FrameSnackBar.show(
           context,
           message: strings.deletionErrorNotice(error),
+          isError: true,
         );
       }
     }
@@ -458,7 +380,7 @@ class _DeleteRepoConfirmDialogState extends ConsumerState<_DeleteRepoConfirmDial
     return AlertDialog(
       title: Row(
         children: [
-          Icon(Icons.warning_amber_rounded, color: tokens.danger, size: 24),
+          Icon(Icons.warning_amber_outlined, color: tokens.danger, size: FrameSize.iconLg),
           const SizedBox(width: 8),
           Expanded(child: Text(strings.warningDeletionTitle)),
         ],
@@ -469,7 +391,7 @@ class _DeleteRepoConfirmDialogState extends ConsumerState<_DeleteRepoConfirmDial
         children: [
           Text(
             strings.deleteRepoWarningBody(widget.sessionsCount, widget.folder),
-            style: const TextStyle(fontSize: 13),
+            style: FrameText.of(context).body,
           ),
           const SizedBox(height: 14),
           TextField(
@@ -489,14 +411,14 @@ class _DeleteRepoConfirmDialogState extends ConsumerState<_DeleteRepoConfirmDial
           onPressed: () => Navigator.pop(context, false),
           child: Text(strings.cancel),
         ),
-        FilledButton(
+        PressFeedback(enabled: (canDelete ? () => Navigator.pop(context, true) : null) != null, child: FilledButton(
           style: FilledButton.styleFrom(
             backgroundColor: tokens.danger,
             foregroundColor: tokens.surface,
           ),
           onPressed: canDelete ? () => Navigator.pop(context, true) : null,
           child: Text(strings.deleteAllAction),
-        ),
+        )),
       ],
     );
   }

@@ -2,11 +2,96 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pi_frame/data/first_run/app_first_run_store.dart';
+import 'package:pi_frame/data/motion/startup_animation_settings.dart';
 import 'package:pi_frame/data/window/window_state_service.dart';
 import 'package:pi_frame/ui/startup_audio.dart';
 import 'package:pi_frame/ui/startup_assemble_animation.dart';
 
 void main() {
+  group('Startup intro gating (task 7.8)', () {
+    late Directory tempDir;
+
+    setUp(() {
+      tempDir = Directory.systemTemp.createTempSync('pi_frame_intro_test_');
+    });
+
+    tearDown(() {
+      AppFirstRunStore.instance.setStorageFileForTesting(null);
+      if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
+    });
+
+    test('first run flag is true exactly once per install', () {
+      final file = File('${tempDir.path}/app_first_run.json');
+      AppFirstRunStore.instance.setStorageFileForTesting(file);
+
+      expect(AppFirstRunStore.instance.consumeIntro(), isTrue);
+      expect(AppFirstRunStore.instance.consumeIntro(), isFalse);
+      expect(file.existsSync(), isTrue);
+    });
+
+    test('settings default to off and round-trip through JSON', () {
+      const defaults = StartupAnimationSettings();
+      expect(defaults.enabled, isFalse);
+      expect(
+        StartupAnimationSettings.fromJson(
+          const StartupAnimationSettings(enabled: true).toJson(),
+        ).enabled,
+        isTrue,
+      );
+      expect(StartupAnimationSettings.fromJson({'enabled': 'yes'}).enabled,
+          isFalse);
+    });
+
+    test('intro plays on the first run, or every launch when the setting is on', () {
+      ProviderContainer makeContainer({
+        required bool firstRun,
+        required bool settingOn,
+      }) {
+        final container = ProviderContainer(overrides: [
+          appIntroFirstRunProvider.overrideWithValue(firstRun),
+          startupAnimationSettingsProvider.overrideWith(
+            (ref) => StartupAnimationSettingsNotifier(
+              storageFile: File('${tempDir.path}/startup_animation_settings.json'),
+            )..setEnabled(settingOn),
+          ),
+        ]);
+        addTearDown(container.dispose);
+        return container;
+      }
+
+      expect(
+        makeContainer(firstRun: false, settingOn: false)
+            .read(startupIntroPlaysProvider),
+        isFalse,
+      );
+      expect(
+        makeContainer(firstRun: true, settingOn: false)
+            .read(startupIntroPlaysProvider),
+        isTrue,
+      );
+      expect(
+        makeContainer(firstRun: false, settingOn: true)
+            .read(startupIntroPlaysProvider),
+        isTrue,
+      );
+    });
+
+    test('toggling the setting persists it to the storage file', () {
+      final file = File('${tempDir.path}/startup_animation_settings.json');
+      final notifier = StartupAnimationSettingsNotifier(storageFile: file);
+
+      notifier.setEnabled(true);
+      expect(file.existsSync(), isTrue);
+      expect(
+        StartupAnimationSettingsNotifier(storageFile: file).state.enabled,
+        isTrue,
+      );
+    });
+  });
+
+
   group('WindowStateService tests', () {
     late Directory tempDir;
     late File stateFile;

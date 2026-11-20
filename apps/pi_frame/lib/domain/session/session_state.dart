@@ -120,6 +120,36 @@ Map<String, dynamic>? terminalStopMetadata(Map message) {
   return {'stopReason': stopReason, 'errorMessage': ?errorMessage};
 }
 
+/// Records the [terminal] stop of an empty assistant message on [entries].
+/// Returns null when there is nothing to record.
+///
+/// With a previous assistant entry the stop is kept on it. A provider error
+/// that ends the turn before any reply marks the user message as failed, so the
+/// transcript shows the error and a retry instead of a silent missing reply.
+List<SessionEntry>? applyTerminalStop(
+  List<SessionEntry> entries,
+  Map<String, dynamic> terminal,
+) {
+  if (entries.isEmpty) return null;
+  final last = entries.last;
+  if (last.role == 'assistant') {
+    return List<SessionEntry>.from(entries)
+      ..[entries.length - 1] = last.copyWith(
+        metadata: {...?last.metadata, ...terminal},
+      );
+  }
+  final error = terminal['errorMessage']?.toString() ?? '';
+  if (last.role != 'user' ||
+      terminal['stopReason'] != 'error' ||
+      error.isEmpty) {
+    return null;
+  }
+  return List<SessionEntry>.from(entries)
+    ..[entries.length - 1] = last.copyWith(
+      metadata: {...?last.metadata, 'sendError': error},
+    );
+}
+
 /// Metadata key that records how many leading tool calls precede the text.
 const toolsBeforeTextKey = 'toolsBeforeText';
 

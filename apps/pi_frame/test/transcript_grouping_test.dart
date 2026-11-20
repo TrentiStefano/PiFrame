@@ -117,6 +117,41 @@ void main() {
       assertTranscriptCoverage(inputEntries: entries, blocks: blocks);
     });
 
+    test('an answer with no steps is still the final answer card in every grouping mode', () {
+      final entries = [
+        const SessionEntry(id: 'u1', role: 'user', text: 'Why is it blocked?', timestamp: 1000),
+        const SessionEntry(
+          id: 'asst1',
+          role: 'assistant',
+          text: 'One acceptance test is failing.',
+          timestamp: 2000,
+        ),
+      ];
+      for (final mode in [
+        StepGroupingMode.withThinking,
+        StepGroupingMode.always,
+        StepGroupingMode.full,
+      ]) {
+        final blocks = groupTranscript(
+          entries: entries,
+          mode: mode,
+          live: TranscriptLiveState.empty,
+        );
+        expect(blocks.length, 2, reason: '$mode');
+        expect(blocks.first, isA<EntryBlock>(), reason: '$mode');
+        expect(blocks.last, isA<FinalTextBlock>(), reason: '$mode');
+        expect((blocks.last as FinalTextBlock).entry.id, 'asst1');
+        assertTranscriptCoverage(inputEntries: entries, blocks: blocks);
+      }
+      // Grouping off keeps the classic layout.
+      final off = groupTranscript(
+        entries: entries,
+        mode: StepGroupingMode.off,
+        live: TranscriptLiveState.empty,
+      );
+      expect(off.every((b) => b is EntryBlock), isTrue);
+    });
+
     test('withThinking does not group a tool-only turn while always does', () {
       final entries = [
         const SessionEntry(
@@ -128,7 +163,7 @@ void main() {
         const SessionEntry(
           id: 'asst1',
           role: 'assistant',
-          text: 'Running tool now...',
+          text: '',
           thinking: null,
           toolCalls: [
             ToolExecutionState(
@@ -150,7 +185,7 @@ void main() {
         ),
       ];
 
-      // withThinking: tool-only turn has no thinking -> NOT grouped
+      // withThinking: pure tool-only turn has no thinking and no reasoning text -> NOT grouped
       final blocksWithThinking = groupTranscript(
         entries: entries,
         mode: StepGroupingMode.withThinking,
@@ -174,16 +209,166 @@ void main() {
       expect(blocksAlways[2], isA<FinalTextBlock>());
 
       final group = blocksAlways[1] as StepsGroupBlock;
-      expect(group.steps.length, 2);
-      expect(group.steps[0], isA<IntermediateTextStep>());
-      expect((group.steps[0] as IntermediateTextStep).text, 'Running tool now...');
-      expect(group.steps[1], isA<ToolStep>());
-      expect((group.steps[1] as ToolStep).toolName, 'calculator');
-      expect(group.stepCount, 1); // 1 tool step
+      expect(group.steps.length, 1);
+      expect(group.steps[0], isA<ToolStep>());
+      expect((group.steps[0] as ToolStep).toolName, 'calculator');
+      expect(group.stepCount, 1);
 
       final finalBlock = blocksAlways[2] as FinalTextBlock;
       expect(finalBlock.text, 'The answer is 4.');
       assertTranscriptCoverage(inputEntries: entries, blocks: blocksAlways);
+    });
+
+    test('withThinking groups turn with intermediate reasoning text between step groups', () {
+      final entries = [
+        const SessionEntry(
+          id: 'u1',
+          role: 'user',
+          text: 'Fix the bug',
+          timestamp: 1000,
+        ),
+        const SessionEntry(
+          id: 'asst1',
+          role: 'assistant',
+          text: 'Starting phase: analyzing code...',
+          thinking: null,
+          toolCalls: [
+            ToolExecutionState(
+              toolCallId: 't1',
+              toolName: 'read_file',
+              args: {'path': 'main.dart'},
+              output: 'content',
+            ),
+          ],
+          timestamp: 1500,
+        ),
+        const SessionEntry(
+          id: 'asst2',
+          role: 'assistant',
+          text: 'Bug fixed successfully.',
+          thinking: null,
+          toolCalls: [],
+          timestamp: 2000,
+        ),
+      ];
+
+      // Multi-group flow (showIntermediateAnswers: true, default):
+      final blocks = groupTranscript(
+        entries: entries,
+        mode: StepGroupingMode.withThinking,
+        live: TranscriptLiveState.empty,
+        showIntermediateAnswers: true,
+      );
+
+      // Expected: User -> IntermediateText -> StepsGroup (tool) -> FinalText
+      expect(blocks.length, 4);
+      expect(blocks[0], isA<EntryBlock>());
+      expect(blocks[1], isA<IntermediateTextBlock>());
+      expect((blocks[1] as IntermediateTextBlock).text, 'Starting phase: analyzing code...');
+      expect(blocks[2], isA<StepsGroupBlock>());
+      expect((blocks[2] as StepsGroupBlock).steps.length, 1);
+      expect(blocks[3], isA<FinalTextBlock>());
+      expect((blocks[3] as FinalTextBlock).text, 'Bug fixed successfully.');
+      assertTranscriptCoverage(inputEntries: entries, blocks: blocks);
+
+      // Legacy compact flow (showIntermediateAnswers: false):
+      final legacyBlocks = groupTranscript(
+        entries: entries,
+        mode: StepGroupingMode.withThinking,
+        live: TranscriptLiveState.empty,
+        showIntermediateAnswers: false,
+      );
+      expect(legacyBlocks.length, 3);
+      expect(legacyBlocks[0], isA<EntryBlock>());
+      expect(legacyBlocks[1], isA<StepsGroupBlock>());
+      expect(legacyBlocks[2], isA<FinalTextBlock>());
+      final legacyGroup = legacyBlocks[1] as StepsGroupBlock;
+      expect(legacyGroup.steps.length, 2);
+      expect(legacyGroup.steps[0], isA<IntermediateTextStep>());
+      expect((legacyGroup.steps[0] as IntermediateTextStep).text, 'Starting phase: analyzing code...');
+      expect(legacyGroup.steps[1], isA<ToolStep>());
+      assertTranscriptCoverage(inputEntries: entries, blocks: legacyBlocks);
+    });
+
+    test('full mode compacts all intermediate steps and non-final answers into a single step group', () {
+      final entries = [
+        const SessionEntry(
+          id: 'u1',
+          role: 'user',
+          text: 'Fix the bug',
+          timestamp: 1000,
+        ),
+        const SessionEntry(
+          id: 'asst1',
+          role: 'assistant',
+          text: 'Analyzing code structure...',
+          thinking: 'Need to look at main.dart',
+          toolCalls: [
+            ToolExecutionState(
+              toolCallId: 't1',
+              toolName: 'read_file',
+              args: {'path': 'main.dart'},
+              output: 'content',
+            ),
+          ],
+          timestamp: 1500,
+        ),
+        const SessionEntry(
+          id: 'asst2',
+          role: 'assistant',
+          text: 'Running unit tests to verify...',
+          thinking: null,
+          toolCalls: [
+            ToolExecutionState(
+              toolCallId: 't2',
+              toolName: 'run_tests',
+              args: {'filter': 'test'},
+              output: 'pass',
+            ),
+          ],
+          timestamp: 2000,
+        ),
+        const SessionEntry(
+          id: 'asst3',
+          role: 'assistant',
+          text: 'All bugs fixed and verified.',
+          thinking: null,
+          toolCalls: [],
+          timestamp: 2500,
+        ),
+      ];
+
+      // Even with showIntermediateAnswers: true, full mode compacts everything into ONE StepsGroupBlock
+      final blocks = groupTranscript(
+        entries: entries,
+        mode: StepGroupingMode.full,
+        live: TranscriptLiveState.empty,
+        showIntermediateAnswers: true,
+      );
+
+      // Expected: User -> single StepsGroupBlock -> FinalText
+      expect(blocks.length, 3);
+      expect(blocks[0], isA<EntryBlock>());
+      expect(blocks[1], isA<StepsGroupBlock>());
+      expect(blocks[2], isA<FinalTextBlock>());
+
+      final group = blocks[1] as StepsGroupBlock;
+      // Steps should contain:
+      // 1. ThinkingStep ('Need to look at main.dart')
+      // 2. IntermediateTextStep ('Analyzing code structure...')
+      // 3. ToolStep ('read_file')
+      // 4. IntermediateTextStep ('Running unit tests to verify...')
+      // 5. ToolStep ('run_tests')
+      expect(group.steps.length, 5);
+      expect(group.stepCount, 5);
+      expect(group.steps.whereType<IntermediateTextStep>().length, 2);
+      expect(group.steps.whereType<ToolStep>().length, 2);
+      expect(group.steps.whereType<ThinkingStep>().length, 1);
+      expect(group.elapsed, const Duration(milliseconds: 1500));
+
+      final finalBlock = blocks[2] as FinalTextBlock;
+      expect(finalBlock.text, 'All bugs fixed and verified.');
+      assertTranscriptCoverage(inputEntries: entries, blocks: blocks);
     });
 
     test('off returns entries unchanged with LiveTailBlock marker when streaming', () {
@@ -1073,6 +1258,15 @@ void main() {
       expect(restored.mode, StepGroupingMode.always);
       expect(restored.autoCollapse, isFalse);
       expect(restored, equals(settings));
+
+      const settingsFull = StepGroupingSettings(
+        mode: StepGroupingMode.full,
+        autoCollapse: true,
+      );
+      final jsonFull = settingsFull.toJson();
+      final restoredFull = StepGroupingSettings.fromJson(jsonFull);
+      expect(restoredFull.mode, StepGroupingMode.full);
+      expect(restoredFull, equals(settingsFull));
     });
 
     test('tolerant to invalid and missing json fields', () {
@@ -1316,6 +1510,15 @@ void main() {
 
       expect(stringsIt.stepGroupingModeAlways, 'Sempre');
       expect(stringsEn.stepGroupingModeAlways, 'Always');
+
+      expect(stringsIt.stepGroupingModeFull, 'Completo (Full)');
+      expect(stringsEn.stepGroupingModeFull, 'Full');
+
+      expect(
+        stringsIt.stepGroupingModeLabel(StepGroupingMode.full),
+        'Completo (Full)',
+      );
+      expect(stringsEn.stepGroupingModeLabel(StepGroupingMode.full), 'Full');
 
       expect(stringsIt.stepGroupWorking, 'Elaborazione…');
       expect(stringsEn.stepGroupWorking, 'Working…');

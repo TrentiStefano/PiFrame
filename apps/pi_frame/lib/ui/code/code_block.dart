@@ -101,9 +101,8 @@ class _CodeBlockState extends State<CodeBlock> {
               children: [
                 Text(
                   lang.toUpperCase(),
-                  style: TextStyle(
+                  style: FrameText.of(context).caption.copyWith(
                     color: tokens.textMuted,
-                    fontSize: 11,
                     fontFamily: tokens.monoFontFamily,
                     fontWeight: FontWeight.bold,
                   ),
@@ -120,7 +119,7 @@ class _CodeBlockState extends State<CodeBlock> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          _copied ? Icons.check : Icons.copy,
+                          _copied ? Icons.check_outlined : Icons.copy_outlined,
                           size: 12,
                           color: _copied
                               ? tokens.success
@@ -129,11 +128,10 @@ class _CodeBlockState extends State<CodeBlock> {
                         const SizedBox(width: 4),
                         Text(
                           _copied ? strings.copiedAction : strings.copyAction,
-                          style: TextStyle(
+                          style: FrameText.of(context).caption.copyWith(
                             color: _copied
                                 ? tokens.textPrimary
                                 : tokens.textSecondary,
-                            fontSize: 11,
                             fontFamily: tokens.monoFontFamily,
                           ),
                         ),
@@ -151,11 +149,7 @@ class _CodeBlockState extends State<CodeBlock> {
             padding: const EdgeInsets.all(12),
             child: SelectableText.rich(
               _getSpans(widget.code, lang, tokens),
-              style: TextStyle(
-                fontFamily: tokens.monoFontFamily,
-                fontSize: 12.5,
-                height: 1.5,
-              ),
+              style: FrameText.of(context).monoBody,
             ),
           ),
         ],

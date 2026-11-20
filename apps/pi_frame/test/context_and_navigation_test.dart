@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -82,12 +84,11 @@ void main() {
       expect(find.text('Gestite'), findsOneWidget);
       expect(find.text('Questo repo'), findsOneWidget);
 
-      // Folders should initially be visible minimized
+      // The active repository is expanded by default; the other one stays collapsed.
       expect(find.text('pi-frame'), findsOneWidget);
       expect(find.text('other-repo'), findsOneWidget);
 
-      // Expand folders to view sessions
-      await tester.tap(find.text('pi-frame'));
+      // Expand the other folder to view its sessions
       await tester.tap(find.text('other-repo'));
       await tester.pumpAndSettle();
 
@@ -162,8 +163,7 @@ void main() {
     expect(find.byKey(const ValueKey('session-folder:/other')), findsOneWidget);
     expect(find.text('worker#19'), findsNothing);
 
-    // Expand collapsed folders to reveal sessions
-    await tester.tap(find.byKey(const ValueKey('session-folder:/repo')));
+    // The active repository (/repo) is expanded by default; expand the other one
     await tester.tap(find.byKey(const ValueKey('session-folder:/other')));
     await tester.pumpAndSettle();
 
@@ -189,12 +189,16 @@ void main() {
       tester.element(find.byType(SessionsSidebar)),
     );
     expect(container.read(pcpClientProvider), same(client));
-    await tester.tap(find.byTooltip('Nuova Sessione'));
+    await tester.tap(find.byTooltip('Nuova sessione'));
     await tester.pumpAndSettle();
+    final projectDir = Directory.systemTemp.createTempSync('piframe_new_session_');
+    addTearDown(() => projectDir.deleteSync(recursive: true));
     await tester.enterText(
       find.byKey(const ValueKey('new-session-cwd')),
-      'C:/work/project',
+      projectDir.path,
     );
+    // The folder check is debounced, so let it run before Create is enabled.
+    await tester.pump(const Duration(milliseconds: 400));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Crea'));
     await tester.pumpAndSettle();
@@ -202,20 +206,32 @@ void main() {
     final create = client.commands.firstWhere(
       (command) => command.type == 'session.create',
     );
-    expect(create.payload['cwd'], 'C:/work/project');
+    expect(create.payload['cwd'], projectDir.path);
   });
 
-  testWidgets('SessionTreeDialog renders properly in empty state', (
+  testWidgets('SessionTreeDialog opens titled with the session and its id as a detail row', (
     tester,
   ) async {
     await tester.pumpWidget(
-      wrapWithThemeAndScope(const SessionTreeDialog(sessionId: 'sess_test')),
+      wrapWithThemeAndScope(
+        Builder(
+          builder: (context) => TextButton(
+            onPressed: () => SessionTreeDialog.show(context, sessionId: 'sess_test'),
+            child: const Text('open tree'),
+          ),
+        ),
+      ),
     );
-
+    await tester.tap(find.text('open tree'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Albero della Sessione'), findsOneWidget);
-    expect(find.text('Sessione: sess_test'), findsOneWidget);
+    // Title is the session title (the id here, as the session is not listed)
+    // and the raw id moves to a copyable detail row.
+    expect(find.text('sess_test'), findsWidgets);
+    expect(find.text('ID sessione'), findsOneWidget);
+    expect(find.byTooltip('Copia ID sessione'), findsOneWidget);
     expect(find.text('Chiudi'), findsOneWidget);
+    // Not connected to a daemon in tests: the error state offers one action.
+    expect(find.byKey(const ValueKey('session-tree-error-action')), findsOneWidget);
   });
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
+
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_shell.dart';
 import 'syntax_highlighter.dart';
@@ -31,8 +32,14 @@ class _DiffBlockState extends State<DiffBlock> {
     int deletions = 0;
     for (final line in lines) {
       final trimmed = line.trimLeft();
-      if ((line.startsWith('+') && !line.startsWith('+++')) || (trimmed.startsWith('+') && !trimmed.startsWith('+++'))) additions++;
-      if ((line.startsWith('-') && !line.startsWith('---')) || (trimmed.startsWith('-') && !trimmed.startsWith('---'))) deletions++;
+      if ((line.startsWith('+') && !line.startsWith('+++')) ||
+          (trimmed.startsWith('+') && !trimmed.startsWith('+++'))) {
+        additions++;
+      }
+      if ((line.startsWith('-') && !line.startsWith('---')) ||
+          (trimmed.startsWith('-') && !trimmed.startsWith('---'))) {
+        deletions++;
+      }
     }
     _cachedLines = lines;
     _cachedAdditions = additions;
@@ -90,126 +97,136 @@ class _DiffBlockState extends State<DiffBlock> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Header: File/diff title, +/- stats, and Copy button
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: tokens.surfaceElevated,
-              borderRadius: BorderRadius.only(
-                topLeft: Radius.circular(tokens.radiusSm),
-                topRight: Radius.circular(tokens.radiusSm),
-              ),
-              border: Border(
-                bottom: BorderSide(color: tokens.border, width: 1),
-              ),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.difference_outlined,
-                      size: 14,
-                      color: tokens.textSecondary,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      widget.filename ?? 'DIFF',
-                      style: TextStyle(
-                        color: tokens.textPrimary,
-                        fontSize: 12,
-                        fontFamily: tokens.monoFontFamily,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    if (additions > 0)
-                      Text(
-                        '+$additions',
-                        style: TextStyle(
-                          color: tokens.diffAddedFg,
-                          fontSize: 11,
-                          fontFamily: tokens.monoFontFamily,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    if (additions > 0 && deletions > 0)
-                      const SizedBox(width: 6),
-                    if (deletions > 0)
-                      Text(
-                        '-$deletions',
-                        style: TextStyle(
-                          color: tokens.diffRemovedFg,
-                          fontSize: 11,
-                          fontFamily: tokens.monoFontFamily,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                  ],
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: tokens.surfaceElevated,
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(tokens.radiusSm),
+                  topRight: Radius.circular(tokens.radiusSm),
                 ),
-                InkWell(
-                  onTap: _copyToClipboard,
-                  borderRadius: BorderRadius.circular(4),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
+                border: Border(
+                  bottom: BorderSide(color: tokens.border, width: 1),
+                ),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Flexible(
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          _copied ? Icons.check : Icons.copy,
-                          size: 12,
-                          color: _copied
-                              ? tokens.success
-                              : tokens.textSecondary,
+                          Icons.difference_outlined,
+                          size: 14,
+                          color: tokens.textSecondary,
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          _copied ? strings.copiedAction : strings.copyAction,
-                          style: TextStyle(
-                            color: _copied
-                                ? tokens.textPrimary
-                                : tokens.textSecondary,
-                            fontSize: 11,
-                            fontFamily: tokens.monoFontFamily,
+                        const SizedBox(width: 6),
+                        // A long file name is cut, so the copy button stays on
+                        // screen in a narrow pane.
+                        Flexible(
+                          child: Text(
+                            widget.filename ?? 'DIFF',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: tokens.textPrimary,
+                              fontSize: 12,
+                              fontFamily: tokens.monoFontFamily,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
+                        const SizedBox(width: 12),
+                        if (additions > 0)
+                          Text(
+                            '+$additions',
+                            style: TextStyle(
+                              color: tokens.diffAddedFg,
+                              fontSize: 11,
+                              fontFamily: tokens.monoFontFamily,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        if (additions > 0 && deletions > 0)
+                          const SizedBox(width: 6),
+                        if (deletions > 0)
+                          Text(
+                            '-$deletions',
+                            style: TextStyle(
+                              color: tokens.diffRemovedFg,
+                              fontSize: 11,
+                              fontFamily: tokens.monoFontFamily,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                       ],
                     ),
                   ),
-                ),
-              ],
-            ),
-          ),
-
-          // Diff lines
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final minWidth = constraints.hasBoundedWidth ? constraints.maxWidth : 0.0;
-              return SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minWidth: minWidth),
-                  child: IntrinsicWidth(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: lines
-                          .map((line) => _buildDiffLine(line, tokens, lang))
-                          .toList(),
+                  InkWell(
+                    onTap: _copyToClipboard,
+                    borderRadius: BorderRadius.circular(4),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _copied ? Icons.check_outlined : Icons.copy_outlined,
+                            size: 12,
+                            color: _copied
+                                ? tokens.success
+                                : tokens.textSecondary,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _copied ? strings.copiedAction : strings.copyAction,
+                            style: TextStyle(
+                              color: _copied
+                                  ? tokens.textPrimary
+                                  : tokens.textSecondary,
+                              fontSize: 11,
+                              fontFamily: tokens.monoFontFamily,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ),
-              );
-            },
-          ),
-        ],
+                ],
+              ),
+            ),
+
+            // Diff lines
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final minWidth = constraints.hasBoundedWidth
+                    ? constraints.maxWidth
+                    : 0.0;
+                return SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: minWidth),
+                    child: IntrinsicWidth(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: lines
+                            .map((line) => _buildDiffLine(line, tokens, lang))
+                            .toList(),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildDiffLine(String line, FrameTokens tokens, String lang) {
     if (line.isEmpty) {
@@ -230,7 +247,10 @@ class _DiffBlockState extends State<DiffBlock> {
               WidgetSpan(
                 alignment: PlaceholderAlignment.middle,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 5,
+                    vertical: 1,
+                  ),
                   margin: const EdgeInsets.only(right: 6),
                   decoration: BoxDecoration(
                     color: tokens.accent.withValues(alpha: 0.15),
@@ -241,7 +261,7 @@ class _DiffBlockState extends State<DiffBlock> {
                     'HUNK',
                     style: TextStyle(
                       color: tokens.accent,
-                      fontSize: 9.5,
+                      fontSize: 11,
                       fontFamily: tokens.monoFontFamily,
                       fontWeight: FontWeight.bold,
                     ),
@@ -264,8 +284,12 @@ class _DiffBlockState extends State<DiffBlock> {
     }
 
     final trimmed = line.trimLeft();
-    final isAddition = (line.startsWith('+') && !line.startsWith('+++')) || (trimmed.startsWith('+') && !trimmed.startsWith('+++'));
-    final isDeletion = (line.startsWith('-') && !line.startsWith('---')) || (trimmed.startsWith('-') && !trimmed.startsWith('---'));
+    final isAddition =
+        (line.startsWith('+') && !line.startsWith('+++')) ||
+        (trimmed.startsWith('+') && !trimmed.startsWith('+++'));
+    final isDeletion =
+        (line.startsWith('-') && !line.startsWith('---')) ||
+        (trimmed.startsWith('-') && !trimmed.startsWith('---'));
     final isHeader = line.startsWith('+++') || line.startsWith('---');
 
     final Color bg;
@@ -303,10 +327,7 @@ class _DiffBlockState extends State<DiffBlock> {
         ? [
             TextSpan(
               text: code,
-              style: TextStyle(
-                color: prefixColor,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(color: prefixColor, fontWeight: FontWeight.bold),
             ),
           ]
         : SyntaxHighlighter.highlightLine(
@@ -316,8 +337,8 @@ class _DiffBlockState extends State<DiffBlock> {
             defaultColor: isAddition
                 ? tokens.diffAddedFg
                 : isDeletion
-                    ? tokens.diffRemovedFg
-                    : tokens.diffContextFg,
+                ? tokens.diffRemovedFg
+                : tokens.diffContextFg,
           );
 
     return Container(

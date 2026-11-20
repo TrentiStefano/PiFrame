@@ -48,6 +48,12 @@ test('SessionIndex: extractSessionMetadata correctly extracts usage, model, thin
   assert.ok((meta.usage as any).byModel);
   assert.strictEqual(Math.abs((meta.usage as any).byModel['claude-3-5-sonnet'].cost - 0.040) < 0.0001, true);
   assert.strictEqual((meta.usage.tokens as any).total, 6500);
+
+  // Text read asynchronously once gives the same result as reading the file synchronously.
+  const text = await index.readSessionText(sessionFile);
+  assert.deepStrictEqual(index.extractSessionMetadata(sessionFile, text), meta);
+  assert.deepStrictEqual(index.readTranscript(sessionFile, text), index.readTranscript(sessionFile));
+  assert.strictEqual(await index.readSessionText(path.join(path.dirname(sessionFile), 'missing.jsonl')), undefined);
 });
 
 test('SessionIndex: extractSessionMetadata extracts per-model costs across multiple models', async (t) => {
@@ -271,6 +277,49 @@ test('SessionIndex: notification tool-call identity updates the actual agent and
   assert.equal(agents[0].model, 'actual-model');
   assert.equal(agents[0].cost, 0.0175);
   assert.equal(agents[0].status, 'completed');
+});
+
+test('SessionIndex: a background agent whose notification never arrived settles from its child file', async (t) => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentd-agent-orphan-'));
+  t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
+  const parentFile = path.join(tmpDir, 'parent.jsonl');
+  const launch = (agentId: string, callId: string) => ({
+    type: 'message', message: { role: 'toolResult', toolName: 'Agent', toolCallId: callId, details: {
+      agentId, status: 'background', subagentType: 'general-purpose', description: `Task ${agentId}`,
+    } },
+  });
+  fs.writeFileSync(parentFile, [
+    { type: 'session', id: 'parent', cwd: '/repo' },
+    launch('aaaaaaaa-idle', 'call-idle'),
+    launch('bbbbbbbb-live', 'call-live'),
+    launch('cccccccc-done', 'call-done'),
+  ].map((entry) => JSON.stringify(entry)).join('\n') + '\n');
+  const child = (name: string, prefix: string, last: object) => {
+    const file = path.join(tmpDir, `${name}.jsonl`);
+    fs.writeFileSync(file, [
+      { type: 'session', id: name, parentSession: parentFile, cwd: '/repo', timestamp: new Date().toISOString() },
+      { type: 'session_info', name: `general-purpose#${prefix}` },
+      { type: 'message', message: { role: 'user', content: 'Audit operator parameters and settings' } },
+      { type: 'message', message: last },
+    ].map((entry) => JSON.stringify(entry)).join('\n') + '\n');
+    return file;
+  };
+  const pendingTool = { role: 'assistant', stopReason: 'toolUse', content: [{ type: 'toolCall', name: 'bash', arguments: { command: 'make test' } }] };
+  // Stopped writing mid tool call 17 hours ago: the agent is gone.
+  const idleFile = child('child-idle', 'aaaaaaaa', pendingTool);
+  const old = new Date(Date.now() - 17 * 60 * 60 * 1000);
+  fs.utimesSync(idleFile, old, old);
+  // Still writing: really running.
+  child('child-live', 'bbbbbbbb', pendingTool);
+  // Wrote its final answer but the notification was lost.
+  child('child-done', 'cccccccc', { role: 'assistant', stopReason: 'stop', content: [{ type: 'text', text: 'All done' }] });
+
+  const index = new SessionIndex({ sessionsDir: tmpDir, cachePath: path.join(tmpDir, 'cache.json') });
+  const agents = await index.getSubagents('parent', parentFile);
+  const status = (id: string) => agents.find((agent) => agent.id === id)?.status;
+  assert.equal(status('aaaaaaaa-idle'), 'completed');
+  assert.equal(status('bbbbbbbb-live'), 'running');
+  assert.equal(status('cccccccc-done'), 'completed');
 });
 
 test('SessionIndex: relative parent paths do not collide by basename', async (t) => {

@@ -45,7 +45,7 @@ void main() {
       expect(strings.sessionsRailHeader, 'SESSIONI');
       expect(strings.recentSessionsHeader, 'Sessioni recenti');
       expect(strings.noFolderDisplay, 'Nessuna cartella');
-      expect(strings.newSessionHeroTitle, 'Nuova\nsessione.');
+      expect(strings.welcomeTitle, 'Riprendi il lavoro');
       expect(
         strings.welcomeDescription,
         'Scegli una conversazione o inizia a lavorare con Pi. Il lavoro continua anche quando chiudi la finestra.',
@@ -53,12 +53,13 @@ void main() {
       expect(strings.creatingSession, 'Creazione...');
       expect(strings.newSessionAction, 'Nuova sessione');
       expect(strings.browseSessionsAction, 'Esplora sessioni');
-      expect(strings.searchCommandsAction, 'Cerca nei comandi');
+      expect(strings.folderNotFoundNotice, 'Cartella non trovata');
+      expect(strings.gitRepoDetectedNotice('main'), 'Repository Git rilevato · main');
       expect(strings.commandsShortcutHint, 'Ctrl / Cmd + K · Comandi');
 
       // Sessions Sidebar
       expect(strings.sidebarFallbackFolderLabel, 'Sessioni');
-      expect(strings.renameSessionDialogTitle, 'Rinomina Sessione');
+      expect(strings.renameSessionDialogTitle, 'Rinomina sessione');
       expect(strings.sessionNameHint, 'Nome sessione...');
       expect(strings.sessionRenamedNotice('Test'), 'Sessione rinominata in "Test"');
       expect(strings.renameErrorNotice('Err'), 'Errore rinomina: Err');
@@ -66,7 +67,7 @@ void main() {
       expect(strings.duplicateErrorNotice('Err'), 'Errore duplicazione: Err');
       expect(strings.sidebarTitle, 'Sessioni');
       expect(strings.refreshSessionsTooltip, 'Aggiorna sessioni');
-      expect(strings.newSessionTooltip, 'Nuova Sessione');
+      expect(strings.newSessionTooltip, 'Nuova sessione');
       expect(strings.collapseSidebarTooltip, 'Collassa barra sessioni');
       expect(strings.searchSessionsHint, 'Cerca sessioni...');
       expect(strings.filterAll, 'Tutte');
@@ -81,7 +82,7 @@ void main() {
       expect(strings.removeRepoFromSidebarAction, 'Rimuovi repository dal riquadro');
       expect(strings.sidebarErrorNotice('Err'), 'Errore: Err');
       expect(strings.settingsLabel, 'Impostazioni');
-      expect(strings.commandPaletteTooltip, 'Command Palette (Ctrl+K)');
+      expect(strings.commandPaletteTooltip, 'Comandi (Ctrl+K)');
       expect(strings.unpinAction, 'Rimuovi dai fissati');
       expect(strings.pinAction, 'Fissa in cima');
       expect(strings.renameAction, 'Rinomina');
@@ -168,16 +169,16 @@ void main() {
       expect(strings.paletteNewSessionTitle, 'Crea nuova sessione');
       expect(strings.paletteNewSessionSubtitle, 'Avvia una nuova sessione Pi');
       expect(strings.paletteCompactTitle, 'Compatta contesto');
-      expect(strings.paletteCompactSubtitle, 'Esegui manual compaction per ridurre i token');
+      expect(strings.paletteCompactSubtitle, 'Compatta manualmente il contesto per ridurre i token');
       expect(strings.paletteClearQueueTitle, 'Svuota coda');
-      expect(strings.paletteClearQueueSubtitle, 'Rimuovi tutti i messaggi steer e follow-up in attesa');
-      expect(strings.paletteInterruptTitle, 'Interrompi agente (Esc)');
+      expect(strings.paletteClearQueueSubtitle, 'Rimuovi tutti i messaggi di guida e follow-up in attesa');
+      expect(strings.paletteInterruptTitle, 'Interrompi agente');
       expect(strings.paletteInterruptSubtitle, 'Ferma il modello in esecuzione');
-      expect(strings.paletteSwitchBrowserTitle, 'Mostra Web Browser');
+      expect(strings.paletteSwitchBrowserTitle, 'Mostra browser web');
       expect(strings.paletteSwitchBrowserSubtitle, 'Apri il browser web integrato nel pannello laterale');
-      expect(strings.paletteSwitchGitTitle, 'Mostra Modifiche Git');
+      expect(strings.paletteSwitchGitTitle, 'Mostra modifiche Git');
       expect(strings.paletteSwitchGitSubtitle, 'Mostra il pannello delle modifiche Git nel pannello laterale');
-      expect(strings.paletteSettingsTitle, 'Apri Impostazioni');
+      expect(strings.paletteSettingsTitle, 'Apri impostazioni');
       expect(strings.paletteSettingsSubtitle, 'Configura percorso Pi, timeout worker e aspetto');
       expect(strings.paletteSearchHint, 'Cerca un\'azione o comando...');
       expect(strings.paletteNoActionsFound, 'Nessuna azione trovata');
@@ -230,7 +231,7 @@ void main() {
       expect(strings.sessionsRailHeader, 'SESSIONS');
       expect(strings.recentSessionsHeader, 'Recent sessions');
       expect(strings.noFolderDisplay, 'No folder');
-      expect(strings.newSessionHeroTitle, 'New\nsession.');
+      expect(strings.welcomeTitle, 'Resume your work');
       expect(
         strings.welcomeDescription,
         'Choose a conversation or start working with Pi. Work continues even when you close the window.',
@@ -238,7 +239,8 @@ void main() {
       expect(strings.creatingSession, 'Creating...');
       expect(strings.newSessionAction, 'New session');
       expect(strings.browseSessionsAction, 'Browse sessions');
-      expect(strings.searchCommandsAction, 'Search commands');
+      expect(strings.folderNotFoundNotice, 'Folder not found');
+      expect(strings.gitRepoDetectedNotice('main'), 'Git repository detected · main');
       expect(strings.commandsShortcutHint, 'Ctrl / Cmd + K · Commands');
 
       // Sessions Sidebar

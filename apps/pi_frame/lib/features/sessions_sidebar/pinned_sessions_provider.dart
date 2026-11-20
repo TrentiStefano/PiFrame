@@ -4,15 +4,22 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class PinnedSessionsNotifier extends StateNotifier<List<String>> {
+  // A notifier built from an explicit list is in memory only: tests must never rewrite the user's real pins.
+  final bool _persists;
+
   PinnedSessionsNotifier([Iterable<String>? initial])
-      : super(initial != null ? initial.toList() : const <String>[]) {
+      : _persists = initial == null,
+        super(initial != null ? initial.toList() : const <String>[]) {
     if (initial == null) {
       _load();
     }
   }
 
+  @visibleForTesting
+  File? get storageFileForTesting => _getStorageFile();
+
   File? _getStorageFile() {
-    if (kIsWeb) return null;
+    if (kIsWeb || !_persists) return null;
     try {
       final env = Platform.environment;
       final home = Platform.isWindows

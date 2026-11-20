@@ -57,12 +57,7 @@ class PcpClient {
   Map<String, dynamic>? _welcomePayload;
   Map<String, dynamic>? get welcomePayload => _welcomePayload;
 
-  List<String>? _customCapabilities;
-  @visibleForTesting
-  set customCapabilities(List<String>? caps) => _customCapabilities = caps;
-
   List<String> get capabilities {
-    if (_customCapabilities != null) return _customCapabilities!;
     final caps = _welcomePayload?['capabilities'];
     if (caps is List) {
       return caps.map((e) => e.toString()).toList();
@@ -579,16 +574,17 @@ class PcpClient {
     return sendCommand(cmd);
   }
 
-  Future<Map<String, dynamic>> listPiPackages() => sendCommand(
-    PcpCommand(
-      protocol: 1,
-      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
-      ts: DateTime.now().millisecondsSinceEpoch,
-      commandId: newCommandId('pkgl'),
-      type: 'pi.packages.list',
-      payload: const {},
-    ),
-  );
+  Future<Map<String, dynamic>> listPiPackages({bool checkUpdates = false}) =>
+      sendCommand(
+        PcpCommand(
+          protocol: 1,
+          id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+          ts: DateTime.now().millisecondsSinceEpoch,
+          commandId: newCommandId('pkgl'),
+          type: 'pi.packages.list',
+          payload: checkUpdates ? const {'checkUpdates': true} : const {},
+        ),
+      );
 
   Future<Map<String, dynamic>> updatePiPackage(String source) => sendCommand(
     PcpCommand(
@@ -716,7 +712,13 @@ class PcpClient {
     return sendCommand(cmd);
   }
 
-  Future<List<Map<String, dynamic>>> getSubagents(String sessionId) async {
+  Future<List<Map<String, dynamic>>> getSubagents(String sessionId) async =>
+      (await getSubagentsWithLive(sessionId)).subagents;
+
+  /// The session's subagents plus what the daemon knows of the worker they run
+  /// in (`live`: `anyRunning`, `idleSince`, `workerAlive`, `workerGone`).
+  Future<({List<Map<String, dynamic>> subagents, Map<String, dynamic> live})>
+  getSubagentsWithLive(String sessionId) async {
     final cmd = PcpCommand(
       protocol: 1,
       id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
@@ -732,7 +734,11 @@ class PcpClient {
     if (list is! List) {
       throw const FormatException('Missing subagents in daemon response');
     }
-    return list.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    final live = data['live'];
+    return (
+      subagents: list.map((e) => Map<String, dynamic>.from(e as Map)).toList(),
+      live: live is Map ? Map<String, dynamic>.from(live) : <String, dynamic>{},
+    );
   }
 
   Future<Map<String, dynamic>> steerSubagent(
@@ -747,15 +753,26 @@ class PcpClient {
     );
   }
 
+  /// Stops a background subagent through pi-subagents' own stop (the one
+  /// `/agents` uses), via PiFrame's bridge in the worker. Asking the main agent
+  /// in chat could not work: it has no tool that stops an agent.
+  /// Returns `{stopped: bool, reason?: String}`.
   Future<Map<String, dynamic>> stopSubagent(
     String sessionId,
     String subagentId,
-  ) {
-    return sendPrompt(
-      sessionId,
-      'Stop subagent $subagentId immediately.',
-      streamingBehavior: 'steer',
+  ) async {
+    final cmd = PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      sessionId: sessionId,
+      commandId: newCommandId('stopsub'),
+      type: 'session.stopSubagent',
+      payload: {'agentId': subagentId},
     );
+    final res = await sendCommand(cmd);
+    final data = res['data'] as Map<String, dynamic>? ?? res;
+    return Map<String, dynamic>.from(data);
   }
 
   Future<Map<String, dynamic>> getDaemonConfig() {

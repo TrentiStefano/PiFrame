@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getGitStatus, getGitDiff, checkIsGitRepo } from '../gitClient.js';
+import { getGitStatus, getGitDiff, checkIsGitRepo, parseBranchHeader } from '../gitClient.js';
 import * as path from 'path';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -68,6 +68,35 @@ function createTempRepo(t: test.TestContext): string {
 function git(repo: string, ...args: string[]): void {
   execFileSync('git', args, { cwd: repo, stdio: 'ignore' });
 }
+
+test('gitClient: branch header gives branch, unborn and detached states', () => {
+  const check = (output: string, branch: string | null, unborn: boolean) =>
+    assert.deepEqual(parseBranchHeader(output), { length: output.indexOf('\0') + 1, branch, unborn });
+  check('## main...origin/main [ahead 1]\0 M a.txt\0', 'main', false);
+  check('## feature/x\0', 'feature/x', false);
+  check('## No commits yet on main\0', 'main', true);
+  check('## Initial commit on master\0', 'master', true);
+  check('## HEAD (no branch)\0', null, false);
+  assert.equal(parseBranchHeader(' M a.txt\0'), null);
+});
+
+test('gitClient: status reports branch on a branch and the short commit when detached', async (t) => {
+  const repo = createTempRepo(t);
+  fs.writeFileSync(path.join(repo, 'a.txt'), 'one\n');
+  git(repo, 'add', 'a.txt');
+  git(repo, 'commit', '-q', '-m', 'first');
+  git(repo, 'switch', '-q', '-c', 'topic');
+  fs.writeFileSync(path.join(repo, 'a.txt'), 'two\n');
+
+  const onBranch = await getGitStatus(repo);
+  assert.equal(onBranch.branch, 'topic');
+  assert.deepEqual(onBranch.files.map((file) => [file.path, file.status]), [['a.txt', 'modified']]);
+
+  git(repo, 'checkout', '-q', '--detach');
+  const detached = await getGitStatus(repo);
+  assert.match(detached.branch ?? '', /^HEAD \([0-9a-f]+\)$/);
+  assert.equal(detached.files.length, 1);
+});
 
 test('gitClient: reports net HEAD-to-working-tree counts including staged and unstaged edits', async (t) => {
   const repo = createTempRepo(t);
@@ -185,13 +214,15 @@ test('gitClient: binary files report zero line counts and retain binary diff out
   assert.match(await getGitDiff(repo, 'binary.bin'), /Binary files .* differ/);
 });
 
+// Opt-in: set PIFRAME_TEST_WSL_REPO to the WSL UNC path of a Git repository
+// (for example \\wsl.localhost\Ubuntu\home\user\repo) to run this check.
 test('gitClient: detects WSL repository if WSL path exists', async () => {
-  const testWslPath = '\\\\wsl.localhost\\LMD_env\\home\\strenti\\Repos\\Flutter\\BeamControl_main';
+  const testWslPath = process.env.PIFRAME_TEST_WSL_REPO;
   const fs = await import('fs');
-  if (fs.existsSync(testWslPath)) {
+  if (testWslPath && fs.existsSync(testWslPath)) {
     const res = await checkIsGitRepo(testWslPath);
     assert.equal(res.isRepo, true);
-    assert.ok(res.rootPath?.includes('BeamControl_main'));
+    assert.ok(res.rootPath);
 
     const status = await getGitStatus(testWslPath);
     assert.equal(status.isRepository, true);

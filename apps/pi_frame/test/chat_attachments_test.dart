@@ -7,6 +7,7 @@ import 'package:pi_frame/data/daemon/daemon_providers.dart';
 import 'package:pi_frame/domain/session/attachment_model.dart';
 import 'package:pi_frame/domain/session/session_state.dart';
 import 'package:pi_frame/domain/session/agent_status.dart';
+import 'package:pi_frame/features/composer/attachment_chips.dart';
 import 'package:pi_frame/features/composer/composer.dart';
 import 'package:pi_frame/features/composer/composer_attachments_provider.dart';
 import 'package:pi_frame/features/transcript/chat_drop_target.dart';
@@ -284,7 +285,7 @@ void main() {
       // 2. Clickable Web link is present with link icon
       final linkChipFinder = find.byKey(const ValueKey('attachment-link-user_att_link'));
       expect(linkChipFinder, findsOneWidget);
-      expect(find.descendant(of: linkChipFinder, matching: find.byIcon(Icons.link)), findsOneWidget);
+      expect(find.descendant(of: linkChipFinder, matching: find.byIcon(Icons.link_outlined)), findsOneWidget);
       expect(find.descendant(of: linkChipFinder, matching: find.text('Dashboard URL')), findsOneWidget);
 
       // 3. User message text is clean
@@ -449,6 +450,47 @@ void main() {
 
       // 3. Raw attachment comment tag is NOT leaked to user
       expect(find.textContaining('<!--pi-attachments:'), findsNothing);
+    });
+
+    testWidgets('image thumbnail shows the invalid-image fallback only for undecodable data', (tester) async {
+      const validPng =
+          'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+      const invalidPng = 'data:image/png;base64,bm90IGEgcG5nIGZpbGU=';
+
+      Future<void> pumpThumbnail(String dataUri, String id) async {
+        await tester.pumpWidget(
+          ProviderScope(
+            child: MaterialApp(
+              theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+              home: Scaffold(
+                body: AttachmentListBar(
+                  attachments: [
+                    ChatAttachment(
+                      id: id,
+                      type: AttachmentType.image,
+                      name: 'image.png',
+                      pathOrUrl: dataUri,
+                    ),
+                  ],
+                  isEditable: false,
+                ),
+              ),
+            ),
+          ),
+        );
+        // Image decoding uses the real async codec, so let it finish outside the fake clock.
+        await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 200)));
+        await tester.pump();
+      }
+
+      await pumpThumbnail(validPng, 'img_valid');
+      expect(find.byKey(const ValueKey('attachment-image-img_valid')), findsOneWidget);
+      expect(find.byKey(const ValueKey('attachment-image-invalid-img_valid')), findsNothing);
+      expect(find.text('Immagine non valida'), findsNothing);
+
+      await pumpThumbnail(invalidPng, 'img_invalid');
+      expect(find.byKey(const ValueKey('attachment-image-invalid-img_invalid')), findsOneWidget);
+      expect(find.text('Immagine non valida'), findsOneWidget);
     });
   });
 }

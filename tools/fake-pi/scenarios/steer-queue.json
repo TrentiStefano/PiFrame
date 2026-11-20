@@ -1,0 +1,2435 @@
+{
+  "name": "steer-queue",
+  "description": "Slow 30-second stream for steering, follow-up queue and abort checks.",
+  "events": [
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_start"
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "turn_start"
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "user",
+          "content": "{{prompt}}",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "user",
+          "content": "{{prompt}}",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "assistant",
+          "content": []
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 1,
+          "total": 101
+        },
+        "assistantMessageEvent": {
+          "type": "text_start",
+          "contentIndex": 0
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 1,
+          "total": 101
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 1/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 2,
+          "total": 102
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 2/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 3,
+          "total": 103
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 3/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 4,
+          "total": 104
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 4/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 5,
+          "total": 105
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 5/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 6,
+          "total": 106
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 6/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 7,
+          "total": 107
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 7/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 8,
+          "total": 108
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 8/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 9,
+          "total": 109
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 9/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 10,
+          "total": 110
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 10/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 11,
+          "total": 111
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 11/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 12,
+          "total": 112
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 12/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 13,
+          "total": 113
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 13/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 14,
+          "total": 114
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 14/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 15,
+          "total": 115
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 15/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 16,
+          "total": 116
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 16/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 17,
+          "total": 117
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 17/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 18,
+          "total": 118
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 18/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 19,
+          "total": 119
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 19/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 20,
+          "total": 120
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 20/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 21,
+          "total": 121
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 21/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 22,
+          "total": 122
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 22/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 23,
+          "total": 123
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 23/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 24,
+          "total": 124
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 24/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 25,
+          "total": 125
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 25/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 26,
+          "total": 126
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 26/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 27,
+          "total": 127
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 27/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 28,
+          "total": 128
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 28/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 29,
+          "total": 129
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 29/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 30,
+          "total": 130
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 30/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 31,
+          "total": 131
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 31/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 32,
+          "total": 132
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 32/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 33,
+          "total": 133
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 33/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 34,
+          "total": 134
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 34/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 35,
+          "total": 135
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 35/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 36,
+          "total": 136
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 36/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 37,
+          "total": 137
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 37/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 38,
+          "total": 138
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 38/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 39,
+          "total": 139
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 39/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 40,
+          "total": 140
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 40/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 41,
+          "total": 141
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 41/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 42,
+          "total": 142
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 42/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 43,
+          "total": 143
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 43/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 44,
+          "total": 144
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 44/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 45,
+          "total": 145
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 45/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 46,
+          "total": 146
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 46/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 47,
+          "total": 147
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 47/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 48,
+          "total": 148
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 48/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 49,
+          "total": 149
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 49/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 50,
+          "total": 150
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 50/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 51,
+          "total": 151
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 51/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 52,
+          "total": 152
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 52/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 53,
+          "total": 153
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 53/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 54,
+          "total": 154
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 54/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 55,
+          "total": 155
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 55/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 56,
+          "total": 156
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 56/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 57,
+          "total": 157
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 57/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 58,
+          "total": 158
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 58/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 59,
+          "total": 159
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 59/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 60,
+          "total": 160
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 60/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 61,
+          "total": 161
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 61/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 62,
+          "total": 162
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 62/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 63,
+          "total": 163
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 63/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 64,
+          "total": 164
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 64/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 65,
+          "total": 165
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 65/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 66,
+          "total": 166
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 66/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 67,
+          "total": 167
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 67/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 68,
+          "total": 168
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 68/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 69,
+          "total": 169
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 69/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 70,
+          "total": 170
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 70/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 71,
+          "total": 171
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 71/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 72,
+          "total": 172
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 72/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 73,
+          "total": 173
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 73/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 74,
+          "total": 174
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 74/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 75,
+          "total": 175
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 75/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 76,
+          "total": 176
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 76/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 77,
+          "total": 177
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 77/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 78,
+          "total": 178
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 78/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 79,
+          "total": 179
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 79/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 80,
+          "total": 180
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 80/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 81,
+          "total": 181
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 81/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 82,
+          "total": 182
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 82/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 83,
+          "total": 183
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 83/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 84,
+          "total": 184
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 84/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 85,
+          "total": 185
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 85/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 86,
+          "total": 186
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 86/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 87,
+          "total": 187
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 87/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 88,
+          "total": 188
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 88/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 89,
+          "total": 189
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 89/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 90,
+          "total": 190
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 90/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 91,
+          "total": 191
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 91/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 92,
+          "total": 192
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 92/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 93,
+          "total": 193
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 93/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 94,
+          "total": 194
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 94/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 95,
+          "total": 195
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 95/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 96,
+          "total": 196
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 96/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 97,
+          "total": 197
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 97/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 98,
+          "total": 198
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 98/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 99,
+          "total": 199
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 99/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 100,
+          "total": 200
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 100/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 101,
+          "total": 201
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 101/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 102,
+          "total": 202
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 102/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 103,
+          "total": 203
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 103/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 104,
+          "total": 204
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 104/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 105,
+          "total": 205
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 105/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 106,
+          "total": 206
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 106/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 107,
+          "total": 207
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 107/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 108,
+          "total": 208
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 108/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 109,
+          "total": 209
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 109/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 110,
+          "total": 210
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 110/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 111,
+          "total": 211
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 111/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 112,
+          "total": 212
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 112/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 113,
+          "total": 213
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 113/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 114,
+          "total": 214
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 114/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 115,
+          "total": 215
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 115/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 116,
+          "total": 216
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 116/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 117,
+          "total": 217
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 117/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 118,
+          "total": 218
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 118/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 119,
+          "total": 219
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 119/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 120,
+          "total": 220
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 120/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 121,
+          "total": 221
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 121/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 122,
+          "total": 222
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 122/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 123,
+          "total": 223
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 123/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 124,
+          "total": 224
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 124/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 125,
+          "total": 225
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 125/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 126,
+          "total": 226
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 126/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 127,
+          "total": 227
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 127/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 128,
+          "total": 228
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 128/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 129,
+          "total": 229
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 129/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 130,
+          "total": 230
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 130/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 131,
+          "total": 231
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 131/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 132,
+          "total": 232
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 132/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 133,
+          "total": 233
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 133/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 134,
+          "total": 234
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 134/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 135,
+          "total": 235
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 135/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 136,
+          "total": 236
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 136/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 137,
+          "total": 237
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 137/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 138,
+          "total": 238
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 138/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 139,
+          "total": 239
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 139/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 140,
+          "total": 240
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 140/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 141,
+          "total": 241
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 141/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 142,
+          "total": 242
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 142/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 143,
+          "total": 243
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 143/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 144,
+          "total": 244
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 144/145."
+        }
+      }
+    },
+    {
+      "delayMs": 200,
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 100,
+          "output": 145,
+          "total": 245
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": " Streaming update 145/145."
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "The slow response completed after roughly thirty seconds."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "turn_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "The slow response completed after roughly thirty seconds."
+            }
+          ]
+        },
+        "toolResults": []
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_end",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "text",
+                "text": "The slow response completed after roughly thirty seconds."
+              }
+            ]
+          }
+        ],
+        "willRetry": false
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_settled"
+      }
+    }
+  ]
+}

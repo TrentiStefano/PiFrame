@@ -13,11 +13,21 @@
           'Il codice QR è scaduto o è già stato usato. Genera un nuovo codice QR da PiFrame sul desktop e riprova.',
         offlineTitle: 'Computer non raggiungibile',
         offlineBody:
-          'Controlla che PiFrame sia aperto sul computer, che la connessione remota sia attiva e che Tailscale sia connesso anche su questo telefono. Riprovo automaticamente…',
+          'Controlla che PiFrame sia aperto sul computer, che la connessione remota sia attiva e che Tailscale sia connesso anche su questo telefono.',
+        retryIn: function (s) {
+          return 'Nuovo tentativo tra ' + s + ' s';
+        },
+        checking: 'Verifica in corso…',
+        retryNow: 'Riprova ora',
+        pairHowBtn: 'Come associare il dispositivo',
+        pairSteps: [
+          'Sul desktop apri PiFrame, vai in Impostazioni → Connessione remota e attiva «Abilita accesso remoto».',
+          'Inquadra il QR con la fotocamera di questo telefono: PiFrame si apre e associa il telefono da solo.',
+          'Il codice QR vale 5 minuti e una sola volta. Se è scaduto, premi «Nuovo codice QR» sul desktop.'
+        ],
         stuckTitle: 'Caricamento troppo lungo',
         stuckBody:
           "L'app non si è avviata. Premi Ricarica per svuotare la cache locale e riprovare.",
-        retry: 'Riprova',
         reload: 'Ricarica'
       }
     : {
@@ -29,12 +39,25 @@
           'The QR code expired or was already used. Generate a new QR code in PiFrame on the desktop and try again.',
         offlineTitle: 'Computer unreachable',
         offlineBody:
-          'Make sure PiFrame is open on your computer, remote connection is on, and Tailscale is connected on this phone too. Retrying automatically…',
+          'Make sure PiFrame is open on your computer, remote connection is on, and Tailscale is connected on this phone too.',
+        retryIn: function (s) {
+          return 'Retrying in ' + s + ' s';
+        },
+        checking: 'Checking…',
+        retryNow: 'Retry now',
+        pairHowBtn: 'How to pair this device',
+        pairSteps: [
+          'On the desktop, open PiFrame, go to Settings → Remote connection and turn on “Enable Remote Access”.',
+          'Scan the QR code with this phone’s camera: PiFrame opens and pairs the phone automatically.',
+          'The QR code is valid for 5 minutes and works once. If it has expired, press “New QR code” on the desktop.'
+        ],
         stuckTitle: 'Taking too long to load',
         stuckBody: 'The app did not start. Tap Reload to clear the local cache and try again.',
-        retry: 'Retry',
         reload: 'Reload'
       };
+
+  /** The offline panel's countdown and its automatic retry share this interval. */
+  var RETRY_SECONDS = 5;
 
   // ---------------------------------------------------------------------------
   // Helpers
@@ -118,10 +141,22 @@
   // ---------------------------------------------------------------------------
 
   var statusEl = null;
+  var retryTimer = null;
+
+  function clearRetry() {
+    if (retryTimer) clearInterval(retryTimer);
+    retryTimer = null;
+  }
 
   function hideStatus() {
+    clearRetry();
     if (statusEl && statusEl.parentNode) statusEl.parentNode.removeChild(statusEl);
     statusEl = null;
+  }
+
+  function hideSplashNow() {
+    var splash = document.getElementById('pf-splash');
+    if (splash) splash.style.display = 'none';
   }
 
   function showStatus(title, body, buttonLabel, onButton, showSpinner) {
@@ -147,6 +182,91 @@
       b.addEventListener('click', onButton);
       statusEl.appendChild(b);
     }
+    document.body.appendChild(statusEl);
+  }
+
+  /** Unpaired: one primary action that reveals the three pairing steps. */
+  function showUnpaired() {
+    hideStatus();
+    hideSplashNow();
+    statusEl = document.createElement('div');
+    statusEl.id = 'pf-status';
+    var h = document.createElement('h1');
+    h.textContent = T.pairingTitle;
+    var p = document.createElement('p');
+    p.textContent = T.pairingBody;
+    var steps = document.createElement('ol');
+    steps.className = 'pf-steps';
+    steps.id = 'pf-pair-steps';
+    steps.hidden = true;
+    T.pairSteps.forEach(function (text) {
+      var li = document.createElement('li');
+      li.textContent = text;
+      steps.appendChild(li);
+    });
+    var toggle = document.createElement('button');
+    toggle.type = 'button';
+    toggle.id = 'pf-pair-help';
+    toggle.textContent = T.pairHowBtn;
+    toggle.setAttribute('aria-controls', 'pf-pair-steps');
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.addEventListener('click', function () {
+      var open = steps.hidden;
+      steps.hidden = !open;
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    statusEl.appendChild(h);
+    statusEl.appendChild(p);
+    statusEl.appendChild(toggle);
+    statusEl.appendChild(steps);
+    document.body.appendChild(statusEl);
+  }
+
+  /**
+   * Computer unreachable: no spinner. Shows a countdown to the next automatic attempt and an
+   * immediate retry button. `retryFn` is the attempt to repeat.
+   */
+  function showOffline(retryFn) {
+    hideStatus();
+    hideSplashNow();
+    statusEl = document.createElement('div');
+    statusEl.id = 'pf-status';
+    var h = document.createElement('h1');
+    h.textContent = T.offlineTitle;
+    var p = document.createElement('p');
+    p.textContent = T.offlineBody;
+    var countdown = document.createElement('p');
+    countdown.className = 'pf-countdown';
+    countdown.id = 'pf-retry-countdown';
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.id = 'pf-retry-now';
+    btn.textContent = T.retryNow;
+
+    var left = RETRY_SECONDS;
+    function render() {
+      countdown.textContent = T.retryIn(left);
+    }
+    function attempt() {
+      clearRetry();
+      countdown.textContent = T.checking;
+      retryFn();
+    }
+    btn.addEventListener('click', attempt);
+    render();
+    retryTimer = setInterval(function () {
+      left -= 1;
+      if (left <= 0) {
+        attempt();
+      } else {
+        render();
+      }
+    }, 1000);
+
+    statusEl.appendChild(h);
+    statusEl.appendChild(p);
+    statusEl.appendChild(countdown);
+    statusEl.appendChild(btn);
     document.body.appendChild(statusEl);
   }
 
@@ -365,21 +485,15 @@
         }
         if (res.status === 401 || res.status === 403) {
           if (token) clearToken();
-          showStatus(T.pairingTitle, T.pairingBody, null, null, false);
+          showUnpaired();
           return;
         }
         throw new Error('HTTP ' + res.status);
       })
       .catch(function () {
-        showStatus(T.offlineTitle, T.offlineBody, T.retry, preflight, true);
-        retryTimer = setTimeout(preflight, 5000);
+        showOffline(preflight);
       });
-    if (retryTimer) {
-      clearTimeout(retryTimer);
-      retryTimer = null;
-    }
   }
-  var retryTimer = null;
 
   function pairWith(secret) {
     fetchWithTimeout(
@@ -409,9 +523,9 @@
         }
       })
       .catch(function () {
-        showStatus(T.offlineTitle, T.offlineBody, T.retry, function () {
+        showOffline(function () {
           pairWith(secret);
-        }, true);
+        });
       });
   }
 

@@ -14,6 +14,22 @@ DESIGN_DIRECTOR_STATE -->
 
 ---
 
+## Composer command grammar and chat-status iteration — implemented 2026-11-11, human review pending
+
+- **User request (high confidence):** Pi `/` commands must never look or travel like chat text. The user must know with certainty whether the composer holds a message or a command. `/reload` used to be posted as a user message and did not reload. The user asked for a separate, quick and fluid UI element.
+- **Interaction contract:**
+  - A command is staged as a **command chip** at the start of the composer. The text field then holds only the command's arguments, and its hint shows the argument hint and "Enter runs /name".
+  - The chip is created by choosing a command in the `/` menu (pointer, or `↑`/`↓` then `Enter`/`Tab`) or by typing `/name` followed by a space.
+  - A hand-typed `/name` that is sent becomes a chip first; the next send runs it. Text with a `/` but no chip is always a message.
+  - `Backspace` at the start of the field, or the chip's close control, removes the chip. With no arguments, `/name` returns to the field as editable text.
+  - Pi built-in and extension commands run without a chat entry. Prompt templates and skills still produce a user message, because Pi expands them into one.
+  - The command list reloads each time the `/` menu opens and keeps the last good list if a refresh fails.
+- **Busy states:** while Pi compacts inside a run, `Enter` steers instead of sending a plain prompt. The daemon waits for a running compaction to end before it forwards a message, because Pi rejects prompts during manual compaction.
+- **Chat status truth:** after a compaction the context indicator shows Pi's `estimatedTokensAfter` until Pi reports real usage, or "post-compaction" when no estimate exists. It never repeats the pre-compaction total. Switching to a different model drops the previous model's context limit.
+- **Transcript:** a subagent `<task-notification>` always renders as the task-notification card, also when its result contains a code fence. Raw notification XML must never reach the transcript.
+- **Implementation:** `apps/pi_frame/lib/features/composer/command_chip.dart`, `slash_menu.dart`, `composer.dart`; `apps/pi_frame/lib/features/transcript/rich_content.dart`; `apps/agentd/src/commands/Dispatcher.ts`. Tests: `composer_command_chip_test.dart`, `composer_test.dart`, `composer_send_key_test.dart`, `session_metrics_test.dart`, `subagents_feature_test.dart`, `SlashReload.test.ts`.
+- **Rendered evidence:** the chip and menu were inspected in temporary real Flutter widget captures (fixture commands, dark and light themes, one mid-intro frame). The captures were not kept in the repository. The user reported that they like the result in the live app; command execution in that test ran against a stale daemon. Human visual review remains pending; no approval inferred.
+
 ## Question preview iteration — human review pending
 
 - **User report and screenshot (REF-QUESTION-UI-20261105):** all layout previews appeared in one oversized question, hiding answer choices. User requested an updating preview like the Pi TUI.
@@ -98,19 +114,19 @@ For every reference, extract:
 
 | ID | Type | Source | What to extract | Status |
 |---|---|---|---|---|
-| REF-QUESTION-UI-20261105 | screenshot | C:\Users\strenti\Pictures\Screenshots\Screenshot 2026-11-05 100004.png | Actual PiFrame questionnaire layout and overflow when option previews are displayed. — Principle: Keep answers accessible while showing one active option preview. — Product need: Support Pi questionnaire option previews without overflowing the screen. | inspected |
+| REF-QUESTION-UI-20261105 | screenshot | local maintainer capture `Screenshot 2026-11-05 100004.png` (not in the repository) | Actual PiFrame questionnaire layout and overflow when option previews are displayed. — Principle: Keep answers accessible while showing one active option preview. — Product need: Support Pi questionnaire option previews without overflowing the screen. | inspected |
 | REF-USER-QUESTION-PAUSE | interaction requirement | User request in conversation: keep composer draft private during agent question; require answering; restore draft afterward. | Inline custom answer; temporarily hide and disable normal composer during a pending agent question; restore the unsent draft after resolution. — Principle: A pending question owns the input focus and blocks unrelated chat sends without losing user work. — Product need: Clear single-step response to agent questions and preserve in-progress composer text. | inspected |
-| REF-SHIFT-OPEN | screenshot | C:\Users\strenti\Pictures\Screenshots\Screenshot 2026-10-30 144706.png | Expanded subagent tab, transcript position. — Principle: Opening the panel must not move transcript content. — Product need: Stable chat position. | inspected |
-| REF-SHIFT-CLOSED | screenshot | C:\Users\strenti\Pictures\Screenshots\Screenshot 2026-10-30 144658.png | Closed subagent tab, transcript position. — Principle: Opening the panel must not move transcript content. — Product need: Stable chat position. | inspected |
+| REF-SHIFT-OPEN | screenshot | local maintainer capture `Screenshot 2026-10-30 144706.png` (not in the repository) | Expanded subagent tab, transcript position. — Principle: Opening the panel must not move transcript content. — Product need: Stable chat position. | inspected |
+| REF-SHIFT-CLOSED | screenshot | local maintainer capture `Screenshot 2026-10-30 144658.png` (not in the repository) | Closed subagent tab, transcript position. — Principle: Opening the panel must not move transcript content. — Product need: Stable chat position. | inspected |
 | REF-MAX-CONTEXT | repository | https://github.com/indie-arch/max-context | Configurable soft context limit, proactive compaction after a completed prompt, pending-input safety and failed-compaction loop prevention. — Principle: Context limits must affect runtime compaction, not just usage display. — Product need: Workspace controls for maximum context and reserve percentage while respecting model capabilities and pricing tiers. | inspected |
-| REF-013 | anti-reference | C:\Users\strenti\Pictures\pi-frame-design-inspo\AI_GENERATED_LOOK.png | Reject same-hue fill/outline/text applied everywhere; keep surfaces and labels independently readable and avoid generic AI dashboard polish. — Principle: Accent color is a signal for content/meaning, not a universal component paint; surfaces use tonal neutrals and quiet boundaries. — Product need: Improve scanability and product-specificity without recreating the monochrome, synthetic card/button aesthetic the user rejects. | anti-reference |
-| REF-012 | interaction-inspiration/visual-inspiration | C:\Users\strenti\Pictures\pi-frame-design-inspo\Antigravity_chat.png | Compact activity timeline for reasoning, commands, tool calls and streaming steps; progressive disclosure of details; slim composer and low-scroll overhead. — Principle: Intermediate agent activity should summarize into dense, low-height rows; expand only when user asks for detail, keep final answer primary. — Product need: Reduce scroll length and jitter in long Pi sessions while preserving inspectable reasoning, command output and tool results. | inspected |
-| REF-011 | visual-inspiration/platform-reference | C:\Users\strenti\Pictures\pi-frame-design-inspo\VSCODE_UI.png | Selective color sparks, dense but legible explorer/chat/status hierarchy, compact toolbar and composer placement. — Principle: Use distinct semantic palette accents to make code, status and controls scannable; color should explain content, not merely decorate borders and fills. — Product need: Make repository paths, code tokens, tool states and chat controls easier to parse without increasing wasted space. | inspected |
+| REF-013 | anti-reference | local maintainer capture `AI_GENERATED_LOOK.png` (not in the repository) | Reject same-hue fill/outline/text applied everywhere; keep surfaces and labels independently readable and avoid generic AI dashboard polish. — Principle: Accent color is a signal for content/meaning, not a universal component paint; surfaces use tonal neutrals and quiet boundaries. — Product need: Improve scanability and product-specificity without recreating the monochrome, synthetic card/button aesthetic the user rejects. | anti-reference |
+| REF-012 | interaction-inspiration/visual-inspiration | local maintainer capture `Antigravity_chat.png` (not in the repository) | Compact activity timeline for reasoning, commands, tool calls and streaming steps; progressive disclosure of details; slim composer and low-scroll overhead. — Principle: Intermediate agent activity should summarize into dense, low-height rows; expand only when user asks for detail, keep final answer primary. — Product need: Reduce scroll length and jitter in long Pi sessions while preserving inspectable reasoning, command output and tool results. | inspected |
+| REF-011 | visual-inspiration/platform-reference | local maintainer capture `VSCODE_UI.png` (not in the repository) | Selective color sparks, dense but legible explorer/chat/status hierarchy, compact toolbar and composer placement. — Principle: Use distinct semantic palette accents to make code, status and controls scannable; color should explain content, not merely decorate borders and fills. — Product need: Make repository paths, code tokens, tool states and chat controls easier to parse without increasing wasted space. | inspected |
 | REF-010 | palette / theme reference | themes/piframe-dark.json; themes/piframe-light.json | Official PiFrame Dark and PiFrame Light normative theme tokens. PiFrame Dark (#161c27) and PiFrame Light (#f1f3f7). — Principle: Direct mapping of theme tokens to surface, chassis, text, accent (#5f9fc5 / #24638a) and semantic states. — Product need: Provide ergonomic, high-contrast default dark and light themes with full JSON theme customization. | inspected |
 | REF-009 | existing rendered UI screenshots | apps/pi_frame/.impeccable/review/precision/overview-light-1440.jpg; apps/pi_frame/.impeccable/review/precision/dark-1440-workspace.png; apps/pi_frame/.impeccable/review/precision/dark-390.png | Established app information architecture, actual session surface and responsive affordances; do not treat as new build output for this intake. — Principle: Session navigation, transcript and workspace controls persist across wide and compact layouts; focus remains on actual agent content. — Product need: A user should monitor and operate sessions from desktop and narrow client widths without losing essential controls. | inspected |
 | REF-008 | superseded historical visual reference | https://www.vitsoe.com/us/about/good-design; archived product images in `apps/pi_frame/.impeccable/research/round2/` | Historical D6 input only. D9 round 4 explicitly removes this design language from the active direction; do not reuse its shape, palette or composition. | anti-reference |
 | REF-007 | superseded historical visual reference | Archived `apps/pi_frame/.impeccable/research/round2/` captures and former source URLs | Historical D6 input only. D9 round 4 explicitly removes this design language from the active direction; do not reuse its visual style. | anti-reference |
-| REF-006 | user-selected spatial/layout reference | design references/VisualStudioCode-Bento-Layout.png | Three-area inspiration: chat, opened-repository files, Git Changes. Use Bento grouping and compartment hierarchy; do not copy VS Code branding or exact chrome. Palette is now independently governed by user-selected REF-010. — Principle: Keep related work surfaces visible and legible together. — Product need: Users should interact with Pi sessions while seeing repository files and changes. | inspected |
+| REF-006 | user-selected spatial/layout reference | design references/VisualStudioCode-Bento-Layout.png (file removed from the repository on 2026-11-11; the spatial principle below stays in force) | Three-area inspiration: chat, opened-repository files, Git Changes. Use Bento grouping and compartment hierarchy; do not copy VS Code branding or exact chrome. Palette is now independently governed by user-selected REF-010. — Principle: Keep related work surfaces visible and legible together. — Product need: Users should interact with Pi sessions while seeing repository files and changes. | inspected |
 | REF-005 | historical palette reference | DR10–by Matus Hatala.pdf; apps/pi_frame/.impeccable/research/palette-1.png | Historical D6 palette reference; distinguish source swatches from semantic values. Its former DR10 direction was explicitly superseded during D9 by REF-010 (PiFrame Light / Dark). — Principle retained: status colors convey actual state, never decoration. — Product need: maintain readable contrast and semantic cues in the user's latest selected palette. | inspected |
 | REF-004 | historical design records | apps/pi_frame/.impeccable/research/round2/ and `apps/pi_frame/.impeccable/surfaces/` | Historical D6 proposal and approval record only; superseded by explicit D9 rounds 2 and 4. Do not use prior surface language as current styling guidance. | inspected |
 | REF-003 | app-level design contract | apps/pi_frame/DESIGN.md | Implementation-level PiFrame Dark and PiFrame Light and whole-app surface rules, maintained under this root contract. — Principle: align Flutter components to the current user-selected palette and surface grammar. | inspected |
@@ -197,7 +213,7 @@ Do not claim that a reference was inspected when it was not accessible.
 | Q-SCOPE | scope | 100 | yes | answered | Is this discovery meant to establish PiFrame's overall product/UI contract, or focus on a specific session-workflow change in the current branch? |
 | Q-FILE-VIEW | file pane behavior | 100 | yes | answered | Should repository files support read-only browsing/preview, or direct editing and saving from PiFrame? |
 | Q-VISUAL-DIRECTION | visual direction | 100 | yes | answered | Which visual composition should lead exploration: Bento Triptych, Artifact Atlas, or Conversation Desk? |
-| Q-COLD-TITLE | product-fidelity | 100 | yes | answered | Quando manca un titolo nell'indice, preferisci mostrare subito un ID provvisorio o attendere il titolo esatto? |
+| Q-COLD-TITLE | product-fidelity | 100 | yes | answered | When a title is missing from the index, should the UI show a provisional ID at once or wait for the exact title? |
 | Q-FLOW | critical flow | 93 | yes | answered | Which session workflow should define the critical path: resume/reconnect ongoing work, find and switch sessions, branch/fork/clone, or protect uncertain/shared sessions? |
 <!-- DD_INTERVIEW_STATUS_END -->
 
@@ -348,7 +364,15 @@ Reasonable inference from local coding-agent use and daemon continuity architect
 
 ## What the app does
 
-Current client provides GUI session discovery/operation, streaming transcript, prompt/steer/interrupt, workspace Git status/diff and extension UI; a local daemon preserves execution/replay across GUI disconnects. **User-requested expansion:** active-session repository files must be editable/saveable, and Git Changes must support stage/commit/discard actions alongside Pi chat. These editor and Git write capabilities are not present in current feature code reviewed.
+PiFrame is a GUI over a local daemon that runs Pi workers and preserves execution and replay across GUI disconnects. Current capabilities:
+
+- **Sessions:** repository-grouped session tree, folder-scoped creation, hidden worker sessions, clone/fork/resume, read-only protection for terminal-owned sessions.
+- **Chat:** streaming transcript with compact reasoning and tool rows, prompt/steer/follow-up/interrupt, queue editing, a panel beside the chat with tabs for subagents and workflows, side conversations (`/side`, `/btw`) and the agent's tasks, task-notification cards, extension UI requests and questionnaires.
+- **Composer:** file and code-range context, attachments, model and thinking pickers, context-window policy, and Pi `/` commands staged as command chips.
+- **Workspace:** editable repository files with dirty-buffer protection, Git Changes with diff, per-file stage/unstage and confirmed undo, evidence-based agent/manual provenance, branch picker, integrated terminal and an in-app browser pane on desktop.
+- **Status:** Pi metrics (model, thinking, context usage, cost, extension statuses) and Pi package management in Settings.
+
+The daemon starts the WSL distro before it starts a worker in a `\\wsl.localhost` folder, so an idle WSL VM does not break sends.
 
 ## What the app does not do
 
@@ -356,7 +380,7 @@ It does not replace Pi, own Pi's session files/history, run the agent inside Flu
 
 ## Core entities / objects
 
-Pi session and branch/tree; user/assistant messages; reasoning and tool events; queued steer/follow-up prompts; active-session repository tree, editable file and dirty buffer; Git changed-file/staged state, diff and commit; model/thinking settings; daemon connection, snapshot and replay cursor; extension UI request.
+Pi session and branch/tree; user/assistant messages; reasoning and tool events; queued steer/follow-up prompts; Pi slash commands (built-in, extension, prompt template, skill); subagent task notifications; per-session context policy (limit and reserve); active-session repository tree, editable file and dirty buffer; Git changed-file/staged state, diff and commit; model/thinking settings; daemon connection, snapshot and replay cursor; extension UI request.
 
 ## User goals
 
@@ -430,7 +454,9 @@ Document:
 - pointer precision needs;
 - Gesture cancellation/interruption: keyboard actions remain immediate; inspector motion is interruptible and reduced-motion aware per approved app direction.
 
-Keyboard + pointer for session search/selection, chat composition, repository tree navigation and editing. Preserve Ctrl/Cmd+K command palette, Ctrl/Cmd+Enter send and Escape interrupt. Editor uses standard text-editing keys; ensure focus can move among chat, file tree/editor and Git Changes without trapping. Git actions show repository/branch and exact file targets; discard previews impact and requires confirmation; commit operates on reviewed staged files. Dirty buffers survive pane changes; session switch/window close offers Save / Discard / Cancel. External file changes preserve the user's buffer and offer compare/reload/retry. Windows keeps integrated drag/standard window actions; macOS native window behavior; Web follows browser keyboard/navigation conventions. Full accessibility QA remains pending.
+Keyboard + pointer for session search/selection, chat composition, repository tree navigation and editing. Preserve Ctrl/Cmd+K command palette, Ctrl/Cmd+Enter send and Escape interrupt. With **Send with Enter** on, `Enter` sends and `Shift+Enter` adds a line. While the agent works or compacts, sending steers.
+
+Composer command keys: `/` at the start of an empty line opens the command menu; `↑`/`↓` move the highlight; `Enter` or `Tab` stages the highlighted command as a chip; `Escape` closes the menu; `Backspace` at the start of the field removes the chip; `Enter` runs the staged command. Editor uses standard text-editing keys; ensure focus can move among chat, file tree/editor and Git Changes without trapping. Git actions show repository/branch and exact file targets; discard previews impact and requires confirmation; commit operates on reviewed staged files. Dirty buffers survive pane changes; session switch/window close offers Save / Discard / Cancel. External file changes preserve the user's buffer and offer compare/reload/retry. Windows keeps integrated drag/standard window actions; macOS native window behavior; Web follows browser keyboard/navigation conventions. Full accessibility QA remains pending.
 
 ## Primary output
 
@@ -648,6 +674,8 @@ Use familiar software/action icons with labels or tooltips; status meaning never
 ### Motion language
 Keep keyboard actions immediate. Use short, interruptible pane transitions and subtle pointer feedback only; preserve reduced-motion behavior. No decorative entrance loops or streaming text theatrics.
 
+Motion may confirm a mode change when the change matters for safety. The command chip is the reference case: it pops in (about 200ms, ease-out-back) with a one-shot accent glow that fades by about 520ms, so the user sees that the input became a command. The `/` menu fades and slides in (140ms), and its keyboard highlight moves in 120ms. With reduced motion these appear without animation.
+
 ### Composition / grid
 **Selected direction: Bento Triptych.** Keep session navigation distinct from three co-visible wide work areas: repository/editor, Pi chat and Git Changes. At compact/medium widths, chat is default and explicit pane switching exposes files or changes without losing state. Proportions remain a design-system refinement.
 
@@ -803,6 +831,34 @@ Only create or expand abstractions that have a clear shared intent.
 
 ## Tokens
 
+### Code tokens (`packages/pi_frame_theme`, app wrappers in `lib/ui/motion.dart`)
+- `FrameSpace` x1 4, x2 8, x3 12, x4 16, x6 24, x8 32, x12 48 (page gutter on wide layouts such as the welcome view): gaps and paddings. Use these instead of literal spacing where a value matches.
+- `FrameSize` rowList 28, rowForm 40, hitMin 28, icon 16, iconLg 20, paneHeader 40: row heights, hit targets and icons. `iconSm` 14 is defined in `theme_scale.dart` for dense chips and toolbars only (in use: the browser toolbar, attachment and command chips, tool cards); use `icon` everywhere else.
+- `FrameText.of(context)` caption 11/16, label 12/16 w500, body 13/20, bodyLarge 14/20, title 16/22 w600, heading 20/26 w600, display 28/32 w600, mono 12/18, monoBody 13/20: the only source of font sizes. Anything below 11 px becomes caption.
+- `FrameMotion` / `FrameMotionTokens`: instant 0, micro 120, small 160, panel 240, smallExit 120, panelExit 180, dialog 180, dialogExit 120, firstRun 300, stagger 100, crossFade 120, debounce 300, tooltipWait 300, pulseLoop 1400, shimmerLoop 3600, launchReveal 620 ms; curves enterCurve and panelCurve. Use these for every duration and curve. The loop and launch-reveal tokens are listed under Motion.
+- `FrameTokens` radiusSm 6, radiusMd 10, radiusLg 14, radiusPill 999; inputBorder (at least 3:1 against `surface`, see `docs/theming.md`); focusRing: radii, field outlines and focus.
+- Literals that remain are listed in the ratchet test (`apps/pi_frame/test/design_literals_lint_test.dart`), which fails if a count rises.
+
+### Shared widgets (`apps/pi_frame/lib/ui/`)
+- `FrameCallout` (`FrameCalloutTone` info, warning, danger): inline notice with an optional details toggle.
+- `FrameDialog` (`FrameDialogAction`, `FrameDialogActionRole` cancel, primary, destructive): dialog shell; scrolls above 80 % of the window height. Opened with `showFrameDialog` and `showFrameDialogBuilder`.
+- `FrameEmptyState`: centred icon, title, message and one action button.
+- `FrameErrorCallout`: failed load or action, with a retry button when the error is retryable and a "Dettagli" toggle for the raw text.
+- `FrameFocusRing`: 2 px `focusRing` outline, shown only for keyboard focus.
+- `FrameIconAction`: 16 px icon in a 28 x 28 target at text scale 1.0. Both grow with the system text scale through `frameControlScale` (`ui/frame_control_scale.dart`), capped at `frameControlScaleCap` = 1.5×, so a 2.0 text scale does not inflate toolbars. The tooltip is required and is the accessible name.
+- `FrameListRow`: compact selectable row (at least `rowList` high) with actions revealed on hover or focus; they stay in the tab order.
+- `FrameMiddleEllipsis`: truncates a path in the middle so the file name stays visible.
+- `FramePaneHeader`: pane heading (Barlow Condensed title, mono subtitle, actions, optional tabs) at `paneHeader` height, flat.
+- `FrameSearchField`: 32 px search input with `inputBorder`, clear button and Escape handling.
+- `FrameSection`: settings or dialog block with a title, optional description and one border level.
+- `FrameSnackBar`: floating bottom-right notice, 280 to 460 px wide; activating it (click, Enter or Space) dismisses it.
+- `FrameStatusTag` (`FrameStatusTone` neutral, info, success, warning, danger): coloured dot with a label, no background or border.
+- `FrameActivityIndicator` (`ui/frame_activity_indicator.dart`): the indeterminate "working" spinner for the composer, transcript, tool timeline and Settings. Every spinner in the app goes through it, including the 9 to 14 px ones in tool cards and the subagent panel. Under reduced motion it is a static `sync` glyph in the same square.
+- `FrameMotion`, `FrameEnter`, `FrameExpandable`, `FrameSwitcher` (`ui/motion.dart`): the motion wrappers. `FrameEnter` fades in and settles a new subtree; `FrameExpandable` animates height open and closed; `FrameSwitcher` swaps a keyed child (list to detail) with a fade and slide, and `animate: false` for keyboard-driven changes.
+- `PressFeedback` (`ui/precision.dart`): pointer-only press scale (0.97) on filled and outlined buttons, `pressDuration` from `FrameTokens`. It is applied at each `FilledButton` and `OutlinedButton` call site rather than in a shared button widget, so a new button needs the wrapper too. It never delays or animates keyboard activation, it is off for disabled controls, and it does not scale under reduced motion.
+- `EscapeLayers` (`ui/escape_layers.dart`): registry of open layers that Escape closes, topmost first. Layer order: menu, dialog, drawer, diff, review, settings. Menus and dialogs close through Flutter's own dismiss action and are not registered.
+- `FrameLinearProgress` (`ui/frame_linear_progress.dart`): a `LinearProgressIndicator` wrapper for the Settings bars (Packages in `packages_section.dart`, download in `updates_section.dart`). With a known value it shows that fraction in both modes. With no value, under reduced motion it is a static full bar in the given colour, so nothing loops. The page-load bar (`web_browser_pane.dart`) and the Git changes bar (`git_changes_pane.dart`) check reduced motion inline the same way. The context-usage bar in `context_panel.dart` always has a value and never loops.
+
 ### Semantic colors
 `piframe-light.json` / `piframe-dark.json` define the normative hex values for `background/chassis`, `surface/displaySurface`, text/subtext, `accent/focusRing`, `success/warning/danger/info`, `agent*`, syntax and diff roles.
 - Primary accent is signature Steel Blue (`#5f9fc5` in Dark, `#24638a` in Light).
@@ -812,19 +868,30 @@ Only create or expand abstractions that have a clear shared intent.
 - Status and syntax accents that miss text contrast pair with named text/surface colors; never invent darker replacement hues. PiFrame Light chat/composer use coordinated crisp surfaces; PiFrame Dark uses layered midnight-slate surfaces.
 
 ### Typography roles
-Keep bundled Schibsted Grotesk for UI/body (14px base, 1.5 line-height); Barlow Condensed for brand and pane headings; Source Code Pro for code, file paths, commit messages and diffs. Existing roles: 11/12/14/16/20/28px; 400/500/600 weights. Preserve text scaling and avoid condensed type for long reading.
+Keep bundled Schibsted Grotesk for UI/body (14px base, 1.5 line-height); Barlow Condensed for brand and pane headings; Source Code Pro for code, file paths, commit messages and diffs. Roles are `FrameText` (caption 11, label 12, body 13, bodyLarge 14, title 16, heading 20, display 28; mono 12 and 13), with 400/500/600 weights. Preserve text scaling and avoid condensed type for long reading.
 
 ### Spacing scale
-4px base unit; keep work-area gutters tight (about 6px), with 4/8/12/16/24/32/48px inner spacing. Use compact session/Git rows and reserve larger gaps for hierarchy, not repeated list padding.
+4px base unit; keep work-area gutters tight (about 6px), with 4/8/12/16/24/32px inner spacing (`FrameSpace`) and a 48px page gutter (`FrameSpace.x12`) on wide layouts only. Use compact session/Git rows and reserve larger gaps for hierarchy, not repeated list padding.
 
 ### Radii / shape
-Use 1px subtle borders and 6/10/14px semantic radii (small/medium/large). Apply to panes and non-pane functional surfaces; keep list rows compact and avoid giant cards or pill treatment.
+Use 1px subtle borders and 6/10/14px semantic radii (`radiusSm`/`radiusMd`/`radiusLg`). Apply to panes and non-pane functional surfaces; keep list rows compact and avoid giant cards or pill treatment.
 
 ### Elevation / surface hierarchy
 Use aligned surfaces, thin 1px borders (`#2e3c53` Dark / `#d3dae4` Light) and small gaps to separate compartments; avoid heavy shadows. Reserve native elevation for menus/dialogs.
 
 ### Motion
-Existing tokens: 120ms pointer press feedback; 240ms pane movement with drawer curve. Keyboard actions stay immediate. Respect reduced motion; no decorative launch or streaming animations.
+All durations and curves come from `FrameMotion` (see Code tokens). Main uses: `micro` 120 ms for pointer press feedback and hover; `small` 160 ms for expand/collapse and chips; `panel` 240 ms for panes and the side panel, with `panelCurve`; `dialog` 180 ms in and `dialogExit` 120 ms out; `enterCurve` for most other changes. Keyboard actions stay immediate.
+
+Reduced motion follows `MediaQuery.disableAnimationsOf`. `PiFrameApp` sets it from the "Movimento ridotto" (Reduce motion) setting in Appearance, or from the operating system. Under it, movement becomes a `crossFade` (120 ms) or a static state, and no loop runs: spinners (`FrameActivityIndicator`) become a static glyph, indeterminate bars (`FrameLinearProgress`) become a static full bar, and the shimmer, pulse and startup assemble stop.
+
+Decorative motion, with its tokens:
+- Startup intro: a 1.4 s assemble overlay (`FrameMotionTokens.pulseLoop`, 1400 ms, `ui/startup_assemble_animation.dart`) on the first run, and on every launch when "Animazione di avvio" is on (Settings → Aspetto, off by default; skipped under reduced motion). Other launches get a 620 ms reveal (`FrameMotionTokens.launchReveal`, `LaunchReveal` in `ui/precision.dart`) that the first input finishes at once.
+- Shimmer border on the composer: a 3.6 s loop (`FrameMotionTokens.shimmerLoop`, `ShimmerBorder`), static under reduced motion. Working session cards in the Sessions tab use a static circular border with no shimmering.
+- Working spinner on working session rows: a small `FrameActivityIndicator` in `sessions_sidebar.dart` (`_WorkingDot`), with the card border in `agentWorking`. Under reduced motion it is the static `sync` glyph. The leading dot of an idle row is a notification dot: dark, or `accent` while the session has agent activity the user has not opened (`unread_sessions_provider.dart`). The keyboard cursor ring (`focusRing`) shows only in keyboard navigation mode.
+- Hover wait before a tooltip opens: `FrameMotionTokens.tooltipWait`, 300 ms (used by the nerd stats bar).
+- Literal durations with no token yet: a 140 ms transition in `session_changes_pane.dart`.
+
+No streaming or decorative animation is added beyond this list.
 
 ### Breakpoints / size classes
 Use current content-driven classes: compact <900px; medium 900–1439px; expanded ≥1440px. Compact: chat default + explicit Repository/Git Changes switcher. Medium: chat + one companion pane. Expanded: Bento Triptych visible; collapse session navigation before shrinking work panes. Revalidate exact widths with rendered layouts.
@@ -839,6 +906,10 @@ Use current content-driven classes: compact <900px; medium 900–1439px; expande
 | Pi chat/composer | Follow/send work and attach context | Streaming, settled, read-only, file/line references | Loading, empty, queued, interrupted, error | Preserve shortcuts; announce selected file/range and metadata |
 | Session metrics | Show Pi work state | Model, thinking, context usage, cost, extension settings | Loading, unavailable, stale | Text labels/units; never fabricate unavailable data |
 | Pi package manager | Inspect/update installed Pi packages | Per-package update/remove/version pin | Loading, update, error | Confirm removals; delegate lifecycle to Pi's package manager |
+| Command chip (`ComposerCommandChip`) | Show that the composer holds a Pi command, not a message | Source label: `Pi`, `estensione`/`extension`, `prompt`, `skill` | Staged, running (spinner replaces terminal icon), removed | Mono `/name`; close control with tooltip and `Backspace` equivalent; announced as `/name`; accent gradient with readable text, not a same-hue paint |
+| Slash command menu (`SlashMenu`) | Find and pick a command | Filter by name or description; argument hint; source | Hidden, open, keyboard-highlighted, empty (hidden) | Full keyboard selection; highlight uses accent bar plus tint, not color alone; highlighted row scrolls into view |
+| Task-notification card | Summarize a finished subagent task | Status, summary, tokens, tool uses, duration, expandable result, transcript path | Collapsed, expanded | Never shows raw XML; result in mono text, also when it contains code fences |
+| Context indicator | Show context use against the effective window | Session limit or model window | Known, post-compaction estimate, unknown ("post-compaction"), unavailable | Text with units; never reuse a stale pre-compaction value |
 
 ### Abstraction rule
 
@@ -851,13 +922,15 @@ Do not create generic components whose abstraction removes product meaning.
 # 08. Content & UX writing
 
 ## Voice
-`[TO DEFINE]`
+Technical and direct. Italian is the primary UI language, with English available.
 
 ## Tone
-`[TO DEFINE]`
+Calm and factual. Errors say what failed and what to do next, for example "Command failed: …" or "Wait for the turn or the compaction to finish." (Italian UI: "Comando non riuscito: …").
 
 ## Naming rules
-`[TO DEFINE]`
+- Pi commands always appear as `/name` in the mono font.
+- Command sources use short labels: `Pi`, `estensione`, `prompt`, `skill`.
+- Use Pi's own terms for Pi concepts: steer, follow-up, compaction, session, worker.
 
 ## Copy principles
 
@@ -919,6 +992,7 @@ Every critical screen should define applicable states.
 | Screen | Initial | Loading | Populated | Empty | Error | Success | Disabled | Offline | Overflow |
 |---|---|---|---|---|---|---|---|---|---|
 | Bento session workspace | Launch/reconnect | Snapshot/status | Chat + tree/editor + Git | No session/no repo/clean Git | Save conflict/Git failure/offline | Saved/staged/committed | Read-only session | Daemon unavailable | Long paths, large diffs, narrow pane |
+| Composer with command | Text only | Command list refreshing on `/` | Chip staged, arguments typed | No matching command (menu hidden; text stays a message) | Command failed: chip stays, snackbar with the error | Chip removed after the command runs | Attachments block Pi/extension commands; read-only session | Daemon unavailable: run fails visibly | Long argument text wraps beside the chip |
 
 ---
 
@@ -1079,6 +1153,15 @@ When the brief pins a reference, did we preserve its intended principle without 
 8. Indent and right-offset user chat messages.
 9. Streamline composer: icon-only buttons, model/thinking selectors on bottom-left, send/attach on bottom-right.
 **Impact:** Implementation verified across unit/widget tests and live Windows 11 capture `docs/design-evidence/pi-frame-live-windows.png`. Awaiting human review round 6. No approval recorded.
+
+### 2026-11-11 — Pi commands are tokens, not text
+
+**Context:** The user could not tell a typed command from a message, and `/reload` was posted as a user message instead of reloading Pi.
+**Evidence:** User request and live testing; `composer.dart` sent recognized built-ins only when the command list had loaded, and `/reload` went through the message path.
+**Decision:** Stage every Pi command as a command chip separate from the text field. Run Pi built-in and extension commands without a chat entry; send prompt templates and skills as messages. A hand-typed `/name` becomes a chip before it can run. Use short confirmation motion that respects reduced motion.
+**Why:** It removes the ambiguity between text and commands without adding a second input or mode switch. The confirmation motion signals the mode change at the moment it happens.
+**Alternatives rejected:** Coloring command text inside the field, because it is still text and can be sent as a message by accident. A separate command input, because it splits the composer and slows frequent use.
+**Impact:** New shared components: command chip and keyboard-driven slash menu. Human visual review pending; no approval recorded.
 
 ---
 

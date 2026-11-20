@@ -1,0 +1,587 @@
+{
+  "name": "todos",
+  "description": "Todo calls create tasks and move them through pending, in progress and completed.",
+  "events": [
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_start"
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "turn_start"
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "user",
+          "content": "{{prompt}}",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "user",
+          "content": "{{prompt}}",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "assistant",
+          "content": []
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "toolCall",
+              "id": "todo_create",
+              "name": "todo",
+              "arguments": {
+                "action": "create",
+                "subject": "Inspect the existing flow",
+                "id": 1,
+                "status": "pending"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "tool_execution_start",
+        "toolCallId": "todo_create",
+        "toolName": "todo",
+        "args": {
+          "action": "create",
+          "subject": "Inspect the existing flow",
+          "id": 1,
+          "status": "pending"
+        }
+      }
+    },
+    {
+      "delayMs": 300,
+      "event": {
+        "type": "tool_execution_update",
+        "toolCallId": "todo_create",
+        "toolName": "todo",
+        "args": {
+          "action": "create",
+          "subject": "Inspect the existing flow",
+          "id": 1,
+          "status": "pending"
+        },
+        "partialResult": "{\"tasks\":[{\"id\":1,\"subject\":\"Inspect the existing flow\",\"sta"
+      }
+    },
+    {
+      "event": {
+        "type": "tool_execution_end",
+        "toolCallId": "todo_create",
+        "toolName": "todo",
+        "result": "{\"tasks\":[{\"id\":1,\"subject\":\"Inspect the existing flow\",\"status\":\"pending\",\"activeForm\":\"Inspecting the existing flow\"}]}",
+        "isError": false
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "assistant",
+          "content": []
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "toolCall",
+              "id": "todo_progress",
+              "name": "todo",
+              "arguments": {
+                "action": "update",
+                "id": 1,
+                "status": "in_progress"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "tool_execution_start",
+        "toolCallId": "todo_progress",
+        "toolName": "todo",
+        "args": {
+          "action": "update",
+          "id": 1,
+          "status": "in_progress"
+        }
+      }
+    },
+    {
+      "delayMs": 600,
+      "event": {
+        "type": "tool_execution_update",
+        "toolCallId": "todo_progress",
+        "toolName": "todo",
+        "args": {
+          "action": "update",
+          "id": 1,
+          "status": "in_progress"
+        },
+        "partialResult": "{\"tasks\":[{\"id\":1,\"subject\":\"Inspect the existing flow\",\"sta"
+      }
+    },
+    {
+      "event": {
+        "type": "tool_execution_end",
+        "toolCallId": "todo_progress",
+        "toolName": "todo",
+        "result": "{\"tasks\":[{\"id\":1,\"subject\":\"Inspect the existing flow\",\"status\":\"in_progress\",\"activeForm\":\"Inspecting the existing flow\"}]}",
+        "isError": false
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "assistant",
+          "content": []
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "toolCall",
+              "id": "todo_add",
+              "name": "todo",
+              "arguments": {
+                "action": "create",
+                "subject": "Update the simulator",
+                "id": 2,
+                "status": "pending"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "tool_execution_start",
+        "toolCallId": "todo_add",
+        "toolName": "todo",
+        "args": {
+          "action": "create",
+          "subject": "Update the simulator",
+          "id": 2,
+          "status": "pending"
+        }
+      }
+    },
+    {
+      "delayMs": 600,
+      "event": {
+        "type": "tool_execution_update",
+        "toolCallId": "todo_add",
+        "toolName": "todo",
+        "args": {
+          "action": "create",
+          "subject": "Update the simulator",
+          "id": 2,
+          "status": "pending"
+        },
+        "partialResult": "{\"tasks\":[{\"id\":1,\"subject\":\"Inspect the existing flow\",\"sta"
+      }
+    },
+    {
+      "event": {
+        "type": "tool_execution_end",
+        "toolCallId": "todo_add",
+        "toolName": "todo",
+        "result": "{\"tasks\":[{\"id\":1,\"subject\":\"Inspect the existing flow\",\"status\":\"in_progress\",\"activeForm\":\"Inspecting the existing flow\"},{\"id\":2,\"subject\":\"Update the simulator\",\"status\":\"pending\",\"activeForm\":\"Updating the simulator\"}]}",
+        "isError": false
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "assistant",
+          "content": []
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "toolCall",
+              "id": "todo_complete",
+              "name": "todo",
+              "arguments": {
+                "action": "update",
+                "id": 1,
+                "status": "completed"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "tool_execution_start",
+        "toolCallId": "todo_complete",
+        "toolName": "todo",
+        "args": {
+          "action": "update",
+          "id": 1,
+          "status": "completed"
+        }
+      }
+    },
+    {
+      "delayMs": 600,
+      "event": {
+        "type": "tool_execution_update",
+        "toolCallId": "todo_complete",
+        "toolName": "todo",
+        "args": {
+          "action": "update",
+          "id": 1,
+          "status": "completed"
+        },
+        "partialResult": "{\"tasks\":[{\"id\":1,\"subject\":\"Inspect the existing flow\",\"sta"
+      }
+    },
+    {
+      "event": {
+        "type": "tool_execution_end",
+        "toolCallId": "todo_complete",
+        "toolName": "todo",
+        "result": "{\"tasks\":[{\"id\":1,\"subject\":\"Inspect the existing flow\",\"status\":\"completed\",\"activeForm\":\"Inspecting the existing flow\"},{\"id\":2,\"subject\":\"Update the simulator\",\"status\":\"pending\",\"activeForm\":\"Updating the simulator\"}]}",
+        "isError": false
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "assistant",
+          "content": []
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "toolCall",
+              "id": "todo_checks",
+              "name": "todo",
+              "arguments": {
+                "action": "create",
+                "subject": "Run offline checks",
+                "id": 3,
+                "status": "pending"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "tool_execution_start",
+        "toolCallId": "todo_checks",
+        "toolName": "todo",
+        "args": {
+          "action": "create",
+          "subject": "Run offline checks",
+          "id": 3,
+          "status": "pending"
+        }
+      }
+    },
+    {
+      "delayMs": 600,
+      "event": {
+        "type": "tool_execution_update",
+        "toolCallId": "todo_checks",
+        "toolName": "todo",
+        "args": {
+          "action": "create",
+          "subject": "Run offline checks",
+          "id": 3,
+          "status": "pending"
+        },
+        "partialResult": "{\"tasks\":[{\"id\":1,\"subject\":\"Inspect the existing flow\",\"sta"
+      }
+    },
+    {
+      "event": {
+        "type": "tool_execution_end",
+        "toolCallId": "todo_checks",
+        "toolName": "todo",
+        "result": "{\"tasks\":[{\"id\":1,\"subject\":\"Inspect the existing flow\",\"status\":\"completed\",\"activeForm\":\"Inspecting the existing flow\"},{\"id\":2,\"subject\":\"Update the simulator\",\"status\":\"pending\",\"activeForm\":\"Updating the simulator\"},{\"id\":3,\"subject\":\"Run offline checks\",\"status\":\"pending\",\"activeForm\":\"Running offline checks\"}]}",
+        "isError": false
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "assistant",
+          "content": []
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "toolCall",
+              "id": "todo_finish",
+              "name": "todo",
+              "arguments": {
+                "action": "update",
+                "id": 2,
+                "status": "completed"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "tool_execution_start",
+        "toolCallId": "todo_finish",
+        "toolName": "todo",
+        "args": {
+          "action": "update",
+          "id": 2,
+          "status": "completed"
+        }
+      }
+    },
+    {
+      "delayMs": 600,
+      "event": {
+        "type": "tool_execution_update",
+        "toolCallId": "todo_finish",
+        "toolName": "todo",
+        "args": {
+          "action": "update",
+          "id": 2,
+          "status": "completed"
+        },
+        "partialResult": "{\"tasks\":[{\"id\":1,\"subject\":\"Inspect the existing flow\",\"sta"
+      }
+    },
+    {
+      "event": {
+        "type": "tool_execution_end",
+        "toolCallId": "todo_finish",
+        "toolName": "todo",
+        "result": "{\"tasks\":[{\"id\":1,\"subject\":\"Inspect the existing flow\",\"status\":\"completed\",\"activeForm\":\"Inspecting the existing flow\"},{\"id\":2,\"subject\":\"Update the simulator\",\"status\":\"completed\",\"activeForm\":\"Updating the simulator\"},{\"id\":3,\"subject\":\"Run offline checks\",\"status\":\"pending\",\"activeForm\":\"Running offline checks\"}]}",
+        "isError": false
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "assistant",
+          "content": []
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "toolCall",
+              "id": "todo_last",
+              "name": "todo",
+              "arguments": {
+                "action": "update",
+                "id": 3,
+                "status": "completed"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "tool_execution_start",
+        "toolCallId": "todo_last",
+        "toolName": "todo",
+        "args": {
+          "action": "update",
+          "id": 3,
+          "status": "completed"
+        }
+      }
+    },
+    {
+      "delayMs": 600,
+      "event": {
+        "type": "tool_execution_update",
+        "toolCallId": "todo_last",
+        "toolName": "todo",
+        "args": {
+          "action": "update",
+          "id": 3,
+          "status": "completed"
+        },
+        "partialResult": "{\"tasks\":[{\"id\":1,\"subject\":\"Inspect the existing flow\",\"sta"
+      }
+    },
+    {
+      "event": {
+        "type": "tool_execution_end",
+        "toolCallId": "todo_last",
+        "toolName": "todo",
+        "result": "{\"tasks\":[{\"id\":1,\"subject\":\"Inspect the existing flow\",\"status\":\"completed\",\"activeForm\":\"Inspecting the existing flow\"},{\"id\":2,\"subject\":\"Update the simulator\",\"status\":\"completed\",\"activeForm\":\"Updating the simulator\"},{\"id\":3,\"subject\":\"Run offline checks\",\"status\":\"completed\",\"activeForm\":\"Running offline checks\"}]}",
+        "isError": false
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "assistant",
+          "content": []
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 80,
+          "output": 8,
+          "total": 88
+        },
+        "assistantMessageEvent": {
+          "type": "text_start",
+          "contentIndex": 0
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 80,
+          "output": 24,
+          "total": 104
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": "All three tasks are complete."
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "All three tasks are complete."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "turn_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "All three tasks are complete."
+            }
+          ]
+        },
+        "toolResults": []
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_end",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "text",
+                "text": "All three tasks are complete."
+              }
+            ]
+          }
+        ],
+        "willRetry": false
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_settled"
+      }
+    }
+  ]
+}

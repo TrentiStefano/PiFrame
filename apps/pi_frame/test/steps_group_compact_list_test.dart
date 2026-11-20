@@ -139,7 +139,7 @@ void main() {
     await tester.tap(_expandAll());
     await tester.pump();
     expect(
-      container.read(stepGroupExpansionProvider(_sid)).isGroupFullyExpanded('u1'),
+      container.read(stepGroupExpansionProvider(_sid)).isGroupFullyExpanded('steps_u1'),
       isTrue,
     );
 
@@ -148,7 +148,7 @@ void main() {
     await tester.pump();
     await tester.pump();
     expect(
-      container.read(stepGroupExpansionProvider(_sid)).isGroupFullyExpanded('u1'),
+      container.read(stepGroupExpansionProvider(_sid)).isGroupFullyExpanded('steps_u1'),
       isFalse,
     );
 

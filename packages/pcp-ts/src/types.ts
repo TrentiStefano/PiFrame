@@ -111,6 +111,7 @@ export type PcpCommandType =
   | 'session.getStats'
   | 'session.getForkPoints'
   | 'session.subagents'
+  | 'session.stopSubagent'
   | 'agent.prompt'
   | 'agent.steer'
   | 'agent.followUp'
@@ -198,7 +199,7 @@ export interface WorkspaceSaveFileRequest {
   revision: string;
 }
 
-export type WorkspaceGitAction = 'stage' | 'unstage' | 'commit' | 'discard';
+export type WorkspaceGitAction = 'stage' | 'unstage' | 'commit' | 'discard' | 'fetch' | 'pull' | 'push' | 'sync';
 
 export interface WorkspaceGitActionRequest {
   action: WorkspaceGitAction;
@@ -602,6 +603,8 @@ export interface PiAgentContextInfo {
   limit: number | null;
   options: number[];
   modelContextWindow: number | null;
+  /** Set when the installed subagent runtime cannot apply a per-agent context limit. */
+  unsupportedReason?: string | null;
 }
 
 export interface PiAgentInfo {

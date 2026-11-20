@@ -10,25 +10,31 @@ import '../../domain/session/transcript_grouping.dart';
 class StepGroupingSettings {
   final StepGroupingMode mode;
   final bool autoCollapse;
+  final bool showIntermediateAnswers;
 
   const StepGroupingSettings({
     this.mode = StepGroupingMode.withThinking,
     this.autoCollapse = true,
+    this.showIntermediateAnswers = true,
   });
 
   StepGroupingSettings copyWith({
     StepGroupingMode? mode,
     bool? autoCollapse,
+    bool? showIntermediateAnswers,
   }) {
     return StepGroupingSettings(
       mode: mode ?? this.mode,
       autoCollapse: autoCollapse ?? this.autoCollapse,
+      showIntermediateAnswers:
+          showIntermediateAnswers ?? this.showIntermediateAnswers,
     );
   }
 
   Map<String, dynamic> toJson() => {
     'mode': mode.name,
     'autoCollapse': autoCollapse,
+    'showIntermediateAnswers': showIntermediateAnswers,
   };
 
   factory StepGroupingSettings.fromJson(Map<String, dynamic>? json) {
@@ -44,12 +50,17 @@ class StepGroupingSettings {
     }
 
     final rawAutoCollapse = json['autoCollapse'];
-    final parsedAutoCollapse =
-        rawAutoCollapse is bool ? rawAutoCollapse : true;
+    final parsedAutoCollapse = rawAutoCollapse is bool ? rawAutoCollapse : true;
+
+    final rawShowIntermediateAnswers = json['showIntermediateAnswers'];
+    final parsedShowIntermediateAnswers = rawShowIntermediateAnswers is bool
+        ? rawShowIntermediateAnswers
+        : true;
 
     return StepGroupingSettings(
       mode: parsedMode,
       autoCollapse: parsedAutoCollapse,
+      showIntermediateAnswers: parsedShowIntermediateAnswers,
     );
   }
 
@@ -59,23 +70,23 @@ class StepGroupingSettings {
       other is StepGroupingSettings &&
           runtimeType == other.runtimeType &&
           mode == other.mode &&
-          autoCollapse == other.autoCollapse;
+          autoCollapse == other.autoCollapse &&
+          showIntermediateAnswers == other.showIntermediateAnswers;
 
   @override
-  int get hashCode => Object.hash(mode, autoCollapse);
+  int get hashCode => Object.hash(mode, autoCollapse, showIntermediateAnswers);
 
   @override
   String toString() =>
-      'StepGroupingSettings(mode: ${mode.name}, autoCollapse: $autoCollapse)';
+      'StepGroupingSettings(mode: ${mode.name}, autoCollapse: $autoCollapse, showIntermediateAnswers: $showIntermediateAnswers)';
 }
 
-class StepGroupingSettingsNotifier
-    extends StateNotifier<StepGroupingSettings> {
+class StepGroupingSettingsNotifier extends StateNotifier<StepGroupingSettings> {
   final File? _customStorageFile;
 
   StepGroupingSettingsNotifier({File? storageFile})
-      : _customStorageFile = storageFile,
-        super(const StepGroupingSettings()) {
+    : _customStorageFile = storageFile,
+      super(const StepGroupingSettings()) {
     _load();
   }
 
@@ -136,9 +147,18 @@ class StepGroupingSettingsNotifier
       _save();
     }
   }
+
+  void setShowIntermediateAnswers(bool showIntermediateAnswers) {
+    if (state.showIntermediateAnswers != showIntermediateAnswers) {
+      state = state.copyWith(showIntermediateAnswers: showIntermediateAnswers);
+      _save();
+    }
+  }
 }
 
-final stepGroupingSettingsProvider = StateNotifierProvider<
-    StepGroupingSettingsNotifier, StepGroupingSettings>((ref) {
-  return StepGroupingSettingsNotifier();
-});
+final stepGroupingSettingsProvider =
+    StateNotifierProvider<StepGroupingSettingsNotifier, StepGroupingSettings>((
+      ref,
+    ) {
+      return StepGroupingSettingsNotifier();
+    });

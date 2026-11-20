@@ -1,0 +1,9 @@
+{
+  "protocol": 1,
+  "kind": "command",
+  "id": "msg_package_check",
+  "ts": 1726640000100,
+  "commandId": "cmd_package_check",
+  "type": "pi.packages.list",
+  "payload": { "checkUpdates": true }
+}

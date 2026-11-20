@@ -94,7 +94,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify first terminal tab and TerminalView exist
-    expect(find.byIcon(Icons.terminal), findsWidgets);
+    expect(find.byIcon(Icons.terminal_outlined), findsWidgets);
     expect(find.byType(TerminalView), findsOneWidget); // Direct in-terminal view
     expect(find.byTooltip('Apri nel terminale nativo (OS)'), findsOneWidget);
     expect(find.byTooltip('Interrompi processo (Ctrl+C)'), findsOneWidget);
@@ -118,7 +118,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Now there should be 2 close buttons (one for each tab)
-    expect(find.byIcon(Icons.close), findsWidgets);
+    expect(find.byIcon(Icons.close_outlined), findsWidgets);
 
     // Test collapse downward button
     final collapseBtn = find.byTooltip('Collassa in basso');
@@ -190,7 +190,7 @@ void main() {
 
     // Now the collapsed terminal bar should be visible with expand arrow
     expect(find.text('TERMINALE'), findsOneWidget);
-    expect(find.byIcon(Icons.keyboard_arrow_up), findsOneWidget);
+    expect(find.byIcon(Icons.keyboard_arrow_up_outlined), findsOneWidget);
 
     // Tap the collapsed bar to expand it back
     await tester.tap(find.text('TERMINALE'));

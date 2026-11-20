@@ -269,9 +269,9 @@ void main() {
     await tester.pumpWidget(buildTestApp(client: client));
     await tester.pumpAndSettle();
 
-    // Verify Save button is initially disabled
+    // The save bar is hidden while the form is clean (D-3).
     final saveButtonFinder = find.widgetWithText(FilledButton, 'Salva modifiche');
-    expect(tester.widget<FilledButton>(saveButtonFinder).enabled, isFalse);
+    expect(saveButtonFinder, findsNothing);
 
     // Open session model dropdown and select Model B
     await tester.tap(find.text('Model A').first);
@@ -379,6 +379,57 @@ void main() {
     // Now context dropdown is replaced by N/A with single tier tooltip
     expect(find.text('N/A'), findsOneWidget);
     expect(find.byTooltip('Model has a single context tier'), findsOneWidget);
+  });
+
+  testWidgets(
+      'context control is disabled with the runtime reason when unsupported',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    const reason =
+        '@tintinweb/pi-subagents does not support per-agent context limits';
+    final config = PiAgentsConfig(
+      packages: [
+        const PiSubagentPackageInfo(
+          id: '@tintinweb/pi-subagents',
+          installed: true,
+        ),
+      ],
+      agents: [
+        const PiAgentInfo(
+          name: 'reviewer',
+          source: 'user',
+          editable: true,
+          model: PiAgentModelInfo(
+            effective: 'model-a',
+            origin: 'override',
+            available: true,
+          ),
+          context: PiAgentContextInfo(unsupportedReason: reason),
+        ),
+      ],
+      availableModels: [
+        const PiAvailableModel(
+          id: 'model-a',
+          name: 'Model A',
+          contextWindow: 100000,
+          reasoning: true,
+          tiers: [20000, 100000],
+        ),
+      ],
+    );
+
+    final client = _MockAgentsClient(config: config);
+    await tester.pumpWidget(
+        buildTestApp(client: client, language: AppLanguage.en));
+    await tester.pumpAndSettle();
+
+    // The model has tiers, but the runtime cannot apply a limit: no dropdown.
+    expect(find.text('20k'), findsNothing);
+    expect(find.text('N/A'), findsOneWidget);
+    expect(find.byTooltip(reason), findsOneWidget);
   });
 
   testWidgets('narrow layout at 480px width renders without overflow',
@@ -516,5 +567,74 @@ void main() {
 
     // Now save button is disabled
     expect(tester.widget<FilledButton>(saveButtonFinder).enabled, isFalse);
+  });
+
+  // R9: the model selects looked empty ("—") although the daemon returned
+  // models. The list is populated; the "—" was the hint for a null default.
+  testWidgets(
+      'model select lists the daemon models and says Pi default when none is saved',
+      (tester) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    final config = PiAgentsConfig(
+      packages: [
+        const PiSubagentPackageInfo(
+          id: 'pi-subagents',
+          version: '0.9.0',
+          installed: true,
+          configFile: '/config.json',
+        ),
+      ],
+      availableModels: const [
+        PiAvailableModel(id: 'fake/pi-model', name: 'Fake Pi Model'),
+        PiAvailableModel(id: 'fake/fast-model', name: 'Fake Fast Model'),
+      ],
+      thinkingLevels: const ['off', 'low', 'medium', 'high'],
+    );
+
+    final client = _MockAgentsClient(config: config);
+    await tester.pumpWidget(buildTestApp(client: client));
+    await tester.pumpAndSettle();
+
+    // No saved default: the session select shows the Pi default label.
+    expect(find.text('Predefinito di Pi'), findsWidgets);
+
+    // Opening the session default select lists both models and provider subtitle.
+    await tester.tap(find.text('Predefinito di Pi').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Fake Pi Model'), findsWidgets);
+    expect(find.text('Fake Fast Model'), findsWidgets);
+    expect(find.text('fake'), findsWidgets);
+  });
+
+  testWidgets('no packages: Apri Pacchetti calls onOpenPackages', (tester) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    var opened = 0;
+    final client = _MockAgentsClient(config: const PiAgentsConfig());
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          daemonEndpointProvider.overrideWith((ref) async => null),
+          pcpClientProvider.overrideWithValue(client),
+          appStringsProvider.overrideWithValue(AppStrings(AppLanguage.it)),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.dark().copyWith(extensions: [FrameTokens.dark]),
+          home: Scaffold(
+            body: AgentsSection(onOpenPackages: () => opened++),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Apri Pacchetti'));
+    await tester.pumpAndSettle();
+    expect(opened, 1);
   });
 }

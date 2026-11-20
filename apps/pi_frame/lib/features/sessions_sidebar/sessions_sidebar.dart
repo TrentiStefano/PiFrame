@@ -1,23 +1,42 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+import '../../app/row_context_menu.dart';
 import 'instruction_file_dialog.dart';
 import 'session_actions.dart';
+import 'session_titles.dart';
 import '../../data/daemon/daemon_providers.dart';
+import '../../ui/frame_activity_indicator.dart';
+import '../../ui/frame_icon_action.dart';
+import '../../ui/frame_list_row.dart';
 import '../../ui/frame_snack_bar.dart';
-import '../../ui/shimmer_border.dart';
-import '../command_palette/command_palette.dart';
+import '../../ui/motion.dart';
 import '../session_tree/session_tree_dialog.dart';
 import '../transcript/workflows_provider.dart';
 import '../workspace/repository_workspace.dart';
 import 'pinned_sessions_provider.dart';
 import 'removed_repos_provider.dart';
+import 'unread_sessions_provider.dart';
 import '../../domain/session/agent_status.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_shell.dart';
+import '../../domain/session/session_labels.dart';
 import '../../data/update/update_providers.dart';
+import '../../data/platform/widget_test_binding.dart';
+
+/// Session rows in the rail are denser than the shared list row (plan 5.1).
+const double _railRowMinHeight = 32;
+
+/// Persistent user state for explicitly expanded session repo folders across unmounts/views.
+final sessionFoldersExpandedProvider =
+    StateProvider<Set<String>>((ref) => <String>{});
+
+/// Persistent user state for explicitly collapsed session repo folders across unmounts/views.
+final sessionFoldersCollapsedProvider =
+    StateProvider<Set<String>>((ref) => <String>{});
 
 bool _isSubsession(Map<String, dynamic> session) {
   if (session['isSubsession'] == true) return true;
@@ -35,9 +54,32 @@ bool _isSubsession(Map<String, dynamic> session) {
 
 bool _isWorkerSession(Map<String, dynamic> session) => _isSubsession(session);
 
-String _sessionFolder(Map<String, dynamic> session) {
-  final gitRoot = (session['gitRoot'] ?? '').toString().trim();
-  return gitRoot.isNotEmpty ? gitRoot : (session['cwd'] ?? '').toString();
+String _sessionFolder(Map<String, dynamic> session) => sessionFolder(session);
+
+/// The session's name when the user or Pi chose it, else an empty string.
+String _chosenNameOf(Map<String, dynamic> session) {
+  final id = session['id'] as String? ?? '';
+  final name = session['name'] as String?;
+  return hasChosenSessionName(name, id) ? name!.trim() : '';
+}
+
+/// Repository to expand by default: the active session's, else the one with
+/// the most recent activity.
+String? _railDefaultFolder(List<Map<String, dynamic>> sessions, String? activeId) {
+  Map<String, dynamic>? latest;
+  var latestTime = -1.0;
+  for (final session in sessions) {
+    if (_isWorkerSession(session)) continue;
+    if (activeId != null && session['id'] == activeId) {
+      return _sessionFolder(session);
+    }
+    final time = (session['lastActivityAt'] as num?)?.toDouble() ?? 0;
+    if (time > latestTime) {
+      latestTime = time;
+      latest = session;
+    }
+  }
+  return latest == null ? null : _sessionFolder(latest);
 }
 
 String _folderName(String path, [String fallback = 'Sessioni']) {
@@ -62,12 +104,40 @@ class SessionsSidebar extends ConsumerStatefulWidget {
   ConsumerState<SessionsSidebar> createState() => _SessionsSidebarState();
 }
 
+/// One row of the rail in visible order, used by the keyboard handler.
+class _RailRow {
+  final String? folder;
+  final String? sessionId;
+  final String name;
+
+  const _RailRow.folder(this.folder)
+      : sessionId = null,
+        name = '';
+
+  const _RailRow.session({
+    required this.sessionId,
+    required this.folder,
+    required this.name,
+  });
+
+  bool get isFolder => sessionId == null;
+}
+
 class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _railFocus = FocusNode(debugLabel: 'sessions-rail');
   String _searchQuery = '';
   String _filterMode = 'all'; // 'all', 'active', 'repo'
   bool _creating = false;
-  final Set<String> _expandedFolders = {};
+  // Repository expanded by default: the active session's, else the latest used.
+  String? _defaultFolder;
+  // Keyboard position in the rail, as a row key ('folder:<f>' or 'session:<id>').
+  String? _cursorKey;
+  // Context menus of the rows, opened by Shift+F10 or the Menu key on the cursor.
+  final RowMenuRegistry _rowMenus = RowMenuRegistry();
+  final Map<String, GlobalKey> _folderRowKeys = {};
+  List<_RailRow> _railRows = const [];
+  String? _railActiveId;
 
   @override
   void initState() {
@@ -77,12 +147,149 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
         _searchQuery = _searchController.text.trim().toLowerCase();
       });
     });
+    _railFocus.addListener(_onRailFocusChanged);
+    FocusManager.instance.addHighlightModeListener(_onHighlightModeChanged);
   }
+
+  void _onRailFocusChanged() {
+    if (mounted) setState(() {});
+  }
+
+  void _onHighlightModeChanged(FocusHighlightMode mode) {
+    if (mounted) setState(() {});
+  }
+
+  /// The cursor ring is a keyboard cue: after a click it would sit on the
+  /// clicked card while the selection (and a cancelled switch) sat elsewhere.
+  bool _showsCursor(String key) =>
+      _railFocus.hasFocus &&
+      FocusManager.instance.highlightMode == FocusHighlightMode.traditional &&
+      _cursorKey == key;
 
   @override
   void dispose() {
     _searchController.dispose();
+    FocusManager.instance.removeHighlightModeListener(_onHighlightModeChanged);
+    _railFocus.removeListener(_onRailFocusChanged);
+    _railFocus.dispose();
     super.dispose();
+  }
+
+  Future<void> _startNewSession() async {
+    if (_creating || ref.read(pcpClientProvider) == null) return;
+    setState(() => _creating = true);
+    await createSession(context, ref);
+    if (mounted) {
+      setState(() => _creating = false);
+      widget.onSessionSelected?.call();
+    }
+  }
+
+  bool _isFolderExpanded(String folder) {
+    if (_searchQuery.isNotEmpty) return true;
+    final expanded = ref.watch(sessionFoldersExpandedProvider);
+    if (expanded.contains(folder)) return true;
+    final collapsed = ref.watch(sessionFoldersCollapsedProvider);
+    return folder == _defaultFolder && !collapsed.contains(folder);
+  }
+
+  void _setFolderExpanded(String folder, bool isExpanded) {
+    if (isExpanded) {
+      ref
+          .read(sessionFoldersExpandedProvider.notifier)
+          .update((s) => {...s, folder});
+      ref
+          .read(sessionFoldersCollapsedProvider.notifier)
+          .update((s) => s.where((f) => f != folder).toSet());
+    } else {
+      ref
+          .read(sessionFoldersExpandedProvider.notifier)
+          .update((s) => s.where((f) => f != folder).toSet());
+      ref
+          .read(sessionFoldersCollapsedProvider.notifier)
+          .update((s) => {...s, folder});
+    }
+  }
+
+  KeyEventResult _onRailKey(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    final rows = _railRows;
+    if (rows.isEmpty) return KeyEventResult.ignored;
+    final key = event.logicalKey;
+    var index = rows.indexWhere((r) => _rowKey(r) == _cursorKey);
+    if (index < 0) {
+      index = rows.indexWhere((r) => r.sessionId != null && r.sessionId == _railActiveId);
+      if (index < 0) index = 0;
+    }
+    final current = rows[index];
+
+    void moveTo(int i) {
+      setState(() => _cursorKey = _rowKey(rows[i]));
+    }
+
+    if (isContextMenuKey(event)) {
+      _rowMenus.openFor(_rowKey(current));
+      return KeyEventResult.handled;
+    }
+
+    if (key == LogicalKeyboardKey.arrowDown) {
+      moveTo((index + 1).clamp(0, rows.length - 1));
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.arrowUp) {
+      moveTo((index - 1).clamp(0, rows.length - 1));
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.arrowRight) {
+      if (current.isFolder) {
+        final expanded = _isFolderExpanded(current.folder!);
+        if (!expanded) {
+          _setFolderExpanded(current.folder!, true);
+        } else if (index + 1 < rows.length) {
+          moveTo(index + 1);
+        }
+      }
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.arrowLeft) {
+      if (current.isFolder) {
+        if (_isFolderExpanded(current.folder!)) {
+          _setFolderExpanded(current.folder!, false);
+        }
+      } else {
+        final parent = rows.indexWhere(
+          (r) => r.isFolder && r.folder == current.folder,
+        );
+        if (parent >= 0) moveTo(parent);
+      }
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.numpadEnter) {
+      if (current.isFolder) {
+        final folder = current.folder!;
+        _setFolderExpanded(folder, !_isFolderExpanded(folder));
+      } else {
+        _openSession(current.sessionId!);
+      }
+      return KeyEventResult.handled;
+    }
+    if (key == LogicalKeyboardKey.f2 && !current.isFolder) {
+      _showRenameDialog(current.sessionId!, current.name);
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  String _rowKey(_RailRow row) =>
+      row.isFolder ? 'folder:${row.folder}' : 'session:${row.sessionId}';
+
+  Future<void> _openSession(String id) async {
+    setState(() => _cursorKey = 'session:$id');
+    if (await switchSessionSafely(context, ref, id)) {
+      widget.onSessionSelected?.call();
+    }
   }
 
   Future<void> _showRenameDialog(String sessionId, String currentName) async {
@@ -102,19 +309,15 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
           ),
           title: Text(
             strings.renameSessionDialogTitle,
-            style: TextStyle(
-              color: tokens.textPrimary,
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-            ),
+            style: FrameText.of(ctx).title.copyWith(color: tokens.textPrimary),
           ),
           content: TextField(
             controller: textController,
             autofocus: true,
-            style: TextStyle(color: tokens.textPrimary, fontSize: 13),
+            style: FrameText.of(ctx).body.copyWith(color: tokens.textPrimary),
             decoration: InputDecoration(
               hintText: strings.sessionNameHint,
-              hintStyle: TextStyle(color: tokens.textMuted, fontSize: 13),
+              hintStyle: FrameText.of(ctx).body.copyWith(color: tokens.textMuted),
               enabledBorder: OutlineInputBorder(
                 borderSide: BorderSide(color: tokens.border),
                 borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -164,6 +367,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
             FrameSnackBar.show(
               context,
               message: strings.renameErrorNotice(e),
+              isError: true,
               backgroundColor: tokens.danger,
             );
           }
@@ -205,6 +409,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
         FrameSnackBar.show(
           context,
           message: strings.duplicateErrorNotice(e),
+          isError: true,
           backgroundColor: tokens.danger,
         );
       }
@@ -214,6 +419,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
   @override
   Widget build(BuildContext context) {
     final tokens = context.tokens;
+    final text = FrameText.of(context);
     final strings = ref.watch(appStringsProvider);
     final sessionsAsync = ref.watch(sessionListProvider);
     final activeId = ref.watch(activeSessionIdProvider);
@@ -222,7 +428,6 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
         : '';
 
     return Container(
-      width: 280,
       decoration: BoxDecoration(
         color: tokens.surface,
       ),
@@ -244,17 +449,14 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                     strings.sidebarTitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
+                    style: text.heading.copyWith(
                       color: tokens.textPrimary,
-                      fontSize: 18,
-                      height: 1.1,
                       fontFamily: tokens.headingFontFamily,
-                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
                 IconButton(
-                  icon: Icon(Icons.refresh, color: tokens.textMuted, size: 18),
+                  icon: Icon(Icons.refresh_outlined, color: tokens.textMuted, size: FrameSize.iconLg),
                   tooltip: strings.refreshSessionsTooltip,
                   onPressed: () {
                     ref.invalidate(sessionListProvider);
@@ -265,7 +467,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                   },
                 ),
                 IconButton(
-                  icon: Icon(Icons.add, color: tokens.accent, size: 20),
+                  icon: Icon(Icons.add_outlined, color: tokens.accent, size: FrameSize.iconLg),
                   tooltip: strings.newSessionTooltip,
                   onPressed: _creating || ref.watch(pcpClientProvider) == null
                       ? null
@@ -280,7 +482,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                 ),
                 if (widget.onCollapse != null)
                   IconButton(
-                    icon: Icon(Icons.chevron_left, color: tokens.textMuted, size: 20),
+                    icon: Icon(Icons.chevron_left_outlined, color: tokens.textMuted, size: FrameSize.iconLg),
                     tooltip: strings.collapseSidebarTooltip,
                     onPressed: widget.onCollapse,
                   ),
@@ -290,7 +492,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
 
           // Search Field
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3, vertical: FrameSpace.x2),
             decoration: BoxDecoration(
               border: Border(
                 bottom: BorderSide(color: tokens.border, width: 1),
@@ -298,14 +500,20 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
             ),
             child: TextField(
               controller: _searchController,
-              style: TextStyle(color: tokens.textPrimary, fontSize: 12),
+              style: text.label.copyWith(
+                color: tokens.textPrimary,
+                fontWeight: FontWeight.w400,
+              ),
               decoration: InputDecoration(
                 isDense: true,
                 hintText: strings.searchSessionsHint,
-                hintStyle: TextStyle(color: tokens.textMuted, fontSize: 12),
+                hintStyle: text.label.copyWith(
+                  color: tokens.textMuted,
+                  fontWeight: FontWeight.w400,
+                ),
                 prefixIcon: Icon(
-                  Icons.search,
-                  size: 16,
+                  Icons.search_outlined,
+                  size: FrameSize.icon,
                   color: tokens.textMuted,
                 ),
                 prefixIconConstraints: const BoxConstraints(
@@ -315,8 +523,8 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
                         icon: Icon(
-                          Icons.clear,
-                          size: 14,
+                          Icons.clear_outlined,
+                          size: FrameSize.icon,
                           color: tokens.textMuted,
                         ),
                         padding: EdgeInsets.zero,
@@ -330,7 +538,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                 filled: true,
                 fillColor: tokens.surfaceElevated,
                 contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 8,
+                  horizontal: FrameSpace.x2,
                   vertical: 6,
                 ),
                 border: OutlineInputBorder(
@@ -349,25 +557,39 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
             ),
           ),
 
-          // Filter Chips
+          // Filter: left-aligned segmented control over a full-width divider
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(
+              horizontal: FrameSpace.x3,
+              vertical: FrameSpace.x1,
+            ),
             decoration: BoxDecoration(
               border: Border(
                 bottom: BorderSide(color: tokens.border, width: 1),
               ),
             ),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: [
-                  _buildFilterChip('all', strings.filterAll, tokens),
-                  const SizedBox(width: 6),
-                  _buildFilterChip('active', strings.filterActive, tokens),
-                  const SizedBox(width: 6),
-                  _buildFilterChip('repo', strings.filterRepo, tokens),
-                ],
-              ),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              // Wrap at large text scales so no filter is cut off; scroll otherwise.
+              child: MediaQuery.textScalerOf(context).scale(1) > 1.3
+                  ? Wrap(
+                      spacing: FrameSpace.x1,
+                      children: [
+                        _buildFilterChip('all', strings.filterAll, tokens),
+                        _buildFilterChip('active', strings.filterActive, tokens),
+                        _buildFilterChip('repo', strings.filterRepo, tokens),
+                      ],
+                    )
+                  : SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildFilterChip('all', strings.filterAll, tokens),
+                          _buildFilterChip('active', strings.filterActive, tokens),
+                          _buildFilterChip('repo', strings.filterRepo, tokens),
+                        ],
+                      ),
+                    ),
             ),
           ),
 
@@ -376,6 +598,14 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
             child: sessionsAsync.when(
               data: (allSessions) {
                 final removedRepos = ref.watch(removedReposProvider);
+                final folderNames = folderDisplayNames(
+                  allSessions
+                      .where((s) => !_isWorkerSession(s))
+                      .map(_sessionFolder),
+                );
+                _railActiveId = activeId;
+                final sessionNames = ref.watch(sessionDisplayNamesProvider);
+                _defaultFolder = _railDefaultFolder(allSessions, activeId);
 
                 // Apply search and filter
                 final filtered = allSessions.where((s) {
@@ -420,21 +650,60 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                 }).toList();
 
                 if (filtered.isEmpty) {
+                  // One action per empty state: clear the search when a
+                  // search has no match, show all when only the mode filter
+                  // hides everything, otherwise start a new session.
+                  final String message;
+                  final String actionLabel;
+                  final Key actionKey;
+                  final VoidCallback? onAction;
+                  if (_searchQuery.isNotEmpty) {
+                    message = strings.noSessionsMatchFilters;
+                    actionLabel = strings.clearSearchAction;
+                    actionKey = const ValueKey('sessions-empty-clear-search');
+                    onAction = () => _searchController.clear();
+                  } else if (_filterMode != 'all') {
+                    message = strings.noSessionsMatchFilters;
+                    actionLabel = strings.showAllSessionsAction;
+                    actionKey = const ValueKey('sessions-empty-show-all');
+                    onAction = () => setState(() => _filterMode = 'all');
+                  } else {
+                    message = strings.noSessionsFound;
+                    actionLabel = strings.newSessionAction;
+                    actionKey = const ValueKey('sessions-empty-new-session');
+                    onAction =
+                        _creating || ref.watch(pcpClientProvider) == null
+                        ? null
+                        : _startNewSession;
+                  }
                   return Center(
                     child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Text(
-                        _searchQuery.isNotEmpty || _filterMode != 'all'
-                            ? strings.noSessionsMatchFilters
-                            : strings.noSessionsFound,
-                        style: TextStyle(color: tokens.textMuted, fontSize: 12),
-                        textAlign: TextAlign.center,
+                      padding: const EdgeInsets.all(FrameSpace.x4),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            message,
+                            style: text.label.copyWith(color: tokens.textMuted),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: FrameSpace.x2),
+                          TextButton(
+                            key: actionKey,
+                            style: TextButton.styleFrom(
+                              foregroundColor: tokens.accent,
+                            ),
+                            onPressed: onAction,
+                            child: Text(actionLabel),
+                          ),
+                        ],
                       ),
                     ),
                   );
                 }
 
                 final pinnedIds = ref.watch(pinnedSessionsProvider);
+                final unreadIds = ref.watch(unreadSessionsProvider);
                 final sessionMap = {
                   for (final s in allSessions)
                     if (s['id'] is String) s['id'] as String: s
@@ -469,8 +738,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
 
                 for (final group in grouped.entries) {
                   folderRows.add((folder: group.key, session: null, isFolder: true));
-                  final isExpanded = _expandedFolders.contains(group.key) ||
-                      _searchQuery.isNotEmpty;
+                  final isExpanded = _isFolderExpanded(group.key);
                   if (isExpanded) {
                     folderRows.addAll(
                       group.value.map(
@@ -484,51 +752,50 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                     _filterMode == 'all' &&
                     pinnedSessions.isNotEmpty;
 
+                _railRows = [
+                  if (showPinnedSection)
+                    for (final s in pinnedSessions)
+                      _RailRow.session(
+                        sessionId: s['id'] as String? ?? '',
+                        folder: _sessionFolder(s),
+                        name: _chosenNameOf(s),
+                      ),
+                  for (final row in folderRows)
+                    if (row.isFolder)
+                      _RailRow.folder(row.folder)
+                    else
+                      _RailRow.session(
+                        sessionId: row.session!['id'] as String? ?? '',
+                        folder: _sessionFolder(row.session!),
+                        name: _chosenNameOf(row.session!),
+                      ),
+                ];
+
                 Widget buildPinnedHeader() {
-                  final hasWorkingPinned = pinnedSessions.any((s) {
-                    final sId = s['id'] as String? ?? '';
-                    return ref.watch(sessionStateFamily(sId).select((st) =>
-                        st.agentStatus == AgentStatus.working ||
-                        st.isStreaming ||
-                        st.activeToolCalls.isNotEmpty));
-                  });
-                  final hasActivePinned = hasWorkingPinned ||
-                      pinnedSessions.any((s) => s['isActive'] == true);
+                  final hasUnreadPinned = pinnedSessions.any(
+                    (s) => s['id'] != activeId && unreadIds.contains(s['id']),
+                  );
 
                   return Padding(
-                    padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+                    padding: const EdgeInsets.fromLTRB(FrameSpace.x2, FrameSpace.x2, FrameSpace.x2, FrameSpace.x1),
                     child: Row(
                       children: [
-                        Icon(Icons.push_pin, size: 13, color: tokens.accent),
+                        Icon(Icons.push_pin_outlined, size: FrameSize.icon, color: tokens.accent),
                         const SizedBox(width: 6),
                         Text(
                           strings.pinnedSessionsHeader(pinnedSessions.length),
-                          style: TextStyle(
+                          style: text.caption.copyWith(
                             color: tokens.textSecondary,
-                            fontSize: 10.5,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 0.5,
                           ),
                         ),
-                        if (hasWorkingPinned) ...[
+                        if (hasUnreadPinned) ...[
                           const SizedBox(width: 6),
-                          _WorkingDot(color: tokens.agentWorking, size: 7),
-                        ] else if (hasActivePinned) ...[
-                          const SizedBox(width: 6),
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: tokens.accent,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: tokens.accent.withValues(alpha: 0.6),
-                                  blurRadius: 4,
-                                  spreadRadius: 1,
-                                ),
-                              ],
-                            ),
+                          const _UnreadDot(
+                            key: ValueKey('pinned-unread-dot'),
+                            unread: true,
+                            size: 6,
                           ),
                         ],
                       ],
@@ -536,17 +803,20 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                   );
                 }
 
-                return CustomScrollView(
+                return Focus(
+                  focusNode: _railFocus,
+                  onKeyEvent: _onRailKey,
+                  child: CustomScrollView(
                   slivers: [
                     if (showPinnedSection) ...[
                       SliverPadding(
-                        padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+                        padding: const EdgeInsets.fromLTRB(FrameSpace.x2, FrameSpace.x1, FrameSpace.x2, 0),
                         sliver: SliverToBoxAdapter(
                           child: buildPinnedHeader(),
                         ),
                       ),
                       SliverPadding(
-                        padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+                        padding: const EdgeInsets.fromLTRB(FrameSpace.x2, 0, FrameSpace.x2, FrameSpace.x1),
                         sliver: SliverReorderableList(
                           itemCount: pinnedSessions.length,
                           proxyDecorator: (child, index, animation) {
@@ -582,13 +852,15 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                               child: _SessionTile(
                                 session: s,
                                 isPinned: true,
+                                qualifiedName: sessionNames[id],
                                 isPinnedSection: true,
                                 isSelected: isSelected,
-                                onTap: () async {
-                                  if (await switchSessionSafely(
-                                      context, ref, id)) {
-                                    widget.onSessionSelected?.call();
-                                  }
+                                onMenuOpener: (open) =>
+                                    _rowMenus.register('session:$id', open),
+                                isCursor: _showsCursor('session:$id'),
+                                onTap: () {
+                                  _railFocus.requestFocus();
+                                  _openSession(id);
                                 },
                                 onPinToggle: () => ref
                                     .read(pinnedSessionsProvider.notifier)
@@ -600,20 +872,6 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                                   sessionId: sId,
                                 ),
                                 onClone: (sId) => _cloneSession(sId),
-                                onInstructions: (sId, folder) =>
-                                    InstructionFileDialog.show(
-                                  context,
-                                  folder: folder,
-                                  sessionId: sId,
-                                ),
-                                onRemoveRepo: (folder) =>
-                                    removeRepoWithConfirmation(
-                                  context,
-                                  ref,
-                                  folder: folder,
-                                  repoName: _folderName(folder),
-                                  folderSessions: grouped[folder] ?? [s],
-                                ),
                                 onDelete: (sId, sName) =>
                                     deleteSessionWithConfirmation(
                                   context,
@@ -626,24 +884,44 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                           },
                         ),
                       ),
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          key: const ValueKey('pinned-sessions-separator'),
+                          padding: const EdgeInsets.fromLTRB(FrameSpace.x2, FrameSpace.x1, FrameSpace.x2, FrameSpace.x2),
+                          child: Container(
+                            height: 2,
+                            decoration: BoxDecoration(
+                              color: tokens.borderStrong,
+                              borderRadius: BorderRadius.circular(tokens.radiusSm),
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                     SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(8, 0, 8, 4),
+                      padding: const EdgeInsets.fromLTRB(FrameSpace.x2, 0, FrameSpace.x2, FrameSpace.x1),
                       sliver: SliverList(
                         delegate: SliverChildBuilderDelegate(
                           (rowContext, index) {
                             final row = folderRows[index];
                             if (row.isFolder) {
                       final folder = row.folder ?? '';
-                      final expanded = _expandedFolders.contains(folder);
-                      final hasActive = activeFolders.contains(folder);
+                      final expanded = _isFolderExpanded(folder);
                       final folderSessions = grouped[folder] ?? [];
+                      final hasUnread = folderSessions.any(
+                        (s) => s['id'] != activeId && unreadIds.contains(s['id']),
+                      );
                       final hasWorking = folderSessions.any((s) {
                         final sId = s['id'] as String? ?? '';
                         final isSel = sId == activeId;
                         final isPin = pinnedIds.contains(sId);
                         final isAct = s['isActive'] == true;
-                        if (isSel || isPin || isAct) {
+                        // Same rule as the session rows: a session opened in
+                        // this run is followed live after switching away.
+                        final isFollowed = ref
+                            .read(unreadSessionsProvider.notifier)
+                            .isFollowed(sId);
+                        if (isSel || isPin || isAct || isFollowed) {
                           final isWorking = ref.watch(sessionStateFamily(sId).select((st) =>
                               st.agentStatus == AgentStatus.working ||
                               st.agentStatus == AgentStatus.retrying ||
@@ -664,7 +942,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                         visualDensity: VisualDensity.compact,
                         minLeadingWidth: 18,
                         contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 8,
+                          horizontal: FrameSpace.x2,
                         ),
                         leading: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -673,15 +951,13 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                               expanded
                                   ? Icons.folder_open_outlined
                                   : Icons.folder_outlined,
-                              size: 16,
+                              size: FrameSize.icon,
                               color: hasWorking
                                   ? tokens.agentWorking
-                                  : (hasActive
-                                      ? tokens.accent
-                                      : tokens.accent.withValues(alpha: 0.8)),
+                                  : tokens.accent.withValues(alpha: 0.8),
                             ),
                             if (hasWorking) ...[
-                              const SizedBox(width: 4),
+                              const SizedBox(width: FrameSpace.x1),
                               Container(
                                 key: ValueKey('folder-working-dot:$folder'),
                                 width: 6,
@@ -691,80 +967,69 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                                   color: tokens.agentWorking,
                                 ),
                               ),
-                            ] else if (hasActive) ...[
-                              const SizedBox(width: 4),
-                              Container(
-                                width: 6,
-                                height: 6,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: tokens.accent,
-                                ),
+                            ] else if (hasUnread) ...[
+                              const SizedBox(width: FrameSpace.x1),
+                              _UnreadDot(
+                                key: ValueKey('folder-unread-dot:$folder'),
+                                unread: true,
+                                size: 6,
                               ),
+                            ] else ...[
+                              // Same width as a dot, so the name does not
+                              // shift when work starts or an answer lands.
+                              const SizedBox(width: FrameSpace.x1 + 6),
                             ],
                           ],
                         ),
                         title: Text(
-                          _folderName(folder, strings.sidebarFallbackFolderLabel),
+                          folder.isEmpty
+                              ? strings.sidebarFallbackFolderLabel
+                              : (folderNames[folder] ?? _folderName(folder)),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
+                          style: text.label.copyWith(
                             color: tokens.textPrimary,
                             fontWeight: FontWeight.w600,
-                            fontSize: 12,
                           ),
                         ),
                         subtitle: Text(
                           folder.isEmpty ? strings.unknownFolderLabel : folder,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: tokens.textMuted,
-                            fontSize: 10,
-                          ),
+                          style: text.caption.copyWith(color: tokens.textMuted),
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            IconButton(
+                            FrameIconAction(
                               key: ValueKey('repo-new-session-btn-$folder'),
-                              visualDensity: VisualDensity.compact,
-                              padding: EdgeInsets.zero,
-                              style: IconButton.styleFrom(
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                minimumSize: const Size(20, 20),
-                                padding: EdgeInsets.zero,
-                              ),
-                              constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
-                              icon: Icon(Icons.add, size: 14, color: tokens.accent),
+                              icon: Icons.add_outlined,
                               tooltip: strings.newSessionInFolderTooltip,
                               onPressed: () async {
-                                setState(() => _expandedFolders.add(folder));
+                                _setFolderExpanded(folder, true);
                                 await createSession(context, ref, cwd: folder);
                                 if (mounted) widget.onSessionSelected?.call();
                               },
                             ),
                             const SizedBox(width: 2),
                             Icon(
-                              expanded ? Icons.expand_more : Icons.chevron_right,
-                              size: 16,
+                              expanded ? Icons.expand_more_outlined : Icons.chevron_right_outlined,
+                              size: FrameSize.icon,
                               color: tokens.textMuted,
                             ),
                           ],
                         ),
-                        onTap: () => setState(() {
-                          if (expanded) {
-                            _expandedFolders.remove(folder);
-                          } else {
-                            _expandedFolders.add(folder);
-                          }
-                        }),
+                        onTap: () {
+                          _railFocus.requestFocus();
+                          setState(() => _cursorKey = 'folder:$folder');
+                          _setFolderExpanded(folder, !expanded);
+                        },
                       );
 
-                      folderTile = GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onSecondaryTapDown: (details) async {
-                          final pos = details.globalPosition;
+                      // The ListTile above keeps keyboard focus and primary taps;
+                      // this InkWell only adds the right-click menu, so it is not a
+                      // second Tab stop.
+                      Future<void> openFolderMenu(Rect anchor) async {
                           final action = await showMenu<String>(
                             context: context,
                             color: tokens.surfaceElevated,
@@ -772,34 +1037,28 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                               borderRadius: BorderRadius.circular(tokens.radiusSm),
                               side: BorderSide(color: tokens.border),
                             ),
-                            position: RelativeRect.fromLTRB(
-                              pos.dx,
-                              pos.dy,
-                              pos.dx + 1,
-                              pos.dy + 1,
-                            ),
+                            position: menuPositionFor(context, anchor),
                             items: [
                               PopupMenuItem(
                                 value: 'instructions',
                                 height: 32,
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(
                                       Icons.description_outlined,
-                                      size: 14,
+                                      size: FrameSize.icon,
                                       color: tokens.textSecondary,
                                     ),
-                                    const SizedBox(width: 8),
+                                    const SizedBox(width: FrameSpace.x2),
                                     Flexible(
                                       child: Text(
                                         strings.repoInstructionsAction,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
+                                        style: text.label.copyWith(
                                           color: tokens.textPrimary,
-                                          fontSize: 12,
                                         ),
                                       ),
                                     ),
@@ -809,24 +1068,23 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                               PopupMenuItem(
                                 value: 'new_session',
                                 height: 32,
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(
-                                      Icons.add,
-                                      size: 14,
+                                      Icons.add_outlined,
+                                      size: FrameSize.icon,
                                       color: tokens.accent,
                                     ),
-                                    const SizedBox(width: 8),
+                                    const SizedBox(width: FrameSpace.x2),
                                     Flexible(
                                       child: Text(
                                         strings.newSessionAction,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
+                                        style: text.label.copyWith(
                                           color: tokens.textPrimary,
-                                          fontSize: 12,
                                         ),
                                       ),
                                     ),
@@ -837,24 +1095,23 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                               PopupMenuItem(
                                 value: 'remove_repo',
                                 height: 32,
-                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
                                     Icon(
-                                      Icons.close,
-                                      size: 14,
+                                      Icons.close_outlined,
+                                      size: FrameSize.icon,
                                       color: tokens.danger,
                                     ),
-                                    const SizedBox(width: 8),
+                                    const SizedBox(width: FrameSpace.x2),
                                     Flexible(
                                       child: Text(
                                         strings.removeRepoFromSidebarAction,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
-                                        style: TextStyle(
+                                        style: text.label.copyWith(
                                           color: tokens.danger,
-                                          fontSize: 12,
                                         ),
                                       ),
                                     ),
@@ -869,7 +1126,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                             final activeSid = activeFolders.contains(folder) ? activeId : null;
                             InstructionFileDialog.show(context, folder: folder, sessionId: activeSid);
                           } else if (action == 'new_session') {
-                            setState(() => _expandedFolders.add(folder));
+                            _setFolderExpanded(folder, true);
                             await createSession(context, ref, cwd: folder);
                             if (mounted) widget.onSessionSelected?.call();
                           } else if (action == 'remove_repo') {
@@ -877,17 +1134,43 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                               context,
                               ref,
                               folder: folder,
-                              repoName: _folderName(folder),
+                              repoName: folderNames[folder] ?? _folderName(folder),
                               folderSessions: folderSessions,
                             );
                           }
-                        },
+                      }
+
+                      final folderRowKey = _folderRowKeys.putIfAbsent(
+                        folder,
+                        GlobalKey.new,
+                      );
+                      _rowMenus.register('folder:$folder', () {
+                        final rowContext = folderRowKey.currentContext;
+                        if (rowContext == null) return;
+                        openFolderMenu(rowAnchorRect(rowContext));
+                      });
+                      folderTile = InkWell(
+                        key: folderRowKey,
+                        canRequestFocus: false,
+                        onSecondaryTapDown: (details) => openFolderMenu(
+                          pointerAnchorRect(details.globalPosition),
+                        ),
                         child: folderTile,
                       );
 
+                      final folderCursor =
+                          _showsCursor('folder:$folder');
                       return Material(
                         color: tokens.surface,
-                        child: folderTile,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(tokens.radiusSm),
+                            border: folderCursor
+                                ? Border.all(color: tokens.focusRing)
+                                : null,
+                          ),
+                          child: folderTile,
+                        ),
                       );
                     }
 
@@ -899,12 +1182,16 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                     return _SessionTile(
                         session: s,
                         isPinned: isPinned,
+                        qualifiedName: sessionNames[id],
                         isPinnedSection: false,
                         isSelected: isSelected,
-                        onTap: () async {
-                          if (await switchSessionSafely(context, ref, id)) {
-                            widget.onSessionSelected?.call();
-                          }
+                        onMenuOpener: (open) =>
+                            _rowMenus.register('session:$id', open),
+                        isCursor:
+                            _showsCursor('session:$id'),
+                        onTap: () {
+                          _railFocus.requestFocus();
+                          _openSession(id);
                         },
                         onPinToggle: () => ref
                             .read(pinnedSessionsProvider.notifier)
@@ -913,18 +1200,6 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                         onTree: (sId) =>
                             SessionTreeDialog.show(context, sessionId: sId),
                         onClone: (sId) => _cloneSession(sId),
-                        onInstructions: (sId, folder) => InstructionFileDialog.show(
-                          context,
-                          folder: folder,
-                          sessionId: sId,
-                        ),
-                        onRemoveRepo: (folder) => removeRepoWithConfirmation(
-                          context,
-                          ref,
-                          folder: folder,
-                          repoName: _folderName(folder),
-                          folderSessions: grouped[folder] ?? [s],
-                        ),
                         onDelete: (sId, sName) => deleteSessionWithConfirmation(
                           context,
                           ref,
@@ -938,10 +1213,11 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                 ),
               ),
             ],
-          );
+          ),
+                );
               },
               loading: () => Center(
-                child: CircularProgressIndicator(
+                child: FrameActivityIndicator(size: FrameSize.iconLg,
                   color: tokens.accent,
                   strokeWidth: 2,
                 ),
@@ -949,15 +1225,15 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
               error: (err, _) => Center(
                 child: Text(
                   strings.sidebarErrorNotice(err),
-                  style: TextStyle(color: tokens.danger, fontSize: 12),
+                  style: text.label.copyWith(color: tokens.danger),
                 ),
               ),
             ),
           ),
 
-          // Bottom utility bar: Command Palette & Settings
+          // Bottom utility bar: Settings
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3, vertical: FrameSpace.x2),
             decoration: BoxDecoration(
               border: Border(top: BorderSide(color: tokens.border, width: 1)),
             ),
@@ -968,7 +1244,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                     style: TextButton.styleFrom(
                       foregroundColor: tokens.textSecondary,
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
+                        horizontal: FrameSpace.x2,
                         vertical: 6,
                       ),
                       alignment: Alignment.centerLeft,
@@ -976,7 +1252,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                     icon: Stack(
                       clipBehavior: Clip.none,
                       children: [
-                        const Icon(Icons.settings_outlined, size: 16),
+                        const Icon(Icons.settings_outlined, size: FrameSize.icon),
                         if (ref.watch(hasUpdateBadgeProvider))
                           Positioned(
                             top: -2,
@@ -994,24 +1270,12 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                     ),
                     label: Text(
                       strings.settingsLabel,
-                      style: const TextStyle(fontSize: 12),
+                      style: text.label,
                     ),
                     onPressed: () {
                       ref.read(showSettingsProvider.notifier).state = true;
                     },
                   ),
-                ),
-                IconButton(
-                  icon: Icon(Icons.search, size: 16, color: tokens.textMuted),
-                  tooltip: strings.commandPaletteTooltip,
-                  onPressed: () {
-                    CommandPalette.show(
-                      context,
-                      onOpenSettings: () {
-                        ref.read(showSettingsProvider.notifier).state = true;
-                      },
-                    );
-                  },
                 ),
               ],
             ),
@@ -1023,111 +1287,118 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
 
   Widget _buildFilterChip(String mode, String label, FrameTokens tokens) {
     final isSelected = _filterMode == mode;
+    final text = FrameText.of(context);
     return Semantics(
       selected: isSelected,
-      child: TextButton(
-        style: TextButton.styleFrom(
-          foregroundColor: isSelected ? tokens.displayText : tokens.textPrimary,
-          backgroundColor: isSelected
-              ? tokens.surfaceElevated
-              : tokens.surface.withValues(alpha: 0),
-          side: BorderSide(
-            color: isSelected ? tokens.focusRing : tokens.border,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(tokens.radiusSm),
-          ),
-          minimumSize: const Size(0, 36),
-          padding: const EdgeInsets.symmetric(horizontal: 9),
-          textStyle: TextStyle(
-            fontSize: 11,
-            fontFamily: tokens.uiFontFamily,
-            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+      button: true,
+      child: InkWell(
+        key: ValueKey('sessions-filter-$mode'),
+        borderRadius: BorderRadius.circular(tokens.radiusSm),
+        onTap: () => setState(() => _filterMode = mode),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: FrameSize.hitMin),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: text.label.copyWith(
+                    color: isSelected ? tokens.textPrimary : tokens.textSecondary,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                  ),
+                ),
+                const SizedBox(height: FrameSpace.x1),
+                // Selected state: an accent bar under the label.
+                Container(
+                  width: 24,
+                  height: 2,
+                  color: isSelected ? tokens.accent : tokens.surface.withValues(alpha: 0),
+                ),
+              ],
+            ),
           ),
         ),
-        onPressed: () => setState(() => _filterMode = mode),
-        child: Text(label),
       ),
     );
   }
 }
 
-class _WorkingDot extends StatefulWidget {
+/// Spinner on the row of a session whose agent is at work. Static (a fixed
+/// arc) under widget tests, so `pumpAndSettle` still settles; under reduced
+/// motion [FrameActivityIndicator] shows a static glyph.
+class _WorkingDot extends StatelessWidget {
   final Color color;
-  final double size;
 
   const _WorkingDot({
     required this.color,
-    this.size = 8.0,
   });
 
-  @override
-  State<_WorkingDot> createState() => _WorkingDotState();
-}
-
-class _WorkingDotState extends State<_WorkingDot>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _controller;
-  late Animation<double> _pulse;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1400),
-    );
-    _pulse = Tween<double>(begin: 0.6, end: 1.0).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Phone browsers: a continuously animated blurred glow per working session repaints the list
-    // every frame and made scrolling the sessions drawer stutter. Keep a static glow there.
-    final lite = kIsWeb && MediaQuery.sizeOf(context).width < 700;
-    final isTest =
-        WidgetsBinding.instance.runtimeType.toString().contains('Test');
-    if (!isTest && !lite) {
-      if (!_controller.isAnimating) _controller.repeat(reverse: true);
-    } else {
-      _controller.stop();
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
+  static const double _size = 10.0;
 
   @override
   Widget build(BuildContext context) {
+    // Phone browsers: one endless animation per working row made scrolling
+    // the sessions drawer stutter, so they get the static arc too.
+    final still =
+        isWidgetTestBinding || (kIsWeb && MediaQuery.sizeOf(context).width < 700);
     return RepaintBoundary(
-      child: AnimatedBuilder(
-      animation: _controller,
-      builder: (context, child) {
-        final scale = _controller.isAnimating ? _pulse.value : 1.0;
-        return Container(
-          width: widget.size,
-          height: widget.size,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: widget.color.withValues(alpha: 0.75 + 0.25 * scale),
-            boxShadow: [
-              BoxShadow(
-                color: widget.color.withValues(alpha: 0.65 * scale),
-                blurRadius: 5.0 * scale,
-                spreadRadius: 1.2 * scale,
-              ),
-            ],
-          ),
-        );
-      },
+      child: FrameActivityIndicator(
+        key: const ValueKey('session-working-spinner'),
+        size: _size,
+        strokeWidth: 1.6,
+        value: still ? 0.7 : null,
+        color: color,
       ),
     );
+  }
+}
+
+/// Notification dot: dark while there is nothing new, lit while the session
+/// has agent activity the user has not opened yet.
+class _UnreadDot extends StatelessWidget {
+  final bool unread;
+  final double size;
+
+  const _UnreadDot({super.key, required this.unread, this.size = 8.0});
+
+  @override
+  Widget build(BuildContext context) {
+    final tokens = context.tokens;
+    return AnimatedContainer(
+      duration: FrameMotion.reduced(context) ? Duration.zero : FrameMotion.crossFade,
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: unread ? tokens.accent : tokens.borderStrong.withValues(alpha: 0.45),
+      ),
+    );
+  }
+}
+
+/// Divider between popup-menu groups, in the token border colour.
+class _TokenMenuDivider extends PopupMenuEntry<String> {
+  final Color color;
+
+  const _TokenMenuDivider({required this.color});
+
+  @override
+  double get height => 1;
+
+  @override
+  bool represents(String? value) => false;
+
+  @override
+  State<_TokenMenuDivider> createState() => _TokenMenuDividerState();
+}
+
+class _TokenMenuDividerState extends State<_TokenMenuDivider> {
+  @override
+  Widget build(BuildContext context) {
+    return Divider(height: 1, thickness: 1, color: widget.color);
   }
 }
 
@@ -1136,252 +1407,153 @@ class _SessionTile extends ConsumerWidget {
   final bool isPinned;
   final bool isPinnedSection;
   final bool isSelected;
+  final bool isCursor;
   final VoidCallback onTap;
   final VoidCallback onPinToggle;
   final void Function(String id, String name) onRename;
   final void Function(String id) onTree;
   final void Function(String id) onClone;
-  final void Function(String id, String folder)? onInstructions;
-  final void Function(String folder)? onRemoveRepo;
-  final void Function(String id, String name)? onDelete;
+  final void Function(String id, String name) onDelete;
+  // The session name qualified by repository when names collide, from sessionDisplayNames.
+  final String? qualifiedName;
+  // Hands the rail the opener of this row's context menu (Shift+F10 on the cursor).
+  final void Function(VoidCallback open)? onMenuOpener;
+
+  /// Inset of a session under its repository row: 20 px, so it reads as a child.
+  static const double _nestedIndent = 20;
 
   const _SessionTile({
     required this.session,
     required this.isPinned,
     required this.isPinnedSection,
     required this.isSelected,
+    required this.isCursor,
     required this.onTap,
     required this.onPinToggle,
     required this.onRename,
     required this.onTree,
     required this.onClone,
-    this.onInstructions,
-    this.onRemoveRepo,
-    this.onDelete,
+    required this.onDelete,
+    this.qualifiedName,
+    this.onMenuOpener,
   });
 
+  /// Session actions only. Repository actions live on the repository row.
   List<PopupMenuEntry<String>> _buildMenuItems(
     BuildContext context,
     FrameTokens tokens,
     AppStrings strings,
   ) {
     return [
-      PopupMenuItem(
+      _menuAction(
+        context,
         value: 'pin',
-        height: 32,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              isPinned ? Icons.push_pin_outlined : Icons.push_pin,
-              size: 14,
-              color: tokens.accent,
-            ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                isPinned ? strings.unpinAction : strings.pinAction,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          ],
-        ),
+        icon: isPinned ? Icons.push_pin_outlined : Icons.push_pin_outlined,
+        iconColor: tokens.accent,
+        label: isPinned ? strings.unpinAction : strings.pinAction,
+        textColor: tokens.textPrimary,
       ),
-      PopupMenuItem(
-        value: 'instructions',
-        height: 32,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.description_outlined,
-              size: 14,
-              color: tokens.textSecondary,
-            ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                strings.repoInstructionsAction,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-      PopupMenuItem(
+      _menuAction(
+        context,
         value: 'rename',
-        height: 32,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.edit_outlined,
-              size: 14,
-              color: tokens.textSecondary,
-            ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                strings.renameAction,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          ],
-        ),
+        icon: Icons.edit_outlined,
+        iconColor: tokens.textSecondary,
+        label: strings.renameAction,
+        textColor: tokens.textPrimary,
       ),
-      PopupMenuItem(
+      _menuAction(
+        context,
         value: 'tree',
-        height: 32,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.account_tree_outlined,
-              size: 14,
-              color: tokens.textSecondary,
-            ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                strings.branchTreeAction,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          ],
-        ),
+        icon: Icons.account_tree_outlined,
+        iconColor: tokens.textSecondary,
+        label: strings.branchTreeAction,
+        textColor: tokens.textPrimary,
       ),
-      PopupMenuItem(
+      _menuAction(
+        context,
         value: 'clone',
-        height: 32,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.copy_outlined,
-              size: 14,
-              color: tokens.textSecondary,
-            ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                strings.duplicateAction,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          ],
-        ),
+        icon: Icons.copy_outlined,
+        iconColor: tokens.textSecondary,
+        label: strings.duplicateAction,
+        textColor: tokens.textPrimary,
       ),
-      const PopupMenuDivider(height: 1),
-      if (onRemoveRepo != null) ...[
-        PopupMenuItem(
-          value: 'remove_repo',
-          height: 32,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                Icons.close,
-                size: 14,
-                color: tokens.textSecondary,
-              ),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  strings.removeRepoFromSidebarAction,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: tokens.textPrimary,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-      PopupMenuItem(
+      _TokenMenuDivider(color: tokens.border),
+      _menuAction(
+        context,
         value: 'delete',
-        height: 32,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.delete_outline,
-              size: 14,
-              color: tokens.danger,
-            ),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                strings.deleteSessionAction,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: tokens.danger,
-                  fontSize: 12,
-                ),
-              ),
-            ),
-          ],
-        ),
+        icon: Icons.delete_outline,
+        iconColor: tokens.danger,
+        label: strings.deleteSessionAction,
+        textColor: tokens.danger,
       ),
     ];
   }
 
-  void _handleAction(
-    String action,
+  PopupMenuItem<String> _menuAction(
+    BuildContext context, {
+    required String value,
+    required IconData icon,
+    required Color iconColor,
+    required String label,
+    required Color textColor,
+  }) {
+    final text = FrameText.of(context);
+    return PopupMenuItem(
+      value: value,
+      height: FrameSize.rowForm,
+      padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: FrameSize.icon, color: iconColor),
+          const SizedBox(width: FrameSpace.x2),
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: text.label.copyWith(color: textColor),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleAction(String action, String id, String name) {
+    switch (action) {
+      case 'pin':
+        onPinToggle();
+      case 'rename':
+        onRename(id, name);
+      case 'tree':
+        onTree(id);
+      case 'clone':
+        onClone(id);
+      case 'delete':
+        onDelete(id, name);
+    }
+  }
+
+  Future<void> _showContextMenu(
+    BuildContext context,
+    Rect anchor,
+    FrameTokens tokens,
+    AppStrings strings,
     String id,
     String name,
-    String folder,
-  ) {
-    if (action == 'pin') {
-      onPinToggle();
-    } else if (action == 'instructions') {
-      onInstructions?.call(id, folder);
-    } else if (action == 'rename') {
-      onRename(id, name);
-    } else if (action == 'tree') {
-      onTree(id);
-    } else if (action == 'clone') {
-      onClone(id);
-    } else if (action == 'remove_repo') {
-      onRemoveRepo?.call(folder);
-    } else if (action == 'delete') {
-      onDelete?.call(id, name);
-    }
+  ) async {
+    final action = await showMenu<String>(
+      context: context,
+      color: tokens.surfaceElevated,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(tokens.radiusSm),
+        side: BorderSide(color: tokens.border),
+      ),
+      position: menuPositionFor(context, anchor),
+      items: _buildMenuItems(context, tokens, strings),
+    );
+    if (action != null) _handleAction(action, id, name);
   }
 
   @override
@@ -1389,172 +1561,138 @@ class _SessionTile extends ConsumerWidget {
     final tokens = context.tokens;
     final strings = ref.watch(appStringsProvider);
     final id = session['id'] as String? ?? 's';
-    final name = session['name'] as String? ?? id;
-    final cwd = session['cwd'] as String? ?? '';
-    final preview = session['lastMessagePreview'] as String?;
-    final isStaticActive = session['isActive'] == true;
+    // A chosen name (rename or Pi title); empty for a provisional one.
+    final chosenName = _chosenNameOf(session);
+    final prompt = ref.watch(sessionStateFamily(id).select(firstUserPrompt));
+    final title = sessionRailTitle(
+      id: id,
+      name: session['name'] as String?,
+      qualifiedName: qualifiedName,
+      prompt: prompt,
+      messageCount: (session['messageCount'] as num?)?.toInt(),
+      lastPreview: session['lastMessagePreview'] as String?,
+      listedPrompt: session['firstUserPrompt'] as String?,
+      strings: strings,
+    );
     final folder = _sessionFolder(session);
+    final isStaticActive = session['isActive'] == true;
 
-    final isWorking = (isPinned || isSelected || isStaticActive)
-        ? ref.watch(sessionStateFamily(id).select((s) =>
-            s.agentStatus == AgentStatus.working ||
-            s.agentStatus == AgentStatus.retrying ||
-            s.agentStatus == AgentStatus.compacting ||
-            s.isStreaming ||
-            s.activeToolCalls.isNotEmpty)) ||
+    // Sessions opened in this run stay subscribed, so their live state is
+    // shown after switching away; the daemon listing lags a running turn.
+    final unread = ref.read(unreadSessionsProvider.notifier);
+    final isLive =
+        isPinned || isSelected || isStaticActive || unread.isFollowed(id);
+    if (isLive) unread.follow(id);
+    final isWorking = isLive
+        ? ref.watch(sessionStateFamily(id).select(agentAtWork)) ||
             // Waiting on background subagents or workflows still counts as running.
             ref.watch(backgroundAgentsRunningProvider(id))
         : (session['status'] == 'working' || session['isStreaming'] == true);
+    final isUnread = !isSelected &&
+        ref.watch(unreadSessionsProvider.select((ids) => ids.contains(id)));
 
-    final tile = ListTile(
+    final relative = relativeTimeLabel(
+      strings,
+      (session['lastActivityAt'] as num?)?.toInt(),
+    );
+    final metaColor = isSelected
+        ? tokens.displayText.withValues(alpha: 0.8)
+        : tokens.textMuted;
+
+    final row = FrameListRow(
+      key: ValueKey('session-row-$id'),
+      name: title,
+      secondary: relative,
       selected: isSelected,
-      selectedColor: tokens.displayText,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(tokens.radiusSm),
-      ),
-      dense: true,
-      visualDensity: VisualDensity.compact,
-      minVerticalPadding: 2,
-      minLeadingWidth: 14,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 8,
-        vertical: 0,
-      ),
-      leading: isWorking
-          ? _WorkingDot(color: tokens.agentWorking)
-          : Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: isSelected
-                    ? tokens.displayText
-                    : (isStaticActive
-                        ? tokens.agentSettled
-                        : tokens.textMuted.withValues(
-                            alpha: 0.5,
-                          )),
-                border: Border.all(color: tokens.borderStrong),
+      minHeight: _railRowMinHeight + (relative != null ? 8 : 0),
+      leading: Center(
+        child: isWorking
+            ? _WorkingDot(color: tokens.agentWorking)
+            : _UnreadDot(
+                key: ValueKey('session-unread-dot-$id-$isUnread'),
+                unread: isUnread,
               ),
-            ),
-      title: Row(
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: Text(
-              name,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: isSelected ? tokens.displayText : tokens.textPrimary,
-                fontSize: 14,
-                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
-              ),
-            ),
-          ),
-          if (isPinned) ...[
-            const SizedBox(width: 4),
-            Icon(
-              Icons.push_pin,
-              size: 11,
-              color: tokens.accent,
-            ),
-          ],
+          if (isPinned)
+            Icon(Icons.push_pin_outlined, size: FrameSize.icon, color: tokens.accent),
         ],
       ),
-      subtitle: Text(
-        preview != null && preview.isNotEmpty ? preview : cwd,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: isSelected
-              ? tokens.displayText.withValues(alpha: 0.8)
-              : tokens.textMuted,
-          fontSize: 12,
-        ),
-      ),
-      trailing: PopupMenuButton<String>(
-        tooltip: strings.sessionActionsTooltip,
-        icon: Icon(
-          Icons.more_horiz,
-          size: 18,
-          color: isSelected ? tokens.displayText : tokens.textMuted,
-        ),
-        color: tokens.surfaceElevated,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(tokens.radiusSm),
-          side: BorderSide(color: tokens.border),
-        ),
-        onSelected: (action) => _handleAction(action, id, name, folder),
-        itemBuilder: (ctx) => _buildMenuItems(ctx, tokens, strings),
-      ),
-      onTap: onTap,
-    );
-
-    final card = Material(
-      color: isSelected
-          ? tokens.displaySurface
-          : tokens.surfaceElevated.withValues(alpha: 0.5),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(tokens.radiusSm),
-        side: BorderSide(
-          color: isSelected ? tokens.focusRing : tokens.border,
-        ),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: tile,
-    );
-
-    final interactiveCard = GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onSecondaryTapDown: (details) async {
-        final pos = details.globalPosition;
-        final action = await showMenu<String>(
-          context: context,
+      actions: [
+        PopupMenuButton<String>(
+          key: ValueKey('session-menu-$id'),
+          tooltip: strings.sessionActionsTooltip,
+          icon: Icon(
+            Icons.more_horiz_outlined,
+            size: FrameSize.iconLg,
+            color: metaColor,
+          ),
           color: tokens.surfaceElevated,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(tokens.radiusSm),
             side: BorderSide(color: tokens.border),
           ),
-          position: RelativeRect.fromLTRB(
-            pos.dx,
-            pos.dy,
-            pos.dx + 1,
-            pos.dy + 1,
-          ),
-          items: _buildMenuItems(context, tokens, strings),
-        );
-        if (action != null) {
-          _handleAction(action, id, name, folder);
-        }
-      },
-      child: card,
+          onSelected: (action) => _handleAction(action, id, chosenName),
+          itemBuilder: (ctx) => _buildMenuItems(ctx, tokens, strings),
+        ),
+      ],
+      onTap: onTap,
+      onSecondaryTap: (position) => _showContextMenu(
+        context,
+        pointerAnchorRect(position),
+        tokens,
+        strings,
+        id,
+        chosenName,
+      ),
     );
 
-    if (isWorking) {
-      return Padding(
-        padding: EdgeInsets.only(
-          left: isPinnedSection ? 4 : 14,
-          right: 4,
-          bottom: 3,
-        ),
-        child: ShimmerBorder(
-          isActive: true,
-          strokeWidth: 1.0,
-          borderRadius: BorderRadius.circular(tokens.radiusSm),
-          child: interactiveCard,
-        ),
+    onMenuOpener?.call(() {
+      if (!context.mounted) return;
+      _showContextMenu(
+        context,
+        rowAnchorRect(context),
+        tokens,
+        strings,
+        id,
+        chosenName,
       );
-    }
+    });
+
+    // The keyboard cursor and a working agent used the same colour (accent is
+    // the focus ring colour), so a clicked card looked like a working one.
+    // The cursor ring now shows only while navigating with the keyboard, and
+    // a working card uses the agent-working colour.
+    final borderColor = isCursor
+        ? tokens.focusRing
+        : (isWorking
+            ? tokens.agentWorking.withValues(alpha: 0.7)
+            : tokens.surface.withValues(alpha: 0));
+
+    // Foreground: the selected and hovered row fills are opaque and hid a
+    // border painted behind them.
+    final content = DecoratedBox(
+      position: DecorationPosition.foreground,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(tokens.radiusSm),
+        border: Border.all(
+          color: borderColor,
+          width: 1.0,
+        ),
+      ),
+      child: row,
+    );
 
     return Padding(
+      key: ValueKey('session-tile-$folder-$id'),
       padding: EdgeInsets.only(
-        left: isPinnedSection ? 4 : 14,
-        right: 4,
-        bottom: 3,
+        left: isPinnedSection ? FrameSpace.x2 : _nestedIndent,
+        right: FrameSpace.x1,
+        bottom: FrameSpace.x1,
       ),
-      child: interactiveCard,
+      child: content,
     );
   }
 }
-
-

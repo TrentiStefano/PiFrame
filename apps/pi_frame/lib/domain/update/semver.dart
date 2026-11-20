@@ -62,7 +62,28 @@ class SemVer implements Comparable<SemVer> {
     if (preRelease == null && other.preRelease != null) return 1;
     if (preRelease != null && other.preRelease == null) return -1;
     if (preRelease != null && other.preRelease != null) {
-      return preRelease!.compareTo(other.preRelease!);
+      final left = preRelease!.split('.');
+      final right = other.preRelease!.split('.');
+      for (
+        var index = 0;
+        index < left.length && index < right.length;
+        index++
+      ) {
+        final leftNumber = int.tryParse(left[index]);
+        final rightNumber = int.tryParse(right[index]);
+        final int comparison;
+        if (leftNumber != null && rightNumber != null) {
+          comparison = leftNumber.compareTo(rightNumber);
+        } else if (leftNumber != null) {
+          comparison = -1;
+        } else if (rightNumber != null) {
+          comparison = 1;
+        } else {
+          comparison = left[index].compareTo(right[index]);
+        }
+        if (comparison != 0) return comparison;
+      }
+      return left.length.compareTo(right.length);
     }
 
     return 0;

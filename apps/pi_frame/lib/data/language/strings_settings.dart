@@ -1,16 +1,73 @@
+import '../../domain/errors/user_facing_error.dart';
 import '../../domain/update/update_models.dart';
 import 'language_settings.dart';
 
 extension SettingsStrings on AppStrings {
+  // Settings: Editor tema preview and token search (task 8.3)
+  String get themeEditorTokenSearchHint =>
+      isItalian ? 'Cerca token' : 'Search tokens';
+  String get themeEditorPreviewPaneSubtitle =>
+      isItalian ? 'Sessione · main' : 'Session · main';
+  String get themeEditorPreviewGitFile => 'lib/app.dart';
+  String get themeEditorPreviewGitStatus =>
+      isItalian ? 'Modificato' : 'Modified';
+  String get themeEditorPreviewGitBadge =>
+      isItalian ? 'In staging' : 'Staged';
+  String get themeEditorPreviewUserTurn =>
+      isItalian ? 'Rinomina la funzione' : 'Rename the function';
+  String get themeEditorPreviewAssistantTurn => isItalian
+      ? 'Fatto: funzione rinominata in 2 file.'
+      : 'Done: renamed the function in 2 files.';
+
+  // Settings: startup animation (task 7.8)
+  String get startupAnimationSectionTitle =>
+      isItalian ? 'Animazione di avvio' : 'Startup animation';
+  String get startupAnimationTitle =>
+      isItalian ? 'Animazione di avvio' : 'Startup animation';
+  String get startupAnimationSubtitle => isItalian
+      ? "Mostra l'animazione di avvio con audio a ogni apertura. Senza questa opzione compare solo al primo avvio."
+      : 'Show the startup animation with sound on every launch. Without it, it plays only on the first run.';
+
+  // Settings: MCP servers dialog
+  String get mcpOpenConfigBtn =>
+      isItalian ? 'Apri file di configurazione' : 'Open configuration file';
+  String get mcpShowToolsTooltip =>
+      isItalian ? 'Mostra strumenti' : 'Show tools';
+  String get mcpHideToolsTooltip =>
+      isItalian ? 'Nascondi strumenti' : 'Hide tools';
+
+  // ---------------------------------------------------------------------------
+  // Settings: Agenti
+  // ---------------------------------------------------------------------------
+  String get agentsOpenPackagesBtn =>
+      isItalian ? 'Apri Pacchetti' : 'Open Packages';
+  /// Shown in a model select that has no saved default: Pi picks its own.
+  String get agentsPiDefaultLabel =>
+      isItalian ? 'Predefinito di Pi' : 'Pi default';
+
   // ---------------------------------------------------------------------------
   // Settings View: General & Daemon & Packages
   // ---------------------------------------------------------------------------
-  String get daemonRestartSuccess =>
-      isItalian ? 'Daemon riavviato con successo' : 'Daemon restarted successfully';
+  String get daemonRestartSuccess => isItalian
+      ? 'Daemon riavviato con successo'
+      : 'Daemon restarted successfully';
   String get daemonRestartFailed =>
       isItalian ? 'Riavvio daemon non riuscito' : 'Daemon restart failed';
-  String daemonRestartError(Object error) =>
-      isItalian ? 'Errore durante il riavvio: $error' : 'Error during restart: $error';
+  String daemonRestartError(Object error) => isItalian
+      ? failureText(this, 'Errore durante il riavvio', error)
+      : failureText(this, 'Error during restart', error);
+
+  /// Localized label for a daemon connection state (enum name, e.g. "connected").
+  String daemonConnectionStateLabel(String state) => switch (state) {
+    'disconnected' => isItalian ? 'Non connesso' : 'Disconnected',
+    'connecting' => isItalian ? 'Connessione in corso' : 'Connecting',
+    'authenticating' =>
+      isItalian ? 'Autenticazione in corso' : 'Authenticating',
+    'connected' => isItalian ? 'Connesso' : 'Connected',
+    'reconnecting' => isItalian ? 'Riconnessione in corso' : 'Reconnecting',
+    _ => state,
+  };
+
   String get daemonNotConnected =>
       isItalian ? 'Daemon non connesso' : 'Daemon not connected';
 
@@ -19,8 +76,7 @@ extension SettingsStrings on AppStrings {
   String confirmPackageUpdateDesc(String source) => isItalian
       ? 'Pi aggiornerà $source usando il package manager installato. Il codice aggiornato verrà caricato al prossimo avvio di Pi.'
       : 'Pi will update $source using the installed package manager. The updated code will load on next Pi startup.';
-  String get actionUpdate =>
-      isItalian ? 'Aggiorna' : 'Update';
+  String get actionUpdate => isItalian ? 'Aggiorna' : 'Update';
   String get packageUpdatedSuccess =>
       isItalian ? 'Pacchetto aggiornato' : 'Package updated';
 
@@ -29,8 +85,7 @@ extension SettingsStrings on AppStrings {
   String confirmPackageRemoveDesc(String source) => isItalian
       ? 'Pi rimuoverà $source dalle impostazioni utente e dalla directory dei pacchetti. Le cronologie delle sessioni non vengono modificate.'
       : 'Pi will remove $source from user settings and package directory. Session histories remain untouched.';
-  String get actionRemove =>
-      isItalian ? 'Rimuovi' : 'Remove';
+  String get actionRemove => isItalian ? 'Rimuovi' : 'Remove';
   String get packageRemovedSuccess =>
       isItalian ? 'Pacchetto rimosso' : 'Package removed';
 
@@ -38,15 +93,13 @@ extension SettingsStrings on AppStrings {
       isItalian ? 'Blocca versione npm' : 'Pin npm version';
   String get semverVersionLabel =>
       isItalian ? 'Versione semver' : 'Semver version';
-  String get actionPin =>
-      isItalian ? 'Blocca' : 'Pin';
+  String get actionPin => isItalian ? 'Blocca' : 'Pin';
   String get confirmPinTitle =>
       isItalian ? 'Confermare versione bloccata?' : 'Confirm pinned version?';
   String confirmPinDesc(String source, String version) => isItalian
       ? '$source verrà impostato sulla versione $version.'
       : '$source will be set to version $version.';
-  String get actionPinVersion =>
-      isItalian ? 'Blocca versione' : 'Pin version';
+  String get actionPinVersion => isItalian ? 'Blocca versione' : 'Pin version';
   String get versionPinnedSuccess =>
       isItalian ? 'Versione bloccata' : 'Version pinned';
 
@@ -54,13 +107,22 @@ extension SettingsStrings on AppStrings {
       ? '$successMessage: $source. Riavvia Pi per applicare le modifiche.'
       : '$successMessage: $source. Restart Pi to apply changes.';
   String packageActionFailedNotice(Object error) => isItalian
-      ? 'Operazione sul pacchetto non riuscita: $error'
-      : 'Package operation failed: $error';
+      ? failureText(this, 'Operazione sul pacchetto non riuscita', error)
+      : failureText(this, 'Package operation failed', error);
 
-  String get retryAction =>
-      isItalian ? 'Riprova' : 'Retry';
-  String get noPackagesInstalled =>
-      isItalian ? 'Nessun pacchetto Pi utente installato.' : 'No user Pi packages installed.';
+  String get retryAction => isItalian ? 'Riprova' : 'Retry';
+  String get packagesLoading =>
+      isItalian ? 'Caricamento pacchetti…' : 'Loading packages…';
+  String get packagesLoadingSlow => isItalian
+      ? 'Il caricamento richiede più tempo del previsto'
+      : 'Loading is taking longer than expected';
+  String get packagesLoadFailed => isItalian
+      ? 'Impossibile caricare i pacchetti'
+      : 'Could not load packages';
+  String get detailsAction => isItalian ? 'Dettagli' : 'Details';
+  String get noPackagesInstalled => isItalian
+      ? 'Nessun pacchetto Pi utente installato.'
+      : 'No user Pi packages installed.';
   String get packagesInstalledTitle =>
       isItalian ? 'Pacchetti Pi installati' : 'Installed Pi Packages';
   String get packagesInstalledSubtitle => isItalian
@@ -76,57 +138,64 @@ extension SettingsStrings on AppStrings {
       isItalian ? 'Rimuovi $name' : 'Remove $name';
 
   String get daemonStatusTitle =>
-      isItalian ? 'Stato del Daemon pi-agentd' : 'pi-agentd Daemon Status';
+      isItalian ? 'Stato del daemon pi-agentd' : 'pi-agentd Daemon Status';
   String get daemonStatusSubtitle => isItalian
       ? 'Il daemon locale gestisce i processi Pi worker, il journal e il protocollo PCP/1.'
       : 'The local daemon manages Pi worker processes, the journal, and the PCP/1 protocol.';
-  String get labelHttpWsPort =>
-      isItalian ? 'Porta HTTP/WS' : 'HTTP/WS Port';
+  String get labelHttpWsPort => isItalian ? 'Porta HTTP/WS' : 'HTTP/WS Port';
   String get labelConnecting =>
       isItalian ? 'In connessione...' : 'Connecting...';
-  String get labelStatus =>
-      isItalian ? 'Stato' : 'Status';
-  String get labelNotConnected =>
-      isItalian ? 'Non connesso' : 'Not connected';
+  String get labelStatus => isItalian ? 'Stato' : 'Status';
+  String get labelNotConnected => isItalian ? 'Non connesso' : 'Not connected';
   String get labelEndpointDetected =>
       isItalian ? 'Endpoint rilevato' : 'Endpoint detected';
-  String get labelProtocol =>
-      isItalian ? 'Protocollo' : 'Protocol';
+  String get labelProtocol => isItalian ? 'Protocollo' : 'Protocol';
   String get protocolPcp1 =>
       isItalian ? 'PCP/1 (JSON testuale)' : 'PCP/1 (textual JSON)';
 
   String get workerIdleTimeoutTitle =>
-      isItalian ? 'Timeout Inattività Worker (D9)' : 'Worker Idle Timeout (D9)';
+      isItalian ? 'Timeout inattività worker' : 'Worker idle timeout';
   String get workerIdleTimeoutSubtitle => isItalian
       ? 'Dopo quanto tempo di inattività i processi Pi in idle vengono terminati per risparmiare risorse (i worker occupati non vengono mai terminati).'
       : 'How long idle Pi worker processes run before termination to conserve resources (busy workers are never killed).';
   String get timeoutSavingStatus =>
       isItalian ? 'Salvataggio in corso...' : 'Saving...';
-  String get timeoutUpdatedStatus =>
-      isItalian ? 'Timeout aggiornato con successo!' : 'Timeout updated successfully!';
-  String timeoutErrorStatus(Object error) =>
-      isItalian ? 'Errore: $error' : 'Error: $error';
+  String get timeoutUpdatedStatus => isItalian
+      ? 'Timeout aggiornato con successo!'
+      : 'Timeout updated successfully!';
+  String timeoutErrorStatus(Object error) => isItalian
+      ? failureText(this, 'Errore', error)
+      : failureText(this, 'Error', error);
 
-  String get timeoutNever =>
-      isItalian ? 'Mai (0 min)' : 'Never (0 min)';
-  String get timeout5Min =>
-      isItalian ? '5 minuti' : '5 minutes';
-  String get timeout15Min =>
-      isItalian ? '15 minuti' : '15 minutes';
+  String get timeoutNever => isItalian ? 'Mai (0 min)' : 'Never (0 min)';
+  String get timeout5Min => isItalian ? '5 min' : '5 minutes';
+  String get timeout15Min => isItalian ? '15 min' : '15 minutes';
   String get timeout30Min =>
-      isItalian ? '30 minuti (Default)' : '30 minutes (Default)';
-  String get timeout1Hour =>
-      isItalian ? '1 ora (60 min)' : '1 hour (60 min)';
+      isItalian ? '30 min (predefinito)' : '30 minutes (Default)';
+  String get timeout1Hour => isItalian ? '1 ora (60 min)' : '1 hour (60 min)';
   String get timeout2Hours =>
       isItalian ? '2 ore (120 min)' : '2 hours (120 min)';
 
   String get restartingDaemonStatus =>
       isItalian ? 'Riavvio in corso...' : 'Restarting...';
   String get restartDaemonBtn =>
-      isItalian ? 'Riavvia Daemon' : 'Restart Daemon';
+      isItalian ? 'Riavvia daemon' : 'Restart Daemon';
+  String get daemonRestartConsequence => isItalian
+      ? 'Le sessioni in corso verranno riconnesse.'
+      : 'Running sessions will reconnect.';
+  String get daemonRestartConfirmTitle =>
+      isItalian ? 'Riavviare il daemon?' : 'Restart the daemon?';
+  String get daemonRestartConfirmBody => isItalian
+      ? 'Un agente è in esecuzione. Riavviando il daemon, la sessione in corso verrà riconnessa e il run potrebbe interrompersi.'
+      : 'An agent is running. Restarting the daemon reconnects the running session, and the run may stop.';
+  String get daemonRestartConfirmAction => isItalian ? 'Riavvia' : 'Restart';
+  String get themeControlTitle => isItalian ? 'Tema' : 'Theme';
+  String get themeModeSystem => isItalian ? 'Sistema' : 'System';
+  String get themeModeLight => isItalian ? 'Chiaro' : 'Light';
+  String get themeModeDark => isItalian ? 'Scuro' : 'Dark';
 
   String get notificationsSectionTitle => isItalian
-      ? 'Notifiche di Sistema (macOS, Windows, Linux)'
+      ? 'Notifiche di sistema (macOS, Windows, Linux)'
       : 'System Notifications (macOS, Windows, Linux)';
   String get notificationsSectionSubtitle => isItalian
       ? 'Invia notifiche di sistema quando l\'agente completa una risposta o richiede una scelta/conferma e l\'applicazione non è a fuoco.'
@@ -144,44 +213,43 @@ extension SettingsStrings on AppStrings {
       ? 'Tema "$name" importato e attivato con successo!'
       : 'Theme "$name" imported and applied successfully!';
   String themeImportError(Object error) => isItalian
-      ? 'Errore durante l\'importazione del tema: $error'
-      : 'Error importing theme: $error';
+      ? failureText(this, 'Errore durante l\'importazione del tema', error)
+      : failureText(this, 'Error importing theme', error);
 
-  String get labelActiveTheme =>
-      isItalian ? 'Tema attivo' : 'Active theme';
+  String get labelActiveTheme => isItalian ? 'Tema attivo' : 'Active theme';
   String get labelLayoutDensity =>
       isItalian ? 'Densità layout' : 'Layout density';
   String get layoutDensityDefault =>
-      isItalian ? 'Confortevole (Default 1.0x)' : 'Comfortable (Default 1.0x)';
-  String get labelFonts =>
-      isItalian ? 'Caratteri' : 'Fonts';
-  String fontsDetail(String ui, String mono) =>
-      isItalian ? '$ui (UI) · $mono (Codice)' : '$ui (UI) · $mono (Code)';
+      isItalian ? 'Confortevole (1.0x)' : 'Comfortable (Default 1.0x)';
+  String get labelFonts => isItalian ? 'Caratteri' : 'Fonts';
   String get themeDiagnosticsHeader =>
       isItalian ? 'Diagnostica tema:' : 'Theme diagnostics:';
 
-  String get privacyTitle =>
-      isItalian ? 'Informativa sulla Privacy e Tracciamento' : 'Privacy & Tracking Policy';
+  String get privacyTitle => isItalian
+      ? 'Informativa sulla privacy e tracciamento'
+      : 'Privacy & Tracking Policy';
   String get privacyCardContent => isItalian
-      ? 'PiFrame non invia alcun dato di utilizzo a server remoti. I log restano sul tuo computer; puoi esportarli manualmente dalla sezione Diagnostica per condividerli con chi ti assiste.'
+      ? 'PiFrame non invia alcun dato di utilizzo a server remoti. I log restano sul tuo computer; puoi esportarli manualmente dalla sezione diagnostica per condividerli con chi ti assiste.'
       : 'PiFrame does not send usage data to remote servers. Logs stay on your computer; you can manually export them from the Diagnostics tab to share with support.';
   String get privacyBulletPoints => isItalian
       ? '• Zero telemetria, zero analytics di terze parti (nessun Google Analytics, Mixpanel o Sentry).\n'
-        '• Comunicazione locale confinata all\'interfaccia loopback 127.0.0.1 con token di autenticazione 256 bit.\n'
-        '• Nessuna modifica ai file di sessione o configurazioni originali di Pi in ~/.pi/.'
+            '• Comunicazione locale confinata all\'interfaccia loopback 127.0.0.1 con token di autenticazione 256 bit.\n'
+            '• Nessuna modifica ai file di sessione o configurazioni originali di Pi in ~/.pi/.'
       : '• Zero telemetry, zero third-party analytics (no Google Analytics, Mixpanel, or Sentry).\n'
-        '• Local communication strictly bound to loopback interface 127.0.0.1 with 256-bit authentication token.\n'
-        '• No modification to original Pi session files or configurations in ~/.pi/.';
+            '• Local communication strictly bound to loopback interface 127.0.0.1 with 256-bit authentication token.\n'
+            '• No modification to original Pi session files or configurations in ~/.pi/.';
 
-  String get terminalTabTitle =>
-      isItalian ? 'Terminale & Ambiente di Esecuzione' : 'Terminal & Execution Environment';
+  String get terminalTabTitle => isItalian
+      ? 'Terminale & Ambiente di esecuzione'
+      : 'Terminal & Execution Environment';
   String get terminalTabSubtitle => isItalian
-      ? 'Scegli se utilizzare il terminale integrato direttamente nell\'interfaccia o aprire il terminale nativo del sistema operativo (es. Windows Terminal, PowerShell, CMD, WSL, o un eseguibile personalizzato).'
+      ? 'Scegli se utilizzare il terminale integrato direttamente nell\'interfaccia o aprire il terminale nativo del sistema operativo (es. Windows terminal, PowerShell, CMD, WSL, o un eseguibile personalizzato).'
       : 'Choose whether to use the integrated terminal inside the interface or open the native OS terminal (e.g. Windows Terminal, PowerShell, CMD, WSL, or custom executable).';
   String get terminalPreferredModeHeader =>
       isItalian ? 'MODALITÀ PREFERITA' : 'PREFERRED MODE';
-  String get terminalIntegratedTitle =>
-      isItalian ? 'Terminale integrato (in PiFrame)' : 'Integrated terminal (in PiFrame)';
+  String get terminalIntegratedTitle => isItalian
+      ? 'Terminale integrato (in PiFrame)'
+      : 'Integrated terminal (in PiFrame)';
   String get terminalIntegratedSubtitle => isItalian
       ? 'Scrivi direttamente nella finestra di terminale integrata, con cronologia frecce su/giù e supporto shell di sistema.'
       : 'Type directly in the integrated terminal pane, with up/down arrow history and system shell support.';
@@ -191,27 +259,28 @@ extension SettingsStrings on AppStrings {
   String get terminalNativeSubtitle => isItalian
       ? 'Apre una finestra di terminale esterna nativa direttamente nella cartella del repository.'
       : 'Opens an external native terminal window directly in the repository directory.';
-  String get terminalNativeAppHeader =>
-      isItalian ? 'APPLICAZIONE TERMINALE NATIVO (OS)' : 'NATIVE OS TERMINAL APPLICATION';
+  String get terminalNativeAppHeader => isItalian
+      ? 'Applicazione terminale nativo (OS)'
+      : 'Native OS terminal application';
   String terminalNativeAppDefault(bool isWindows) => isItalian
       ? (isWindows
-          ? 'Predefinito di sistema (Windows Terminal wt.exe / shell predefinita)'
-          : 'Terminale predefinito di sistema')
+            ? 'Predefinito di sistema (Windows Terminal wt.exe / shell predefinita)'
+            : 'Terminale predefinito di sistema')
       : (isWindows
-          ? 'System default (Windows Terminal wt.exe / default shell)'
-          : 'System default terminal');
+            ? 'System default (Windows Terminal wt.exe / default shell)'
+            : 'System default terminal');
   String get terminalPowershell => 'PowerShell (powershell.exe)';
   String get terminalCmd => 'Command Prompt (cmd.exe)';
   String get terminalWsl => 'WSL (Windows Subsystem for Linux)';
   String get terminalCustomApp => isItalian
       ? 'Applicazione o eseguibile personalizzato'
       : 'Custom application or executable';
-  String get terminalBrowseBtn =>
-      isItalian ? 'Sfoglia' : 'Browse';
+  String get terminalBrowseBtn => isItalian ? 'Sfoglia' : 'Browse';
   String get terminalExecutableFilterLabel =>
       isItalian ? 'Eseguibile' : 'Executable';
-  String get terminalTestBtn =>
-      isItalian ? 'Testa apertura terminale nativo' : 'Test opening native terminal';
+  String get terminalTestBtn => isItalian
+      ? 'Testa apertura terminale nativo'
+      : 'Test opening native terminal';
   String get terminalTestSuccess => isItalian
       ? 'Terminale nativo avviato con successo!'
       : 'Native terminal launched successfully!';
@@ -229,37 +298,35 @@ extension SettingsStrings on AppStrings {
       ? 'Bundle diagnostico copiato negli appunti!'
       : 'Diagnostic bundle copied to clipboard!';
   String diagExportError(Object error) => isItalian
-      ? 'Errore durante esportazione: $error'
-      : 'Error during export: $error';
+      ? failureText(this, 'Errore durante esportazione', error)
+      : failureText(this, 'Error during export', error);
   String get diagTitle => isItalian
-      ? 'Diagnostica Locale & Stato di Sistema'
+      ? 'Diagnostica locale & Stato di sistema'
       : 'Local Diagnostics & System State';
   String get diagSubtitle => isItalian
-      ? 'Tutti i dati di diagnostica rimangono confinati sulla tua macchina locale. In conformità con la politica di privacy D16, nessun dato viene mai trasmesso a server esterni.'
-      : 'All diagnostic data remains strictly on your local machine. In compliance with D16 privacy policy, no data is ever transmitted to external servers.';
+      ? 'Tutti i dati di diagnostica restano sulla tua macchina locale. Nessun dato viene mai trasmesso a server esterni.'
+      : 'All diagnostic data stays on your local machine. No data is ever sent to external servers.';
   String get diagRuntimeStateHeader =>
-      isItalian ? 'STATO ATTUALE DEL RUNTIME' : 'CURRENT RUNTIME STATE';
+      isItalian ? 'Stato attuale del runtime' : 'Current runtime state';
   String get diagDaemonConnection =>
-      isItalian ? 'Connessione Daemon' : 'Daemon Connection';
+      isItalian ? 'Connessione daemon' : 'Daemon Connection';
   String get diagAppVersionLabel =>
-      isItalian ? 'Versione PiFrame App' : 'PiFrame App Version';
-  String get diagPcpProtocol =>
-      isItalian ? 'Protocollo PCP' : 'PCP Protocol';
+      isItalian ? 'Versione PiFrame app' : 'PiFrame App Version';
+  String get diagPcpProtocol => isItalian ? 'Protocollo PCP' : 'PCP Protocol';
   String get diagArchivedSessions =>
       isItalian ? 'Sessioni archiviate' : 'Archived Sessions';
   String get diagRemoteTelemetry =>
-      isItalian ? 'Telemetria Remota' : 'Remote Telemetry';
+      isItalian ? 'Telemetria remota' : 'Remote Telemetry';
   String get diagTelemetryDisabled =>
-      isItalian ? 'DISABILITATA (Zero Analytics)' : 'DISABLED (Zero Analytics)';
+      isItalian ? 'Disattivata' : 'Disabled (zero analytics)';
   String get diagExportBundleTitle =>
-      isItalian ? 'Esporta Bundle Diagnostico' : 'Export Diagnostic Bundle';
+      isItalian ? 'Esporta bundle diagnostico' : 'Export Diagnostic Bundle';
   String get diagExportBundleDesc => isItalian
       ? 'Genera un rapporto diagnostico completo formattato in JSON. Tutti i token, credenziali e percorsi sensibili vengono automaticamente anonimizzati e redatti prima della copia negli appunti.'
       : 'Generates a full diagnostic report formatted in JSON. All sensitive tokens, credentials, and paths are automatically anonymized and redacted before copying to clipboard.';
-  String get diagGenerating =>
-      isItalian ? 'Generazione...' : 'Generating...';
+  String get diagGenerating => isItalian ? 'Generazione...' : 'Generating...';
   String get diagCopyBundleBtn => isItalian
-      ? 'Copia Bundle Diagnostico negli Appunti'
+      ? 'Copia bundle diagnostico negli appunti'
       : 'Copy Diagnostic Bundle to Clipboard';
 
   // ---------------------------------------------------------------------------
@@ -268,25 +335,22 @@ extension SettingsStrings on AppStrings {
   String get piCliTitle =>
       isItalian ? 'Interfaccia Pi CLI' : 'Pi CLI Interface';
   String get piCliSubtitle => isItalian
-      ? 'Esegui comandi e aggiornamenti ufficiali di Pi Coding Agent direttamente da PiFrame.'
+      ? 'Esegui comandi e aggiornamenti ufficiali di Pi coding agent direttamente da PiFrame.'
       : 'Run official Pi Coding Agent commands and updates directly from PiFrame.';
   String get piCliFastCommands =>
-      isItalian ? 'COMANDI RAPIDI' : 'QUICK COMMANDS';
+      isItalian ? 'Comandi rapidi' : 'Quick commands';
   String get piCliCustomCmdHeader =>
-      isItalian ? 'COMANDO PERSONALIZZATO' : 'CUSTOM COMMAND';
+      isItalian ? 'Comando personalizzato' : 'Custom command';
   String get piCliCustomCmdHint => isItalian
       ? 'es. update --force, auth check, mcp login <server>...'
       : 'e.g. update --force, auth check, mcp login <server>...';
-  String get piCliRunBtn =>
-      isItalian ? 'Esegui' : 'Run';
-  String get piCliConsoleOutputHeader =>
-      isItalian ? 'OUTPUT CONSOLE' : 'CONSOLE OUTPUT';
+  String get piCliRecommendedTag => isItalian ? 'Consigliato' : 'Recommended';
+  String get piCliRunBtn => isItalian ? 'Esegui' : 'Run';
+  String get piCliConsoleOutputHeader => isItalian ? 'Output' : 'Output';
   String piCliRunningNotice(String cmd) =>
       isItalian ? 'In esecuzione $cmd...' : 'Running $cmd...';
-  String get piCliStopBtn =>
-      isItalian ? 'Interrompi' : 'Stop';
-  String get piCliSuccessCode =>
-      isItalian ? 'Successo (0)' : 'Success (0)';
+  String get piCliStopBtn => isItalian ? 'Interrompi' : 'Stop';
+  String get piCliSuccessCode => isItalian ? 'Successo (0)' : 'Success (0)';
   String piCliExitCode(int code) =>
       isItalian ? 'Codice $code' : 'Exit code $code';
   String get piCliCopyOutputTooltip =>
@@ -299,12 +363,9 @@ extension SettingsStrings on AppStrings {
   String get piCliSystemPathNotice => isItalian
       ? 'PiFrame utilizza il comando `pi` configurato nel PATH di sistema.'
       : 'PiFrame uses the `pi` command configured in system PATH.';
-  String get piCliRecheckBtn =>
-      isItalian ? 'Ricontrolla' : 'Recheck';
-  String get piCliManageMcpBtn =>
-      isItalian ? 'Gestisci' : 'Manage';
-  String get piCliInProgress =>
-      isItalian ? 'In corso...' : 'Running...';
+  String get piCliRecheckBtn => isItalian ? 'Ricontrolla' : 'Recheck';
+  String get piCliManageMcpBtn => isItalian ? 'Gestisci' : 'Manage';
+  String get piCliInProgress => isItalian ? 'In corso...' : 'Running...';
   String get piCliMcpCardTooltip => isItalian
       ? 'Clicca sulla scheda per visualizzare e abilitare/disabilitare i server MCP'
       : 'Click card to view and enable/disable MCP servers';
@@ -332,37 +393,36 @@ extension SettingsStrings on AppStrings {
       : 'Update the Pi executable to the latest stable release.';
 
   String get piCmdUpdateExtLabel =>
-      isItalian ? 'Aggiorna Estensioni' : 'Update Extensions';
+      isItalian ? 'Aggiorna estensioni' : 'Update Extensions';
   String get piCmdUpdateExtDesc => isItalian
       ? 'Aggiorna tutti i pacchetti ed estensioni utente installati.'
       : 'Update all installed user packages and extensions.';
 
   String get piCmdUpdateModelsLabel =>
-      isItalian ? 'Aggiorna Catalogo Modelli' : 'Update Model Catalog';
+      isItalian ? 'Aggiorna catalogo modelli' : 'Update Model Catalog';
   String get piCmdUpdateModelsDesc => isItalian
       ? 'Sincronizza e aggiorna il catalogo dei modelli AI supportati.'
       : 'Sync and update the supported AI models catalog.';
 
-  String get piCmdUpdateAllLabel =>
-      isItalian ? 'Aggiorna Tutto' : 'Update All';
+  String get piCmdUpdateAllLabel => isItalian ? 'Aggiorna tutto' : 'Update All';
   String get piCmdUpdateAllDesc => isItalian
       ? 'Aggiorna contemporaneamente Pi CLI e tutte le estensioni installate.'
       : 'Simultaneously update Pi CLI and all installed extensions.';
 
   String get piCmdListLabel =>
-      isItalian ? 'Elenco Estensioni' : 'List Extensions';
+      isItalian ? 'Elenco estensioni' : 'List Extensions';
   String get piCmdListDesc => isItalian
       ? 'Visualizza tutte le estensioni e i pacchetti utente attualmente installati.'
       : 'Display all currently installed user extensions and packages.';
 
   String get piCmdMcpListLabel =>
-      isItalian ? 'Stato Server MCP' : 'MCP Server Status';
+      isItalian ? 'Stato server MCP' : 'MCP Server Status';
   String get piCmdMcpListDesc => isItalian
       ? 'Verifica la connessione, lo stato e gli strumenti dei server MCP configurati.'
       : 'Verify connection, status, and tools for configured MCP servers.';
 
   String get piCmdModelsLabel =>
-      isItalian ? 'Modelli Disponibili' : 'Available Models';
+      isItalian ? 'Modelli disponibili' : 'Available Models';
   String get piCmdModelsDesc => isItalian
       ? 'Elenca tutti i modelli LLM disponibili per il coding assistant.'
       : 'List all LLM models available for the coding assistant.';
@@ -380,11 +440,11 @@ extension SettingsStrings on AppStrings {
       ? 'La configurazione MCP è disponibile solo su desktop.'
       : 'MCP configuration is available on desktop only.';
   String mcpLoadError(Object error) => isItalian
-      ? 'Impossibile caricare i server MCP: $error'
-      : 'Failed to load MCP servers: $error';
+      ? failureText(this, 'Impossibile caricare i server MCP', error)
+      : failureText(this, 'Failed to load MCP servers', error);
   String mcpSaveError(Object error) => isItalian
-      ? 'Errore nel salvataggio: $error'
-      : 'Error saving changes: $error';
+      ? failureText(this, 'Errore nel salvataggio', error)
+      : failureText(this, 'Error saving changes', error);
   String get mcpDialogTitle =>
       isItalian ? 'Server MCP Disponibili' : 'Available MCP Servers';
   String get mcpDialogSubtitle => isItalian
@@ -395,29 +455,21 @@ extension SettingsStrings on AppStrings {
   String get mcpLoadingServers => isItalian
       ? 'Caricamento server MCP in corso...'
       : 'Loading MCP servers...';
-  String get mcpEmptyTitle => isItalian
-      ? 'Nessun server MCP configurato'
-      : 'No MCP servers configured';
+  String get mcpEmptyTitle =>
+      isItalian ? 'Nessun server MCP configurato' : 'No MCP servers configured';
   String get mcpEmptySubtitle => isItalian
       ? 'Aggiungi un server con "pi mcp add <nome> -- <comando>"\noppure modifica ~/.pi/agent/mcp.json.'
       : 'Add a server with "pi mcp add <name> -- <command>"\nor edit ~/.pi/agent/mcp.json.';
-  String get mcpZeroServers =>
-      isItalian ? '0 server' : '0 servers';
+  String get mcpZeroServers => isItalian ? '0 server' : '0 servers';
   String mcpActiveServersCount(int enabled, int total) => isItalian
       ? '$enabled su $total server attivi'
       : '$enabled of $total servers active';
-  String get mcpStatusDisabled =>
-      isItalian ? 'Disabilitato' : 'Disabled';
-  String get mcpStatusConnected =>
-      isItalian ? 'Connesso' : 'Connected';
-  String get mcpStatusFailed =>
-      isItalian ? 'Non connesso' : 'Disconnected';
-  String get mcpStatusEnabled =>
-      isItalian ? 'Abilitato' : 'Enabled';
-  String get mcpScopeProject =>
-      isItalian ? 'Progetto' : 'Project';
-  String mcpToolsCount(int count) =>
-      isItalian ? '$count tool' : '$count tools';
+  String get mcpStatusDisabled => isItalian ? 'Disabilitato' : 'Disabled';
+  String get mcpStatusConnected => isItalian ? 'Connesso' : 'Connected';
+  String get mcpStatusFailed => isItalian ? 'Non connesso' : 'Disconnected';
+  String get mcpStatusEnabled => isItalian ? 'Abilitato' : 'Enabled';
+  String get mcpScopeProject => isItalian ? 'Progetto' : 'Project';
+  String mcpToolsCount(int count) => isItalian ? '$count tool' : '$count tools';
   String get mcpCopyCommandTooltip =>
       isItalian ? 'Copia comando' : 'Copy command';
   String get mcpCommandCopiedSnackBar =>
@@ -427,20 +479,16 @@ extension SettingsStrings on AppStrings {
   // Remote Access Section
   // ---------------------------------------------------------------------------
   String get remoteTitle =>
-      isItalian ? 'Connessione Remota Sicura' : 'Secure Remote Connection';
+      isItalian ? 'Connessione remota sicura' : 'Secure Remote Connection';
   String get remoteSubtitle => isItalian
       ? 'Accedi al tuo Pi dallo smartphone o dal browser in mobilità. Tunnel crittografato, associazione one-time via QR code con URL fragment (#pair=...), token per-dispositivo con scadenza e controllo granulare dei permessi (view o control).'
       : 'Access your Pi from smartphone or browser on the go. Encrypted tunnel, one-time QR code pairing via URL fragment (#pair=...), expiring per-device tokens, and granular permission control (view or control).';
   String get remoteEnableTitle =>
-      isItalian ? 'Abilita Accesso Remoto' : 'Enable Remote Access';
-  String get remoteStatusActive =>
-      isItalian ? 'ATTIVO' : 'ACTIVE';
-  String get remoteStatusStarting =>
-      isItalian ? 'AVVIO...' : 'STARTING...';
-  String get remoteStatusError =>
-      isItalian ? 'ERRORE' : 'ERROR';
-  String get remoteStatusDisabled =>
-      isItalian ? 'DISATTIVATO' : 'DISABLED';
+      isItalian ? 'Abilita accesso remoto' : 'Enable Remote Access';
+  String get remoteStatusActive => isItalian ? 'ATTIVO' : 'ACTIVE';
+  String get remoteStatusStarting => isItalian ? 'AVVIO...' : 'STARTING...';
+  String get remoteStatusError => isItalian ? 'ERRORE' : 'ERROR';
+  String get remoteStatusDisabled => isItalian ? 'DISATTIVATO' : 'DISABLED';
   String get remoteEnabledDesc => isItalian
       ? 'Il listener remoto dedicato è attivo. Inquadra il QR code per associare un dispositivo.'
       : 'Dedicated remote listener is active. Scan QR code to pair a device.';
@@ -448,23 +496,20 @@ extension SettingsStrings on AppStrings {
       ? 'Disattivato (opt-in). Nessuna connessione esterna è accettata.'
       : 'Disabled (opt-in). No external connections accepted.';
   String get remotePairSmartphoneTitle =>
-      isItalian ? 'Associa il tuo Smartphone' : 'Pair Your Smartphone';
+      isItalian ? 'Associa il tuo smartphone' : 'Pair Your Smartphone';
   String get remotePairStep1 => isItalian
       ? '1. Inquadra il QR con la fotocamera del telefono'
       : '1. Scan the QR code with your phone camera';
   String get remotePairStep1Desc => isItalian
       ? 'Aprirà la webapp PiFrame con associazione sicura monouso via fragment crittografico.'
       : 'Opens the PiFrame web app with secure one-time pairing via cryptographic fragment.';
-  String get remotePairExpired =>
-      isItalian ? 'Scaduto' : 'Expired';
+  String get remotePairExpired => isItalian ? 'Scaduto' : 'Expired';
   String remotePairExpiresIn(int mins, String secs) => isItalian
       ? 'Scade tra ${mins}m ${secs}s'
       : 'Expires in ${mins}m ${secs}s';
-  String get remoteNewQrBtn =>
-      isItalian ? 'Nuovo codice QR' : 'New QR code';
-  String get remoteCopyPairLinkBtn => isItalian
-      ? 'Copia Link di Associazione'
-      : 'Copy Pairing Link';
+  String get remoteNewQrBtn => isItalian ? 'Nuovo codice QR' : 'New QR code';
+  String get remoteCopyPairLinkBtn =>
+      isItalian ? 'Copia link di associazione' : 'Copy Pairing Link';
   String get remotePairLinkCopiedSnackBar => isItalian
       ? 'Link di associazione copiato negli appunti!'
       : 'Pairing link copied to clipboard!';
@@ -473,86 +518,82 @@ extension SettingsStrings on AppStrings {
   String get remotePublicUrlLabel =>
       isItalian ? 'URL Pubblico: ' : 'Public URL: ';
   String get remoteDefaultModeTitle => isItalian
-      ? 'Modalità Predefinita per Nuovi Dispositivi'
+      ? 'Modalità predefinita per nuovi dispositivi'
       : 'Default Mode for New Devices';
   String get remoteDefaultModeSubtitle => isItalian
       ? 'I nuovi dispositivi associati ricevono questa modalità. Puoi modificarla per singolo dispositivo nella lista sottostante.'
       : 'Newly paired devices receive this mode. You can adjust per device in the list below.';
   String get remoteSegmentView =>
-      isItalian ? 'Visualizzazione (View)' : 'View Only (View)';
+      isItalian ? 'Visualizzazione' : 'View Only (View)';
   String get remoteSegmentControl =>
-      isItalian ? 'Controllo (Control)' : 'Control (Control)';
+      isItalian ? 'Controllo' : 'Control (Control)';
+  String get remoteDeviceModeViewLabel => isItalian ? 'Visualizza' : 'View';
+  String get remoteDeviceModeControlLabel => isItalian ? 'Controlla' : 'Control';
   String get remoteModeViewExplanation => isItalian
-      ? 'La modalità View consente di consultare sessioni, log e file in sola lettura, con possibilità di abortire l\'agente in caso di emergenza. Nessun prompt o modifica consentita.'
+      ? 'La modalità Visualizzazione consente di consultare sessioni, log e file in sola lettura, con possibilità di abortire l\'agente in caso di emergenza. Nessun prompt o modifica consentita.'
       : 'View mode allows read-only access to sessions, logs, and files, with emergency agent abort. No prompts or modifications allowed.';
   String get remoteModeControlExplanation => isItalian
-      ? 'La modalità Control consente di inviare messaggi, avviare sessioni ed eseguire azioni complete tramite l\'agente.'
+      ? 'La modalità Controllo consente di inviare messaggi, avviare sessioni ed eseguire azioni complete tramite l\'agente.'
       : 'Control mode allows sending prompts, starting sessions, and full execution through the agent.';
   String remoteAuthorizedDevicesTitle(int count) => isItalian
-      ? 'Dispositivi Autorizzati ($count)'
+      ? 'Dispositivi autorizzati ($count)'
       : 'Authorized Devices ($count)';
-  String get remoteRevokeAllBtn =>
-      isItalian ? 'Revoca Tutti' : 'Revoke All';
+  String get remoteRevokeAllBtn => isItalian ? 'Revoca tutti' : 'Revoke All';
   String get remoteNoDevicesAuthorized => isItalian
       ? 'Nessun dispositivo autorizzato. Inquadra il QR code per associare il tuo smartphone.'
       : 'No authorized devices. Scan the QR code to pair your smartphone.';
   String get remoteUnknownDevice =>
-      isItalian ? 'Dispositivo Sconosciuto' : 'Unknown Device';
-  String get remoteLocalIp =>
-      isItalian ? 'Locale' : 'Local';
-  String get remoteNeverUsed =>
-      isItalian ? 'Mai' : 'Never';
-  String remoteDeviceInfoLine(String ip, String last, String expires) => isItalian
+      isItalian ? 'Dispositivo sconosciuto' : 'Unknown Device';
+  String get remoteLocalIp => isItalian ? 'Locale' : 'Local';
+  String get remoteNeverUsed => isItalian ? 'Mai' : 'Never';
+  String remoteDeviceInfoLine(String ip, String last, String expires) =>
+      isItalian
       ? 'IP: $ip • Ultima attività: $last • Scade: $expires'
       : 'IP: $ip • Last active: $last • Expires: $expires';
-  String get remoteRevokeBtn =>
-      isItalian ? 'Revoca' : 'Revoke';
+  String get remoteRevokeBtn => isItalian ? 'Revoca' : 'Revoke';
   String get remoteRevokeDeviceDialogTitle =>
-      isItalian ? 'Revoca Dispositivo' : 'Revoke Device';
+      isItalian ? 'Revoca dispositivo' : 'Revoke Device';
   String remoteRevokeDeviceDialogContent(String name) => isItalian
       ? 'Vuoi revocare l\'accesso a "$name"? La connessione verrà terminata immediatamente.'
       : 'Revoke access for "$name"? Connection will be terminated immediately.';
-  String get remoteRevokeAllDialogTitle => isItalian
-      ? 'Revoca Tutti i Dispositivi'
-      : 'Revoke All Devices';
+  String get remoteRevokeAllDialogTitle =>
+      isItalian ? 'Revoca tutti i dispositivi' : 'Revoke All Devices';
   String get remoteRevokeAllDialogContent => isItalian
       ? 'Tutte le sessioni remote verranno disconnesse e i token invalidati immediatamente. Continuare?'
       : 'All remote sessions will be disconnected and tokens invalidated immediately. Continue?';
-  String get remoteControlConfirmTitle => isItalian
-      ? 'Conferma Modalità Controllo'
-      : 'Confirm Control Mode';
+  String get remoteControlConfirmTitle =>
+      isItalian ? 'Conferma modalità controllo' : 'Confirm Control Mode';
   String remoteControlConfirmContent(String name) => isItalian
       ? 'Stai concedendo i permessi di CONTROLLO COMPLETO a "$name".\n\n'
-        'Questo dispositivo potrà inviare prompt ed eseguire comandi sul tuo computer con gli stessi privilegi del tuo utente.'
+            'Questo dispositivo potrà inviare prompt ed eseguire comandi sul tuo computer con gli stessi privilegi del tuo utente.'
       : 'You are granting FULL CONTROL permissions to "$name".\n\n'
-        'This device will be able to send prompts and execute commands on your computer with your user privileges.';
+            'This device will be able to send prompts and execute commands on your computer with your user privileges.';
   String get remoteGrantControlBtn =>
-      isItalian ? 'Concedi Controllo' : 'Grant Control';
+      isItalian ? 'Concedi controllo' : 'Grant Control';
   String get remoteProviderConfigTitle => isItalian
-      ? 'Configurazione Provider Tunnel'
+      ? 'Configurazione provider tunnel'
       : 'Tunnel Provider Configuration';
   String get remoteProviderTailscale => isItalian
-      ? 'Tailscale (Consigliato: Permanente, Privato e Sicuro)'
+      ? 'Tailscale (Consigliato: Permanente, privato e sicuro)'
       : 'Tailscale (Recommended: Permanent, Private & Secure)';
   String get remoteProviderCloudflared => isItalian
-      ? 'Cloudflare Quick Tunnel (Temporaneo, nessun account)'
+      ? 'Cloudflare quick tunnel (Temporaneo, nessun account)'
       : 'Cloudflare Quick Tunnel (Temporary, no account needed)';
   String get remoteProviderCustom => isItalian
-      ? 'Altro Tunnel Personalizzato / Reverse Proxy'
+      ? 'Altro tunnel personalizzato / Reverse proxy'
       : 'Custom Tunnel / Reverse Proxy';
 
   String get remoteTailscaleNotInstalledTitle => isItalian
       ? 'Tailscale non è installato su questo computer'
       : 'Tailscale is not installed on this computer';
   String get remoteTailscaleNotInstalledDesc => isItalian
-      ? 'Tailscale crea una rete privata sicura Mesh (WireGuard) tra i tuoi dispositivi con certificato HTTPS e nome di dominio fisso permanente.'
+      ? 'Tailscale crea una rete privata sicura mesh (WireGuard) tra i tuoi dispositivi con certificato HTTPS e nome di dominio fisso permanente.'
       : 'Tailscale creates a secure private Mesh network (WireGuard) between your devices with HTTPS certificate and fixed permanent domain.';
   String get remoteTailscaleInstallAutoBtn => isItalian
       ? 'Installa Tailscale automaticamente'
       : 'Install Tailscale automatically';
-  String get remoteTailscaleInstallingBtn => isItalian
-      ? 'Avvio installazione...'
-      : 'Starting installation...';
+  String get remoteTailscaleInstallingBtn =>
+      isItalian ? 'Avvio installazione...' : 'Starting installation...';
   String get remoteTailscaleNotRunning => isItalian
       ? 'Tailscale è installato ma non è connesso. Apri l\'app Tailscale ed effettua il login per attivare la rete.'
       : 'Tailscale is installed but not connected. Open the Tailscale app and sign in to activate the network.';
@@ -578,7 +619,7 @@ extension SettingsStrings on AppStrings {
       ? 'Eseguibile cloudflared non trovato'
       : 'cloudflared executable not found';
   String get remoteCloudflaredNotFoundDesc => isItalian
-      ? 'Per utilizzare i Quick Tunnel di Cloudflare è necessario l\'eseguibile ufficiale open-source di Cloudflare.'
+      ? 'Per utilizzare i quick tunnel di cloudflare è necessario l\'eseguibile ufficiale open-source di cloudflare.'
       : 'The official open-source Cloudflare binary is required to use Cloudflare Quick Tunnels.';
   String get remoteCloudflaredInstallAutoBtn => isItalian
       ? 'Installa cloudflared automaticamente'
@@ -601,51 +642,38 @@ extension SettingsStrings on AppStrings {
   String remoteCloudflaredReadySnackBar(String path) => isItalian
       ? 'cloudflared scaricato e pronto in $path!'
       : 'cloudflared downloaded and ready at $path!';
-  String remoteCloudflaredInstallError(Object error) => isItalian
-      ? 'Errore durante l\'installazione di cloudflared: $error'
-      : 'Error installing cloudflared: $error';
   String get remoteTailscaleInstallDefaultToast => isItalian
       ? 'Installazione di Tailscale avviata! Conferma il prompt di Windows.'
       : 'Tailscale installation started! Confirm the system prompt.';
-  String remoteTailscaleInstallError(Object error) => isItalian
-      ? 'Errore durante l\'installazione di Tailscale: $error'
-      : 'Error installing Tailscale: $error';
   String remoteTailscaleDomainUpdatedToast(String domain) => isItalian
       ? 'Nome host Tailscale aggiornato! Nuovo dominio: $domain'
       : 'Tailscale hostname updated! New domain: $domain';
-  String remoteTailscaleRenameError(Object error) => isItalian
-      ? 'Errore durante la ridenominazione: $error'
-      : 'Error during rename: $error';
-  String get remoteTailscaleMissingDialogTitle => isItalian
-      ? 'Tailscale non installato'
-      : 'Tailscale not installed';
+  String get remoteTailscaleMissingDialogTitle =>
+      isItalian ? 'Tailscale non installato' : 'Tailscale not installed';
   String get remoteTailscaleMissingDialogContent => isItalian
       ? 'Per utilizzare il tunnel permanente Tailscale è necessario installare Tailscale sul PC.\n\n'
-        'Vuoi avviare l\'installazione automatica adesso?'
+            'Vuoi avviare l\'installazione automatica adesso?'
       : 'Using permanent Tailscale tunnels requires Tailscale installed on this PC.\n\n'
-        'Start automatic installation now?';
-  String get remoteInstallTailscaleBtn => isItalian
-      ? 'Installa Tailscale'
-      : 'Install Tailscale';
-  String get remoteCloudflaredMissingDialogTitle => isItalian
-      ? 'cloudflared richiesto'
-      : 'cloudflared required';
+            'Start automatic installation now?';
+  String get remoteInstallTailscaleBtn =>
+      isItalian ? 'Installa Tailscale' : 'Install Tailscale';
+  String get remoteCloudflaredMissingDialogTitle =>
+      isItalian ? 'cloudflared richiesto' : 'cloudflared required';
   String get remoteCloudflaredMissingDialogContent => isItalian
-      ? 'Per avviare la connessione remota con Cloudflare è necessario l\'eseguibile ufficiale cloudflared.\n\n'
-        'Vuoi scaricarlo e installarlo automaticamente in ~/.piframe/bin/? Non richiede permessi di amministratore.'
+      ? 'Per avviare la connessione remota con cloudflare è necessario l\'eseguibile ufficiale cloudflared.\n\n'
+            'Vuoi scaricarlo e installarlo automaticamente in ~/.piframe/bin/? Non richiede permessi di amministratore.'
       : 'Starting a remote connection with Cloudflare requires the official cloudflared binary.\n\n'
-        'Download and install automatically to ~/.piframe/bin/? Does not require admin privileges.';
-  String get remoteInstallAndStartBtn => isItalian
-      ? 'Installa e Avvia'
-      : 'Install & Start';
+            'Download and install automatically to ~/.piframe/bin/? Does not require admin privileges.';
+  String get remoteInstallAndStartBtn =>
+      isItalian ? 'Installa e avvia' : 'Install & Start';
 
   // ---------------------------------------------------------------------------
   // Theme Editor Dialog
   // ---------------------------------------------------------------------------
+  String get themeEditorHexLabel => 'HEX (#RRGGBB)';
   String get themeEditorSuggestedColors =>
-      isItalian ? 'Colori Suggeriti' : 'Suggested Colors';
-  String get themeEditorApplyColor =>
-      isItalian ? 'Applica' : 'Apply';
+      isItalian ? 'Colori suggeriti' : 'Suggested Colors';
+  String get themeEditorApplyColor => isItalian ? 'Applica' : 'Apply';
   String get themeEditorNameEmptyError => isItalian
       ? 'Il nome del tema non può essere vuoto'
       : 'Theme name cannot be empty';
@@ -653,65 +681,60 @@ extension SettingsStrings on AppStrings {
       ? 'Tema "$name" salvato e attivato con successo!'
       : 'Theme "$name" saved and applied successfully!';
   String themeEditorSaveError(Object error) => isItalian
-      ? 'Errore durante il salvataggio: $error'
-      : 'Error during saving: $error';
-  String get themeEditorPreviewWorking =>
-      isItalian ? 'In corso' : 'Working';
+      ? failureText(this, 'Errore durante il salvataggio', error)
+      : failureText(this, 'Error during saving', error);
   String get themeEditorPreviewBentoCard =>
       isItalian ? 'Scheda Bento & Superfici' : 'Bento Card & Surfaces';
   String get themeEditorPreviewBentoDesc => isItalian
       ? 'Testo secondario / descrittivo del tema in modifica.'
       : 'Secondary / descriptive text for current theme in edit.';
   String get themeEditorPreviewAccentBtn =>
-      isItalian ? 'Pulsante Accento' : 'Accent Button';
+      isItalian ? 'Pulsante accento' : 'Accent Button';
   String get themeEditorPreviewSecondaryBtn =>
-      isItalian ? 'Pulsante Secondario' : 'Secondary Button';
+      isItalian ? 'Pulsante secondario' : 'Secondary Button';
   String get themeEditorPreviewCodeComment =>
       isItalian ? '// Codice di esempio\n' : '// Code sample\n';
 
   // Color row labels
   String get colorLabelBackground =>
-      isItalian ? 'Sfondo Principale' : 'Main Background';
+      isItalian ? 'Sfondo principale' : 'Main Background';
   String get colorLabelSurface =>
-      isItalian ? 'Superficie Bento (Card)' : 'Bento Surface (Card)';
+      isItalian ? 'Superficie bento' : 'Bento Surface (Card)';
   String get colorLabelSurfaceElevated =>
-      isItalian ? 'Superficie Elevata (Pannelli)' : 'Elevated Surface (Panels)';
+      isItalian ? 'Superficie elevata (pannelli)' : 'Elevated Surface (Panels)';
   String get colorLabelBorder =>
       isItalian ? 'Bordi & Separatori' : 'Borders & Separators';
   String get colorLabelBorderStrong =>
-      isItalian ? 'Bordi Evidenziati' : 'Highlighted Borders';
+      isItalian ? 'Bordi evidenziati' : 'Highlighted Borders';
   String get colorLabelAccent =>
-      isItalian ? 'Colore Accento (Primario)' : 'Accent Color (Primary)';
+      isItalian ? 'Colore accento (primario)' : 'Accent Color (Primary)';
   String get colorLabelAccentContrast =>
-      isItalian ? 'Testo su Accento' : 'Text on Accent';
+      isItalian ? 'Testo su accento' : 'Text on Accent';
   String get colorLabelFocusRing =>
-      isItalian ? 'Focus Ring / Selezione' : 'Focus Ring / Selection';
+      isItalian ? 'Focus ring / Selezione' : 'Focus Ring / Selection';
   String get colorLabelTextPrimary =>
-      isItalian ? 'Testo Primario' : 'Primary Text';
+      isItalian ? 'Testo primario' : 'Primary Text';
   String get colorLabelTextSecondary =>
-      isItalian ? 'Testo Secondario' : 'Secondary Text';
+      isItalian ? 'Testo secondario' : 'Secondary Text';
   String get colorLabelTextMuted =>
-      isItalian ? 'Testo Disattivato / Muted' : 'Disabled / Muted Text';
+      isItalian ? 'Testo disattivato / Muted' : 'Disabled / Muted Text';
   String get colorLabelAgentWorking =>
-      isItalian ? 'Agente in Corso (Working)' : 'Agent Working';
+      isItalian ? 'Agente in corso' : 'Agent Working';
   String get colorLabelAgentSettled =>
-      isItalian ? 'Agente Riposo (Settled)' : 'Agent Settled';
+      isItalian ? 'Agente a riposo' : 'Agent Settled';
   String get colorLabelAgentRetrying =>
-      isItalian ? 'Agente Riprova (Retrying)' : 'Agent Retrying';
+      isItalian ? 'Agente in nuovo tentativo' : 'Agent Retrying';
   String get colorLabelAgentCompacting =>
-      isItalian ? 'Agente Compattazione' : 'Agent Compacting';
+      isItalian ? 'Agente compattazione' : 'Agent Compacting';
   String get colorLabelDanger =>
-      isItalian ? 'Errore / Pericolo (Danger)' : 'Error / Danger';
+      isItalian ? 'Errore / pericolo' : 'Error / Danger';
   String get colorLabelKeyword =>
-      isItalian ? 'Parole Chiave (Keyword)' : 'Keywords (Keyword)';
+      isItalian ? 'Parole chiave' : 'Keywords (Keyword)';
   String get colorLabelFunction =>
-      isItalian ? 'Funzioni / Metodi (Function)' : 'Functions / Methods (Function)';
-  String get colorLabelString =>
-      isItalian ? 'Stringhe (String)' : 'Strings (String)';
-  String get colorLabelNumber =>
-      isItalian ? 'Numeri (Number)' : 'Numbers (Number)';
-  String get colorLabelComment =>
-      isItalian ? 'Commenti (Comment)' : 'Comments (Comment)';
+      isItalian ? 'Funzioni / metodi' : 'Functions / Methods (Function)';
+  String get colorLabelString => isItalian ? 'Stringhe' : 'Strings (String)';
+  String get colorLabelNumber => isItalian ? 'Numeri' : 'Numbers (Number)';
+  String get colorLabelComment => isItalian ? 'Commenti' : 'Comments (Comment)';
 
   // ---------------------------------------------------------------------------
   // Updates Section
@@ -722,14 +745,15 @@ extension SettingsStrings on AppStrings {
       ? 'PiFrame verrà chiuso per avviare il processo di installazione dell\'aggiornamento${assetName != null ? " ($assetName)" : ""}.\n\nAssicurati che non ci siano comandi critici in esecuzione.'
       : 'PiFrame will close to launch update installation${assetName != null ? " ($assetName)" : ""}.\n\nEnsure no critical commands are currently executing.';
   String get installAndRestartBtn =>
-      isItalian ? 'Installa e Riavvia' : 'Install & Restart';
+      isItalian ? 'Installa e riavvia' : 'Install & Restart';
   String get updatesTitle =>
       isItalian ? 'Aggiornamenti PiFrame' : 'PiFrame Updates';
   String get updatesSubtitle => isItalian
       ? 'Verifica e scarica le nuove versioni ufficiali rilasciate sul repository GitHub di PiFrame.'
       : 'Check and download official new releases from the PiFrame GitHub repository.';
-  String updatesInstalledVersion(String currentVer) =>
-      isItalian ? 'Versione installata: v$currentVer' : 'Installed version: v$currentVer';
+  String updatesInstalledVersion(String currentVer) => isItalian
+      ? 'Versione installata: v$currentVer'
+      : 'Installed version: v$currentVer';
   String get updatesNewVersionBadge =>
       isItalian ? 'Nuova versione!' : 'New version!';
   String updatesLastChecked(String dt) =>
@@ -781,14 +805,15 @@ extension SettingsStrings on AppStrings {
   }
 
   String get updatesPrivacySafetyNotice => isItalian
-      ? 'Privacy e Sicurezza (D16): Il controllo aggiornamenti interroga esclusivamente le release pubbliche di GitHub tramite connessione HTTPS protetta. Nessun dato utente, token, sessione o informazione diagnostica viene trasmesso. Nessuna installazione viene mai eseguita senza la tua esplicita autorizzazione.'
-      : 'Privacy & Safety (D16): The update check exclusively queries public GitHub releases over secure HTTPS. No user data, tokens, sessions, or diagnostics are transmitted. No installation ever runs without your explicit authorization.';
+      ? 'Privacy e sicurezza: il controllo aggiornamenti interroga esclusivamente le release pubbliche di GitHub tramite connessione HTTPS protetta. Nessun dato utente, token, sessione o informazione diagnostica viene trasmesso. Nessuna installazione viene mai eseguita senza la tua esplicita autorizzazione.'
+      : 'Privacy & safety: the update check exclusively queries public GitHub releases over secure HTTPS. No user data, tokens, sessions, or diagnostics are transmitted. No installation ever runs without your explicit authorization.';
   String updatesPublishedAt(String dt) =>
       isItalian ? 'Pubblicato il $dt' : 'Published on $dt';
   String get updatesNotesOnGithub =>
       isItalian ? 'Note su GitHub' : 'Notes on GitHub';
-  String updatesInstallerFile(String name, String size) =>
-      isItalian ? 'File installer: $name ($size)' : 'Installer asset: $name ($size)';
+  String updatesInstallerFile(String name, String size) => isItalian
+      ? 'File installer: $name ($size)'
+      : 'Installer asset: $name ($size)';
   String get updatesReadyToInstall =>
       isItalian ? 'Pronto per l\'installazione' : 'Ready to install';
   String get updatesLaunchingInstaller => isItalian

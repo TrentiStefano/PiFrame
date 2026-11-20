@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/session/agent_status.dart';
+import '../../domain/session/session_labels.dart';
 import '../../domain/session/session_state.dart';
 import '../../domain/session/session_reducer.dart';
 import '../../domain/session/snapshot_reducer.dart';
@@ -75,6 +76,33 @@ final sessionListProvider = FutureProvider<List<Map<String, dynamic>>>((
       [];
 });
 
+final sessionDisplayNamesProvider = Provider<Map<String, String>>((ref) {
+  return sessionDisplayNames(ref.watch(sessionListProvider).value ?? const []);
+});
+
+final sessionDisplayNameProvider = Provider.family<String, String>((ref, id) {
+  final sessions = ref.watch(sessionListProvider).value ?? const [];
+  final metadata = ref.watch(
+    sessionStateFamily(id).select((state) => (state.sessionName, state.cwd)),
+  );
+  final listed = sessions.where((session) => session['id'] == id).firstOrNull;
+  if (metadata.$1 == null && metadata.$2.isEmpty) {
+    return ref.watch(sessionDisplayNamesProvider)[id] ??
+        (listed?['name'] ?? id).toString();
+  }
+  final current = <String, dynamic>{
+    ...?listed,
+    'id': id,
+    'name': metadata.$1 ?? listed?['name'] ?? id,
+    'cwd': metadata.$2.isNotEmpty ? metadata.$2 : listed?['cwd'] ?? '',
+  };
+  return sessionDisplayNames([
+    for (final session in sessions)
+      if (session['id'] != id) session,
+    current,
+  ])[id]!;
+});
+
 final activeSessionIdProvider = StateProvider<String?>((ref) => null);
 final showSettingsProvider = StateProvider<bool>((ref) => false);
 final settingsTabIndexProvider = StateProvider<int>((ref) => 0);
@@ -117,6 +145,7 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
       state = reduceSessionState(state, event);
       if (event.type == 'usage.updated' ||
           event.type == 'run.settled' ||
+          event.type == 'compaction.ended' ||
           event.type == 'message.completed' ||
           event.type == 'turn.ended' ||
           event.type == 'tool.completed') {
@@ -454,6 +483,15 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
       }
       rethrow;
     }
+  }
+
+  /// Runs a Pi slash command. A command is not a message: no chat entry is added.
+  /// Pi runs extension commands at once even mid-run; 'steer' only stops the daemon from
+  /// rejecting the request while the agent streams.
+  Future<void> runCommand(String command) async {
+    final promptClient = client;
+    if (promptClient == null) throw StateError('Daemon non connesso');
+    await promptClient.sendPrompt(sessionId, command, streamingBehavior: 'steer');
   }
 
   Future<Map<String, dynamic>?> interrupt() async {

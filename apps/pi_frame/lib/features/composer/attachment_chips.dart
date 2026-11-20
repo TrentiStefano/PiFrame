@@ -8,14 +8,15 @@ import '../../data/daemon/attachment_upload.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_composer.dart';
 import '../../domain/session/attachment_model.dart';
+import '../../ui/frame_dialog.dart';
+import '../../ui/frame_icon_action.dart';
 
 class WebLinkInputDialog extends ConsumerStatefulWidget {
   const WebLinkInputDialog({super.key});
 
   static Future<ChatAttachment?> show(BuildContext context) {
-    return showDialog<ChatAttachment>(
+    return showFrameDialogBuilder<ChatAttachment>(
       context: context,
-      barrierDismissible: true,
       builder: (ctx) => const WebLinkInputDialog(),
     );
   }
@@ -95,17 +96,12 @@ class _WebLinkInputDialogState extends ConsumerState<WebLinkInputDialog> {
                       color: tokens.accent.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(tokens.radiusSm),
                     ),
-                    child: Icon(Icons.link, size: 18, color: tokens.accent),
+                    child: Icon(Icons.link_outlined, size: FrameSize.iconLg, color: tokens.accent),
                   ),
                   const SizedBox(width: 10),
                   Text(
                     strings.attAddWebLinkTitle,
-                    style: TextStyle(
-                      color: tokens.textPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      fontFamily: tokens.headingFontFamily,
-                    ),
+                    style: FrameText.of(context).title.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.bold, fontFamily: tokens.headingFontFamily),
                   ),
                 ],
               ),
@@ -114,16 +110,12 @@ class _WebLinkInputDialogState extends ConsumerState<WebLinkInputDialog> {
                 key: const ValueKey('weblink-dialog-url-field'),
                 controller: _urlController,
                 autofocus: true,
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontSize: 13,
-                  fontFamily: tokens.monoFontFamily,
-                ),
+                style: FrameText.of(context).body.copyWith(color: tokens.textPrimary, fontFamily: tokens.monoFontFamily),
                 decoration: InputDecoration(
-                  labelText: 'URL',
+                  labelText: strings.attUrlFieldLabel,
                   hintText: 'https://example.com/docs',
                   errorText: _error,
-                  prefixIcon: const Icon(Icons.language, size: 16),
+                  prefixIcon: const Icon(Icons.language_outlined, size: FrameSize.icon),
                   filled: true,
                   fillColor: tokens.background,
                   border: OutlineInputBorder(
@@ -136,11 +128,11 @@ class _WebLinkInputDialogState extends ConsumerState<WebLinkInputDialog> {
               TextField(
                 key: const ValueKey('weblink-dialog-name-field'),
                 controller: _nameController,
-                style: TextStyle(color: tokens.textPrimary, fontSize: 13),
+                style: FrameText.of(context).body.copyWith(color: tokens.textPrimary),
                 decoration: InputDecoration(
                   labelText: strings.attTitleOptional,
                   hintText: strings.attTitleHint,
-                  prefixIcon: const Icon(Icons.label_outline, size: 16),
+                  prefixIcon: const Icon(Icons.label_outlined, size: FrameSize.icon),
                   filled: true,
                   fillColor: tokens.background,
                   border: OutlineInputBorder(
@@ -149,7 +141,7 @@ class _WebLinkInputDialogState extends ConsumerState<WebLinkInputDialog> {
                 ),
                 onSubmitted: (_) => _submit(),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: FrameSpace.x4),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
@@ -157,7 +149,7 @@ class _WebLinkInputDialogState extends ConsumerState<WebLinkInputDialog> {
                     onPressed: () => Navigator.of(context).pop(),
                     child: Text(strings.cancel, style: TextStyle(color: tokens.textMuted)),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: FrameSpace.x2),
                   ElevatedButton(
                     key: const ValueKey('weblink-dialog-submit-btn'),
                     style: ElevatedButton.styleFrom(
@@ -195,10 +187,8 @@ class ImagePreviewDialog extends ConsumerWidget {
     required String pathOrUrl,
     required String title,
   }) {
-    return showDialog<void>(
+    return showFrameDialogBuilder<void>(
       context: context,
-      barrierColor: context.tokens.overlay,
-      barrierDismissible: true,
       builder: (ctx) => ImagePreviewDialog(pathOrUrl: pathOrUrl, title: title),
     );
   }
@@ -212,7 +202,7 @@ class ImagePreviewDialog extends ConsumerWidget {
       key: const ValueKey('image-lightbox-dialog'),
       backgroundColor: tokens.background.withValues(alpha: 0),
       elevation: 0,
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: FrameSpace.x6, vertical: FrameSpace.x6),
       child: ConstrainedBox(
         constraints: const BoxConstraints(
           maxWidth: 960,
@@ -237,7 +227,7 @@ class ImagePreviewDialog extends ConsumerWidget {
             children: [
               // Header
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x4, vertical: 10),
                 decoration: BoxDecoration(
                   border: Border(
                     bottom: BorderSide(color: tokens.border, width: 1),
@@ -245,8 +235,8 @@ class ImagePreviewDialog extends ConsumerWidget {
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.image_outlined, size: 18, color: tokens.accent),
-                    const SizedBox(width: 8),
+                    Icon(Icons.image_outlined, size: FrameSize.iconLg, color: tokens.accent),
+                    const SizedBox(width: FrameSpace.x2),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -255,27 +245,19 @@ class ImagePreviewDialog extends ConsumerWidget {
                             title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: tokens.textPrimary,
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: FrameText.of(context).bodyLarge.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.bold),
                           ),
                           Text(
                             pathOrUrl,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: tokens.textMuted,
-                              fontSize: 10.5,
-                              fontFamily: tokens.monoFontFamily,
-                            ),
+                            style: FrameText.of(context).caption.copyWith(color: tokens.textMuted, fontFamily: tokens.monoFontFamily),
                           ),
                         ],
                       ),
                     ),
                     IconButton(
-                      icon: Icon(Icons.close, size: 18, color: tokens.textMuted),
+                      icon: Icon(Icons.close_outlined, size: FrameSize.iconLg, color: tokens.textMuted),
                       tooltip: strings.attClosePreviewTooltip,
                       onPressed: () => Navigator.of(context).pop(),
                     ),
@@ -298,7 +280,7 @@ class ImagePreviewDialog extends ConsumerWidget {
                         child: buildAttachmentImage(
                           pathOrUrl,
                           fit: BoxFit.contain,
-                          errorBuilder: (ctx, err, stack) => _buildError(tokens, strings),
+                          errorBuilder: (ctx, err, stack) => _buildError(context, tokens, strings),
                         ),
                       ),
                     ),
@@ -312,15 +294,19 @@ class ImagePreviewDialog extends ConsumerWidget {
     );
   }
 
-  Widget _buildError(FrameTokens tokens, AppStrings strings) {
+  Widget _buildError(
+    BuildContext context,
+    FrameTokens tokens,
+    AppStrings strings,
+  ) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(Icons.broken_image_outlined, size: 48, color: tokens.danger),
-        const SizedBox(height: 8),
+        const SizedBox(height: FrameSpace.x2),
         Text(
           strings.attImageLoadError,
-          style: TextStyle(color: tokens.textSecondary, fontSize: 13),
+          style: FrameText.of(context).body.copyWith(color: tokens.textSecondary),
         ),
       ],
     );
@@ -360,16 +346,27 @@ class AttachmentChip extends ConsumerWidget {
     }
 
     if (attachment.isWebLink) {
-      return _buildWebLinkChip(context, tokens);
+      return _buildWebLinkChip(context, tokens, strings);
     }
 
-    return _buildFileChip(context, tokens);
+    return _buildFileChip(context, tokens, strings);
   }
 
-  Widget _buildFileChip(BuildContext context, FrameTokens tokens) {
+  /// Remove control: a focusable 28 px target (plan 2.6), so the chip can be cleared by keyboard.
+  Widget _removeAction(AppStrings strings) {
+    return FrameIconAction(
+      key: ValueKey('attachment-remove-${attachment.id}'),
+      icon: Icons.close_outlined,
+      tooltip: strings.composerRemoveAttachmentTooltip,
+      onPressed: onRemove,
+    );
+  }
+
+  Widget _buildFileChip(BuildContext context, FrameTokens tokens, AppStrings strings) {
     return Container(
       key: ValueKey('attachment-file-${attachment.id}'),
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      // An editable chip carries a 28 px remove target, so it takes no extra vertical padding.
+      padding: EdgeInsets.symmetric(horizontal: FrameSpace.x2, vertical: isEditable ? 0 : 4),
       decoration: BoxDecoration(
         color: tokens.surfaceElevated,
         borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -385,7 +382,7 @@ class AttachmentChip extends ConsumerWidget {
             attachment.type == AttachmentType.repoFile
                 ? Icons.folder_outlined
                 : Icons.insert_drive_file_outlined,
-            size: 14,
+            size: FrameSize.iconSm,
             color: tokens.accent,
           ),
           const SizedBox(width: 6),
@@ -397,39 +394,26 @@ class AttachmentChip extends ConsumerWidget {
                 attachment.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontSize: 11.5,
-                  fontWeight: FontWeight.w500,
-                  fontFamily: tokens.monoFontFamily,
-                ),
+                style: FrameText.of(context).caption.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.w500, fontFamily: tokens.monoFontFamily),
               ),
             ),
           ),
           if (isEditable) ...[
-            const SizedBox(width: 4),
-            InkWell(
-              key: ValueKey('attachment-remove-${attachment.id}'),
-              borderRadius: BorderRadius.circular(tokens.radiusSm),
-              onTap: onRemove,
-              child: Padding(
-                padding: const EdgeInsets.all(2),
-                child: Icon(Icons.close, size: 12, color: tokens.textMuted),
-              ),
-            ),
+            const SizedBox(width: 2),
+            _removeAction(strings),
           ],
         ],
       ),
     );
   }
 
-  Widget _buildWebLinkChip(BuildContext context, FrameTokens tokens) {
+  Widget _buildWebLinkChip(BuildContext context, FrameTokens tokens, AppStrings strings) {
     return InkWell(
       key: ValueKey('attachment-link-${attachment.id}'),
       borderRadius: BorderRadius.circular(tokens.radiusSm),
       onTap: isEditable ? null : _handleLinkTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2, vertical: FrameSpace.x1),
         decoration: BoxDecoration(
           color: tokens.surfaceElevated,
           borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -442,8 +426,8 @@ class AttachmentChip extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
-              Icons.link,
-              size: 14,
+              Icons.link_outlined,
+              size: FrameSize.iconSm,
               color: tokens.syntaxKeyword,
             ),
             const SizedBox(width: 6),
@@ -455,26 +439,13 @@ class AttachmentChip extends ConsumerWidget {
                   attachment.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: tokens.syntaxKeyword,
-                    fontSize: 11.5,
-                    fontWeight: FontWeight.w600,
-                    decoration: isEditable ? null : TextDecoration.underline,
-                  ),
+                  style: FrameText.of(context).caption.copyWith(color: tokens.syntaxKeyword, fontWeight: FontWeight.w600, decoration: isEditable ? null : TextDecoration.underline),
                 ),
               ),
             ),
             if (isEditable) ...[
-              const SizedBox(width: 4),
-              InkWell(
-                key: ValueKey('attachment-remove-${attachment.id}'),
-                borderRadius: BorderRadius.circular(tokens.radiusSm),
-                onTap: onRemove,
-                child: Padding(
-                  padding: const EdgeInsets.all(2),
-                  child: Icon(Icons.close, size: 12, color: tokens.textMuted),
-                ),
-              ),
+              const SizedBox(width: 2),
+              _removeAction(strings),
             ],
           ],
         ),
@@ -512,10 +483,30 @@ class AttachmentChip extends ConsumerWidget {
                   width: 52,
                   height: 52,
                   fit: BoxFit.cover,
-                  errorBuilder: (ctx, err, stack) => Icon(
-                    Icons.image_not_supported_outlined,
-                    size: 22,
-                    color: tokens.textMuted,
+                  errorBuilder: (ctx, err, stack) => Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Column(
+                      key: ValueKey('attachment-image-invalid-${attachment.id}'),
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.image_not_supported_outlined,
+                          size: FrameSize.icon,
+                          color: tokens.textMuted,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          strings.attImageInvalid,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: FrameText.of(context).caption.copyWith(
+                            color: tokens.textMuted,
+                            height: 1,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -524,22 +515,9 @@ class AttachmentChip extends ConsumerWidget {
         ),
         if (isEditable)
           Positioned(
-            top: -4,
-            right: -4,
-            child: InkWell(
-              key: ValueKey('attachment-remove-${attachment.id}'),
-              borderRadius: BorderRadius.circular(10),
-              onTap: onRemove,
-              child: Container(
-                padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  color: tokens.surfaceElevated,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: tokens.borderStrong, width: 1),
-                ),
-                child: Icon(Icons.close, size: 10, color: tokens.textMuted),
-              ),
-            ),
+            top: -10,
+            right: -10,
+            child: _removeAction(strings),
           ),
       ],
     );
@@ -621,7 +599,7 @@ class AttachmentListBar extends StatelessWidget {
     if (attachments.isEmpty) return const SizedBox.shrink();
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: FrameSpace.x2),
       child: Wrap(
         spacing: 8,
         runSpacing: 8,

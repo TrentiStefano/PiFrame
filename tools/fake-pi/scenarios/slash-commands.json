@@ -1,0 +1,159 @@
+{
+  "name": "slash-commands",
+  "description": "Static command catalog spans prompt, skill and extension sources.",
+  "events": [
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_start"
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "turn_start"
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "user",
+          "content": "{{prompt}}",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "user",
+          "content": "{{prompt}}",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "assistant",
+          "content": []
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 80,
+          "output": 8,
+          "total": 88
+        },
+        "assistantMessageEvent": {
+          "type": "text_start",
+          "contentIndex": 0
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 80,
+          "output": 24,
+          "total": 104
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": "The command list is available."
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "The command list is available."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "turn_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "The command list is available."
+            }
+          ]
+        },
+        "toolResults": []
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_end",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "text",
+                "text": "The command list is available."
+              }
+            ]
+          }
+        ],
+        "willRetry": false
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_settled"
+      }
+    }
+  ],
+  "commands": [
+    {
+      "name": "help",
+      "description": "Show practical guidance for the current workspace, including supported commands, common interaction patterns, offline behavior, and examples tailored to the topic supplied after the command.",
+      "source": "prompt",
+      "sourceInfo": {
+        "name": "help"
+      },
+      "argumentHint": "[topic]"
+    },
+    {
+      "name": "review",
+      "description": "Inspect the selected files or current changes for correctness, regressions, missing tests, and maintainability. Report actionable findings first, explain their impact, and include relevant file locations.",
+      "source": "skill",
+      "sourceInfo": {
+        "name": "review"
+      },
+      "argumentHint": "[files...]"
+    },
+    {
+      "name": "offline-report",
+      "description": "Create a local status report without network access. Include the active scenario, recent tool results, package state, and any checks that still need attention; choose summary for a compact report or full for details.",
+      "source": "extension",
+      "sourceInfo": {
+        "name": "fake-pi"
+      },
+      "argumentHint": "<summary|full>"
+    }
+  ]
+}

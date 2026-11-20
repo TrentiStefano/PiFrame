@@ -8,19 +8,19 @@ enum RightPaneMode {
 enum SearchEngine {
   google(
     label: 'Google',
-    icon: Icons.travel_explore,
+    icon: Icons.travel_explore_outlined,
     searchUrlTemplate: 'https://www.google.com/search?q={query}',
     homeUrl: 'https://www.google.com',
   ),
   youtube(
     label: 'YouTube',
-    icon: Icons.play_circle_outline,
+    icon: Icons.play_circle_outlined,
     searchUrlTemplate: 'https://www.youtube.com/results?search_query={query}',
     homeUrl: 'https://www.youtube.com',
   ),
   duckDuckGo(
     label: 'DuckDuckGo',
-    icon: Icons.search,
+    icon: Icons.search_outlined,
     searchUrlTemplate: 'https://duckduckgo.com/?q={query}',
     homeUrl: 'https://duckduckgo.com',
   ),
@@ -32,7 +32,7 @@ enum SearchEngine {
   ),
   github(
     label: 'GitHub',
-    icon: Icons.code,
+    icon: Icons.code_outlined,
     searchUrlTemplate: 'https://github.com/search?q={query}',
     homeUrl: 'https://github.com',
   ),
@@ -44,13 +44,13 @@ enum SearchEngine {
   ),
   stackOverflow(
     label: 'Stack Overflow',
-    icon: Icons.help_outline,
+    icon: Icons.help_outlined,
     searchUrlTemplate: 'https://stackoverflow.com/questions/tagged/{query}',
     homeUrl: 'https://stackoverflow.com',
   ),
   mdn(
     label: 'MDN Web Docs',
-    icon: Icons.menu_book,
+    icon: Icons.menu_book_outlined,
     searchUrlTemplate: 'https://developer.mozilla.org/en-US/search?q={query}',
     homeUrl: 'https://developer.mozilla.org',
   );

@@ -6,6 +6,7 @@ import '../../data/language/strings_workspace.dart';
 import '../../ui/code/syntax_highlighter.dart';
 import 'diff_parser.dart';
 import 'session_changes_provider.dart';
+import '../../ui/frame_activity_indicator.dart';
 
 class ReviewFileDiffViewer extends ConsumerStatefulWidget {
   final SessionChangedFile file;
@@ -57,10 +58,7 @@ class _ReviewFileDiffViewerState extends ConsumerState<ReviewFileDiffViewer> {
             SizedBox(
               width: 14,
               height: 14,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: tokens.accent,
-              ),
+              child: FrameActivityIndicator(size: FrameSize.icon, color: tokens.accent),
             ),
             const SizedBox(width: 8),
             Text(
@@ -392,9 +390,7 @@ class _ReviewFileDiffViewerState extends ConsumerState<ReviewFileDiffViewer> {
             children: [
               Text(
                 isExpanded ? strings.linesExpanded : strings.moreLines(count),
-                style: TextStyle(
-                  fontFamily: tokens.monoFontFamily,
-                  fontSize: 10,
+                style: FrameText.of(context).mono.copyWith(
                   color: tokens.textSecondary,
                   fontWeight: FontWeight.w500,
                 ),
@@ -431,9 +427,7 @@ class _ReviewFileDiffViewerState extends ConsumerState<ReviewFileDiffViewer> {
         ),
         child: Text(
           label,
-          style: TextStyle(
-            fontFamily: tokens.monoFontFamily,
-            fontSize: 9,
+          style: FrameText.of(context).caption.copyWith(
             color: tokens.textMuted,
             fontWeight: FontWeight.bold,
           ),

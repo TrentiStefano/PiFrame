@@ -35,6 +35,7 @@ flutter:
   assets:
     - assets/themes/
     - assets/branding/
+    - assets/CHANGELOG.md
   fonts:
     - family: SchibstedGrotesk
       fonts:

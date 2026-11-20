@@ -1,0 +1,187 @@
+{
+  "name": "ui-status-widgets",
+  "description": "Sends non-blocking notifications and updates extension status, widget and title.",
+  "events": [
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_start"
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "turn_start"
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "user",
+          "content": "{{prompt}}",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "user",
+          "content": "{{prompt}}",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "extension_ui_request",
+        "id": "notify_info",
+        "method": "notify",
+        "notifyType": "info",
+        "message": "Workspace check started."
+      }
+    },
+    {
+      "event": {
+        "type": "extension_ui_request",
+        "id": "notify_warning",
+        "method": "notify",
+        "notifyType": "warning",
+        "message": "One optional setting is not configured."
+      }
+    },
+    {
+      "event": {
+        "type": "extension_ui_request",
+        "id": "notify_error",
+        "method": "notify",
+        "notifyType": "error",
+        "message": "A simulated check failed; the session remains available."
+      }
+    },
+    {
+      "event": {
+        "type": "extension_ui_request",
+        "id": "status",
+        "method": "setStatus",
+        "statusKey": "offline-check",
+        "statusText": "Checking scenarios"
+      }
+    },
+    {
+      "event": {
+        "type": "extension_ui_request",
+        "id": "widget",
+        "method": "setWidget",
+        "widgetKey": "offline-summary",
+        "widgetLines": [
+          "Scenarios: 18",
+          "Mode: offline"
+        ],
+        "widgetPlacement": "status"
+      }
+    },
+    {
+      "event": {
+        "type": "extension_ui_request",
+        "id": "title",
+        "method": "setTitle",
+        "title": "Offline review"
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "assistant",
+          "content": []
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 80,
+          "output": 8,
+          "total": 88
+        },
+        "assistantMessageEvent": {
+          "type": "text_start",
+          "contentIndex": 0
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_update",
+        "usage": {
+          "input": 80,
+          "output": 24,
+          "total": 104
+        },
+        "assistantMessageEvent": {
+          "type": "text_delta",
+          "contentIndex": 0,
+          "delta": "Status updates are visible and the session is ready."
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "Status updates are visible and the session is ready."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "turn_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "Status updates are visible and the session is ready."
+            }
+          ]
+        },
+        "toolResults": []
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_end",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "text",
+                "text": "Status updates are visible and the session is ready."
+              }
+            ]
+          }
+        ],
+        "willRetry": false
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_settled"
+      }
+    }
+  ]
+}

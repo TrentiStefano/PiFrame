@@ -1,9 +1,28 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { getAugmentedPath } from './env.js';
 
 export interface PiLaunchCommand {
   file: string;
   args: string[];
+}
+
+export function resolveNpmLaunch(piExecutablePath: string, args: string[]): PiLaunchCommand {
+  const directories = [
+    path.dirname(piExecutablePath),
+    ...getAugmentedPath().split(path.delimiter),
+  ];
+  for (const directory of directories) {
+    const cli = path.join(directory, 'node_modules', 'npm', 'bin', 'npm-cli.js');
+    if (fs.existsSync(cli)) {
+      return { file: process.execPath, args: [cli, ...args] };
+    }
+    if (process.platform !== 'win32') {
+      const executable = path.join(directory, 'npm');
+      if (fs.existsSync(executable)) return { file: executable, args: [...args] };
+    }
+  }
+  throw new Error('npm was not found beside Pi or on PATH. Install npm to check package updates.');
 }
 
 /** Resolve Node entrypoints and Windows npm shims without invoking a shell. */

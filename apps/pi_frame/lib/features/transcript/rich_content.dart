@@ -11,6 +11,7 @@ import '../../data/language/strings_transcript.dart';
 import '../../data/terminal/terminal_settings.dart';
 import '../../ui/code/code_block.dart';
 import '../../ui/code/diff_block.dart';
+import '../../ui/frame_focus.dart';
 import 'task_notification_card.dart';
 
 Future<void> _openUrl(String url) async {
@@ -87,12 +88,12 @@ String resolvePathForOsExplorer(String rawPath, {String? cwd}) {
     return '\\\\$host\\$distro$baseLinux$sep$resolved'.replaceAll('/', '\\');
   }
 
-  // 3. What if cwd or resolved starts with '/' (pure Linux path on Windows)?
+  // 3. A pure Linux path on Windows with no known WSL distro: keep the Linux
+  // path. openInOsFileExplorer maps it with `wslpath -w` on the default distro.
   if (cwd != null && (cwd.startsWith('/') || resolved.startsWith('/'))) {
-    final targetLinux = resolved.startsWith('/')
+    return resolved.startsWith('/')
         ? resolved
         : (cwd.endsWith('/') ? '$cwd$resolved' : '$cwd/$resolved');
-    return '\\\\wsl.localhost\\LMD_env$targetLinux'.replaceAll('/', '\\');
   }
 
   // 4. Standard Windows path
@@ -123,6 +124,7 @@ Future<void> openInOsFileExplorer(String rawPath, {String? cwd}) async {
       if (!file.existsSync() &&
           !dir.existsSync() &&
           (cwd?.contains('wsl') == true ||
+              cwd?.startsWith('/') == true ||
               rawPath.contains('wsl') ||
               rawPath.startsWith('/'))) {
         try {
@@ -204,8 +206,14 @@ bool isLikelyFilePath(String s) {
 class RichContent extends StatefulWidget {
   final String text;
   final String? cwd;
+  final Color? textColor;
 
-  const RichContent({super.key, required this.text, this.cwd});
+  const RichContent({
+    super.key,
+    required this.text,
+    this.cwd,
+    this.textColor,
+  });
 
   @override
   State<RichContent> createState() => _RichContentState();
@@ -228,59 +236,133 @@ class RichContent extends StatefulWidget {
     caseSensitive: false,
   );
 
-  static void _addTextOrNotification(List<_Segment> segments, String text) {
-    int lastIdx = 0;
-    for (final m in _taskNotifRegex.allMatches(text)) {
-      if (m.start > lastIdx) {
-        final pre = text.substring(lastIdx, m.start).trim();
-        if (pre.isNotEmpty) segments.add(_TextSegment(pre));
-      }
-      final notifStr = m.group(0)!;
-      final data = TaskNotificationData.tryParse(notifStr);
-      if (data != null) {
-        segments.add(_TaskNotificationSegment(data));
-      } else {
-        segments.add(_TextSegment(notifStr));
-      }
-      lastIdx = m.end;
+  static void _addTextAndCode(List<_Segment> segments, String text) {
+    int lastIndex = 0;
+    for (final match in _fenceRegex.allMatches(text)) {
+      final textPart = text.substring(lastIndex, match.start).trim();
+      if (textPart.isNotEmpty) segments.add(_TextSegment(textPart));
+      segments.add(_CodeSegment(code: match.group(2) ?? '', language: match.group(1)));
+      lastIndex = match.end;
     }
-    if (lastIdx < text.length) {
-      final post = text.substring(lastIdx).trim();
-      if (post.isNotEmpty) segments.add(_TextSegment(post));
-    }
+    final remaining = text.substring(lastIndex).trim();
+    if (remaining.isNotEmpty) segments.add(_TextSegment(remaining));
   }
 
   static List<_Segment> _parseSegments(String raw) {
     final segments = <_Segment>[];
     final normalized = raw.contains('\r') ? raw.replaceAll('\r\n', '\n') : raw;
 
+    // Task notifications first: a ``` fence inside their <result> would otherwise split the
+    // notification and show its raw XML.
     int lastIndex = 0;
-    for (final match in _fenceRegex.allMatches(normalized)) {
-      if (match.start > lastIndex) {
-        final textPart = normalized.substring(lastIndex, match.start).trim();
-        if (textPart.isNotEmpty) {
-          _addTextOrNotification(segments, textPart);
-        }
+    for (final match in _taskNotifRegex.allMatches(normalized)) {
+      _addTextAndCode(segments, normalized.substring(lastIndex, match.start));
+      final data = TaskNotificationData.tryParse(match.group(0)!);
+      if (data != null) {
+        segments.add(_TaskNotificationSegment(data));
+      } else {
+        _addTextAndCode(segments, match.group(0)!);
       }
-
-      final lang = match.group(1);
-      final code = match.group(2) ?? '';
-      segments.add(_CodeSegment(code: code, language: lang));
       lastIndex = match.end;
     }
-
-    if (lastIndex < normalized.length) {
-      final remaining = normalized.substring(lastIndex).trim();
-      if (remaining.isNotEmpty) {
-        _addTextOrNotification(segments, remaining);
-      }
-    }
-
-    if (segments.isEmpty && normalized.isNotEmpty) {
-      _addTextOrNotification(segments, normalized);
-    }
-
+    _addTextAndCode(segments, normalized.substring(lastIndex));
     return segments;
+  }
+
+  static final RegExp _tableSeparatorRegex = RegExp(
+    r'^\|?\s*:?-+:?\s*(\|\s*:?-+:?\s*)*\|?$',
+  );
+
+  /// A table row is any line with a pipe; the header is the first such line
+  /// followed directly by a `|---|` separator row.
+  static bool _isTableRow(String line) => line.trim().contains('|');
+
+  static bool _isTableHeaderAt(List<String> lines, int index) {
+    if (index + 1 >= lines.length || !_isTableRow(lines[index])) return false;
+    final separator = lines[index + 1].trim();
+    return separator.contains('-') && _tableSeparatorRegex.hasMatch(separator);
+  }
+
+  static List<String> _splitTableRow(String line) {
+    var content = line.trim();
+    if (content.startsWith('|')) content = content.substring(1);
+    if (content.endsWith('|')) content = content.substring(0, content.length - 1);
+    return content.split(RegExp(r'(?<!\\)\|')).map((c) => c.trim()).toList();
+  }
+
+  /// Renders a Markdown table. [rows] holds the header, the separator and the body rows.
+  /// The table is as wide as its content and scrolls horizontally inside the block.
+  static Widget _buildMarkdownTable(
+    List<String> rows,
+    FrameTokens tokens, {
+    String? cwd,
+    AppStrings? strings,
+    required TapGestureRecognizer Function(VoidCallback) createTapRecognizer,
+  }) {
+    final header = _splitTableRow(rows.first);
+    final columnCount = header.length;
+    List<String> normalize(List<String> cells) => List.generate(
+          columnCount,
+          (c) => c < cells.length ? cells[c] : '',
+        );
+
+    Widget cell(String content, {required bool isHeader}) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        child: Text.rich(
+          _parseInlineSpans(
+            content,
+            tokens,
+            cwd: cwd,
+            strings: strings,
+            createTapRecognizer: createTapRecognizer,
+          ),
+          style: TextStyle(
+            color: tokens.textPrimary,
+            fontSize: FrameText.fromTokens(tokens).label.fontSize,
+            height: 1.45,
+            fontWeight: isHeader ? FontWeight.w700 : FontWeight.w400,
+          ),
+        ),
+      );
+    }
+
+    final tableRows = <TableRow>[
+      TableRow(
+        decoration: BoxDecoration(color: tokens.surfaceElevated),
+        children: [
+          for (final c in normalize(header)) cell(c, isHeader: true),
+        ],
+      ),
+      for (final row in rows.skip(2))
+        TableRow(
+          children: [
+            for (final c in normalize(_splitTableRow(row)))
+              cell(c, isHeader: false),
+          ],
+        ),
+    ];
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: LayoutBuilder(
+        builder: (context, constraints) => SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: constraints.maxWidth),
+            child: Table(
+              defaultColumnWidth: const IntrinsicColumnWidth(),
+              border: TableBorder.all(
+                color: tokens.border,
+                width: 1,
+                borderRadius: BorderRadius.circular(tokens.radiusSm),
+              ),
+              children: tableRows,
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   static Widget _buildMarkdownText(
@@ -289,6 +371,7 @@ class RichContent extends StatefulWidget {
     String? cwd,
     AppStrings? strings,
     required TapGestureRecognizer Function(VoidCallback) createTapRecognizer,
+    Color? textColor,
   }) {
     final rawLines =
         (text.contains('\r') ? text.replaceAll('\r\n', '\n') : text).split(
@@ -296,6 +379,7 @@ class RichContent extends StatefulWidget {
         );
     final widgets = <Widget>[];
     final currentPara = StringBuffer();
+    final effectiveTextColor = textColor ?? tokens.textPrimary;
 
     void flushPara() {
       if (currentPara.isNotEmpty) {
@@ -313,8 +397,8 @@ class RichContent extends StatefulWidget {
                   createTapRecognizer: createTapRecognizer,
                 ),
                 style: TextStyle(
-                  color: tokens.textPrimary,
-                  fontSize: 13.5,
+                  color: effectiveTextColor,
+                  fontSize: FrameText.fromTokens(tokens).body.fontSize,
                   height: 1.55,
                 ),
               ),
@@ -325,9 +409,26 @@ class RichContent extends StatefulWidget {
       }
     }
 
-    for (final line in rawLines) {
+    for (var i = 0; i < rawLines.length; i++) {
+      final line = rawLines[i];
       final trimmed = line.trim();
-      if (trimmed.startsWith('# ') ||
+      if (_isTableHeaderAt(rawLines, i)) {
+        flushPara();
+        var end = i + 2;
+        while (end < rawLines.length && _isTableRow(rawLines[end])) {
+          end++;
+        }
+        widgets.add(
+          _buildMarkdownTable(
+            rawLines.sublist(i, end),
+            tokens,
+            cwd: cwd,
+            strings: strings,
+            createTapRecognizer: createTapRecognizer,
+          ),
+        );
+        i = end - 1;
+      } else if (trimmed.startsWith('# ') ||
           trimmed.startsWith('## ') ||
           trimmed.startsWith('### ')) {
         flushPara();
@@ -339,7 +440,7 @@ class RichContent extends StatefulWidget {
                 trimmed.substring(4),
                 style: TextStyle(
                   color: tokens.textPrimary,
-                  fontSize: 14.5,
+                  fontSize: FrameText.fromTokens(tokens).bodyLarge.fontSize,
                   fontWeight: FontWeight.bold,
                 ),
               ),
@@ -360,7 +461,7 @@ class RichContent extends StatefulWidget {
                   trimmed.substring(3),
                   style: TextStyle(
                     color: tokens.textPrimary,
-                    fontSize: 16.5,
+                    fontSize: FrameText.fromTokens(tokens).title.fontSize,
                     fontWeight: FontWeight.bold,
                     fontFamily: tokens.headingFontFamily,
                   ),
@@ -376,7 +477,7 @@ class RichContent extends StatefulWidget {
                 trimmed.substring(2),
                 style: TextStyle(
                   color: tokens.textPrimary,
-                  fontSize: 20,
+                  fontSize: FrameText.fromTokens(tokens).heading.fontSize,
                   fontWeight: FontWeight.bold,
                   fontFamily: tokens.headingFontFamily,
                 ),
@@ -410,7 +511,7 @@ class RichContent extends StatefulWidget {
               ),
               style: TextStyle(
                 color: tokens.textSecondary,
-                fontSize: 13,
+                fontSize: FrameText.fromTokens(tokens).body.fontSize,
                 fontStyle: FontStyle.italic,
                 height: 1.5,
               ),
@@ -446,8 +547,8 @@ class RichContent extends StatefulWidget {
                       createTapRecognizer: createTapRecognizer,
                     ),
                     style: TextStyle(
-                      color: tokens.textPrimary,
-                      fontSize: 13.5,
+                      color: effectiveTextColor,
+                      fontSize: FrameText.fromTokens(tokens).body.fontSize,
                       height: 1.5,
                     ),
                   ),
@@ -474,7 +575,7 @@ class RichContent extends StatefulWidget {
                     '$numStr.',
                     style: TextStyle(
                       color: tokens.accent,
-                      fontSize: 12,
+                      fontSize: FrameText.fromTokens(tokens).label.fontSize,
                       fontWeight: FontWeight.bold,
                       fontFamily: tokens.monoFontFamily,
                     ),
@@ -490,8 +591,8 @@ class RichContent extends StatefulWidget {
                       createTapRecognizer: createTapRecognizer,
                     ),
                     style: TextStyle(
-                      color: tokens.textPrimary,
-                      fontSize: 13.5,
+                      color: effectiveTextColor,
+                      fontSize: FrameText.fromTokens(tokens).body.fontSize,
                       height: 1.5,
                     ),
                   ),
@@ -651,7 +752,7 @@ class RichContent extends StatefulWidget {
                   color: tokens.textPrimary,
                   backgroundColor: tokens.surfaceElevated,
                   fontFamily: tokens.monoFontFamily,
-                  fontSize: 12,
+                  fontSize: FrameText.fromTokens(tokens).label.fontSize,
                 ),
               ),
             );
@@ -749,26 +850,35 @@ class RichContent extends StatefulWidget {
                   'CTRL+clic per aprire in Esplora file',
               child: MouseRegion(
                 cursor: SystemMouseCursors.click,
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: openFile,
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 3),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 3,
-                      vertical: 1,
-                    ),
-                    decoration: BoxDecoration(
-                      color: tokens.surfaceElevated,
+                // Focusable link (plan 6.1): reachable by Tab, activated by
+                // Enter or Space, announced as a link.
+                child: Semantics(
+                  link: true,
+                  label: displayText,
+                  child: FrameFocusRing(
+                    borderRadius: BorderRadius.circular(tokens.radiusSm),
+                    child: InkWell(
                       borderRadius: BorderRadius.circular(tokens.radiusSm),
-                      border: Border.all(
-                        color: tokens.accent.withValues(alpha: 0.5),
+                      onTap: openFile,
+                      child: Container(
+                        margin: const EdgeInsets.only(right: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 3,
+                          vertical: 1,
+                        ),
+                        decoration: BoxDecoration(
+                          color: tokens.surfaceElevated,
+                          borderRadius: BorderRadius.circular(tokens.radiusSm),
+                          border: Border.all(
+                            color: tokens.accent.withValues(alpha: 0.5),
+                          ),
+                        ),
+                        child: Icon(
+                          Icons.insert_drive_file_outlined,
+                          size: 11,
+                          color: tokens.accent,
+                        ),
                       ),
-                    ),
-                    child: Icon(
-                      Icons.insert_drive_file_outlined,
-                      size: 11,
-                      color: tokens.accent,
                     ),
                   ),
                 ),
@@ -782,7 +892,7 @@ class RichContent extends StatefulWidget {
             color: tokens.textPrimary,
             backgroundColor: tokens.surfaceElevated,
             fontFamily: tokens.monoFontFamily,
-            fontSize: 12,
+            fontSize: FrameText.fromTokens(tokens).label.fontSize,
             decoration: TextDecoration.underline,
             decorationColor: tokens.accent.withValues(alpha: 0.6),
           ),
@@ -817,6 +927,7 @@ class _RichContentState extends State<RichContent> {
   FrameTokens? _cachedTokens;
   String? _cachedCwd;
   AppStrings? _cachedStrings;
+  Color? _cachedTextColor;
   Widget? _cachedBuiltWidget;
 
   @override
@@ -827,7 +938,8 @@ class _RichContentState extends State<RichContent> {
         _cachedText == widget.text &&
         _cachedCwd == widget.cwd &&
         identical(_cachedTokens, tokens) &&
-        _cachedStrings == strings) {
+        _cachedStrings == strings &&
+        _cachedTextColor == widget.textColor) {
       return _cachedBuiltWidget!;
     }
 
@@ -840,6 +952,7 @@ class _RichContentState extends State<RichContent> {
     _cachedTokens = tokens;
     _cachedCwd = widget.cwd;
     _cachedStrings = strings;
+    _cachedTextColor = widget.textColor;
 
     TapGestureRecognizer createTapRecognizer(VoidCallback onTap) {
       final recognizer = TapGestureRecognizer()..onTap = onTap;
@@ -870,6 +983,7 @@ class _RichContentState extends State<RichContent> {
               cwd: widget.cwd,
               strings: strings,
               createTapRecognizer: createTapRecognizer,
+              textColor: widget.textColor,
             );
           }
           return const SizedBox.shrink();

@@ -104,7 +104,10 @@ test('E2E: Workspace Branch Operations - listBranches and switchBranch over WebS
     receivedMessages.push(JSON.parse(data.toString()));
   });
 
-  const waitForMessage = async (predicate: (msg: any) => boolean, timeoutMs = 5000): Promise<any> => {
+  // Each step runs real git commands: the stash-and-switch step alone takes
+  // about 2.6 s on an idle Windows machine and went past 5 s while other
+  // suites ran in parallel (`pnpm -r run test`), so allow 20 s per step.
+  const waitForMessage = async (predicate: (msg: any) => boolean, timeoutMs = 20000): Promise<any> => {
     const start = Date.now();
     while (Date.now() - start < timeoutMs) {
       const found = receivedMessages.find(predicate);

@@ -104,4 +104,74 @@ void main() {
       expect(find.byType(SnackBar), findsNothing);
     },
   );
+
+  Future<BuildContext> pumpHost(WidgetTester tester) async {
+    late BuildContext capturedContext;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark().copyWith(
+          extensions: const [FrameTokens.dark],
+        ),
+        home: Scaffold(
+          body: Builder(
+            builder: (ctx) {
+              capturedContext = ctx;
+              return const Center(child: Text('Host'));
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    return capturedContext;
+  }
+
+  testWidgets('a success message dismisses itself after 4 s', (tester) async {
+    final context = await pumpHost(tester);
+    FrameSnackBar.show(context, message: 'Salvato');
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 3));
+    expect(find.byType(SnackBar), findsOneWidget);
+
+    // Step in frames, as a running app would, so the timer and the exit
+    // animation both get frames.
+    for (var i = 0; i < 12; i++) {
+      await tester.pump(const Duration(milliseconds: 500));
+    }
+    expect(find.byType(SnackBar), findsNothing);
+  });
+
+  testWidgets('an error stays until its close control is used',
+      (tester) async {
+    final context = await pumpHost(tester);
+    FrameSnackBar.show(context, message: 'Invio non riuscito', isError: true);
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 10));
+    expect(find.byType(SnackBar), findsOneWidget);
+    expect(find.byIcon(Icons.close), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+    expect(find.byType(SnackBar), findsNothing);
+  });
+
+  testWidgets('the card is an InkWell control that runs onTap and dismisses',
+      (tester) async {
+    var tapped = false;
+    final context = await pumpHost(tester);
+    FrameSnackBar.show(
+      context,
+      message: 'Copiato',
+      onTap: () => tapped = true,
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final card = find.byKey(const ValueKey('frame-snack-bar-card'));
+    expect(card, findsOneWidget);
+    await tester.tap(find.text('Copiato'));
+    await tester.pumpAndSettle();
+    expect(tapped, isTrue);
+    expect(find.byType(SnackBar), findsNothing);
+  });
 }

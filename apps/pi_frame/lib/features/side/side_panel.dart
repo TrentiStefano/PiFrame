@@ -9,7 +9,11 @@ import '../../data/composer/composer_settings.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_composer.dart';
 import '../../domain/session/session_state.dart';
+import '../../ui/escape_layers.dart';
+import '../../ui/frame_activity_indicator.dart';
+import '../../ui/frame_dialog.dart';
 import '../../ui/frame_snack_bar.dart';
+import '../../ui/motion.dart';
 import '../composer/composer_draft.dart';
 import '../tool_timeline/tool_card.dart';
 import '../transcript/rich_content.dart';
@@ -19,9 +23,20 @@ import 'side_provider.dart';
 class SidePanel extends ConsumerStatefulWidget {
   final String sessionId;
 
+  /// True when the side thread fills the whole pane (chat too narrow to share it).
+  /// The header then shows a back button that returns to the chat.
+  final bool fullPane;
+  final VoidCallback? onClose;
+
+  /// False inside the plugins pane, whose header hides the whole pane.
+  final bool showCloseButton;
+
   const SidePanel({
     super.key,
     required this.sessionId,
+    this.fullPane = false,
+    this.onClose,
+    this.showCloseButton = true,
   });
 
   @override
@@ -32,9 +47,52 @@ class _SidePanelState extends ConsumerState<SidePanel> {
   final TextEditingController _textController = TextEditingController();
   final FocusNode _focusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
+  ProviderSubscription<SideThreadState>? _threadSub;
+  void Function()? _unregisterEscape;
+
+  @override
+  void initState() {
+    super.initState();
+    // The draft outlives the panel: hiding the plugins pane must not lose it.
+    _textController.text = ref.read(sideDraftFamily(widget.sessionId));
+    _textController.addListener(_saveDraft);
+    // Escape closes the side conversation while it is open (plan task 10.1).
+    _threadSub = ref.listenManual<SideThreadState>(
+      sideThreadFamily(widget.sessionId),
+      (_, next) => _syncEscape(next.isOpen),
+      fireImmediately: true,
+    );
+  }
+
+  void _saveDraft() {
+    final draft = ref.read(sideDraftFamily(widget.sessionId).notifier);
+    if (draft.state != _textController.text) draft.state = _textController.text;
+  }
+
+  void _syncEscape(bool open) {
+    if (open) {
+      _unregisterEscape ??= ref
+          .read(escapeLayersProvider)
+          .register(EscapeLayer.drawer, _escapeClose);
+    } else {
+      _unregisterEscape?.call();
+      _unregisterEscape = null;
+    }
+  }
+
+  bool _escapeClose() {
+    if (!mounted) return false;
+    // Opened from the keyboard: an instant dialog takes focus at once, so the
+    // next Escape dismisses it.
+    unawaited(_requestClose(context, fromKeyboard: true));
+    return true;
+  }
 
   @override
   void dispose() {
+    _unregisterEscape?.call();
+    _threadSub?.close();
+    _textController.removeListener(_saveDraft);
     _textController.dispose();
     _focusNode.dispose();
     _scrollController.dispose();
@@ -46,8 +104,8 @@ class _SidePanelState extends ConsumerState<SidePanel> {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
-          duration: const Duration(milliseconds: 200),
-          curve: Curves.easeOut,
+          duration: FrameMotion.small,
+          curve: FrameMotion.enterCurve,
         );
       }
     });
@@ -61,74 +119,63 @@ class _SidePanelState extends ConsumerState<SidePanel> {
     _scrollToBottom();
   }
 
-  Future<void> _confirmClose(BuildContext context) async {
+  /// Closes the side thread. Asks first only when the mini composer holds a draft,
+  /// since closing discards it (plan task 10.1).
+  Future<void> _requestClose(
+    BuildContext context, {
+    bool fromKeyboard = false,
+  }) async {
+    final hasDraft = _textController.text.trim().isNotEmpty;
+    if (!hasDraft) {
+      if (widget.onClose != null) {
+        widget.onClose!();
+      } else {
+        await ref.read(sideThreadFamily(widget.sessionId).notifier).close();
+      }
+      return;
+    }
     final strings = ref.read(appStringsProvider);
-    final tokens = context.tokens;
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showFrameDialog<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: tokens.surfaceElevated,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(tokens.radiusMd),
-          side: BorderSide(color: tokens.borderStrong),
-        ),
-        title: Text(
-          strings.sideCloseConfirmTitle,
-          style: TextStyle(
-            color: tokens.textPrimary,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        content: Text(
-          strings.sideCloseConfirmContent,
-          style: TextStyle(
-            color: tokens.textSecondary,
-            fontSize: 13,
-          ),
-        ),
+      instant: fromKeyboard,
+      dialog: FrameDialog<bool>(
+        title: strings.sideCloseConfirmTitle,
+        body: Text(strings.sideCloseConfirmContent),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: Text(
-              strings.cancel,
-              style: TextStyle(color: tokens.textSecondary),
-            ),
+          FrameDialogAction<bool>(
+            label: strings.cancel,
+            role: FrameDialogActionRole.cancel,
+            value: false,
           ),
-          FilledButton(
+          FrameDialogAction<bool>(
+            label: strings.close,
+            role: FrameDialogActionRole.destructive,
             key: const ValueKey('side-confirm-close-btn'),
-            style: FilledButton.styleFrom(
-              backgroundColor: tokens.danger,
-              foregroundColor: tokens.textPrimary,
-            ),
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: Text(strings.close),
+            value: true,
           ),
         ],
       ),
     );
 
     if (confirmed == true) {
-      await ref.read(sideThreadFamily(widget.sessionId).notifier).close();
+      if (widget.onClose != null) {
+        widget.onClose!();
+      } else {
+        await ref.read(sideThreadFamily(widget.sessionId).notifier).close();
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    // Rendered even while closed: SideSplit animates the width, and the content
+    // fades out with it. The draft in the mini composer survives a hide.
     final sideThread = ref.watch(sideThreadFamily(widget.sessionId));
-    if (!sideThread.isOpen) {
-      return const SizedBox.shrink();
-    }
-
     final sideSession = ref.watch(sideSessionFamily(widget.sessionId));
     final tokens = context.tokens;
     final strings = ref.watch(appStringsProvider);
     final composerSettings = ref.watch(composerSettingsProvider);
-
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    final isMobile = screenWidth < 600;
-    final panelWidth = isMobile ? screenWidth : 420.0;
 
     final isStreaming = sideSession.isStreaming || sideThread.isOpening;
 
@@ -139,22 +186,25 @@ class _SidePanelState extends ConsumerState<SidePanel> {
       }
     });
 
+    final selectedId = sideThread.selectedConversationId;
+    final isLive = selectedId == null || selectedId == sideThread.sideId;
+    final SideConversationRecord? selectedRecord = sideThread.conversations
+        .cast<SideConversationRecord?>()
+        .firstWhere(
+          (c) => c?.id == selectedId,
+          orElse: () => sideThread.conversations.isNotEmpty
+              ? sideThread.conversations.last
+              : null,
+        );
+
+    final isClosed =
+        (isLive && (sideThread.closeReason != null || sideThread.isClosed)) ||
+        (!isLive && selectedRecord?.status == 'closed');
+
     return Container(
       key: const ValueKey('side-panel-container'),
-      width: panelWidth,
-      decoration: BoxDecoration(
-        color: tokens.surfaceElevated,
-        border: Border(
-          left: BorderSide(color: tokens.borderStrong, width: 1.2),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: tokens.overlay.withValues(alpha: 0.18),
-            blurRadius: 14,
-            offset: const Offset(-3, 0),
-          ),
-        ],
-      ),
+      // Flat surface: the split divider draws the edge, so no shadow (task 2.4).
+      decoration: BoxDecoration(color: tokens.surfaceElevated),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -162,8 +212,16 @@ class _SidePanelState extends ConsumerState<SidePanel> {
           _buildHeader(tokens, strings, sideThread, isStreaming),
 
           // Notice banner if side.closed
-          if (sideThread.closeReason != null || sideThread.isClosed)
-            _buildClosedNotice(tokens, strings, sideThread),
+          if (isClosed) _buildClosedNotice(tokens, strings, sideThread),
+
+          // Error banner if in error state
+          if (sideThread.isError || selectedRecord?.status == 'error')
+            _buildErrorNotice(
+              tokens,
+              sideThread.errorMessage ??
+                  selectedRecord?.errorMessage ??
+                  'Errore conversazione laterale',
+            ),
 
           // Transcript
           Expanded(
@@ -173,16 +231,13 @@ class _SidePanelState extends ConsumerState<SidePanel> {
               sideThread,
               sideSession,
               isStreaming,
+              selectedRecord,
+              isLive,
             ),
           ),
 
           // Mini Composer
-          _buildMiniComposer(
-            tokens,
-            strings,
-            composerSettings,
-            isStreaming,
-          ),
+          _buildMiniComposer(tokens, strings, composerSettings, isStreaming),
         ],
       ),
     );
@@ -195,54 +250,79 @@ class _SidePanelState extends ConsumerState<SidePanel> {
     bool isStreaming,
   ) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(
+        horizontal: FrameSpace.x3,
+        vertical: 8,
+      ),
       decoration: BoxDecoration(
         color: tokens.surface,
-        border: Border(
-          bottom: BorderSide(color: tokens.border, width: 1),
-        ),
+        border: Border(bottom: BorderSide(color: tokens.border, width: 1)),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
-              // Badge 'Side · read-only'
-              Container(
-                key: const ValueKey('side-read-only-badge'),
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
-                  color: tokens.syntaxFunction.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(tokens.radiusSm),
-                  border: Border.all(
-                    color: tokens.syntaxFunction.withValues(alpha: 0.35),
+              // Full-pane view: back to the chat. Hides the side without closing it.
+              if (widget.fullPane) ...[
+                IconButton(
+                  key: const ValueKey('side-back-btn'),
+                  visualDensity: VisualDensity.compact,
+                  tooltip: strings.sideBackTooltip,
+                  icon: Icon(
+                    Icons.arrow_back_outlined,
+                    size: FrameSize.iconLg,
+                    color: tokens.textSecondary,
                   ),
+                  onPressed: () => ref
+                      .read(sideThreadFamily(widget.sessionId).notifier)
+                      .closePanel(),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.call_split,
-                      size: 13,
-                      color: tokens.syntaxFunction,
-                    ),
-                    const SizedBox(width: 5),
-                    Text(
-                      strings.sideReadOnlyBadge,
-                      style: TextStyle(
-                        color: tokens.syntaxFunction,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 11,
-                        fontFamily: tokens.monoFontFamily,
+                const SizedBox(width: FrameSpace.x1),
+              ],
+              // Badge 'Side · read-only'. Flexible so a narrow pane ellipsizes
+              // it instead of overflowing the header row.
+              Flexible(
+                child: Container(
+                  key: const ValueKey('side-read-only-badge'),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 7,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: tokens.surfaceElevated,
+                    borderRadius: BorderRadius.circular(tokens.radiusSm),
+                    border: Border.all(color: tokens.border),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.call_split_outlined,
+                        size: 13,
+                        color: tokens.textSecondary,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 5),
+                      Flexible(
+                        child: Text(
+                          strings.sideReadOnlyBadge,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: FrameText.of(context).caption.copyWith(
+                            color: tokens.textSecondary,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: tokens.monoFontFamily,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
               // Model chip
               if (sideThread.model != null && sideThread.model!.isNotEmpty) ...[
-                const SizedBox(width: 8),
+                const SizedBox(width: FrameSpace.x2),
                 Flexible(
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -256,9 +336,8 @@ class _SidePanelState extends ConsumerState<SidePanel> {
                     ),
                     child: Text(
                       sideThread.model!,
-                      style: TextStyle(
+                      style: FrameText.of(context).caption.copyWith(
                         color: tokens.textSecondary,
-                        fontSize: 10,
                         fontFamily: tokens.monoFontFamily,
                       ),
                       maxLines: 1,
@@ -270,15 +349,37 @@ class _SidePanelState extends ConsumerState<SidePanel> {
 
               const Spacer(),
 
+              // New conversation button
+              IconButton(
+                key: const ValueKey('side-new-conversation-btn'),
+                visualDensity: VisualDensity.compact,
+                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                padding: EdgeInsets.zero,
+                tooltip: strings.sideNewConversationTooltip,
+                icon: Icon(
+                  Icons.add_outlined,
+                  size: FrameSize.iconLg,
+                  color: tokens.accent,
+                ),
+                onPressed: () => ref
+                    .read(sideThreadFamily(widget.sessionId).notifier)
+                    .newConversation(),
+              ),
+
               // Stop button if streaming
               if (isStreaming)
                 IconButton(
                   key: const ValueKey('side-abort-btn'),
                   visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints(
+                    minWidth: 28,
+                    minHeight: 28,
+                  ),
+                  padding: EdgeInsets.zero,
                   tooltip: strings.sideStopTooltip,
                   icon: Icon(
                     Icons.stop_circle_outlined,
-                    size: 18,
+                    size: FrameSize.iconLg,
                     color: tokens.danger,
                   ),
                   onPressed: () => ref
@@ -287,26 +388,154 @@ class _SidePanelState extends ConsumerState<SidePanel> {
                 ),
 
               // Close button
-              IconButton(
-                key: const ValueKey('side-close-btn'),
-                visualDensity: VisualDensity.compact,
-                tooltip: strings.sideCloseTooltip,
-                icon: Icon(
-                  Icons.close,
-                  size: 18,
-                  color: tokens.textSecondary,
+              if (widget.showCloseButton)
+                IconButton(
+                  key: const ValueKey('side-close-btn'),
+                  visualDensity: VisualDensity.compact,
+                  constraints: const BoxConstraints(
+                    minWidth: 28,
+                    minHeight: 28,
+                  ),
+                  padding: EdgeInsets.zero,
+                  tooltip: strings.sideCloseTooltip,
+                  icon: Icon(
+                    Icons.close_outlined,
+                    size: FrameSize.iconLg,
+                    color: tokens.textSecondary,
+                  ),
+                  onPressed: () => _requestClose(context),
                 ),
-                onPressed: () => _confirmClose(context),
-              ),
             ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: FrameSpace.x1),
           Text(
             strings.sideNotPartOfMain,
-            style: TextStyle(
-              color: tokens.textMuted,
-              fontSize: 11,
-              fontStyle: FontStyle.italic,
+            style: FrameText.of(context).caption
+                .copyWith(color: tokens.textMuted, fontStyle: FontStyle.italic),
+          ),
+          if (sideThread.conversations.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            _buildConversationSelector(tokens, strings, sideThread),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildConversationSelector(
+    FrameTokens tokens,
+    AppStrings strings,
+    SideThreadState sideThread,
+  ) {
+    final selectedId = sideThread.selectedConversationId;
+    return SizedBox(
+      height: 28,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: sideThread.conversations.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 6),
+        itemBuilder: (context, index) {
+          final conv = sideThread.conversations[index];
+          final isSelected =
+              conv.id == selectedId ||
+              (selectedId == null &&
+                  index == sideThread.conversations.length - 1);
+          final isConvActive = conv.status == 'active';
+          return InkWell(
+            key: ValueKey('side-conv-pill-${conv.id}'),
+            borderRadius: BorderRadius.circular(tokens.radiusSm),
+            onTap: () => ref
+                .read(sideThreadFamily(widget.sessionId).notifier)
+                .selectConversation(conv.id),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: isSelected
+                    ? tokens.accent.withValues(alpha: 0.15)
+                    : tokens.surfaceElevated,
+                borderRadius: BorderRadius.circular(tokens.radiusSm),
+                border: Border.all(
+                  color: isSelected ? tokens.accent : tokens.border,
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isConvActive
+                          ? tokens.syntaxFunction
+                          : (conv.status == 'error'
+                                ? tokens.danger
+                                : tokens.textMuted),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 130),
+                    child: Text(
+                      conv.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: FrameText.of(context).caption.copyWith(
+                        color: isSelected
+                            ? tokens.textPrimary
+                            : tokens.textSecondary,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ),
+                    ),
+                  ),
+                  if (sideThread.conversations.length > 1) ...[
+                    const SizedBox(width: 4),
+                    InkWell(
+                      key: ValueKey('side-conv-delete-${conv.id}'),
+                      borderRadius: BorderRadius.circular(tokens.radiusSm),
+                      onTap: () => ref
+                          .read(sideThreadFamily(widget.sessionId).notifier)
+                          .deleteConversation(conv.id),
+                      child: Icon(
+                        Icons.close,
+                        size: 12,
+                        color: tokens.textMuted,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildErrorNotice(FrameTokens tokens, String error) {
+    return Container(
+      key: const ValueKey('side-error-notice'),
+      margin: const EdgeInsets.all(8),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: FrameSpace.x2,
+      ),
+      decoration: BoxDecoration(
+        color: tokens.danger.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(tokens.radiusSm),
+        border: Border.all(color: tokens.danger.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.error_outline, size: FrameSize.icon, color: tokens.danger),
+          const SizedBox(width: FrameSpace.x2),
+          Expanded(
+            child: Text(
+              error,
+              style: FrameText.of(context).caption
+                  .copyWith(color: tokens.danger),
             ),
           ),
         ],
@@ -328,7 +557,7 @@ class _SidePanelState extends ConsumerState<SidePanel> {
       case 'idle':
         noticeText = strings.sideClosedNoticeIdle;
         noticeIcon = Icons.timer_outlined;
-        noticeColor = tokens.warning;
+        noticeColor = tokens.textSecondary;
         break;
       case 'parentClosed':
         noticeText = strings.sideClosedNoticeParentClosed;
@@ -337,13 +566,13 @@ class _SidePanelState extends ConsumerState<SidePanel> {
         break;
       case 'error':
         noticeText = strings.sideClosedNoticeError;
-        noticeIcon = Icons.error_outline;
+        noticeIcon = Icons.error_outlined;
         noticeColor = tokens.danger;
         break;
       case 'user':
       default:
         noticeText = strings.sideClosedNoticeUser;
-        noticeIcon = Icons.info_outline;
+        noticeIcon = Icons.info_outlined;
         noticeColor = tokens.syntaxFunction;
         break;
     }
@@ -351,7 +580,10 @@ class _SidePanelState extends ConsumerState<SidePanel> {
     return Container(
       key: const ValueKey('side-closed-notice'),
       margin: const EdgeInsets.all(8),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      padding: const EdgeInsets.symmetric(
+        horizontal: 10,
+        vertical: FrameSpace.x2,
+      ),
       decoration: BoxDecoration(
         color: noticeColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -359,15 +591,13 @@ class _SidePanelState extends ConsumerState<SidePanel> {
       ),
       child: Row(
         children: [
-          Icon(noticeIcon, size: 16, color: noticeColor),
-          const SizedBox(width: 8),
+          Icon(noticeIcon, size: FrameSize.icon, color: noticeColor),
+          const SizedBox(width: FrameSpace.x2),
           Expanded(
             child: Text(
               noticeText,
-              style: TextStyle(
-                color: tokens.textPrimary,
-                fontSize: 12,
-              ),
+              style: FrameText.of(context).label
+                  .copyWith(color: tokens.textPrimary),
             ),
           ),
         ],
@@ -381,17 +611,26 @@ class _SidePanelState extends ConsumerState<SidePanel> {
     SideThreadState sideThread,
     SessionState sideSession,
     bool isStreaming,
+    SideConversationRecord? selectedRecord,
+    bool isLive,
   ) {
-    final entries = sideSession.entries;
-    final streamingThinking = sideSession.currentStreamingThinking;
-    final streamingText = sideSession.currentStreamingText;
-    final activeTools = sideSession.activeToolCalls.values.toList();
+    final entries = isLive
+        ? sideSession.entries
+        : (selectedRecord?.entries ?? const []);
+    final streamingThinking = isLive
+        ? sideSession.currentStreamingThinking
+        : '';
+    final streamingText = isLive ? sideSession.currentStreamingText : '';
+    final activeTools = isLive
+        ? sideSession.activeToolCalls.values.toList()
+        : const [];
+    final isOpening = isLive && sideThread.isOpening;
 
     if (entries.isEmpty &&
         streamingThinking.isEmpty &&
         streamingText.isEmpty &&
         activeTools.isEmpty &&
-        !sideThread.isOpening) {
+        !isOpening) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -403,22 +642,19 @@ class _SidePanelState extends ConsumerState<SidePanel> {
                 size: 36,
                 color: tokens.textMuted.withValues(alpha: 0.5),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: FrameSpace.x2),
               Text(
                 strings.sideConversationTitle,
-                style: TextStyle(
+                style: FrameText.of(context).body.copyWith(
                   color: tokens.textMuted,
-                  fontSize: 13,
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: FrameSpace.x1),
               Text(
                 strings.sideNotPartOfMain,
-                style: TextStyle(
-                  color: tokens.textMuted.withValues(alpha: 0.7),
-                  fontSize: 11,
-                ),
+                style: FrameText.of(context).caption
+                    .copyWith(color: tokens.textMuted.withValues(alpha: 0.7)),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -429,7 +665,10 @@ class _SidePanelState extends ConsumerState<SidePanel> {
 
     return ListView(
       controller: _scrollController,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(
+        horizontal: FrameSpace.x3,
+        vertical: FrameSpace.x2,
+      ),
       children: [
         for (final entry in entries) ...[
           if (entry.role == 'user')
@@ -441,7 +680,7 @@ class _SidePanelState extends ConsumerState<SidePanel> {
         // Live streaming content
         if (streamingThinking.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.only(bottom: FrameSpace.x2),
             child: ThinkingBlock(
               thinkingText: streamingThinking,
               isStreaming: true,
@@ -450,40 +689,36 @@ class _SidePanelState extends ConsumerState<SidePanel> {
 
         for (final tool in activeTools)
           Padding(
-            padding: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.only(bottom: FrameSpace.x2),
             child: ToolCard(tool: tool),
           ),
 
         if (streamingText.isNotEmpty)
           Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: RichContent(
-              text: streamingText,
-              cwd: sideSession.cwd,
-            ),
+            padding: const EdgeInsets.only(bottom: FrameSpace.x2),
+            child: RichContent(text: streamingText, cwd: sideSession.cwd),
           ),
 
         if (sideThread.isOpening)
           Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
+            padding: const EdgeInsets.symmetric(vertical: FrameSpace.x4),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 SizedBox(
                   width: 14,
                   height: 14,
-                  child: CircularProgressIndicator(
+                  child: FrameActivityIndicator(
+                    size: 14,
                     strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation(tokens.syntaxFunction),
+                    color: tokens.syntaxFunction,
                   ),
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: FrameSpace.x2),
                 Text(
                   strings.sideOpening,
-                  style: TextStyle(
-                    color: tokens.textMuted,
-                    fontSize: 12,
-                  ),
+                  style: FrameText.of(context).label
+                      .copyWith(color: tokens.textMuted),
                 ),
               ],
             ),
@@ -496,8 +731,11 @@ class _SidePanelState extends ConsumerState<SidePanel> {
     return Align(
       alignment: Alignment.centerRight,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 10, left: 32),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        margin: const EdgeInsets.only(bottom: 10, left: FrameSpace.x8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: FrameSpace.x3,
+          vertical: FrameSpace.x2,
+        ),
         decoration: BoxDecoration(
           color: tokens.chassis,
           borderRadius: BorderRadius.circular(tokens.radiusMd),
@@ -505,11 +743,8 @@ class _SidePanelState extends ConsumerState<SidePanel> {
         ),
         child: Text(
           entry.text,
-          style: TextStyle(
-            color: tokens.textPrimary,
-            fontSize: 13,
-            height: 1.4,
-          ),
+          style: FrameText.of(context).body
+              .copyWith(color: tokens.textPrimary, height: 1.4),
         ),
       ),
     );
@@ -522,7 +757,7 @@ class _SidePanelState extends ConsumerState<SidePanel> {
     String cwd,
   ) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: FrameSpace.x3),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -543,7 +778,10 @@ class _SidePanelState extends ConsumerState<SidePanel> {
 
           if (entry.text.isNotEmpty)
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              padding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: FrameSpace.x2,
+              ),
               decoration: BoxDecoration(
                 color: tokens.surface,
                 borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -555,7 +793,10 @@ class _SidePanelState extends ConsumerState<SidePanel> {
           // Insert into composer action
           if (entry.text.trim().isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(top: 4, bottom: 4),
+              padding: const EdgeInsets.only(
+                top: FrameSpace.x1,
+                bottom: FrameSpace.x1,
+              ),
               child: Align(
                 alignment: Alignment.centerLeft,
                 child: TextButton.icon(
@@ -579,9 +820,8 @@ class _SidePanelState extends ConsumerState<SidePanel> {
                   ),
                   label: Text(
                     strings.sideInsertIntoComposer,
-                    style: TextStyle(
+                    style: FrameText.of(context).caption.copyWith(
                       color: tokens.accent,
-                      fontSize: 11,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
@@ -612,21 +852,21 @@ class _SidePanelState extends ConsumerState<SidePanel> {
       padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
       decoration: BoxDecoration(
         color: tokens.surface,
-        border: Border(
-          top: BorderSide(color: tokens.border, width: 1),
-        ),
+        border: Border(top: BorderSide(color: tokens.border, width: 1)),
       ),
       child: Focus(
         onKeyEvent: (node, event) {
           if (event is! KeyDownEvent) return KeyEventResult.ignored;
 
-          final isEnter = event.logicalKey == LogicalKeyboardKey.enter ||
+          final isEnter =
+              event.logicalKey == LogicalKeyboardKey.enter ||
               event.logicalKey == LogicalKeyboardKey.numpadEnter;
 
           if (!isEnter) return KeyEventResult.ignored;
 
           final isShift = HardwareKeyboard.instance.isShiftPressed;
-          final isCtrlOrCmd = HardwareKeyboard.instance.isControlPressed ||
+          final isCtrlOrCmd =
+              HardwareKeyboard.instance.isControlPressed ||
               HardwareKeyboard.instance.isMetaPressed;
 
           if (sendWithEnter) {
@@ -658,16 +898,12 @@ class _SidePanelState extends ConsumerState<SidePanel> {
                   focusNode: _focusNode,
                   maxLines: 4,
                   minLines: 1,
-                  style: TextStyle(
-                    color: tokens.textPrimary,
-                    fontSize: 13,
-                  ),
+                  style: FrameText.of(context).body
+                      .copyWith(color: tokens.textPrimary),
                   decoration: InputDecoration(
                     hintText: strings.sideMiniComposerHint,
-                    hintStyle: TextStyle(
-                      color: tokens.textMuted,
-                      fontSize: 12,
-                    ),
+                    hintStyle: FrameText.of(context).label
+                        .copyWith(color: tokens.textMuted),
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 10,
                       vertical: 8,
@@ -687,7 +923,7 @@ class _SidePanelState extends ConsumerState<SidePanel> {
                   foregroundColor: tokens.textPrimary,
                 ),
                 tooltip: strings.sideStopTooltip,
-                icon: const Icon(Icons.stop, size: 16),
+                icon: const Icon(Icons.stop_outlined, size: FrameSize.icon),
                 onPressed: () => ref
                     .read(sideThreadFamily(widget.sessionId).notifier)
                     .abort(),
@@ -700,7 +936,7 @@ class _SidePanelState extends ConsumerState<SidePanel> {
                   foregroundColor: tokens.textPrimary,
                 ),
                 tooltip: strings.sideSendTooltip(sendWithEnter: sendWithEnter),
-                icon: const Icon(Icons.send_rounded, size: 16),
+                icon: const Icon(Icons.send_outlined, size: FrameSize.icon),
                 onPressed: _send,
               ),
           ],

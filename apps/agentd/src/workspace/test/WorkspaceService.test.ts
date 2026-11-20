@@ -132,3 +132,69 @@ test('WorkspaceService rejects binary and oversized files explicitly', async () 
     repo.cleanup();
   }
 });
+
+test('WorkspaceService fetch, pull, push and sync work against a remote', async () => {
+  const repo = createRepo();
+  const remoteDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-workspace-remote-'));
+  const otherDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-workspace-other-'));
+  const git = (cwd: string, args: string[]) => execFileSync('git', args, { cwd, encoding: 'utf8' }).trim();
+  try {
+    const service = new WorkspaceService();
+    const bare = path.join(remoteDir, 'remote.git');
+    git(remoteDir, ['init', '-q', '--bare', bare]);
+    git(repo.root, ['remote', 'add', 'origin', bare]);
+    const branch = git(repo.root, ['branch', '--show-current']);
+
+    // Push publishes a branch that has no upstream yet.
+    await service.gitAction(repo.root, 'push', []);
+    assert.equal(git(bare, ['rev-parse', branch]), git(repo.root, ['rev-parse', 'HEAD']));
+
+    // A second clone pushes a commit; fetch brings it in without touching the worktree, pull fast-forwards.
+    const other = path.join(otherDir, 'clone');
+    git(otherDir, ['clone', '-q', bare, 'clone']);
+    git(other, ['config', 'user.email', 'other@example.com']);
+    git(other, ['config', 'user.name', 'Other']);
+    fs.writeFileSync(path.join(other, 'remote.txt'), 'from remote\n');
+    git(other, ['add', 'remote.txt']);
+    git(other, ['commit', '-qm', 'remote commit']);
+    git(other, ['push', '-q']);
+    await service.gitAction(repo.root, 'fetch', []);
+    assert.equal(git(repo.root, ['rev-parse', `origin/${branch}`]), git(other, ['rev-parse', 'HEAD']));
+    assert.equal(fs.existsSync(path.join(repo.root, 'remote.txt')), false);
+    await service.gitAction(repo.root, 'pull', []);
+    assert.equal(fs.readFileSync(path.join(repo.root, 'remote.txt'), 'utf8'), 'from remote\n');
+
+    // Sync pulls then pushes a local commit.
+    fs.writeFileSync(path.join(repo.root, 'local.txt'), 'local\n');
+    git(repo.root, ['add', 'local.txt']);
+    git(repo.root, ['commit', '-qm', 'local commit']);
+    await service.gitAction(repo.root, 'sync', []);
+    assert.equal(git(bare, ['rev-parse', branch]), git(repo.root, ['rev-parse', 'HEAD']));
+
+    // Diverged history is refused instead of merged silently.
+    git(other, ['pull', '-q', '--ff-only']);
+    fs.writeFileSync(path.join(other, 'remote2.txt'), 'x\n');
+    git(other, ['add', 'remote2.txt']);
+    git(other, ['commit', '-qm', 'remote 2']);
+    git(other, ['push', '-q']);
+    fs.writeFileSync(path.join(repo.root, 'local2.txt'), 'y\n');
+    git(repo.root, ['add', 'local2.txt']);
+    git(repo.root, ['commit', '-qm', 'local 2']);
+    await assert.rejects(service.gitAction(repo.root, 'pull', []), { code: 'GIT_FAILED' });
+  } finally {
+    fs.rmSync(remoteDir, { recursive: true, force: true });
+    fs.rmSync(otherDir, { recursive: true, force: true });
+    repo.cleanup();
+  }
+});
+
+test('WorkspaceService remote actions fail cleanly without a remote', async () => {
+  const repo = createRepo();
+  try {
+    const service = new WorkspaceService();
+    await assert.rejects(service.gitAction(repo.root, 'push', []), { code: 'GIT_FAILED' });
+    await assert.rejects(service.gitAction(repo.root, 'stage', []), { code: 'WORKSPACE_PATH_INVALID' });
+  } finally {
+    repo.cleanup();
+  }
+});

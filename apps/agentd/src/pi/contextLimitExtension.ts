@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { getPiFrameBaseDir } from '../config/config.js';
 import type { StdioPiTransport } from './StdioPiTransport.js';
 import type { ContextPolicy } from './contextPolicy.js';
+import { subagentBridgeExtension } from './subagentBridgeExtension.js';
 
 /** Self-contained: emitted as a Pi extension without importing daemon dependencies. */
 export function contextLimitExtension(pi: any): void {
@@ -188,7 +189,18 @@ export function ensureContextLimitExtension(baseDir = getPiFrameBaseDir()): stri
   const directory = path.join(baseDir, 'runtime');
   fs.mkdirSync(directory, { recursive: true });
   const file = path.join(directory, 'context-limit.mjs');
-  const source = `export default ${contextLimitExtension.toString()}\n`;
+  // One extension file for both: the context limit, and the bridge that
+  // reports pi-subagents' live state and stops agents (subagentBridgeExtension).
+  const source = [
+    `const piframeContextLimit = ${contextLimitExtension.toString()};`,
+    `const piframeSubagentBridge = ${subagentBridgeExtension.toString()};`,
+    'export default function piframeExtensions(pi) {',
+    '  piframeContextLimit(pi);',
+    '  // The bridge must never take the context limit down with it.',
+    '  try { piframeSubagentBridge(pi); } catch (error) { console.error(`PiFrame subagent bridge: ${error?.message ?? error}`); }',
+    '}',
+    '',
+  ].join('\n');
   if (!fs.existsSync(file) || fs.readFileSync(file, 'utf8') !== source) {
     const temporary = `${file}.${process.pid}.tmp`;
     fs.writeFileSync(temporary, source, { mode: 0o600 });

@@ -95,19 +95,25 @@ void main() {
 
     await tester.tap(find.text('/settings'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byIcon(Icons.arrow_upward));
+    await tester.tap(find.byIcon(Icons.arrow_upward_outlined));
     await tester.pumpAndSettle();
     expect(container.read(showSettingsProvider), isTrue);
     expect(session.state.entries, isEmpty);
 
+    // Typed and sent, a command first becomes a chip; the second send runs it.
     await tester.enterText(find.byType(TextField), '/login');
-    await tester.tap(find.byIcon(Icons.arrow_upward));
+    await tester.tap(find.byIcon(Icons.arrow_upward_outlined));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('composer-command-chip')), findsOneWidget);
+    expect(session.loginCalls, 0);
+    await tester.tap(find.byIcon(Icons.arrow_upward_outlined));
     await tester.pumpAndSettle();
     expect(session.loginCalls, 1);
     expect(session.state.entries, isEmpty);
 
-    await tester.enterText(find.byType(TextField), '/logout');
-    await tester.tap(find.byIcon(Icons.arrow_upward));
+    await tester.enterText(find.byType(TextField), '/logout ');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.arrow_upward_outlined));
     await tester.pumpAndSettle();
     expect(session.logoutCalls, 1);
     expect(session.state.entries, isEmpty);
@@ -143,7 +149,7 @@ void main() {
         tester.element(find.byType(Composer)),
       );
       await tester.enterText(find.byType(TextField), 'Pending draft');
-      await tester.tap(find.byIcon(Icons.arrow_upward));
+      await tester.tap(find.byIcon(Icons.arrow_upward_outlined));
       await tester.pump();
       expect(find.text('Pending draft'), findsNothing);
       expect(container.read(composerDraftProvider('pending')), isEmpty);
@@ -154,7 +160,7 @@ void main() {
       final sendButton = tester.widget<FilledButton>(
         find
             .ancestor(
-              of: find.byIcon(Icons.arrow_upward),
+              of: find.byIcon(Icons.arrow_upward_outlined),
               matching: find.byType(FilledButton),
             )
             .first,
@@ -168,7 +174,7 @@ void main() {
 
       session.completion = Completer<void>();
       await tester.enterText(find.byType(TextField), 'Second draft');
-      await tester.tap(find.byIcon(Icons.arrow_upward));
+      await tester.tap(find.byIcon(Icons.arrow_upward_outlined));
       await tester.pump();
       await tester.enterText(find.byType(TextField), 'Newer edit');
       container.read(activeSessionIdProvider.notifier).state = 'B';
@@ -200,7 +206,7 @@ void main() {
         ),
       );
       await tester.enterText(find.byType(TextField), 'Keep this draft');
-      await tester.tap(find.byIcon(Icons.arrow_upward));
+      await tester.tap(find.byIcon(Icons.arrow_upward_outlined));
       await tester.pump();
       expect(find.text('Keep this draft'), findsNothing);
       expect(session.state.entries.single.text, 'Keep this draft');
@@ -237,7 +243,7 @@ void main() {
       ),
     );
     await tester.enterText(find.byType(TextField), 'Session A draft');
-    await tester.tap(find.byIcon(Icons.arrow_upward));
+    await tester.tap(find.byIcon(Icons.arrow_upward_outlined));
     await tester.pump();
     expect(session.state.entries.single.text, 'Session A draft');
     expect(
@@ -283,7 +289,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
 
     // Verify arrow_upward icon (Invia) is present
-    expect(find.byIcon(Icons.arrow_upward), findsOneWidget);
+    expect(find.byIcon(Icons.arrow_upward_outlined), findsOneWidget);
     // Verify Steer and Follow-up buttons are NOT present when idle
     expect(find.text('Steer'), findsNothing);
     expect(find.text('Follow-up'), findsNothing);
@@ -324,7 +330,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('composer-minimized-bar')));
       await tester.pumpAndSettle();
 
-      // Steer & Follow-up buttons should now be visible
+      // Steer & Follow-up buttons are visible
       expect(find.text('Steer'), findsOneWidget);
       expect(find.text('Follow-up'), findsOneWidget);
       // Stop button should be visible
@@ -359,14 +365,8 @@ void main() {
 
     await tester.pump(const Duration(milliseconds: 50));
 
-    // Initially minimized while answering/working
-    expect(
-      find.byKey(const ValueKey('composer-minimized-bar')),
-      findsOneWidget,
-    );
-
-    // Tap minimized bar to expand
-    await tester.tap(find.byKey(const ValueKey('composer-minimized-bar')));
+    // The status line stays up while messages wait in the queue
+    expect(find.byKey(const ValueKey('composer-status-line')), findsOneWidget);
     await tester.pumpAndSettle();
 
     expect(
@@ -374,5 +374,42 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Svuota coda'), findsOneWidget);
+  });
+
+  testWidgets('Stopped worker shows recovery banner without a stop button', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sessionStateFamily('s_crash').overrideWith(
+            (ref) => SessionStateNotifier('s_crash', null)
+              ..state = const SessionState(
+                sessionId: 's_crash',
+                cwd: '/test',
+                // The partial stream survives the crash, so the session still looks streaming.
+                streamingTextBlocks: {0: 'About to crash...'},
+                agentStatus: AgentStatus.workerError,
+              ),
+          ),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.dark().copyWith(extensions: [FrameTokens.dark]),
+          home: const Scaffold(body: Composer(sessionId: 's_crash')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // No run is active: no status line, and no stop, steer or follow-up.
+    expect(find.byKey(const ValueKey('composer-status-line')), findsNothing);
+    expect(find.byIcon(Icons.stop_circle_outlined), findsNothing);
+    expect(find.byKey(const ValueKey('composer-steer-btn')), findsNothing);
+    expect(find.byKey(const ValueKey('composer-followup-btn')), findsNothing);
+
+    // The recovery action keeps its visible text label, and send remains available.
+    expect(find.byKey(const ValueKey('composer-crash-banner')), findsOneWidget);
+    expect(find.text('Riprendi sessione'), findsOneWidget);
+    expect(find.byKey(const ValueKey('composer-send-btn')), findsOneWidget);
   });
 }

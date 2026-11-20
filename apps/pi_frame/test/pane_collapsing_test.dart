@@ -48,7 +48,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify Repository pane collapse button exists
-    final repoCollapseBtn = find.byTooltip('Collassa pannello Repository');
+    final repoCollapseBtn = find.byTooltip('Collassa pannello repository');
     expect(repoCollapseBtn, findsOneWidget);
 
     // Click collapse button on Repository pane
@@ -65,10 +65,10 @@ void main() {
     await tester.pumpAndSettle();
 
     // Repository pane is expanded again
-    expect(find.byTooltip('Collassa pannello Repository'), findsOneWidget);
+    expect(find.byTooltip('Collassa pannello repository'), findsOneWidget);
 
     // Verify Git Changes pane collapse button exists
-    final gitCollapseBtn = find.byTooltip('Collassa pannello Git Changes');
+    final gitCollapseBtn = find.byTooltip('Collassa pannello Git changes');
     expect(gitCollapseBtn, findsOneWidget);
 
     // Click collapse button on Git Changes pane
@@ -76,15 +76,15 @@ void main() {
     await tester.pumpAndSettle();
 
     // Collapsed strip for Git Changes should be visible
-    expect(find.text('GIT CHANGES'), findsOneWidget);
-    final gitExpandBtn = find.byTooltip('Espandi pannello Git Changes');
+    expect(find.text('MODIFICHE GIT'), findsOneWidget);
+    final gitExpandBtn = find.byTooltip('Espandi pannello Modifiche Git');
     expect(gitExpandBtn, findsOneWidget);
 
     // Tap expand button to restore Git Changes pane
     await tester.tap(gitExpandBtn);
     await tester.pumpAndSettle();
 
-    expect(find.byTooltip('Collassa pannello Git Changes'), findsOneWidget);
+    expect(find.byTooltip('Collassa pannello Git changes'), findsOneWidget);
   });
 
   testWidgets('Sessions sidebar can collapse and expand using arrow icon', (
@@ -248,7 +248,7 @@ void main() {
         await tester.pumpAndSettle();
         if (!preOpened) {
           expect(
-            find.byTooltip('Collassa pannello Git Changes'),
+            find.byTooltip('Collassa pannello Git changes'),
             findsOneWidget,
           );
           await tester.tap(
@@ -261,7 +261,87 @@ void main() {
           find.byKey(const ValueKey('agent-activity-panel')),
           findsOneWidget,
         );
-        expect(find.byTooltip('Espandi pannello Git Changes'), findsOneWidget);
+        expect(find.byTooltip('Espandi pannello Modifiche Git'), findsOneWidget);
+      },
+    );
+  }
+
+  // Pane transitions (task 7.3). The entering pane is laid out at its final
+  // width inside a clipped slot, so its width does not change while the slot
+  // grows; reduced motion keeps the final layout and cross-fades the content.
+  for (final reduced in [false, true]) {
+    testWidgets(
+      'expanding a collapsed pane keeps its final width during the transition '
+      '(reduced: $reduced)',
+      (tester) async {
+        tester.view.physicalSize = const Size(1920, 1080);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() => tester.view.resetPhysicalSize());
+
+        final container = ProviderContainer(
+          overrides: [
+            desktopWindowLifecycleProvider.overrideWithValue(false),
+            desktopChromeProvider.overrideWithValue(false),
+            activeSessionIdProvider.overrideWith((ref) => 'session_1'),
+            connectionStateProvider.overrideWith(
+              (ref) => Stream.value(DaemonConnectionState.connected),
+            ),
+            sessionStateFamily('session_1').overrideWith(
+              (ref) => SessionStateNotifier(
+                'session_1',
+                null,
+              )..state = const SessionState(
+                sessionId: 'session_1',
+                cwd: 'C:/repo',
+              ),
+            ),
+            repositoryStateProvider(
+              'session_1',
+            ).overrideWith((ref) => RepositoryController('session_1', () => null)),
+          ],
+        );
+        addTearDown(container.dispose);
+
+        await tester.pumpWidget(
+          UncontrolledProviderScope(
+            container: container,
+            child: MaterialApp(
+              builder: (context, child) => MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  disableAnimations: reduced,
+                ),
+                child: child!,
+              ),
+              home: const AppShell(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final card = find.byKey(
+          const ValueKey('pane-enter-WorkspacePane.repository'),
+        );
+        await tester.tap(find.byTooltip('Collassa pannello repository'));
+        await tester.pumpAndSettle();
+        expect(card, findsNothing);
+
+        await tester.tap(find.byTooltip('Espandi pannello Repository'));
+        await tester.pump(const Duration(milliseconds: 60));
+        final midWidth = tester.getSize(card).width;
+        final midSlot = tester.getSize(find.ancestor(
+          of: card,
+          matching: find.byType(ClipRect),
+        ).first).width;
+
+        await tester.pumpAndSettle();
+        final finalWidth = tester.getSize(card).width;
+        expect(finalWidth, greaterThan(200));
+        // No reflow: the card keeps its final width during the transition.
+        expect(midWidth, closeTo(finalWidth, 0.5));
+        if (!reduced) {
+          // The slot itself is still growing at 60 ms.
+          expect(midSlot, lessThan(finalWidth));
+        }
       },
     );
   }

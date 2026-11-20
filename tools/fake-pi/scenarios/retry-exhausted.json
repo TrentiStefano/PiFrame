@@ -1,0 +1,133 @@
+{
+  "name": "retry-exhausted",
+  "description": "Three failed retries with a final provider error.",
+  "events": [
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_start"
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "turn_start"
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "user",
+          "content": "{{prompt}}",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "user",
+          "content": "{{prompt}}",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "auto_retry_start",
+        "attempt": 1,
+        "maxAttempts": 3,
+        "delayMs": 100,
+        "errorMessage": "Provider request failed on attempt 1"
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "auto_retry_end",
+        "success": false,
+        "attempt": 1
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "auto_retry_start",
+        "attempt": 2,
+        "maxAttempts": 3,
+        "delayMs": 200,
+        "errorMessage": "Provider request failed on attempt 2"
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "auto_retry_end",
+        "success": false,
+        "attempt": 2
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "auto_retry_start",
+        "attempt": 3,
+        "maxAttempts": 3,
+        "delayMs": 300,
+        "errorMessage": "Provider request failed on attempt 3"
+      }
+    },
+    {
+      "delayMs": 10,
+      "event": {
+        "type": "auto_retry_end",
+        "success": false,
+        "attempt": 3,
+        "finalError": "429 Too Many Requests: retry limit reached"
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "turn_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": ""
+            }
+          ]
+        },
+        "toolResults": []
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_end",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "text",
+                "text": ""
+              }
+            ]
+          }
+        ],
+        "willRetry": false
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_settled"
+      }
+    }
+  ]
+}

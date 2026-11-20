@@ -203,6 +203,42 @@ void main() {
     ]);
   });
 
+  test('stopSubagent asks the daemon to stop the agent, not the main agent', () async {
+    final result = client.stopSubagent('parent', 'agent-1');
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(commands.single['type'], 'session.stopSubagent');
+    expect(commands.single['sessionId'], 'parent');
+    expect(commands.single['payload'], {'agentId': 'agent-1'});
+    socket.add(jsonEncode({
+      'kind': 'result',
+      'commandId': commands.single['commandId'],
+      'payload': {
+        'state': 'completed',
+        'data': {'stopped': false, 'reason': 'Agent is not running'},
+      },
+    }));
+    expect(await result, {'stopped': false, 'reason': 'Agent is not running'});
+  });
+
+  test('subagents come with the live state of the worker', () async {
+    final result = client.getSubagentsWithLive('parent');
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    socket.add(jsonEncode({
+      'kind': 'result',
+      'commandId': commands.single['commandId'],
+      'payload': {
+        'state': 'completed',
+        'data': {
+          'subagents': const [],
+          'live': {'anyRunning': false, 'idleSince': 5, 'workerAlive': true},
+        },
+      },
+    }));
+    final response = await result;
+    expect(response.subagents, isEmpty);
+    expect(response.live['anyRunning'], false);
+  });
+
   test('subagents propagate failed responses instead of returning empty', () async {
     final result = client.getSubagents('parent');
     final assertion = expectLater(result, throwsA(isA<StateError>()));

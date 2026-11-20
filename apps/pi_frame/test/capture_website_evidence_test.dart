@@ -202,6 +202,11 @@ class ThemeTokensController {
   };
 
   @override
+  Future<({List<Map<String, dynamic>> subagents, Map<String, dynamic> live})>
+  getSubagentsWithLive(String sessionId) async =>
+      (subagents: await getSubagents(sessionId), live: const <String, dynamic>{});
+
+  @override
   Future<List<Map<String, dynamic>>> getSubagents(String sessionId) async => [];
 
   // Answer the defaults lookups so their timeout timers do not outlive the test.
@@ -488,13 +493,13 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
 
     // Expand Git Changes Pane
-    final gitHeader = find.textContaining('GIT CHANGES');
+    final gitHeader = find.textContaining('MODIFICHE GIT');
     if (gitHeader.evaluate().isNotEmpty) {
       await tester.tap(gitHeader.first);
       await tester.pump(const Duration(milliseconds: 200));
     }
 
-    final stagedHeader = find.textContaining('MODIFICHE PREPARATE (STAGED)');
+    final stagedHeader = find.textContaining('MODIFICHE IN STAGE');
     if (stagedHeader.evaluate().isNotEmpty) {
       await tester.tap(stagedHeader.first);
       await tester.pump(const Duration(milliseconds: 200));
@@ -650,7 +655,12 @@ void main() {
                 child: SizedBox(
                   width: 680,
                   height: 480,
-                  child: const CommandPalette(),
+                  child: Consumer(
+                    builder: (context, ref, _) => CommandPalette(
+                      hostContext: context,
+                      hostRef: ref,
+                    ),
+                  ),
                 ),
               ),
             ),

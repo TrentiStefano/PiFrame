@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -39,7 +41,7 @@ class _TestSessionChangesNotifier extends StateNotifier<SessionChangesState>
   String get sessionId => 'session_1';
 
   @override
-  Future<void> refresh() async {}
+  Future<void> refresh({bool joinRunning = false}) async {}
 
   @override
   Future<void> fetchFileDiff(String filePath) async {}
@@ -168,6 +170,45 @@ index ccb1dd3..d31323b 100644
       expect(errorState.totalAdditions, 0);
       expect(errorState.error, contains('workspace refresh failed'));
     });
+
+    test('refreshes during a running refresh collapse into one follow-up; joiners add none', () async {
+      var calls = 0;
+      final gates = <Completer<void>>[];
+      final client = _ReviewWorkspaceClient(() async {
+        calls += 1;
+        final gate = Completer<void>();
+        gates.add(gate);
+        await gate.future;
+        return {'data': {'files': [{'path': 'f$calls.dart', 'additions': 1, 'deletions': 0, 'status': 'modified'}]}};
+      });
+      final container = ProviderContainer(
+        overrides: [
+          pcpClientProvider.overrideWithValue(client),
+          sessionStateFamily('session_review').overrideWith(
+            (ref) => SessionStateNotifier('session_review', null)..state = touchedSession(),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final notifier = container.read(sessionChangesProvider('session_review').notifier);
+      await Future<void>.delayed(Duration.zero);
+      expect(calls, 1); // started by the notifier itself
+
+      final joined = notifier.refresh(joinRunning: true); // the pane opening
+      final first = notifier.refresh(); // e.g. agent became idle
+      final second = notifier.refresh(); // e.g. touched files changed
+      expect(calls, 1);
+
+      gates[0].complete();
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+      expect(calls, 2); // one follow-up for both requests
+      gates[1].complete();
+      await Future.wait([joined, first, second]);
+      expect(calls, 2);
+      // The follow-up result wins, so changes made during the first refresh are shown.
+      expect(container.read(sessionChangesProvider('session_review')).files.single.path, 'f2.dart');
+    });
   });
 
   group('Review Changes UI tests', () {
@@ -233,7 +274,8 @@ index ccb1dd3..d31323b 100644
         // The "Review changes" button should be visible on the left side of the "Invia" button
         final reviewBtnFinder = find.byKey(const ValueKey('review-changes-btn'));
         expect(reviewBtnFinder, findsOneWidget);
-        expect(find.text('Review changes'), findsOneWidget);
+        // Narrow rows show the icon; the tooltip names the action (the label appears on wide rows).
+        expect(find.byTooltip('Rivedi modifiche ai file'), findsOneWidget);
         expect(find.text('Invia'), findsOneWidget);
 
         // Verify button position: Review changes button should be to the left of Invia
@@ -302,7 +344,7 @@ index ccb1dd3..d31323b 100644
         await tester.pumpAndSettle();
 
         // Title and count
-        expect(find.text('Review Changes'), findsOneWidget);
+        expect(find.text('Rivedi modifiche'), findsOneWidget);
         expect(find.text('2'), findsOneWidget);
 
         // Files listed

@@ -31,10 +31,14 @@ class StepGroupExpansionState {
   /// what fills a small screen, and the user can still open it with a tap.
   bool isGroupExpanded({
     required String turnId,
+    String? groupId,
     required bool isRunning,
     required bool autoCollapse,
     bool compactDefault = false,
   }) {
+    if (groupId != null && groupOverrides.containsKey(groupId)) {
+      return groupOverrides[groupId]!;
+    }
     final userOverride = groupOverrides[turnId];
     if (userOverride != null) return userOverride;
     if (compactDefault) return false;
@@ -111,12 +115,14 @@ class StepGroupExpansionNotifier
   /// Evaluates effective group expansion state.
   bool isGroupExpanded({
     required String turnId,
+    String? groupId,
     required bool isRunning,
     required bool autoCollapse,
     bool compactDefault = false,
   }) {
     return state.isGroupExpanded(
       turnId: turnId,
+      groupId: groupId,
       isRunning: isRunning,
       autoCollapse: autoCollapse,
       compactDefault: compactDefault,
@@ -233,20 +239,6 @@ class StepGroupExpansionNotifier
       nextExpanded.remove(stepId);
     }
     state = state.copyWith(expandedStepIds: nextExpanded);
-  }
-
-  /// Clears override for a turn, returning it to default auto-collapse behavior.
-  void resetTurn(String turnId) {
-    if (state.groupOverrides.containsKey(turnId) ||
-        state.fullyExpandedGroups.contains(turnId)) {
-      final nextOverrides = Map<String, bool>.from(state.groupOverrides)
-        ..remove(turnId);
-      state = state.copyWith(
-        groupOverrides: nextOverrides,
-        fullyExpandedGroups: Set<String>.from(state.fullyExpandedGroups)
-          ..remove(turnId),
-      );
-    }
   }
 
   /// Clears all expansion state.

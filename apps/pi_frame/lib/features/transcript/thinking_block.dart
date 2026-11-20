@@ -1,5 +1,9 @@
+import 'dart:ui' show BoxWidthStyle;
+
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
+
+import '../../ui/motion.dart';
 import '../../data/language/strings_transcript.dart';
 
 class ThinkingBlock extends StatefulWidget {
@@ -91,18 +95,18 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
                 children: [
                   Icon(
                     Icons.psychology_outlined,
-                    size: 14,
+                    size: FrameSize.icon,
                     color: tokens.thinking,
                   ),
                   const SizedBox(width: 6),
                   Text(
                     strings.transcriptReasoning,
-                    style: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+                    style: TextStyle(fontSize: FrameText.of(context).caption.fontSize, fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(width: 8),
                   Text(
                     strings.transcriptWordsCount(words),
-                    style: TextStyle(color: tokens.textMuted, fontSize: 11),
+                    style: TextStyle(color: tokens.textMuted, fontSize: FrameText.of(context).caption.fontSize),
                   ),
                   if (MediaQuery.sizeOf(context).width > 700) ...[
                     const SizedBox(width: 10),
@@ -111,13 +115,13 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
                         _effectiveExpanded ? '' : firstLine,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: tokens.textMuted, fontSize: 11),
+                        style: TextStyle(color: tokens.textMuted, fontSize: FrameText.of(context).caption.fontSize),
                       ),
                     ),
                   ] else
                     const Spacer(),
                   Icon(
-                    _effectiveExpanded ? Icons.expand_less : Icons.expand_more,
+                    _effectiveExpanded ? Icons.expand_less_outlined : Icons.expand_more_outlined,
                     size: 15,
                     color: tokens.textSecondary,
                   ),
@@ -137,9 +141,10 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
             ),
             child: SelectableText(
               widget.thinkingText,
+              selectionWidthStyle: BoxWidthStyle.tight,
               style: TextStyle(
                 color: tokens.textSecondary,
-                fontSize: 12,
+                fontSize: FrameText.of(context).label.fontSize,
                 height: 1.5,
               ),
             ),
@@ -155,8 +160,8 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
             : AnimatedSize(
                 duration: MediaQuery.disableAnimationsOf(context)
                     ? Duration.zero
-                    : const Duration(milliseconds: 160),
-                curve: Curves.easeOutCubic,
+                    : FrameMotion.small,
+                curve: FrameMotion.enterCurve,
                 alignment: Alignment.topCenter,
                 child: content,
               ),

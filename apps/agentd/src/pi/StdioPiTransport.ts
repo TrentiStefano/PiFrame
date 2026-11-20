@@ -1,10 +1,29 @@
-import { spawn, type ChildProcess } from 'node:child_process';
+import { execFile, spawn, type ChildProcess } from 'node:child_process';
+import { promisify } from 'node:util';
+import { access } from 'node:fs/promises';
 import { ulid } from 'ulid';
 import type { PiTransport } from './PiTransport.js';
 import type { PiCommand, PiResponse, PiEvent, TransportHealth, PiCapabilities, ExitInfo } from './piCommands.js';
 import { JsonlFramer } from './jsonlFramer.js';
 import { resolvePiLaunch } from './executable.js';
 import { getAugmentedEnv } from './env.js';
+import { parseWslPath } from '../workspace/gitClient.js';
+
+/**
+ * A \\wsl.localhost cwd is served by the WSL VM. When the VM has stopped (idle timeout, e.g. after sleep)
+ * CreateProcess cannot enter the folder and Node reports a misleading `spawn <node.exe> ENOENT`.
+ * `wsl.exe --exec true` is WSL's supported way to boot the distro before we spawn into it.
+ */
+export async function wakeWslWorkspace(cwd: string): Promise<void> {
+  const wsl = parseWslPath(cwd);
+  if (!wsl) return;
+  if (await access(cwd).then(() => true, () => false)) return; // reachable: skip the ~0.5s wsl.exe round trip
+  try {
+    await promisify(execFile)('wsl.exe', ['-d', wsl.distro, '--exec', 'true'], { timeout: 60_000, windowsHide: true });
+  } catch {
+    // Spawn below reports the real failure.
+  }
+}
 
 export interface StdioPiTransportOptions {
   executablePath: string;
@@ -65,6 +84,7 @@ export class StdioPiTransport implements PiTransport {
   public async start(opts: { cwd: string; args?: string[]; env?: Record<string, string> }): Promise<void> {
     const launch = resolvePiLaunch(this.executablePath, opts.args ?? []);
     const env = getAugmentedEnv({ ...opts.env, PI_FRAME: '1' });
+    await wakeWslWorkspace(opts.cwd);
     this.startedAt = Date.now();
     this.lastSeenMs = this.startedAt;
 
@@ -98,7 +118,9 @@ export class StdioPiTransport implements PiTransport {
 
     const spawned = new Promise<void>((resolve, reject) => {
       this.child!.once('spawn', resolve);
-      this.child!.once('error', (err) => {
+      this.child!.once('error', (err: NodeJS.ErrnoException) => {
+        // Windows reports an unreachable cwd as `spawn <exe> ENOENT`; name the folder so the error is actionable.
+        if (err.code === 'ENOENT') err.message += ` (cwd: ${opts.cwd})`;
         finishExit(null, null, err);
         reject(err);
       });

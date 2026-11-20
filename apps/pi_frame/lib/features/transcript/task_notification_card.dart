@@ -1,3 +1,5 @@
+import 'dart:ui' show BoxWidthStyle;
+
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
@@ -197,16 +199,20 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
               children: [
                 Icon(
                   Icons.hub_outlined,
-                  size: 15,
+                  size: FrameSize.icon,
                   color: statusColor,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  strings.taskNotifSubagentNotification,
-                  style: TextStyle(
-                    color: tokens.textPrimary,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+                Flexible(
+                  child: Text(
+                    strings.taskNotifSubagentNotification,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: tokens.textPrimary,
+                      fontSize: FrameText.of(context).label.fontSize,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
@@ -225,7 +231,7 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
                       data.status.toUpperCase(),
                       style: TextStyle(
                         color: statusColor,
-                        fontSize: 10,
+                        fontSize: FrameText.of(context).caption.fontSize,
                         fontWeight: FontWeight.bold,
                       ),
                       maxLines: 1,
@@ -251,8 +257,8 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
                       Padding(
                         padding: const EdgeInsets.only(top: 2),
                         child: Icon(
-                          Icons.format_quote_rounded,
-                          size: 14,
+                          Icons.format_quote_outlined,
+                          size: FrameSize.icon,
                           color: tokens.accent,
                         ),
                       ),
@@ -262,7 +268,7 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
                           data.summary,
                           style: TextStyle(
                             color: tokens.textPrimary,
-                            fontSize: 12.5,
+                            fontSize: FrameText.of(context).label.fontSize,
                             fontWeight: FontWeight.w600,
                             height: 1.4,
                           ),
@@ -288,7 +294,7 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
                             durationText,
                             style: TextStyle(
                               color: tokens.textMuted,
-                              fontSize: 10.5,
+                              fontSize: FrameText.of(context).caption.fontSize,
                               fontFamily: tokens.monoFontFamily,
                             ),
                           ),
@@ -298,13 +304,13 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.data_usage, size: 12, color: tokens.textMuted),
+                          Icon(Icons.data_usage_outlined, size: 12, color: tokens.textMuted),
                           const SizedBox(width: 3),
                           Text(
                             '$tokensText tok',
                             style: TextStyle(
                               color: tokens.textMuted,
-                              fontSize: 10.5,
+                              fontSize: FrameText.of(context).caption.fontSize,
                               fontFamily: tokens.monoFontFamily,
                             ),
                           ),
@@ -320,7 +326,7 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
                             '${data.toolUses} tool uses',
                             style: TextStyle(
                               color: tokens.textMuted,
-                              fontSize: 10.5,
+                              fontSize: FrameText.of(context).caption.fontSize,
                               fontFamily: tokens.monoFontFamily,
                             ),
                           ),
@@ -336,7 +342,7 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
                             strings.taskNotifContextPercent(data.contextPercent!),
                             style: TextStyle(
                               color: tokens.textMuted,
-                              fontSize: 10.5,
+                              fontSize: FrameText.of(context).caption.fontSize,
                               fontFamily: tokens.monoFontFamily,
                             ),
                           ),
@@ -366,29 +372,37 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Row(
-                                  children: [
-                                    Icon(
-                                      Icons.terminal_outlined,
-                                      size: 13,
-                                      color: tokens.textSecondary,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Text(
-                                      strings.taskNotifOperationResult,
-                                      style: TextStyle(
+                                Flexible(
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        Icons.terminal_outlined,
+                                        size: 13,
                                         color: tokens.textSecondary,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600,
                                       ),
-                                    ),
-                                  ],
+                                      const SizedBox(width: 6),
+                                      Flexible(
+                                        child: Text(
+                                          strings.taskNotifOperationResult,
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            color: tokens.textSecondary,
+                                            fontSize: FrameText.of(context).caption.fontSize,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                                 ),
+                                const SizedBox(width: 8),
                                 Icon(
                                   _isResultExpanded
-                                      ? Icons.keyboard_arrow_up
-                                      : Icons.keyboard_arrow_down,
-                                  size: 16,
+                                      ? Icons.keyboard_arrow_up_outlined
+                                      : Icons.keyboard_arrow_down_outlined,
+                                  size: FrameSize.icon,
                                   color: tokens.textMuted,
                                 ),
                               ],
@@ -401,9 +415,10 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
                             padding: const EdgeInsets.all(10),
                             child: SelectableText(
                               data.result,
+                              selectionWidthStyle: BoxWidthStyle.tight,
                               style: TextStyle(
                                 color: tokens.textPrimary,
-                                fontSize: 11.5,
+                                fontSize: FrameText.of(context).caption.fontSize,
                                 fontFamily: tokens.monoFontFamily,
                                 height: 1.45,
                               ),
@@ -418,7 +433,7 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 color: tokens.textMuted,
-                                fontSize: 11,
+                                fontSize: FrameText.of(context).caption.fontSize,
                                 fontFamily: tokens.monoFontFamily,
                               ),
                             ),
@@ -434,12 +449,16 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      'ID: ${data.taskId}',
-                      style: TextStyle(
-                        color: tokens.textMuted,
-                        fontSize: 10,
-                        fontFamily: tokens.monoFontFamily,
+                    Flexible(
+                      child: Text(
+                        'ID: ${data.taskId}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: tokens.textMuted,
+                          fontSize: FrameText.of(context).caption.fontSize,
+                          fontFamily: tokens.monoFontFamily,
+                        ),
                       ),
                     ),
                     if (data.fullTranscriptPath != null &&
@@ -461,7 +480,7 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(
-                                Icons.open_in_new_rounded,
+                                Icons.open_in_new_outlined,
                                 size: 12,
                                 color: tokens.accent,
                               ),
@@ -470,7 +489,7 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
                                 strings.taskNotifOpenFullTranscript,
                                 style: TextStyle(
                                   color: tokens.accent,
-                                  fontSize: 11,
+                                  fontSize: FrameText.of(context).caption.fontSize,
                                   fontWeight: FontWeight.w600,
                                 ),
                               ),

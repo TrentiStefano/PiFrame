@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 import 'syntax_highlighter.dart';
@@ -14,6 +16,20 @@ class CodeEditorController extends TextEditingController {
     this.filePath,
     required this.tokens,
   });
+
+  /// 1-based first and last line covered by [selection] in [text]. A selection
+  /// that ends right after a newline does not count that newline's line.
+  static ({int start, int end}) selectedLineRange(
+    String text,
+    TextSelection selection,
+  ) {
+    final from = math.min(selection.start, selection.end);
+    final to = math.max(selection.start, selection.end);
+    final startLine = '\n'.allMatches(text.substring(0, from)).length + 1;
+    final endLine =
+        '\n'.allMatches(text.substring(0, math.max(from, to - 1))).length + 1;
+    return (start: startLine, end: endLine);
+  }
 
   List<TextRange> findMatches() {
     if (searchQuery.isEmpty || text.isEmpty) return const [];
@@ -39,11 +55,11 @@ class CodeEditorController extends TextEditingController {
   }) {
     if (text.isEmpty) return const TextSpan();
 
-    final baseStyle = style ??
-        TextStyle(
-          fontFamily: tokens.monoFontFamily,
-          fontSize: 12,
+    // Source mode: mono body, never link-styled.
+    final baseStyle =
+        (style ?? FrameText.of(context).monoBody).copyWith(
           color: tokens.textPrimary,
+          decoration: TextDecoration.none,
         );
 
     final lang = SyntaxHighlighter.inferLanguage(filePath);
@@ -154,7 +170,7 @@ class CodeEditorController extends TextEditingController {
       final matchText = line.substring(m.start, m.end);
       final matchHighlightBg = m.isCurrent
           ? tokens.accent
-          : tokens.warning.withValues(alpha: 0.35);
+          : tokens.accent.withValues(alpha: 0.25);
       final matchTextColor = m.isCurrent
           ? tokens.background
           : tokens.textPrimary;

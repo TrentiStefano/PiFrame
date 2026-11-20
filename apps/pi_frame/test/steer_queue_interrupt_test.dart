@@ -108,9 +108,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // Tap minimized bar to expand controls
-      await tester.tap(find.byKey(const ValueKey('composer-minimized-bar')));
-      await tester.pumpAndSettle();
+      // A queued steer keeps the field visible next to the status line
+      expect(find.byKey(const ValueKey('composer-input-area')), findsOneWidget);
 
       // Verify stop button is visible
       final stopBtn = find.byIcon(Icons.stop_circle_outlined);
@@ -137,7 +136,7 @@ void main() {
       await tester.enterText(find.byType(TextField), 'Fresh new prompt');
       await tester.pumpAndSettle();
 
-      final sendBtn = find.byIcon(Icons.arrow_upward);
+      final sendBtn = find.byIcon(Icons.arrow_upward_outlined);
       expect(sendBtn, findsOneWidget);
       await tester.tap(sendBtn);
       await tester.pumpAndSettle();

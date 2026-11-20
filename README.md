@@ -129,7 +129,7 @@ The installers include the PiFrame app, `pi-agentd` and the Node.js runtime it n
    ```
 2. **A model provider** configured in Pi (for example with `/login`).
 
-The full guide, in Italian, is in [docs/install.md](docs/install.md).
+The full installation and feature guide is in [docs/install.md](docs/install.md).
 
 ### Recommended Pi packages
 
@@ -224,7 +224,7 @@ pi --mode rpc   (your own Pi install, one process per open session)
 | **pi-agentd** | Runs Pi workers, logs and replays session events, Git and file access for the workspace | Draw any UI |
 | **Pi** | Models, tools, file changes, session history | Know that PiFrame exists (it is a normal RPC client) |
 
-More detail: [docs/security.md](docs/security.md), [docs/pi-compatibility.md](docs/pi-compatibility.md), [docs/theming.md](docs/theming.md).
+More detail: [docs/security.md](docs/security.md), [docs/pi-compatibility.md](docs/pi-compatibility.md), [docs/theming.md](docs/theming.md) and the architecture decision records in [docs/adr/](docs/adr/).
 
 ---
 
@@ -243,6 +243,8 @@ pnpm test:e2e
 # Smoke test against the real Pi CLI with a local mock model
 pnpm smoke:real-pi
 ```
+
+Before opening a pull request, run `pnpm run verify` (the same steps as the GitHub workflows, on your machine) or `pnpm run pr`. See [docs/pr-verification.md](docs/pr-verification.md). To drive the app off-screen with fake-pi, use the UI harness: [tools/harness/README.md](tools/harness/README.md).
 
 ---
 
@@ -267,7 +269,7 @@ PiFrame/
 │   ├── pi_frame_protocol/  # Generated Dart types for the app
 │   └── pi_frame_theme/  # Theme engine (JSON themes with inheritance)
 ├── website/             # Project website (GitHub Pages)
-├── docs/                # Install, security, theming, troubleshooting, design evidence
+├── docs/                # Install, security, theming, troubleshooting, ADRs, design evidence
 ├── tools/               # fake-pi, fault-proxy, codegen, packaging and showcase scripts
 └── test/e2e/            # End-to-end tests
 ```

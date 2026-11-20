@@ -1,0 +1,90 @@
+{
+  "name": "ui-question-preview",
+  "description": "Select dialog with numbered options and inline code previews.",
+  "events": [
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_start"
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "turn_start"
+      }
+    },
+    {
+      "event": {
+        "type": "message_start",
+        "message": {
+          "role": "user",
+          "content": "{{prompt}}",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "message_end",
+        "message": {
+          "role": "user",
+          "content": "{{prompt}}",
+          "timestamp": "{{now}}"
+        }
+      }
+    },
+    {
+      "event": {
+        "type": "extension_ui_request",
+        "id": "req_preview",
+        "method": "select",
+        "title": "Choose an implementation\n\n--- 1. Minimal preview ---\n```dart\nreturn const Feature();\n```\n\n--- 2. Expanded preview ---\n```dart\nclass Feature extends StatelessWidget {\n  const Feature({super.key});\n}\n```",
+        "options": [
+          "1. Minimal — Keep the change compact",
+          "2. Expanded — Add a small reusable widget"
+        ]
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "turn_end",
+        "message": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "The selected implementation is ready."
+            }
+          ]
+        },
+        "toolResults": []
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_end",
+        "messages": [
+          {
+            "role": "assistant",
+            "content": [
+              {
+                "type": "text",
+                "text": "The selected implementation is ready."
+              }
+            ]
+          }
+        ],
+        "willRetry": false
+      }
+    },
+    {
+      "delayMs": 5,
+      "event": {
+        "type": "agent_settled"
+      }
+    }
+  ]
+}

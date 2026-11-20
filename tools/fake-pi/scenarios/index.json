@@ -1,0 +1,251 @@
+[
+  {
+    "name": "hello-world",
+    "description": "Basic text, tool history and successful reply.",
+    "covers": [
+      "transcript",
+      "tool calls"
+    ]
+  },
+  {
+    "name": "with-thinking",
+    "description": "Thinking stream followed by assistant text.",
+    "covers": [
+      "thinking",
+      "transcript"
+    ]
+  },
+  {
+    "name": "tool-call",
+    "description": "Single tool call with progress and result.",
+    "covers": [
+      "tool timeline",
+      "tool progress"
+    ]
+  },
+  {
+    "name": "parallel-tools",
+    "description": "Two tool calls executed in one turn.",
+    "covers": [
+      "parallel tools",
+      "tool timeline"
+    ]
+  },
+  {
+    "name": "retry-then-success",
+    "description": "Provider retry followed by a successful answer.",
+    "covers": [
+      "retry state"
+    ]
+  },
+  {
+    "name": "compaction",
+    "description": "Standalone compaction lifecycle events.",
+    "covers": [
+      "compaction"
+    ]
+  },
+  {
+    "name": "ui-confirm",
+    "description": "Extension confirmation dialog request.",
+    "covers": [
+      "extension UI",
+      "confirm dialog"
+    ]
+  },
+  {
+    "name": "ui-select-timeout",
+    "description": "Select dialog request with a timeout.",
+    "covers": [
+      "extension UI",
+      "select dialog"
+    ]
+  },
+  {
+    "name": "crash-mid-stream",
+    "description": "Process exits during a streamed response.",
+    "covers": [
+      "worker recovery",
+      "streaming"
+    ]
+  },
+  {
+    "name": "malformed-line",
+    "description": "Malformed JSONL followed by a valid event.",
+    "covers": [
+      "protocol diagnostics"
+    ]
+  },
+  {
+    "name": "slow-stream",
+    "description": "Progressive token stream for live rendering and abort checks.",
+    "covers": [
+      "streaming",
+      "abort"
+    ]
+  },
+  {
+    "name": "huge-output",
+    "description": "Large assistant output for rendering limits.",
+    "covers": [
+      "large output"
+    ]
+  },
+  {
+    "name": "provider-error",
+    "description": "Empty provider error marks the user prompt failed.",
+    "covers": [
+      "failed user prompt",
+      "provider error"
+    ]
+  },
+  {
+    "name": "provider-error-after-reply",
+    "description": "Partial assistant reply followed by a terminal provider error.",
+    "covers": [
+      "provider error",
+      "partial reply"
+    ]
+  },
+  {
+    "name": "retry-exhausted",
+    "description": "Three failed retries with a final provider error.",
+    "covers": [
+      "retry state",
+      "failed user prompt"
+    ]
+  },
+  {
+    "name": "aborted-turn",
+    "description": "Partial assistant text ends with an aborted stop reason.",
+    "covers": [
+      "abort",
+      "partial reply"
+    ]
+  },
+  {
+    "name": "edit-files",
+    "description": "Writes a source file and returns a parsed unified diff for review.",
+    "covers": [
+      "file writing",
+      "diff preview",
+      "review changes"
+    ]
+  },
+  {
+    "name": "subagents",
+    "description": "Two background agents show progress, then agent and workflow notifications complete.",
+    "covers": [
+      "subagents",
+      "workflows",
+      "background progress",
+      "task notifications"
+    ]
+  },
+  {
+    "name": "todos",
+    "description": "Todo calls create tasks and move them through pending, in progress and completed.",
+    "covers": [
+      "todos",
+      "task status"
+    ]
+  },
+  {
+    "name": "ui-input",
+    "description": "Extension input dialog with a placeholder and prefilled value.",
+    "covers": [
+      "extension UI",
+      "input dialog"
+    ]
+  },
+  {
+    "name": "ui-editor",
+    "description": "Extension editor dialog with prefilled multiline text.",
+    "covers": [
+      "extension UI",
+      "editor dialog"
+    ]
+  },
+  {
+    "name": "ui-question-preview",
+    "description": "Select dialog with numbered options and inline code previews.",
+    "covers": [
+      "extension UI",
+      "select dialog",
+      "option previews"
+    ]
+  },
+  {
+    "name": "ui-status-widgets",
+    "description": "Sends non-blocking notifications and updates extension status, widget and title.",
+    "covers": [
+      "extension UI",
+      "notifications",
+      "status",
+      "widgets",
+      "title"
+    ]
+  },
+  {
+    "name": "rich-content",
+    "description": "Markdown, fenced code, links, path mention and a valid tiny PNG image block.",
+    "covers": [
+      "markdown",
+      "code blocks",
+      "image content"
+    ]
+  },
+  {
+    "name": "transcript-entries",
+    "description": "Adds bash failure, compaction summary, branch summary and visible custom entry.",
+    "covers": [
+      "transcript entries",
+      "bash output",
+      "milestones"
+    ]
+  },
+  {
+    "name": "context-high",
+    "description": "Usage reaches about 92 percent of a 128k context before compaction.",
+    "covers": [
+      "context usage",
+      "compaction"
+    ]
+  },
+  {
+    "name": "session-tree",
+    "description": "Provides a branched session tree and entries with an active leaf.",
+    "covers": [
+      "session tree",
+      "branches"
+    ]
+  },
+  {
+    "name": "long-history",
+    "description": "Static snapshot contains 150 alternating user, assistant tool-call and tool-result messages.",
+    "covers": [
+      "long history",
+      "transcript scrolling",
+      "tool calls"
+    ]
+  },
+  {
+    "name": "slash-commands",
+    "description": "Static command catalog spans prompt, skill and extension sources.",
+    "covers": [
+      "slash commands",
+      "command sources",
+      "argument hints"
+    ]
+  },
+  {
+    "name": "steer-queue",
+    "description": "Slow 30-second stream for steering, follow-up queue and abort checks.",
+    "covers": [
+      "steer queue",
+      "follow-up queue",
+      "abort",
+      "slow streaming"
+    ]
+  }
+]

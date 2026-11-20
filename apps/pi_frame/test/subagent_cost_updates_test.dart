@@ -23,6 +23,15 @@ class _CostClient extends PcpClient {
   @override
   DaemonConnectionState get state => DaemonConnectionState.connected;
 
+  // Session names now come from the session list; answer it so no 8 s timeout stays pending.
+  @override
+  Future<Map<String, dynamic>> listSessions({String? query, int? limit}) async => {'sessions': []};
+
+  @override
+  Future<({List<Map<String, dynamic>> subagents, Map<String, dynamic> live})>
+  getSubagentsWithLive(String sessionId) async =>
+      (subagents: await getSubagents(sessionId), live: const <String, dynamic>{});
+
   @override
   Future<List<Map<String, dynamic>>> getSubagents(String sessionId) async {
     calls++;
@@ -48,6 +57,14 @@ class _SlowSubagentsClient extends PcpClient {
 
   @override
   DaemonConnectionState get state => DaemonConnectionState.connected;
+
+  @override
+  Future<Map<String, dynamic>> listSessions({String? query, int? limit}) async => {'sessions': []};
+
+  @override
+  Future<({List<Map<String, dynamic>> subagents, Map<String, dynamic> live})>
+  getSubagentsWithLive(String sessionId) async =>
+      (subagents: await getSubagents(sessionId), live: const <String, dynamic>{});
 
   @override
   Future<List<Map<String, dynamic>>> getSubagents(String sessionId) {
@@ -510,6 +527,7 @@ void main() {
       ),
     ));
     await tester.pumpAndSettle();
+    await tester.ensureVisible(find.textContaining('\$0.0200'));
     await tester.tap(find.textContaining('\$0.0200'));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('cost-breakdown-subagents-row')));
@@ -857,13 +875,15 @@ void main() {
     expect(container.read(subagentsFamily('costs')).single.cost, 0.0175);
     expect(find.text('\$0.0175'), findsWidgets);
 
+    await tester.ensureVisible(find.textContaining('\$0.0200'));
+
     await tester.tap(find.textContaining('\$0.0200'));
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(
       find.byKey(const ValueKey('cost-breakdown-subagents-row')),
     );
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('Costi Subagenti & Modelli'), findsOneWidget);
+    expect(find.text('Costi subagenti & modelli'), findsOneWidget);
     expect(
       find.descendant(of: find.byType(Dialog), matching: find.text('\$0.0175')),
       findsNWidgets(2),

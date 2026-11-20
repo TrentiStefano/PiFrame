@@ -1,4 +1,5 @@
 import * as fs from 'node:fs';
+import { awaitSubagentStopped, resolveSubagentStatus, type SubagentRuntime } from './liveSubagents.js';
 import * as path from 'node:path';
 import { ulid } from 'ulid';
 import { Session } from './Session.js';
@@ -13,7 +14,7 @@ import { writeContextPolicy, deleteContextPolicy } from '../pi/contextPolicy.js'
 
 const SESSION_SUMMARY_FIELDS: (keyof SessionSummary)[] = [
   'id', 'name', 'cwd', 'gitRoot', 'sessionFile', 'createdAt', 'lastActivityAt',
-  'sizeBytes', 'messageCount', 'lastMessagePreview', 'isActive', 'parentSession',
+  'sizeBytes', 'messageCount', 'lastMessagePreview', 'firstUserPrompt', 'isActive', 'parentSession',
   'isSubsession', 'isProvisional'
 ];
 
@@ -287,7 +288,44 @@ export class SessionRegistry {
     unlinked?: boolean;
   }>> {
     const session = this.getSession(sessionId);
-    return this.index.getSubagents(sessionId, session?.sessionFile);
+    const subagents = await this.index.getSubagents(sessionId, session?.sessionFile);
+    const runtime = this.subagentRuntime(sessionId);
+    return subagents.map((agent) => {
+      const status = resolveSubagentStatus(agent, runtime);
+      return status === agent.status ? agent : { ...agent, status };
+    });
+  }
+
+  /** What the daemon knows about the process this session's agents run in. */
+  public subagentRuntime(sessionId: string): SubagentRuntime {
+    const session = this.getSession(sessionId);
+    const workerAlive = !!this.supervisor.liveWorker(sessionId);
+    return {
+      live: workerAlive ? session?.liveSubagents ?? null : null,
+      workerAlive,
+      workerGone: !workerAlive && session?.workerGoneAt != null,
+    };
+  }
+
+  /**
+   * Stops a background subagent through PiFrame's bridge in the worker, which
+   * calls pi-subagents' own stop (the one /agents uses). Resolves once the
+   * bridge reports the agent no longer running.
+   */
+  public async stopSubagent(sessionId: string, agentId: string, timeoutMs = 6000): Promise<{ stopped: boolean; reason?: string }> {
+    const session = this.getSession(sessionId);
+    const worker = this.supervisor.liveWorker(sessionId);
+    if (!session || !worker) {
+      // Background agents live inside the worker: without one, none runs.
+      return { stopped: true, reason: 'no-worker' };
+    }
+    if (!session.liveSubagents?.available) {
+      return { stopped: false, reason: 'PiFrame cannot reach pi-subagents in this session. Use /agents to stop it.' };
+    }
+    if (!/^[\w.:-]+$/.test(agentId)) throw new Error('Invalid subagent id');
+    await worker.send({ command: 'prompt', arguments: { message: `/piframe-subagent-stop ${agentId}` } });
+    const stopped = await awaitSubagentStopped(() => session.liveSubagents, agentId, timeoutMs);
+    return stopped ? { stopped: true } : { stopped: false, reason: 'pi-subagents did not confirm the stop.' };
   }
 
   public async createSession(opts: { cwd?: string; name?: string; announce?: boolean }): Promise<Session> {
@@ -376,9 +414,10 @@ export class SessionRegistry {
 
     // Pi RPC has no terminal attach API. Protect session files owned by interactive Pi.
     const terminalOwner = await this.refreshTerminalOwnership(session);
-    session.entries = this.index.readTranscript(found.sessionFile);
+    const text = await this.index.readSessionText(found.sessionFile);
+    session.entries = this.index.readTranscript(found.sessionFile, text);
     if (found.sessionFile) {
-      const meta = this.index.extractSessionMetadata(found.sessionFile);
+      const meta = this.index.extractSessionMetadata(found.sessionFile, text);
       if (meta.usage) session.usage = meta.usage;
       if (meta.model) session.model = meta.model;
       if (meta.thinkingLevel) session.thinkingLevel = meta.thinkingLevel;
@@ -486,9 +525,10 @@ export class SessionRegistry {
     if (session.sessionFile) {
       await this.refreshTerminalOwnership(session);
       if (session.readOnly || !session.worker) {
-        session.entries = this.index.readTranscript(session.sessionFile);
+        const text = await this.index.readSessionText(session.sessionFile);
+        session.entries = this.index.readTranscript(session.sessionFile, text);
         if (!session.usage || Object.keys(session.usage).length === 0) {
-          const meta = this.index.extractSessionMetadata(session.sessionFile);
+          const meta = this.index.extractSessionMetadata(session.sessionFile, text);
           if (meta.usage) session.usage = meta.usage;
           if (meta.model && !session.model) session.model = meta.model;
           if (meta.thinkingLevel && !session.thinkingLevel) session.thinkingLevel = meta.thinkingLevel;

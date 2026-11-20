@@ -72,35 +72,35 @@ class _MockPcpClient extends PcpClient {
             {
               'id': 'sess-1',
               'name': 'Audit Dart consumers e integrazione grafica Linux',
-              'cwd': 'C:/Personale/Repos/pi-crust',
+              'cwd': 'C:/Projects/pi-crust',
               'updatedAt': 1729586000000,
               'model': 'claude-3-7-sonnet',
             },
             {
               'id': 'sess-2',
               'name': 'Refactor UI Shell e navigazione pannelli',
-              'cwd': 'C:/Personale/Repos/pi-crust',
+              'cwd': 'C:/Projects/pi-crust',
               'updatedAt': 1729585000000,
               'model': 'claude-3-7-sonnet',
             },
             {
               'id': 'sess-3',
               'name': 'Aggiungere syntax highlighting e Ctrl+F search',
-              'cwd': 'C:/Personale/Repos/pi-crust',
+              'cwd': 'C:/Projects/pi-crust',
               'updatedAt': 1729584000000,
               'model': 'gpt-4o',
             },
             {
               'id': 'sess-4',
               'name': 'Ottimizzazione protocollo PCP e streaming token',
-              'cwd': 'C:/Personale/Repos/pi-crust',
+              'cwd': 'C:/Projects/pi-crust',
               'updatedAt': 1729583000000,
               'model': 'claude-3-7-sonnet',
             },
             {
               'id': 'sess-5',
               'name': 'Aggiornamento dipendenze e audit SAIF',
-              'cwd': 'C:/Personale/Repos/pi-crust',
+              'cwd': 'C:/Projects/pi-crust',
               'updatedAt': 1729582000000,
               'model': 'claude-3-5-sonnet',
             },
@@ -157,31 +157,31 @@ void main() {
               {
                 'id': 'sess-1',
                 'name': 'Audit Dart consumers e grafica Linux',
-                'cwd': 'C:/Personale/Repos/pi-crust',
+                'cwd': 'C:/Projects/pi-crust',
                 'updatedAt': 1729586000000,
               },
               {
                 'id': 'sess-2',
                 'name': 'Refactor UI Shell e navigazione pannelli',
-                'cwd': 'C:/Personale/Repos/pi-crust',
+                'cwd': 'C:/Projects/pi-crust',
                 'updatedAt': 1729585000000,
               },
               {
                 'id': 'sess-3',
                 'name': 'Aggiungere syntax highlighting e Ctrl+F search',
-                'cwd': 'C:/Personale/Repos/pi-crust',
+                'cwd': 'C:/Projects/pi-crust',
                 'updatedAt': 1729584000000,
               },
               {
                 'id': 'sess-4',
                 'name': 'Ottimizzazione protocollo PCP e streaming token',
-                'cwd': 'C:/Personale/Repos/pi-crust',
+                'cwd': 'C:/Projects/pi-crust',
                 'updatedAt': 1729583000000,
               },
               {
                 'id': 'sess-5',
                 'name': 'Aggiornamento dipendenze e audit SAIF',
-                'cwd': 'C:/Personale/Repos/pi-crust',
+                'cwd': 'C:/Projects/pi-crust',
                 'updatedAt': 1729582000000,
               },
             ]),
@@ -238,7 +238,7 @@ void main() {
             body: Center(
               child: RepaintBoundary(
                 key: boundaryKey,
-                child: const InstructionFileDialog(folder: 'C:/Personale/Repos/pi-crust'),
+                child: const InstructionFileDialog(folder: 'C:/Projects/pi-crust'),
               ),
             ),
           ),
@@ -413,7 +413,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(find.text('Lingua dell\'Applicazione'), findsOneWidget);
+    expect(find.text('Lingua dell\'applicazione'), findsOneWidget);
 
     await _captureToPng(tester, boundaryKey, '05_appearance_settings.png');
   });
