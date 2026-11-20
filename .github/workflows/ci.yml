@@ -37,6 +37,9 @@ jobs:
       - name: TypeScript formatting (Prettier)
         run: node tools/scripts/format.mjs --check ts
 
+      - name: Escape-hatch audit (baseline ratchet)
+        run: node tools/scripts/audit-escape-hatches.mjs
+
       - name: Verify Pi target recon
         run: node tools/recon/verify.ts
 

@@ -8,6 +8,7 @@ test('verify runs the full gate in order, including codegen parity and an explic
   assert.deepEqual(commandLines(stepList('verify')), [
     'pnpm install --frozen-lockfile',
     'node tools/scripts/format.mjs --check ts',
+    'node tools/scripts/audit-escape-hatches.mjs',
     'node tools/recon/verify.ts',
     'pnpm --filter @piframe/pcp-spec run test',
     'pnpm -r run build',
@@ -85,8 +86,9 @@ test('a release build without a platform or version is refused instead of buildi
 const FLUTTER_PROJECTS = ['packages/pi_frame_protocol', 'packages/pi_frame_theme', 'apps/pi_frame'];
 const check = (tests = []) => stepList('check', { tests, flutterProjects: FLUTTER_PROJECTS });
 
-test('check is the inner loop: build (for the workspace type declarations), type checking and flutter analyze', () => {
+test('check is the inner loop: escape-hatch audit, build (for the workspace type declarations), type checking and flutter analyze', () => {
   assert.deepEqual(commandLines(check()), [
+    'node tools/scripts/audit-escape-hatches.mjs',
     'pnpm -r run build',
     'pnpm -r run lint',
     'node tools/scripts/lint-flutter.js'
@@ -107,7 +109,7 @@ test('check runs a Dart test file with flutter test inside its project, after an
     'apps/pi_frame/test/widgets/bento_test.dart',
     'packages\\pi_frame_theme\\test\\theme_test.dart'
   ]);
-  assert.deepEqual(withCwd(steps).slice(3), [
+  assert.deepEqual(withCwd(steps).slice(4), [
     { command: 'flutter test test/widgets/bento_test.dart', cwd: 'apps/pi_frame' },
     { command: 'flutter test test/theme_test.dart', cwd: 'packages/pi_frame_theme' }
   ]);
@@ -115,7 +117,7 @@ test('check runs a Dart test file with flutter test inside its project, after an
 
 test('check runs a Node test file with node --test from the repository root', () => {
   const steps = check(['tools/guardrails/test/steps.test.mjs', 'tools/scripts/x.test.js', 'tools/a/b.test.cjs']);
-  assert.deepEqual(withCwd(steps).slice(3), [
+  assert.deepEqual(withCwd(steps).slice(4), [
     { command: 'node --test tools/guardrails/test/steps.test.mjs', cwd: undefined },
     { command: 'node --test tools/scripts/x.test.js', cwd: undefined },
     { command: 'node --test tools/a/b.test.cjs', cwd: undefined }

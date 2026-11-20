@@ -18,6 +18,11 @@ const GATE = [
     name: 'TypeScript formatting (Prettier)',
     command: ['node', 'tools/scripts/format.mjs', '--check', 'ts']
   },
+  {
+    job: 'node',
+    name: 'Escape-hatch audit (baseline ratchet)',
+    command: ['node', 'tools/scripts/audit-escape-hatches.mjs']
+  },
   { job: 'node', name: 'Verify Pi target recon', command: ['node', 'tools/recon/verify.ts'] },
   { job: 'node', name: 'PCP schema validation', command: ['pnpm', '--filter', '@piframe/pcp-spec', 'run', 'test'] },
   { job: 'node', name: 'Build TypeScript packages', command: ['pnpm', '-r', 'run', 'build'] },
@@ -102,8 +107,14 @@ export function stepList(tier, options = {}) {
   return steps;
 }
 
-/** The `check` tier: static analysis only, in the current working tree. */
+/** The `check` tier: the escape-hatch audit and static analysis only, in the current working tree. */
 const CHECK = [
+  // First: it needs only Node and fails in under a second when an escape hatch was added or removed.
+  {
+    job: 'node',
+    name: 'Escape-hatch audit (baseline ratchet)',
+    command: ['node', 'tools/scripts/audit-escape-hatches.mjs']
+  },
   // agentd and e2e type-check against the other workspace packages' dist/*.d.ts, so they must be built first.
   { job: 'node', name: 'Build TypeScript packages', command: ['pnpm', '-r', 'run', 'build'] },
   { job: 'node', name: 'TypeScript lint (tsc --noEmit)', command: ['pnpm', '-r', 'run', 'lint'] },
