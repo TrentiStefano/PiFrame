@@ -29,20 +29,28 @@ Options (they work for both commands; with `pnpm` they go after `--`):
 The steps come from one shared step list, `tools/guardrails/src/steps.mjs`. `verify` runs its `verify` tier, and `.github/workflows/ci.yml` (which runs on every pull request and on pushes to `main`) runs its `ci` tier: the same steps, split into a Node and a Flutter job. A parity test in `tools/guardrails` fails when `ci.yml` drifts from the list, so to add or change a check, edit the step list first and then copy the YAML the test prints.
 
 1. `pnpm install --frozen-lockfile`
-2. `node tools/recon/verify.ts`
-3. PCP schema validation
-4. `pnpm -r run build` (including the daemon bundle build)
-5. `pnpm -r run lint` (`tsc --noEmit` for every TypeScript package)
-6. codegen parity (`tools/codegen/generate.js`: schema, TypeScript and Dart command/event types match)
-7. `pnpm -r run test` (including the step-list and parity tests)
-8. `pnpm run check:notices`
-9. `pnpm run check:version` (synchronized versions)
-10. `check:agentd-bundle` and `smoke:agentd-bundle`
-11. Windows release-name tests
-12. Flutter dependencies (`tools/scripts/setup-flutter.js`)
-13. `flutter analyze` and `flutter test` on `pi_frame_protocol`, `pi_frame_theme` and `pi_frame`
-14. with `--release`: `flutter build web` and `flutter build <desktop>`
-15. with `--e2e`: emulated-iPhone test
+2. TypeScript/Node formatting (Prettier `--check`)
+3. `node tools/recon/verify.ts`
+4. PCP schema validation
+5. `pnpm -r run build` (including the daemon bundle build)
+6. `pnpm -r run lint` (`tsc --noEmit` for every TypeScript package)
+7. codegen parity (`tools/codegen/generate.js`: schema, TypeScript and Dart command/event types match)
+8. `pnpm -r run test` (including the step-list and parity tests)
+9. `pnpm run check:notices`
+10. `pnpm run check:version` (synchronized versions)
+11. `check:agentd-bundle` and `smoke:agentd-bundle`
+12. Windows release-name tests
+13. Flutter dependencies (`tools/scripts/setup-flutter.js`)
+14. Dart formatting (`dart format --set-exit-if-changed`)
+15. `flutter analyze` and `flutter test` on `pi_frame_protocol`, `pi_frame_theme` and `pi_frame`
+16. with `--release`: `flutter build web` and `flutter build <desktop>`
+17. with `--e2e`: emulated-iPhone test
+
+## Formatting
+
+`pnpm run format` formats everything; `pnpm run format -- dart` or `-- ts` does one language, and `pnpm run format:check` only checks (what steps 2 and 14 run). Dart uses `dart format` with page width 120 (set in each Dart project's `analysis_options.yaml`); TypeScript and Node tooling (`apps/agentd`, `packages/pcp-*`, `test/e2e`, `tools`) use Prettier with `.prettierrc.json`. `tools/recon/reference/` holds verbatim upstream files and is excluded (`.prettierignore`).
+
+The one-time reformat commit is listed in `.git-blame-ignore-revs`: GitHub skips it in blame views automatically; locally run `git config blame.ignoreRevsFile .git-blame-ignore-revs` once. **Other branches** that existed before the reformat: run `pnpm run format` on them and commit before merging, and most conflicts disappear.
 
 The full output is in `.git/verify-ci/last.log`. If a step fails, the script prints the last lines and stops: with `pnpm run pr`, nothing is pushed and no PR is opened.
 
