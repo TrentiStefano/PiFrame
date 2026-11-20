@@ -1,6 +1,6 @@
 # Local verification before a pull request
 
-After a merge into `main`, the GitHub workflows (`ci.yml` and `release.yml`) start. If they fail, they have already used runner minutes (Windows ×2, macOS ×10) and `main` is broken. These two commands run the same steps **on your machine**, before the PR.
+`ci.yml` checks every pull request, but the release workflow (`release.yml`, with its Windows and macOS installer builds) only starts after a merge into `main`: if it fails there, it has already used runner minutes (Windows ×2, macOS ×10) and `main` is broken. These two commands run the same steps **on your machine**, before the PR.
 
 ## Commands
 
@@ -26,21 +26,23 @@ Options (they work for both commands; with `pnpm` they go after `--`):
 
 `verify` checks the current **commit** (`HEAD`) merged with `origin/main`, in a temporary worktree next to the repository (`<repo>-verify-<pid>`, not in the system temp folder: some tests fail when the repository is there). It checks what `main` will be after the merge, not only your branch. If the merge with `origin/main` has conflicts, it stops and tells you.
 
-Steps (in the same order as the workflows):
+The steps come from one shared step list, `tools/guardrails/src/steps.mjs`. `verify` runs its `verify` tier, and `.github/workflows/ci.yml` (which runs on every pull request and on pushes to `main`) runs its `ci` tier: the same steps, split into a Node and a Flutter job. A parity test in `tools/guardrails` fails when `ci.yml` drifts from the list, so to add or change a check, edit the step list first and then copy the YAML the test prints.
 
 1. `pnpm install --frozen-lockfile`
 2. `node tools/recon/verify.ts`
 3. PCP schema validation
 4. `pnpm -r run build` (including the daemon bundle build)
-5. `pnpm -r run test`
-6. `pnpm run check:notices`
-7. `pnpm run check:version` (synchronized versions)
-8. `check:agentd-bundle` and `smoke:agentd-bundle`
-9. Windows release-name tests
-10. Flutter dependencies (`tools/scripts/setup-flutter.js`)
-11. `flutter analyze` and `flutter test` on `pi_frame_protocol`, `pi_frame_theme` and `pi_frame`
-12. with `--release`: `flutter build web` and `flutter build <desktop>`
-13. with `--e2e`: emulated-iPhone test
+5. `pnpm -r run lint` (`tsc --noEmit` for every TypeScript package)
+6. codegen parity (`tools/codegen/generate.js`: schema, TypeScript and Dart command/event types match)
+7. `pnpm -r run test` (including the step-list and parity tests)
+8. `pnpm run check:notices`
+9. `pnpm run check:version` (synchronized versions)
+10. `check:agentd-bundle` and `smoke:agentd-bundle`
+11. Windows release-name tests
+12. Flutter dependencies (`tools/scripts/setup-flutter.js`)
+13. `flutter analyze` and `flutter test` on `pi_frame_protocol`, `pi_frame_theme` and `pi_frame`
+14. with `--release`: `flutter build web` and `flutter build <desktop>`
+15. with `--e2e`: emulated-iPhone test
 
 The full output is in `.git/verify-ci/last.log`. If a step fails, the script prints the last lines and stops: with `pnpm run pr`, nothing is pushed and no PR is opened.
 

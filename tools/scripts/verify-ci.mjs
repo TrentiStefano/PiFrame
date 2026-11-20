@@ -20,7 +20,7 @@
 import { spawnSync, execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const IS_WIN = process.platform === 'win32';
@@ -166,49 +166,22 @@ if (!opt.noMerge) {
 }
 
 // ---------------------------------------------------------------------------
-// Steps (mirror .github/workflows/ci.yml and the release.yml validate/build jobs)
+// Steps: the shared step list (tools/guardrails), the same one ci.yml follows
 // ---------------------------------------------------------------------------
 
 const pkg = JSON.parse(fs.readFileSync(path.join(work, 'package.json'), 'utf8'));
-const appVersion = pkg.version;
-const flutterPlatform = { win32: 'windows', darwin: 'macos', linux: 'linux' }[process.platform];
-
-/** @type {{name: string, cmd: string, args: string[], cwd?: string, node?: boolean}[]} */
-const steps = [
-  { name: 'Install dependencies (frozen lockfile)', cmd: 'pnpm', args: ['install', '--frozen-lockfile'] },
-  { name: 'Verify Pi target recon', cmd: process.execPath, args: ['tools/recon/verify.ts'], node: true },
-  { name: 'PCP schema validation', cmd: 'pnpm', args: ['--filter', '@piframe/pcp-spec', 'run', 'test'] },
-  { name: 'Build TypeScript packages', cmd: 'pnpm', args: ['-r', 'run', 'build'] },
-  { name: 'Node tests (all packages)', cmd: 'pnpm', args: ['-r', 'run', 'test'] },
-  { name: 'Third-party notices up to date', cmd: 'pnpm', args: ['run', 'check:notices'] },
-  { name: 'Version metadata synchronized', cmd: 'pnpm', args: ['run', 'check:version'] },
-  { name: 'Daemon bundle contents', cmd: 'pnpm', args: ['run', 'check:agentd-bundle'] },
-  { name: 'Daemon bundle smoke test', cmd: 'pnpm', args: ['run', 'smoke:agentd-bundle'] },
-  { name: 'Windows release-name tests', cmd: process.execPath, args: ['--test', 'tools/scripts/test-windows-release-name.test.mjs'], node: true },
-  { name: 'Flutter dependencies', cmd: process.execPath, args: ['tools/scripts/setup-flutter.js'], node: true },
-  { name: 'Flutter analyze (all projects)', cmd: process.execPath, args: ['tools/scripts/lint-flutter.js'], node: true },
-  { name: 'Flutter tests (all projects)', cmd: process.execPath, args: ['tools/scripts/test-flutter.js'], node: true }
-];
-
-if (opt.release || opt.e2e) {
-  steps.push({
-    name: 'Build Flutter web app (as in the release job)',
-    cmd: 'flutter',
-    args: ['build', 'web', '--release', '--no-web-resources-cdn', '--pwa-strategy=none', `--dart-define=PI_FRAME_VERSION=${appVersion}`],
-    cwd: 'apps/pi_frame'
-  });
-}
-if (opt.release) {
-  steps.push({
-    name: `Build Flutter ${flutterPlatform} desktop app (as in the release job)`,
-    cmd: 'flutter',
-    args: ['build', flutterPlatform, '--release', '--build-name', appVersion, '--build-number', '1', `--dart-define=PI_FRAME_VERSION=${appVersion}`],
-    cwd: 'apps/pi_frame'
-  });
-}
-if (opt.e2e) {
-  steps.push({ name: 'Emulated-iPhone remote web test', cmd: process.execPath, args: ['tools/remote-e2e/remote-iphone-e2e.mjs'], node: true });
-}
+// Loaded from the worktree, so the steps are the ones of what `main` will be after the merge.
+const { stepList } = await import(pathToFileURL(path.join(work, 'tools/guardrails/src/index.mjs')).href);
+const steps = stepList('verify', {
+  release: opt.release,
+  e2e: opt.e2e,
+  platform: { win32: 'windows', darwin: 'macos', linux: 'linux' }[process.platform],
+  appVersion: pkg.version
+}).map(({ name, command: [program, ...args], cwd }) => {
+  // `node` steps run on this Node.js, without a shell; everything else goes through the shell on Windows (.cmd shims).
+  const node = program === 'node';
+  return { name, cmd: node ? process.execPath : program, args, cwd, node };
+});
 
 const logFile = path.join(stateDir, 'last.log');
 fs.writeFileSync(logFile, '');
