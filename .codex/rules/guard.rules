@@ -1,0 +1,50 @@
+# Codex project rules: agents cannot approve their own changes (#46).
+# The shared guard (tools/guardrails, guardCommand) is not callable from Codex rules, which match exact command
+# prefixes only, so labels are forbidden outright and the commands that can apply a label need your approval.
+# Codex validates the match/not_match examples when it loads this file (after the project is trusted).
+# Check by hand: codex execpolicy check --pretty --rules .codex/rules/guard.rules -- gh label delete wip
+
+prefix_rule(
+    pattern = ["gh", "label"],
+    decision = "forbidden",
+    justification = "Agents may not create, edit or delete labels; ask the human to change labels in GitHub.",
+    match = [
+        "gh label create human-approved",
+        "gh label edit wip --name human-approved",
+        "gh label delete ready-for-agent --yes",
+    ],
+    not_match = [
+        "gh issue create --label ready-for-agent",
+        "gh issue list --label ready-for-agent",
+    ],
+)
+
+prefix_rule(
+    pattern = ["gh", ["pr", "issue"], "edit"],
+    decision = "prompt",
+    justification = "Editing a PR or issue can apply the human-approved label, which only the human may apply. Check the labels before approving.",
+    match = [
+        "gh pr edit 999999 --add-label human-approved",
+        "gh issue edit 46 --add-label ready-for-agent",
+        "gh issue edit 41 --add-sub-issue 46",
+    ],
+    not_match = [
+        "gh pr view 12",
+        "gh issue create --label ready-for-agent",
+        "gh pr --repo TrentiStefano/PiFrame edit 1",
+    ],
+)
+
+prefix_rule(
+    pattern = ["gh", "api"],
+    decision = "prompt",
+    justification = "gh api can apply the human-approved label or edit labels. Check the call before approving.",
+    match = [
+        "gh api repos/TrentiStefano/PiFrame/issues/1/labels -f labels[]=human-approved",
+        "gh api --method POST repos/TrentiStefano/PiFrame/issues/46/dependencies/blocked_by -F issue_id=123",
+    ],
+    not_match = [
+        "gh issue view 46",
+        "gh auth status",
+    ],
+)

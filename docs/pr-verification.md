@@ -67,10 +67,10 @@ The steps come from one shared step list, `tools/guardrails/src/steps.mjs`. `ver
 8. codegen parity (`tools/codegen/generate.js`: schema, TypeScript and Dart command/event types match)
 9. `pnpm -r run test` (including the step-list and parity tests)
 10. `pnpm run check:notices`
-11. `pnpm run check:version` (synchronized versions)
-12. `check:agentd-bundle` and `smoke:agentd-bundle`
-13. Windows release-name tests
-14. Flutter dependencies (`tools/scripts/setup-flutter.js`)
+11. `check:agentd-bundle` and `smoke:agentd-bundle`
+12. Windows release-name tests
+13. Flutter dependencies (`tools/scripts/setup-flutter.js`; it also generates the in-app changelog)
+14. `node tools/scripts/check-version-sync.mjs` (synchronized versions, and the in-app changelog in check mode)
 15. Dart formatting (`dart format --set-exit-if-changed`)
 16. `flutter analyze` and `flutter test` on `pi_frame_protocol`, `pi_frame_theme` and `pi_frame`
 17. with `--release`: `flutter build web` and `flutter build <desktop>`
@@ -82,7 +82,23 @@ The steps come from one shared step list, `tools/guardrails/src/steps.mjs`. `ver
 
 The one-time reformat commit is listed in `.git-blame-ignore-revs`: GitHub skips it in blame views automatically; locally run `git config blame.ignoreRevsFile .git-blame-ignore-revs` once. **Other branches** that existed before the reformat: run `pnpm run format` on them and commit before merging, and most conflicts disappear.
 
+## In-app changelog
+
+`apps/pi_frame/assets/CHANGELOG.md` (the post-update popup) is a generated copy of the root `CHANGELOG.md` and is not committed. `node tools/scripts/sync-changelog.mjs` (`pnpm run sync:changelog`) writes it; `pnpm run setup`, `run:app`, `run:app:dev`, the packaging scripts and the release workflow run it before Flutter. Step 13 only checks it: a missing or stale copy fails with the command that fixes it, and nothing is written. If the version check fails after you pulled a new release, run that command (or `pnpm run setup`). The decision logic is `syncChangelog` in `tools/guardrails`.
+
 The full output is in `.git/verify-ci/last.log`. If a step fails, the script prints the last lines and stops: with `pnpm run pr`, nothing is pushed and no PR is opened.
+
+## Agent guard
+
+Agents use the maintainer's `gh` login, so GitHub cannot tell an agent's label click from the human's. A shared guard (`guardCommand` in `tools/guardrails`) blocks any `gh` invocation that mentions `human-approved` (any flag order or quoting, inside `sh -c`/`bash -c`, PowerShell and `gh api`) and `gh label create|edit|delete`. Everything else is allowed, including other labels, `--add-sub-issue`, `--add-blocked-by` and the dependency/sub-issue `gh api` calls in `docs/agents/issue-tracker.md`. A `gh` command that only mentions the label in prose (an issue body or comment) is blocked too: write the text to a file and pass `--body-file`.
+
+Each agent enforces it with its own mechanism, all committed:
+
+- **Claude Code**: `.claude/settings.json` has `permissions.deny` rules for the common forms (Bash and PowerShell tools) and a `PreToolUse` hook, `.claude/hooks/guard-command.mjs`, that calls the guard for every Bash/PowerShell command. Try it: `echo '{"tool_name":"Bash","tool_input":{"command":"gh pr edit 999999 --add-label human-approved"}}' | node .claude/hooks/guard-command.mjs`.
+- **pi**: `.pi/extensions/guard-command.ts` blocks `bash` and `powershell` tool calls the guard rejects. pi loads project extensions only after you trust the project.
+- **Codex**: `.codex/rules/guard.rules` forbids `gh label` and asks before `gh pr edit`, `gh issue edit` and `gh api` (Codex rules match exact prefixes only, so they cannot call the guard). Codex loads them only after you trust the project; check with `codex execpolicy check --pretty --rules .codex/rules/guard.rules -- gh label delete wip`.
+
+Git tracks `.claude/` except `skills/` (installer symlinks), `worktrees/` and `settings.local.json`, and `.pi/` only for `extensions/`. The guard is a speed bump, not a security boundary: an agent determined to call the GitHub API another way still can, which is why approval also expires on the next push and the human reviews the PR.
 
 ## Cache
 

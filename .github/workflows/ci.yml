@@ -61,9 +61,6 @@ jobs:
       - name: Third-party notices up to date
         run: pnpm run check:notices
 
-      - name: Version metadata synchronized
-        run: pnpm run check:version
-
       - name: Daemon bundle contents
         run: pnpm run check:agentd-bundle
 
@@ -86,6 +83,9 @@ jobs:
 
       - name: Flutter dependencies
         run: node tools/scripts/setup-flutter.js
+
+      - name: Version metadata and in-app changelog synchronized
+        run: node tools/scripts/check-version-sync.mjs
 
       - name: Dart formatting (dart format)
         run: node tools/scripts/format.mjs --check dart

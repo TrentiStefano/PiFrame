@@ -16,11 +16,11 @@ test('verify runs the full gate in order, including codegen parity and an explic
     'node tools/codegen/generate.js',
     'pnpm -r run test',
     'pnpm run check:notices',
-    'pnpm run check:version',
     'pnpm run check:agentd-bundle',
     'pnpm run smoke:agentd-bundle',
     'node --test tools/scripts/test-windows-release-name.test.mjs',
     'node tools/scripts/setup-flutter.js',
+    'node tools/scripts/check-version-sync.mjs',
     'node tools/scripts/format.mjs --check dart',
     'node tools/scripts/lint-flutter.js',
     'node tools/scripts/test-flutter.js'
@@ -67,6 +67,7 @@ test('ci runs exactly the verify gate, split into the node and flutter jobs', ()
   const byJob = (job) => commandLines(ci.filter((s) => s.job === job));
   assert.deepEqual(byJob('flutter'), [
     'node tools/scripts/setup-flutter.js',
+    'node tools/scripts/check-version-sync.mjs',
     'node tools/scripts/format.mjs --check dart',
     'node tools/scripts/lint-flutter.js',
     'node tools/scripts/test-flutter.js'

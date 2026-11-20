@@ -43,6 +43,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # The in-app changelog is generated from CHANGELOG.md, not committed; the Flutter tests need it.
+      - name: Generate in-app changelog
+        run: node tools/scripts/sync-changelog.mjs
+
       - name: Check synchronized versions
         run: pnpm run check:version
 
@@ -183,6 +187,18 @@ jobs:
 
       - name: Build daemon bundle
         run: pnpm --filter @piframe/agentd run build:bundle
+
+      # The in-app changelog is generated from CHANGELOG.md, not committed: generate it before any Flutter build,
+      # then check it so an installer can never ship without the latest release in the post-update popup.
+      # Tags up to 1.5.1 (rebuilt through workflow_dispatch) still commit the asset and have no sync script.
+      - name: Generate in-app changelog
+        shell: bash
+        run: |
+          if [[ -f tools/scripts/sync-changelog.mjs ]]; then
+            node tools/scripts/sync-changelog.mjs
+            node tools/scripts/sync-changelog.mjs --check
+          fi
+          test -s apps/pi_frame/assets/CHANGELOG.md
 
       - name: Build Flutter desktop app
         working-directory: apps/pi_frame

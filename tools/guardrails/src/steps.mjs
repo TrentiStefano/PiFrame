@@ -30,7 +30,6 @@ const GATE = [
   { job: 'node', name: 'Codegen parity (schema, TypeScript, Dart)', command: ['node', 'tools/codegen/generate.js'] },
   { job: 'node', name: 'Node tests (all packages)', command: ['pnpm', '-r', 'run', 'test'] },
   { job: 'node', name: 'Third-party notices up to date', command: ['pnpm', 'run', 'check:notices'] },
-  { job: 'node', name: 'Version metadata synchronized', command: ['pnpm', 'run', 'check:version'] },
   { job: 'node', name: 'Daemon bundle contents', command: ['pnpm', 'run', 'check:agentd-bundle'] },
   { job: 'node', name: 'Daemon bundle smoke test', command: ['pnpm', 'run', 'smoke:agentd-bundle'] },
   {
@@ -38,7 +37,14 @@ const GATE = [
     name: 'Windows release-name tests',
     command: ['node', '--test', 'tools/scripts/test-windows-release-name.test.mjs']
   },
+  // Flutter setup generates the in-app changelog (apps/pi_frame/assets/CHANGELOG.md, untracked) from CHANGELOG.md.
   { job: 'flutter', name: 'Flutter dependencies', command: ['node', 'tools/scripts/setup-flutter.js'] },
+  // Check mode: fails on a missing or stale in-app changelog and never writes. Runs after setup, which generates it.
+  {
+    job: 'flutter',
+    name: 'Version metadata and in-app changelog synchronized',
+    command: ['node', 'tools/scripts/check-version-sync.mjs']
+  },
   {
     job: 'flutter',
     name: 'Dart formatting (dart format)',

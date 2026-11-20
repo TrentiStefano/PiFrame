@@ -64,6 +64,10 @@ if (-not $SkipBuild) {
     pnpm --filter @piframe/agentd run build:bundle
     if ($LASTEXITCODE -ne 0) { throw "Building @piframe/agentd bundle failed" }
 
+    # The in-app changelog is generated from CHANGELOG.md, not committed.
+    node tools/scripts/sync-changelog.mjs
+    if ($LASTEXITCODE -ne 0) { throw "Generating the in-app changelog failed" }
+
     Write-Host "`n[2/4] Building Flutter desktop app (Windows Release)..." -ForegroundColor Yellow
     Push-Location 'apps/pi_frame'
     try {
