@@ -17,7 +17,7 @@ import { ensureSubagentContextLimitExtensionIfReferenced } from './pi/agents/sub
 import { enableDevFileLog, reportSlowCommand, startDevCpuProfile } from './config/devLog.js';
 import { getRuntimeDir } from './config/runtime.js';
 
-const VERSION = '1.5.0'; // x-release-please-version
+const VERSION = '1.5.1'; // x-release-please-version
 
 async function main() {
   // Dev builds only (PIFRAME_DEV_LOG=1): mirror logs and loop stalls into runtime/daemon.log.
