@@ -48,14 +48,10 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            todosFamily('session-1').overrideWith(
-              (ref) => _MockTodoNotifier(ref, 'session-1', initialTasks),
-            ),
+            todosFamily('session-1').overrideWith((ref) => _MockTodoNotifier(ref, 'session-1', initialTasks)),
           ],
           child: const MaterialApp(
-            home: Scaffold(
-              body: TodoPopDown(sessionId: 'session-1'),
-            ),
+            home: Scaffold(body: TodoPopDown(sessionId: 'session-1')),
           ),
         ),
       );
@@ -87,14 +83,11 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            todosFamily('session-desc-test').overrideWith(
-              (ref) => _MockTodoNotifier(ref, 'session-desc-test', initialTasks),
-            ),
+            todosFamily('session-desc-test')
+                .overrideWith((ref) => _MockTodoNotifier(ref, 'session-desc-test', initialTasks)),
           ],
           child: const MaterialApp(
-            home: Scaffold(
-              body: TodoPopDown(sessionId: 'session-desc-test'),
-            ),
+            home: Scaffold(body: TodoPopDown(sessionId: 'session-desc-test')),
           ),
         ),
       );
@@ -102,35 +95,26 @@ void main() {
       await tester.pumpAndSettle();
 
       // Description is initially not visible
-      expect(
-        find.text('Run flyway migration scripts for user table schema change'),
-        findsNothing,
-      );
+      expect(find.text('Run flyway migration scripts for user table schema change'), findsNothing);
 
       // Tap on the task row
       await tester.tap(find.byKey(const ValueKey('todo-item-row-1')));
       await tester.pumpAndSettle();
 
       // Description is now visible
-      expect(
-        find.text('Run flyway migration scripts for user table schema change'),
-        findsOneWidget,
-      );
+      expect(find.text('Run flyway migration scripts for user table schema change'), findsOneWidget);
     });
 
     testWidgets('collapsed TodoPopDown shows peek tab and expands on tap', (tester) async {
-      final initialTasks = [
-        const TodoItem(id: 1, subject: 'Fix bug', status: 'pending'),
-      ];
+      final initialTasks = [const TodoItem(id: 1, subject: 'Fix bug', status: 'pending')];
 
       bool expanded = false;
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            todosFamily('session-peek-test').overrideWith(
-              (ref) => _MockTodoNotifier(ref, 'session-peek-test', initialTasks),
-            ),
+            todosFamily('session-peek-test')
+                .overrideWith((ref) => _MockTodoNotifier(ref, 'session-peek-test', initialTasks)),
           ],
           child: StatefulBuilder(
             builder: (context, setState) {
@@ -173,9 +157,8 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            todosFamily('session-filter-test').overrideWith(
-              (ref) => _MockTodoNotifier(ref, 'session-filter-test', initialTasks),
-            ),
+            todosFamily('session-filter-test')
+                .overrideWith((ref) => _MockTodoNotifier(ref, 'session-filter-test', initialTasks)),
           ],
           child: const MaterialApp(
             home: Scaffold(
@@ -219,14 +202,11 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            todosFamily('session-badge-test').overrideWith(
-              (ref) => _MockTodoNotifier(ref, 'session-badge-test', initialTasks),
-            ),
+            todosFamily('session-badge-test')
+                .overrideWith((ref) => _MockTodoNotifier(ref, 'session-badge-test', initialTasks)),
           ],
           child: const MaterialApp(
-            home: Scaffold(
-              body: TodoPopDown(sessionId: 'session-badge-test'),
-            ),
+            home: Scaffold(body: TodoPopDown(sessionId: 'session-badge-test')),
           ),
         ),
       );
@@ -247,21 +227,16 @@ void main() {
     });
 
     testWidgets('bottom add task button reveals input field and submits task', (tester) async {
-      final initialTasks = [
-        const TodoItem(id: 1, subject: 'First Task', status: 'completed'),
-      ];
+      final initialTasks = [const TodoItem(id: 1, subject: 'First Task', status: 'completed')];
 
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            todosFamily('session-add-test').overrideWith(
-              (ref) => _MockTodoNotifier(ref, 'session-add-test', initialTasks),
-            ),
+            todosFamily('session-add-test')
+                .overrideWith((ref) => _MockTodoNotifier(ref, 'session-add-test', initialTasks)),
           ],
           child: const MaterialApp(
-            home: Scaffold(
-              body: TodoPopDown(sessionId: 'session-add-test'),
-            ),
+            home: Scaffold(body: TodoPopDown(sessionId: 'session-add-test')),
           ),
         ),
       );
@@ -329,9 +304,7 @@ void main() {
 
       // Simulate 30 rapid token stream chunks
       for (int i = 0; i < 30; i++) {
-        sessionNotifier.state = sessionNotifier.state.copyWith(
-          streamingTextBlocks: {0: 'Chunk $i'},
-        );
+        sessionNotifier.state = sessionNotifier.state.copyWith(streamingTextBlocks: {0: 'Chunk $i'});
       }
 
       // Must remain exactly 1 task, NOT 31 tasks!
@@ -385,14 +358,7 @@ only Phase 0., activeForm: auditing native camera drivers}, {id: 2, subject: Aud
               ..state = const SessionState(
                 sessionId: 'session-relaxed-test',
                 cwd: '/test',
-                entries: [
-                  SessionEntry(
-                    id: 'msg-1',
-                    role: 'assistant',
-                    text: chatSnippet,
-                    timestamp: 1000,
-                  ),
-                ],
+                entries: [SessionEntry(id: 'msg-1', role: 'assistant', text: chatSnippet, timestamp: 1000)],
               ),
           ),
         ],

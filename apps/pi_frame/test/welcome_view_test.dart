@@ -21,10 +21,7 @@ class _MockPcpClient extends PcpClient {
   Stream<PcpSnapshot> snapshots(String sessionId) => const Stream.empty();
 
   @override
-  Future<Map<String, dynamic>> sendCommand(PcpCommand command) async => {
-    'status': 'ok',
-    'data': {},
-  };
+  Future<Map<String, dynamic>> sendCommand(PcpCommand command) async => {'status': 'ok', 'data': {}};
 }
 
 Map<String, dynamic> _session(String id, String cwd, int updatedAt) => {
@@ -44,20 +41,13 @@ Future<void> _pumpWelcome(
     ProviderScope(
       overrides: [
         pcpClientProvider.overrideWithValue(client),
-        connectionStateProvider.overrideWith(
-          (ref) => Stream.value(DaemonConnectionState.connected),
-        ),
+        connectionStateProvider.overrideWith((ref) => Stream.value(DaemonConnectionState.connected)),
         sessionListProvider.overrideWith((ref) async => sessions),
       ],
       child: MaterialApp(
         theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
         home: Scaffold(
-          body: WelcomeView(
-            narrow: narrow,
-            connected: true,
-            onOpenSessionsDrawer: () {},
-            onOpenCommandPalette: () {},
-          ),
+          body: WelcomeView(narrow: narrow, connected: true, onOpenSessionsDrawer: () {}, onOpenCommandPalette: () {}),
         ),
       ),
     ),
@@ -89,18 +79,14 @@ void main() {
     debugDefaultTargetPlatformOverride = null;
   });
 
-  testWidgets('lists recent sessions grouped by repository, without subagents, at most eight', (
-    tester,
-  ) async {
+  testWidgets('lists recent sessions grouped by repository, without subagents, at most eight', (tester) async {
     _useSize(tester, const Size(1280, 900));
     await _pumpWelcome(
       tester,
       sessions: [
-        for (var i = 0; i < 6; i++)
-          _session('a$i', '/work/alpha', 1000 - i),
+        for (var i = 0; i < 6; i++) _session('a$i', '/work/alpha', 1000 - i),
         _session('sub', '/work/alpha', 2000)..['isSubsession'] = true,
-        for (var i = 0; i < 4; i++)
-          _session('b$i', '/work/beta', 900 - i),
+        for (var i = 0; i < 4; i++) _session('b$i', '/work/beta', 900 - i),
       ],
     );
     await tester.pumpAndSettle();
@@ -120,12 +106,8 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         pcpClientProvider.overrideWithValue(_MockPcpClient()),
-        connectionStateProvider.overrideWith(
-          (ref) => Stream.value(DaemonConnectionState.connected),
-        ),
-        sessionListProvider.overrideWith(
-          (ref) async => [_session('one', '/work/alpha', 10)],
-        ),
+        connectionStateProvider.overrideWith((ref) => Stream.value(DaemonConnectionState.connected)),
+        sessionListProvider.overrideWith((ref) async => [_session('one', '/work/alpha', 10)]),
       ],
     );
     addTearDown(container.dispose);
@@ -136,12 +118,7 @@ void main() {
         child: MaterialApp(
           theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: const Scaffold(
-            body: WelcomeView(
-              narrow: false,
-              connected: true,
-              onOpenSessionsDrawer: _noop,
-              onOpenCommandPalette: _noop,
-            ),
+            body: WelcomeView(narrow: false, connected: true, onOpenSessionsDrawer: _noop, onOpenCommandPalette: _noop),
           ),
         ),
       ),
@@ -177,10 +154,7 @@ void main() {
 
     await _pumpWelcome(tester, sessions: const []);
     // First frame: the title is still transparent.
-    final titleOpacity = find.ancestor(
-      of: find.text('Riprendi il lavoro'),
-      matching: find.byType(Opacity),
-    );
+    final titleOpacity = find.ancestor(of: find.text('Riprendi il lavoro'), matching: find.byType(Opacity));
     expect(tester.widget<Opacity>(titleOpacity.first).opacity, lessThan(1));
 
     await tester.pumpAndSettle();
@@ -190,10 +164,7 @@ void main() {
     // Second launch: the intro is already recorded, so the title is visible at once.
     await tester.pumpWidget(const SizedBox.shrink());
     await _pumpWelcome(tester, sessions: const []);
-    final again = find.ancestor(
-      of: find.text('Riprendi il lavoro'),
-      matching: find.byType(Opacity),
-    );
+    final again = find.ancestor(of: find.text('Riprendi il lavoro'), matching: find.byType(Opacity));
     for (final element in again.evaluate()) {
       expect((element.widget as Opacity).opacity, 1);
     }

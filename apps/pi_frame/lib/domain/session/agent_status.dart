@@ -1,13 +1,4 @@
-enum AgentStatus {
-  idle,
-  working,
-  retrying,
-  compacting,
-  awaitingUser,
-  settled,
-  error,
-  workerError,
-}
+enum AgentStatus { idle, working, retrying, compacting, awaitingUser, settled, error, workerError }
 
 extension AgentStatusExtension on AgentStatus {
   String get label {

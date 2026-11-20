@@ -7,11 +7,15 @@ import { ConnectionManager } from '../wsServer.js';
 
 function request(port: number, headers: Record<string, string> = {}): Promise<{ status: number; body: any }> {
   return new Promise((resolve, reject) => {
-    http.get({ host: '127.0.0.1', port, path: '/api/session-bootstrap', headers }, (res) => {
-      let text = '';
-      res.on('data', (chunk) => { text += chunk; });
-      res.on('end', () => resolve({ status: res.statusCode!, body: JSON.parse(text) }));
-    }).on('error', reject);
+    http
+      .get({ host: '127.0.0.1', port, path: '/api/session-bootstrap', headers }, (res) => {
+        let text = '';
+        res.on('data', (chunk) => {
+          text += chunk;
+        });
+        res.on('end', () => resolve({ status: res.statusCode!, body: JSON.parse(text) }));
+      })
+      .on('error', reject);
   });
 }
 
@@ -25,13 +29,20 @@ test('HTTP bootstrap rejects hostile Host and Origin, permits daemon same-origin
     const trusted = await request(port, { Origin: `http://127.0.0.1:${port}` });
     assert.equal(trusted.status, 200);
     assert.equal(trusted.body.token, 'secret');
-  } finally { await new Promise<void>((resolve) => server.close(() => resolve())); }
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
 });
 
 test('application broadcasts do not leak to clients before authentication', () => {
   const manager = new ConnectionManager();
   const received: any[] = [];
-  const untrusted = { id: 'untrusted', state: 'authenticating', attachedSessions: new Set(), send: () => received.push('untrusted') };
+  const untrusted = {
+    id: 'untrusted',
+    state: 'authenticating',
+    attachedSessions: new Set(),
+    send: () => received.push('untrusted')
+  };
   const trusted = { id: 'trusted', state: 'ready', attachedSessions: new Set(), send: () => received.push('trusted') };
   manager.add(untrusted as any);
   manager.add(trusted as any);

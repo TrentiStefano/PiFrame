@@ -29,7 +29,9 @@ class MockInterruptClient extends PcpClient {
       return {'data': {}};
     }
     if (command.type == 'agent.prompt') {
-      return {'data': {'runId': 'run_1'}};
+      return {
+        'data': {'runId': 'run_1'},
+      };
     }
     return {'data': {}};
   }
@@ -77,76 +79,66 @@ void main() {
     expect(client.commands.any((c) => c.type == 'agent.clearQueue'), isTrue);
   });
 
-  testWidgets(
-    'Composer interrupt cancels steer queue without injecting cancelled text into composer',
-    (tester) async {
-      final client = MockInterruptClient();
-      final notifier = SessionStateNotifier('s_ui_int', client)
-        ..state = SessionState(
-          sessionId: 's_ui_int',
-          cwd: '/repo',
-          agentStatus: AgentStatus.working,
-          steeringQueue: const ['Steer that was queued earlier'],
-          streamingTextBlocks: const {0: 'Generating response...'},
-          entries: const [],
-        );
+  testWidgets('Composer interrupt cancels steer queue without injecting cancelled text into composer', (tester) async {
+    final client = MockInterruptClient();
+    final notifier = SessionStateNotifier('s_ui_int', client)
+      ..state = SessionState(
+        sessionId: 's_ui_int',
+        cwd: '/repo',
+        agentStatus: AgentStatus.working,
+        steeringQueue: const ['Steer that was queued earlier'],
+        streamingTextBlocks: const {0: 'Generating response...'},
+        entries: const [],
+      );
 
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            daemonEndpointProvider.overrideWith((ref) async => null),
-            pcpClientProvider.overrideWithValue(client),
-            sessionStateFamily('s_ui_int').overrideWith((ref) => notifier),
-          ],
-          child: MaterialApp(
-            theme: ThemeData.dark().copyWith(
-              extensions: const [FrameTokens.dark],
-            ),
-            home: const Scaffold(body: Composer(sessionId: 's_ui_int')),
-          ),
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          daemonEndpointProvider.overrideWith((ref) async => null),
+          pcpClientProvider.overrideWithValue(client),
+          sessionStateFamily('s_ui_int').overrideWith((ref) => notifier),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+          home: const Scaffold(body: Composer(sessionId: 's_ui_int')),
         ),
-      );
-      await tester.pumpAndSettle();
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      // A queued steer keeps the field visible next to the status line
-      expect(find.byKey(const ValueKey('composer-input-area')), findsOneWidget);
+    // A queued steer keeps the field visible next to the status line
+    expect(find.byKey(const ValueKey('composer-input-area')), findsOneWidget);
 
-      // Verify stop button is visible
-      final stopBtn = find.byIcon(Icons.stop_circle_outlined);
-      expect(stopBtn, findsOneWidget);
+    // Verify stop button is visible
+    final stopBtn = find.byIcon(Icons.stop_circle_outlined);
+    expect(stopBtn, findsOneWidget);
 
-      // Trigger interrupt
-      await tester.tap(stopBtn);
-      await tester.pumpAndSettle();
+    // Trigger interrupt
+    await tester.tap(stopBtn);
+    await tester.pumpAndSettle();
 
-      // Verify that the cancelled steer message is NOT restored into the composer text field
-      final textField = tester.widget<TextField>(find.byType(TextField));
-      expect(textField.controller?.text, isEmpty);
+    // Verify that the cancelled steer message is NOT restored into the composer text field
+    final textField = tester.widget<TextField>(find.byType(TextField));
+    expect(textField.controller?.text, isEmpty);
 
-      // Verify snackbar feedback
-      expect(
-        find.text('Agente interrotto. La coda di messaggi è stata cancellata.'),
-        findsOneWidget,
-      );
+    // Verify snackbar feedback
+    expect(find.text('Agente interrotto. La coda di messaggi è stata cancellata.'), findsOneWidget);
 
-      // Verify notifier state cleared queues
-      expect(notifier.state.steeringQueue, isEmpty);
+    // Verify notifier state cleared queues
+    expect(notifier.state.steeringQueue, isEmpty);
 
-      // Enter a new prompt and send it
-      await tester.enterText(find.byType(TextField), 'Fresh new prompt');
-      await tester.pumpAndSettle();
+    // Enter a new prompt and send it
+    await tester.enterText(find.byType(TextField), 'Fresh new prompt');
+    await tester.pumpAndSettle();
 
-      final sendBtn = find.byIcon(Icons.arrow_upward_outlined);
-      expect(sendBtn, findsOneWidget);
-      await tester.tap(sendBtn);
-      await tester.pumpAndSettle();
+    final sendBtn = find.byIcon(Icons.arrow_upward_outlined);
+    expect(sendBtn, findsOneWidget);
+    await tester.tap(sendBtn);
+    await tester.pumpAndSettle();
 
-      // Check the prompt command sent
-      final promptCmd = client.commands.firstWhere(
-        (c) => c.type == 'agent.prompt',
-      );
-      expect(promptCmd.payload['text'], 'Fresh new prompt');
-      expect(promptCmd.payload['text'], isNot(contains('Steer that was queued earlier')));
-    },
-  );
+    // Check the prompt command sent
+    final promptCmd = client.commands.firstWhere((c) => c.type == 'agent.prompt');
+    expect(promptCmd.payload['text'], 'Fresh new prompt');
+    expect(promptCmd.payload['text'], isNot(contains('Steer that was queued earlier')));
+  });
 }

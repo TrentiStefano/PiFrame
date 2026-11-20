@@ -23,11 +23,7 @@ class _DuplicateNamePickerSession extends SessionStateNotifier {
 
   @override
   Future<List<Map<String, dynamic>>> getAvailableModels() async => [
-    {
-      'provider': 'github-copilot',
-      'id': 'shared-id',
-      'name': 'Shared',
-    },
+    {'provider': 'github-copilot', 'id': 'shared-id', 'name': 'Shared'},
     {'provider': 'anthropic', 'id': 'shared-id', 'name': 'Shared'},
   ];
 
@@ -39,11 +35,7 @@ class _DuplicateNamePickerSession extends SessionStateNotifier {
 
 class _SlowPickerSession extends SessionStateNotifier {
   _SlowPickerSession() : super('slow-picker', null) {
-    state = const SessionState(
-      sessionId: 'slow-picker',
-      cwd: '/fixture',
-      currentModel: 'Model A',
-    );
+    state = const SessionState(sessionId: 'slow-picker', cwd: '/fixture', currentModel: 'Model A');
   }
 
   /// When set, every model catalogue request waits for it (simulates a slow daemon).
@@ -56,18 +48,8 @@ class _SlowPickerSession extends SessionStateNotifier {
     modelLoads++;
     await gate?.future;
     return [
-      {
-        'provider': 'fixture',
-        'id': 'a',
-        'name': 'Model A',
-        'contextWindow': 1000,
-      },
-      {
-        'provider': 'fixture',
-        'id': 'b',
-        'name': 'Model B',
-        'contextWindow': 1000,
-      },
+      {'provider': 'fixture', 'id': 'a', 'name': 'Model A', 'contextWindow': 1000},
+      {'provider': 'fixture', 'id': 'b', 'name': 'Model B', 'contextWindow': 1000},
     ];
   }
 
@@ -89,9 +71,7 @@ void main() {
           sessionStateFamily('slow-picker').overrideWith((ref) => session),
         ],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: const Scaffold(
             body: Align(
               alignment: Alignment.bottomCenter,
@@ -106,9 +86,7 @@ void main() {
 
   final chip = find.byKey(const ValueKey('composer-model-picker-btn'));
 
-  testWidgets('repeated taps while the model list loads open a single menu', (
-    tester,
-  ) async {
+  testWidgets('repeated taps while the model list loads open a single menu', (tester) async {
     final session = _SlowPickerSession();
     await mount(tester, session);
     final loadsAfterMount = session.modelLoads;
@@ -134,9 +112,7 @@ void main() {
     expect(find.byType(PopupMenuItem<Map<String, dynamic>>), findsNothing);
   });
 
-  testWidgets('same-name models mark and select only the active provider', (
-    tester,
-  ) async {
+  testWidgets('same-name models mark and select only the active provider', (tester) async {
     final session = _DuplicateNamePickerSession();
     await mount(tester, session);
 
@@ -144,29 +120,21 @@ void main() {
     await tester.pumpAndSettle();
     final menuItems = find.byType(PopupMenuItem<Map<String, dynamic>>);
     expect(menuItems, findsNWidgets(2));
-    expect(
-      find.descendant(of: menuItems, matching: find.byIcon(Icons.check_outlined)),
-      findsOneWidget,
-    );
+    expect(find.descendant(of: menuItems, matching: find.byIcon(Icons.check_outlined)), findsOneWidget);
 
     await tester.tap(find.text('github-copilot'));
     await tester.pumpAndSettle();
     expect(session.selected, ['github-copilot/shared-id']);
   });
 
-  testWidgets('the model menu can be opened again after it was closed', (
-    tester,
-  ) async {
+  testWidgets('the model menu can be opened again after it was closed', (tester) async {
     final session = _SlowPickerSession();
     await mount(tester, session);
 
     for (var round = 0; round < 2; round++) {
       await tester.tap(chip);
       await tester.pumpAndSettle();
-      expect(
-        find.byType(PopupMenuItem<Map<String, dynamic>>),
-        findsNWidgets(2),
-      );
+      expect(find.byType(PopupMenuItem<Map<String, dynamic>>), findsNWidgets(2));
       // Dismiss through the barrier without choosing.
       await tester.tapAt(const Offset(5, 5));
       await tester.pumpAndSettle();

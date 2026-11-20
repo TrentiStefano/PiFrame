@@ -54,10 +54,7 @@ export function parseTypeperfHeader(headerLine: string): TypeperfColumnMapping[]
   return mappings;
 }
 
-export function parseTypeperfRow(
-  rowLine: string,
-  mappings: TypeperfColumnMapping[]
-): number | null {
+export function parseTypeperfRow(rowLine: string, mappings: TypeperfColumnMapping[]): number | null {
   const trimmed = rowLine.trim();
   if (!trimmed || mappings.length === 0) return null;
   const cols = splitCsvLine(trimmed);

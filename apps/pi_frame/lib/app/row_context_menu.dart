@@ -7,8 +7,7 @@ bool isContextMenuKey(KeyEvent event) {
   if (event is! KeyDownEvent) return false;
   final key = event.logicalKey;
   if (key == LogicalKeyboardKey.contextMenu) return true;
-  return key == LogicalKeyboardKey.f10 &&
-      HardwareKeyboard.instance.isShiftPressed;
+  return key == LogicalKeyboardKey.f10 && HardwareKeyboard.instance.isShiftPressed;
 }
 
 /// Global rect of a row's render box: the anchor of a menu opened from the
@@ -19,8 +18,7 @@ Rect rowAnchorRect(BuildContext rowContext) {
 }
 
 /// Anchor for a menu opened by a pointer at [position].
-Rect pointerAnchorRect(Offset position) =>
-    Rect.fromLTWH(position.dx, position.dy, 1, 1);
+Rect pointerAnchorRect(Offset position) => Rect.fromLTWH(position.dx, position.dy, 1, 1);
 
 /// Menu position for [anchor] inside the window that holds [context].
 RelativeRect menuPositionFor(BuildContext context, Rect anchor) =>

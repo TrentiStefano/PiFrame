@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../domain/session/attachment_model.dart';
 
 final composerAttachmentsProvider =

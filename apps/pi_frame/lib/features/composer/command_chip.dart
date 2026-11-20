@@ -27,13 +27,9 @@ class ComposerCommandChip extends StatefulWidget {
   State<ComposerCommandChip> createState() => _ComposerCommandChipState();
 }
 
-class _ComposerCommandChipState extends State<ComposerCommandChip>
-    with SingleTickerProviderStateMixin {
+class _ComposerCommandChipState extends State<ComposerCommandChip> with SingleTickerProviderStateMixin {
   // One pass: pop in (first 40%), then the accent glow fades out.
-  late final AnimationController _intro = AnimationController(
-    vsync: this,
-    duration: FrameMotion.panel,
-  )..forward();
+  late final AnimationController _intro = AnimationController(vsync: this, duration: FrameMotion.panel)..forward();
   late final Animation<double> _scale = CurvedAnimation(
     parent: _intro,
     curve: const Interval(0, 0.4, curve: FrameMotion.enterCurve),
@@ -73,9 +69,7 @@ class _ComposerCommandChipState extends State<ComposerCommandChip>
                 borderRadius: BorderRadius.circular(tokens.radiusSm + 2),
                 boxShadow: [
                   BoxShadow(
-                    color: tokens.accent.withValues(
-                      alpha: 0.45 * (1 - _glow.value),
-                    ),
+                    color: tokens.accent.withValues(alpha: 0.45 * (1 - _glow.value)),
                     blurRadius: 14 * (1 - _glow.value),
                     spreadRadius: 1.5 * (1 - _glow.value),
                   ),
@@ -114,11 +108,7 @@ class _ComposerCommandChipState extends State<ComposerCommandChip>
                         key: const ValueKey('running'),
                         width: 13,
                         height: 13,
-                        child: FrameActivityIndicator(
-                          size: 13,
-                          strokeWidth: 1.8,
-                          color: tokens.accent,
-                        ),
+                        child: FrameActivityIndicator(size: 13, strokeWidth: 1.8, color: tokens.accent),
                       )
                     : Icon(
                         Icons.terminal_outlined,
@@ -130,7 +120,11 @@ class _ComposerCommandChipState extends State<ComposerCommandChip>
               const SizedBox(width: 5),
               Text(
                 '/${widget.name}',
-                style: FrameText.of(context).label.copyWith(color: tokens.textPrimary, fontFamily: tokens.monoFontFamily, fontWeight: FontWeight.w700),
+                style: FrameText.of(context).label.copyWith(
+                  color: tokens.textPrimary,
+                  fontFamily: tokens.monoFontFamily,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               const SizedBox(width: 6),
               Container(
@@ -141,7 +135,8 @@ class _ComposerCommandChipState extends State<ComposerCommandChip>
                 ),
                 child: Text(
                   widget.sourceLabel,
-                  style: FrameText.of(context).caption.copyWith(color: tokens.accent, fontWeight: FontWeight.w600, letterSpacing: 0.3),
+                  style: FrameText.of(context).caption
+                      .copyWith(color: tokens.accent, fontWeight: FontWeight.w600, letterSpacing: 0.3),
                 ),
               ),
               const SizedBox(width: 2),

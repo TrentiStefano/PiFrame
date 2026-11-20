@@ -51,23 +51,14 @@ export function aggregateSysfsCards(cards: RawSysfsCard[]): {
     };
   }
 
-  const validPercents = cards
-    .map((c) => c.percent)
-    .filter((p): p is number => p !== null);
-  const maxPercent =
-    validPercents.length > 0 ? Math.max(...validPercents) : null;
+  const validPercents = cards.map((c) => c.percent).filter((p): p is number => p !== null);
+  const maxPercent = validPercents.length > 0 ? Math.max(...validPercents) : null;
 
-  const validUsed = cards
-    .map((c) => c.memoryUsedBytes)
-    .filter((u): u is number => u !== null);
-  const sumUsed =
-    validUsed.length > 0 ? validUsed.reduce((a, b) => a + b, 0) : null;
+  const validUsed = cards.map((c) => c.memoryUsedBytes).filter((u): u is number => u !== null);
+  const sumUsed = validUsed.length > 0 ? validUsed.reduce((a, b) => a + b, 0) : null;
 
-  const validTotal = cards
-    .map((c) => c.memoryTotalBytes)
-    .filter((t): t is number => t !== null);
-  const sumTotal =
-    validTotal.length > 0 ? validTotal.reduce((a, b) => a + b, 0) : null;
+  const validTotal = cards.map((c) => c.memoryTotalBytes).filter((t): t is number => t !== null);
+  const sumTotal = validTotal.length > 0 ? validTotal.reduce((a, b) => a + b, 0) : null;
 
   return {
     percent: maxPercent !== null ? Math.round(maxPercent * 10) / 10 : null,

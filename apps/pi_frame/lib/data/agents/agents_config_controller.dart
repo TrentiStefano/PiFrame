@@ -46,8 +46,7 @@ class AgentPendingEdit {
       thinking: clearThinking ? null : (thinking ?? this.thinking),
       isThinkingAutoSet: isThinkingAutoSet ?? this.isThinkingAutoSet,
       hasContextLimitEdit: hasContextLimitEdit ?? this.hasContextLimitEdit,
-      contextLimit:
-          clearContextLimit ? null : (contextLimit ?? this.contextLimit),
+      contextLimit: clearContextLimit ? null : (contextLimit ?? this.contextLimit),
     );
   }
 
@@ -65,15 +64,8 @@ class AgentPendingEdit {
           contextLimit == other.contextLimit;
 
   @override
-  int get hashCode => Object.hash(
-        hasModelEdit,
-        model,
-        hasThinkingEdit,
-        thinking,
-        isThinkingAutoSet,
-        hasContextLimitEdit,
-        contextLimit,
-      );
+  int get hashCode =>
+      Object.hash(hasModelEdit, model, hasThinkingEdit, thinking, isThinkingAutoSet, hasContextLimitEdit, contextLimit);
 }
 
 @immutable
@@ -165,41 +157,28 @@ class AgentsConfigState {
       config: config ?? this.config,
       isLoading: isLoading ?? this.isLoading,
       isSaving: isSaving ?? this.isSaving,
-      errorMessage:
-          clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
+      errorMessage: clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
       isReadOnlyRemote: isReadOnlyRemote ?? this.isReadOnlyRemote,
       validationErrors: validationErrors ?? this.validationErrors,
-      hasSessionDefaultModelEdit:
-          hasSessionDefaultModelEdit ?? this.hasSessionDefaultModelEdit,
-      sessionDefaultModel: clearSessionDefaultModel
-          ? null
-          : (sessionDefaultModel ?? this.sessionDefaultModel),
-      hasSessionDefaultThinkingEdit:
-          hasSessionDefaultThinkingEdit ?? this.hasSessionDefaultThinkingEdit,
+      hasSessionDefaultModelEdit: hasSessionDefaultModelEdit ?? this.hasSessionDefaultModelEdit,
+      sessionDefaultModel: clearSessionDefaultModel ? null : (sessionDefaultModel ?? this.sessionDefaultModel),
+      hasSessionDefaultThinkingEdit: hasSessionDefaultThinkingEdit ?? this.hasSessionDefaultThinkingEdit,
       sessionDefaultThinking: clearSessionDefaultThinking
           ? null
           : (sessionDefaultThinking ?? this.sessionDefaultThinking),
-      isSessionDefaultThinkingAutoSet: isSessionDefaultThinkingAutoSet ??
-          this.isSessionDefaultThinkingAutoSet,
-      hasSubagentDefaultModelEdit:
-          hasSubagentDefaultModelEdit ?? this.hasSubagentDefaultModelEdit,
-      subagentDefaultModel: clearSubagentDefaultModel
-          ? null
-          : (subagentDefaultModel ?? this.subagentDefaultModel),
-      hasSubagentDefaultThinkingEdit:
-          hasSubagentDefaultThinkingEdit ?? this.hasSubagentDefaultThinkingEdit,
+      isSessionDefaultThinkingAutoSet: isSessionDefaultThinkingAutoSet ?? this.isSessionDefaultThinkingAutoSet,
+      hasSubagentDefaultModelEdit: hasSubagentDefaultModelEdit ?? this.hasSubagentDefaultModelEdit,
+      subagentDefaultModel: clearSubagentDefaultModel ? null : (subagentDefaultModel ?? this.subagentDefaultModel),
+      hasSubagentDefaultThinkingEdit: hasSubagentDefaultThinkingEdit ?? this.hasSubagentDefaultThinkingEdit,
       subagentDefaultThinking: clearSubagentDefaultThinking
           ? null
           : (subagentDefaultThinking ?? this.subagentDefaultThinking),
-      isSubagentDefaultThinkingAutoSet: isSubagentDefaultThinkingAutoSet ??
-          this.isSubagentDefaultThinkingAutoSet,
+      isSubagentDefaultThinkingAutoSet: isSubagentDefaultThinkingAutoSet ?? this.isSubagentDefaultThinkingAutoSet,
       hasSubagentDefaultFallbackAgentEdit:
-          hasSubagentDefaultFallbackAgentEdit ??
-              this.hasSubagentDefaultFallbackAgentEdit,
+          hasSubagentDefaultFallbackAgentEdit ?? this.hasSubagentDefaultFallbackAgentEdit,
       subagentDefaultFallbackAgent: clearSubagentDefaultFallbackAgent
           ? null
-          : (subagentDefaultFallbackAgent ??
-              this.subagentDefaultFallbackAgent),
+          : (subagentDefaultFallbackAgent ?? this.subagentDefaultFallbackAgent),
       agentEdits: agentEdits ?? this.agentEdits,
     );
   }
@@ -277,26 +256,15 @@ class AgentsConfigController extends StateNotifier<AgentsConfigState> {
 
   Future<void> load({String? cwd}) async {
     if (_client == null) {
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: 'Daemon not connected',
-      );
+      state = state.copyWith(isLoading: false, errorMessage: 'Daemon not connected');
       return;
     }
 
-    state = state.copyWith(
-      isLoading: true,
-      clearErrorMessage: true,
-      validationErrors: const {},
-    );
+    state = state.copyWith(isLoading: true, clearErrorMessage: true, validationErrors: const {});
 
     try {
       final config = await _client.getAgentsConfig(cwd: cwd);
-      state = AgentsConfigState(
-        config: config,
-        isLoading: false,
-        isReadOnlyRemote: false,
-      );
+      state = AgentsConfigState(config: config, isLoading: false, isReadOnlyRemote: false);
     } on PcpException catch (e) {
       if (e.code == 'REMOTE_FORBIDDEN') {
         state = state.copyWith(
@@ -307,16 +275,10 @@ class AgentsConfigController extends StateNotifier<AgentsConfigState> {
               : 'Remote access is read-only. pi.agents commands are local-only.',
         );
       } else {
-        state = state.copyWith(
-          isLoading: false,
-          errorMessage: e.message.isNotEmpty ? e.message : e.code,
-        );
+        state = state.copyWith(isLoading: false, errorMessage: e.message.isNotEmpty ? e.message : e.code);
       }
     } catch (e) {
-      state = state.copyWith(
-        isLoading: false,
-        errorMessage: e.toString(),
-      );
+      state = state.copyWith(isLoading: false, errorMessage: e.toString());
     }
   }
 
@@ -343,10 +305,7 @@ class AgentsConfigController extends StateNotifier<AgentsConfigState> {
   }
 
   PiAgentInfo? _findAgent(String name) {
-    return state.config?.agents.cast<PiAgentInfo?>().firstWhere(
-          (a) => a?.name == name,
-          orElse: () => null,
-        );
+    return state.config?.agents.cast<PiAgentInfo?>().firstWhere((a) => a?.name == name, orElse: () => null);
   }
 
   // Session Defaults Edits
@@ -354,9 +313,10 @@ class AgentsConfigController extends StateNotifier<AgentsConfigState> {
     final baselineModel = state.config?.sessionDefaults.model;
     final isModelEqualBaseline = model == baselineModel;
 
-    final selectedModel = state.config?.availableModels
-        .cast<PiAvailableModel?>()
-        .firstWhere((m) => m?.id == model, orElse: () => null);
+    final selectedModel = state.config?.availableModels.cast<PiAvailableModel?>().firstWhere(
+      (m) => m?.id == model,
+      orElse: () => null,
+    );
 
     bool nextHasThinkingEdit = state.hasSessionDefaultThinkingEdit;
     String? nextThinking = state.sessionDefaultThinking;
@@ -443,9 +403,10 @@ class AgentsConfigController extends StateNotifier<AgentsConfigState> {
     final baselineModel = state.config?.subagentDefaults.model;
     final isModelEqualBaseline = model == baselineModel;
 
-    final selectedModel = state.config?.availableModels
-        .cast<PiAvailableModel?>()
-        .firstWhere((m) => m?.id == model, orElse: () => null);
+    final selectedModel = state.config?.availableModels.cast<PiAvailableModel?>().firstWhere(
+      (m) => m?.id == model,
+      orElse: () => null,
+    );
 
     bool nextHasThinkingEdit = state.hasSubagentDefaultThinkingEdit;
     String? nextThinking = state.subagentDefaultThinking;
@@ -540,15 +501,9 @@ class AgentsConfigController extends StateNotifier<AgentsConfigState> {
   void resetSubagentDefaultFallbackAgent() {
     final baselineFallback = state.config?.subagentDefaults.fallbackAgent;
     if (baselineFallback == null) {
-      state = state.copyWith(
-        hasSubagentDefaultFallbackAgentEdit: false,
-        clearSubagentDefaultFallbackAgent: true,
-      );
+      state = state.copyWith(hasSubagentDefaultFallbackAgentEdit: false, clearSubagentDefaultFallbackAgent: true);
     } else {
-      state = state.copyWith(
-        hasSubagentDefaultFallbackAgentEdit: true,
-        clearSubagentDefaultFallbackAgent: true,
-      );
+      state = state.copyWith(hasSubagentDefaultFallbackAgentEdit: true, clearSubagentDefaultFallbackAgent: true);
     }
   }
 
@@ -560,9 +515,10 @@ class AgentsConfigController extends StateNotifier<AgentsConfigState> {
     final baselineModel = agent?.model.effective;
     final isModelEqualBaseline = model == baselineModel;
 
-    final selectedModel = state.config?.availableModels
-        .cast<PiAvailableModel?>()
-        .firstWhere((m) => m?.id == model, orElse: () => null);
+    final selectedModel = state.config?.availableModels.cast<PiAvailableModel?>().firstWhere(
+      (m) => m?.id == model,
+      orElse: () => null,
+    );
 
     // Requirement 2: thinking
     bool nextHasThinkingEdit = current.hasThinkingEdit;
@@ -626,8 +582,7 @@ class AgentsConfigController extends StateNotifier<AgentsConfigState> {
       final updated = current.copyWith(
         hasModelEdit: false,
         clearModel: true,
-        hasThinkingEdit:
-            current.isThinkingAutoSet ? false : current.hasThinkingEdit,
+        hasThinkingEdit: current.isThinkingAutoSet ? false : current.hasThinkingEdit,
         clearThinking: current.isThinkingAutoSet,
         isThinkingAutoSet: false,
         hasContextLimitEdit: false,
@@ -647,8 +602,7 @@ class AgentsConfigController extends StateNotifier<AgentsConfigState> {
     final updated = current.copyWith(
       hasModelEdit: true,
       clearModel: true,
-      hasThinkingEdit:
-          current.isThinkingAutoSet ? false : current.hasThinkingEdit,
+      hasThinkingEdit: current.isThinkingAutoSet ? false : current.hasThinkingEdit,
       clearThinking: current.isThinkingAutoSet,
       isThinkingAutoSet: false,
       hasContextLimitEdit: false,
@@ -688,11 +642,7 @@ class AgentsConfigController extends StateNotifier<AgentsConfigState> {
 
     if (agent == null || agent.thinking.origin != 'override') {
       // No override! Reset is a no-op / clears pending thinking edit
-      final updated = current.copyWith(
-        hasThinkingEdit: false,
-        clearThinking: true,
-        isThinkingAutoSet: false,
-      );
+      final updated = current.copyWith(hasThinkingEdit: false, clearThinking: true, isThinkingAutoSet: false);
       final nextEdits = Map<String, AgentPendingEdit>.from(state.agentEdits);
       if (!updated.isDirty) {
         nextEdits.remove(name);
@@ -704,11 +654,7 @@ class AgentsConfigController extends StateNotifier<AgentsConfigState> {
     }
 
     // Has override: reset sends thinking: null
-    final updated = current.copyWith(
-      hasThinkingEdit: true,
-      clearThinking: true,
-      isThinkingAutoSet: false,
-    );
+    final updated = current.copyWith(hasThinkingEdit: true, clearThinking: true, isThinkingAutoSet: false);
     final nextEdits = Map<String, AgentPendingEdit>.from(state.agentEdits);
     nextEdits[name] = updated;
     state = state.copyWith(agentEdits: nextEdits);
@@ -742,10 +688,7 @@ class AgentsConfigController extends StateNotifier<AgentsConfigState> {
 
     if (agent == null || agent.context.limit == null) {
       // No stored limit! Reset is a no-op / clears pending edit
-      final updated = current.copyWith(
-        hasContextLimitEdit: false,
-        clearContextLimit: true,
-      );
+      final updated = current.copyWith(hasContextLimitEdit: false, clearContextLimit: true);
       final nextEdits = Map<String, AgentPendingEdit>.from(state.agentEdits);
       if (!updated.isDirty) {
         nextEdits.remove(name);
@@ -757,10 +700,7 @@ class AgentsConfigController extends StateNotifier<AgentsConfigState> {
     }
 
     // Had stored limit: reset sends contextLimit: null
-    final updated = current.copyWith(
-      hasContextLimitEdit: true,
-      clearContextLimit: true,
-    );
+    final updated = current.copyWith(hasContextLimitEdit: true, clearContextLimit: true);
     final nextEdits = Map<String, AgentPendingEdit>.from(state.agentEdits);
     nextEdits[name] = updated;
     state = state.copyWith(agentEdits: nextEdits);
@@ -770,8 +710,7 @@ class AgentsConfigController extends StateNotifier<AgentsConfigState> {
     final changes = <Map<String, dynamic>>[];
 
     // Session Defaults
-    if (state.hasSessionDefaultModelEdit ||
-        state.hasSessionDefaultThinkingEdit) {
+    if (state.hasSessionDefaultModelEdit || state.hasSessionDefaultThinkingEdit) {
       final change = <String, dynamic>{'kind': 'sessionDefaults'};
       if (state.hasSessionDefaultModelEdit) {
         change['model'] = state.sessionDefaultModel;
@@ -805,10 +744,7 @@ class AgentsConfigController extends StateNotifier<AgentsConfigState> {
       final edit = entry.value;
       if (!edit.isDirty) continue;
 
-      final change = <String, dynamic>{
-        'kind': 'agent',
-        'name': name,
-      };
+      final change = <String, dynamic>{'kind': 'agent', 'name': name};
       if (edit.hasModelEdit) {
         change['model'] = edit.model;
       }
@@ -829,22 +765,13 @@ class AgentsConfigController extends StateNotifier<AgentsConfigState> {
       return false;
     }
 
-    state = state.copyWith(
-      isSaving: true,
-      clearErrorMessage: true,
-      validationErrors: const {},
-    );
+    state = state.copyWith(isSaving: true, clearErrorMessage: true, validationErrors: const {});
 
     final changes = buildChanges();
 
     try {
       final freshConfig = await _client.updateAgentsConfig(changes);
-      state = AgentsConfigState(
-        config: freshConfig,
-        isLoading: false,
-        isSaving: false,
-        isReadOnlyRemote: false,
-      );
+      state = AgentsConfigState(config: freshConfig, isLoading: false, isSaving: false, isReadOnlyRemote: false);
       return true;
     } on PcpException catch (e) {
       if (e.code == 'REMOTE_FORBIDDEN') {
@@ -870,24 +797,17 @@ class AgentsConfigController extends StateNotifier<AgentsConfigState> {
           errorMessage: e.message.isNotEmpty ? e.message : 'Validation failed',
         );
       } else {
-        state = state.copyWith(
-          isSaving: false,
-          errorMessage: e.message.isNotEmpty ? e.message : e.code,
-        );
+        state = state.copyWith(isSaving: false, errorMessage: e.message.isNotEmpty ? e.message : e.code);
       }
       return false;
     } catch (e) {
-      state = state.copyWith(
-        isSaving: false,
-        errorMessage: e.toString(),
-      );
+      state = state.copyWith(isSaving: false, errorMessage: e.toString());
       return false;
     }
   }
 }
 
-final agentsConfigControllerProvider =
-    StateNotifierProvider<AgentsConfigController, AgentsConfigState>((ref) {
+final agentsConfigControllerProvider = StateNotifierProvider<AgentsConfigController, AgentsConfigState>((ref) {
   final client = ref.watch(pcpClientProvider);
   return AgentsConfigController(client);
 });

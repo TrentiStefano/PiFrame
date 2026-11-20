@@ -7,8 +7,7 @@ import 'package:pi_frame/data/daemon/pcp_client.dart';
 import 'package:pi_frame/domain/session/session_state.dart';
 
 class _StatsClient extends PcpClient {
-  _StatsClient({this.tokens = 70656, this.contextWindow = 200000})
-    : super(port: 1, token: 'test');
+  _StatsClient({this.tokens = 70656, this.contextWindow = 200000}) : super(port: 1, token: 'test');
 
   final int tokens;
   final int contextWindow;
@@ -35,11 +34,7 @@ class _StatsClient extends PcpClient {
     'data': {
       'tokens': {'total': 42000},
       'cost': 0.42,
-      'contextUsage': {
-        'tokens': tokens,
-        'contextWindow': contextWindow,
-        'percent': (tokens / contextWindow) * 100.0,
-      },
+      'contextUsage': {'tokens': tokens, 'contextWindow': contextWindow, 'percent': (tokens / contextWindow) * 100.0},
     },
   };
 
@@ -50,24 +45,14 @@ class _StatsClient extends PcpClient {
   }
 
   @override
-  Future<Map<String, dynamic>> setContextWindowOverride(
-    String sessionId,
-    int? limit,
-  ) async {
+  Future<Map<String, dynamic>> setContextWindowOverride(String sessionId, int? limit) async {
     if (failContextSetting) throw StateError('Rejected context limit');
     overriddenLimit = limit;
-    return {
-      'success': true,
-      'contextWindowOverride': limit,
-      'compactionReservePercent': 2.5,
-    };
+    return {'success': true, 'contextWindowOverride': limit, 'compactionReservePercent': 2.5};
   }
 
   @override
-  Future<Map<String, dynamic>> setCompactionReservePercent(
-    String sessionId,
-    double percent,
-  ) async => {
+  Future<Map<String, dynamic>> setCompactionReservePercent(String sessionId, double percent) async => {
     'success': true,
     'contextWindowOverride': overriddenLimit,
     'compactionReservePercent': percent,
@@ -99,10 +84,18 @@ void main() {
       notifier.dispose();
       client.dispose();
     });
-    client.eventsController.add(const CompactionEndedEvent(
-      protocol: 1, id: 'e1', ts: 1, sessionId: 'session-a', seq: 1,
-      payload: {'result': {'estimatedTokensAfter': 30000}},
-    ));
+    client.eventsController.add(
+      const CompactionEndedEvent(
+        protocol: 1,
+        id: 'e1',
+        ts: 1,
+        sessionId: 'session-a',
+        seq: 1,
+        payload: {
+          'result': {'estimatedTokensAfter': 30000},
+        },
+      ),
+    );
     await pumpEventQueue();
     expect(client.statsCalls, 1);
     expect(notifier.state.sessionStats?['contextUsage']['tokens'], 30000);
@@ -111,11 +104,7 @@ void main() {
   test('session notifier exposes Pi cumulative stats without reshaping them when no override is set', () async {
     final client = _StatsClient(tokens: 70656, contextWindow: 128000);
     final notifier = SessionStateNotifier('session-a', client)
-      ..state = const SessionState(
-        sessionId: 'session-a',
-        cwd: '/repo',
-        currentModel: 'test-model',
-      );
+      ..state = const SessionState(sessionId: 'session-a', cwd: '/repo', currentModel: 'test-model');
     addTearDown(() {
       notifier.dispose();
       client.dispose();
@@ -124,14 +113,8 @@ void main() {
     await notifier.refreshSessionStats();
     expect(notifier.state.sessionStats?['cost'], 0.42);
     expect(notifier.state.sessionStats?['tokens']['total'], 42000);
-    expect(
-      notifier.state.sessionStats?['contextUsage']['percent'],
-      closeTo(55.2, 0.1),
-    );
-    expect(
-      notifier.state.sessionStats?['contextUsage']['contextWindow'],
-      128000,
-    );
+    expect(notifier.state.sessionStats?['contextUsage']['percent'], closeTo(55.2, 0.1));
+    expect(notifier.state.sessionStats?['contextUsage']['contextWindow'], 128000);
   });
 
   test('refreshSessionStats recalculates contextUsage using contextWindowOverride when set', () async {
@@ -149,10 +132,7 @@ void main() {
     });
 
     await notifier.refreshSessionStats();
-    expect(
-      notifier.state.sessionStats?['contextUsage']['contextWindow'],
-      100000,
-    );
+    expect(notifier.state.sessionStats?['contextUsage']['contextWindow'], 100000);
     // 70,000 / 100,000 = 70.0%
     expect(notifier.state.sessionStats?['contextUsage']['percent'], 70.0);
   });
@@ -160,11 +140,7 @@ void main() {
   test('setContextWindow updates state after backend success without local compaction', () async {
     final client = _StatsClient(tokens: 85000, contextWindow: 200000);
     final notifier = SessionStateNotifier('session-a', client)
-      ..state = const SessionState(
-        sessionId: 'session-a',
-        cwd: '/repo',
-        currentModel: 'claude-haiku-5-5',
-      );
+      ..state = const SessionState(sessionId: 'session-a', cwd: '/repo', currentModel: 'claude-haiku-5-5');
     addTearDown(() {
       notifier.dispose();
       client.dispose();
@@ -201,25 +177,18 @@ void main() {
     expect(client.sentPrompts, contains('Analyze BlueFOX component'));
   });
 
-  test(
-    'failed context setting leaves state unchanged and propagates error',
-    () async {
-      final client = _StatsClient()..failContextSetting = true;
-      final notifier = SessionStateNotifier('session-a', client)
-        ..state = const SessionState(
-          sessionId: 'session-a',
-          cwd: '/repo',
-          contextWindowOverride: 150000,
-        );
-      addTearDown(() {
-        notifier.dispose();
-        client.dispose();
-      });
+  test('failed context setting leaves state unchanged and propagates error', () async {
+    final client = _StatsClient()..failContextSetting = true;
+    final notifier = SessionStateNotifier('session-a', client)
+      ..state = const SessionState(sessionId: 'session-a', cwd: '/repo', contextWindowOverride: 150000);
+    addTearDown(() {
+      notifier.dispose();
+      client.dispose();
+    });
 
-      await expectLater(notifier.setContextWindow(100000), throwsStateError);
-      expect(notifier.state.contextWindowOverride, 150000);
-    },
-  );
+    await expectLater(notifier.setContextWindow(100000), throwsStateError);
+    expect(notifier.state.contextWindowOverride, 150000);
+  });
 
   test('reserve percent changes only after backend success', () async {
     final client = _StatsClient();

@@ -20,35 +20,55 @@ function fakePi() {
     },
     emit(name: string, data: any) {
       for (const fn of [...(listeners.get(name) ?? [])]) fn(data);
-    },
+    }
   };
   const handlers = new Map<string, Array<(event: any, ctx: any) => any>>();
   const commands = new Map<string, any>();
   const tools = new Map<string, any>();
   const statuses: string[] = [];
-  const ctx = { ui: { setStatus: (key: string, text: string) => { if (key === 'piframe-subagents') statuses.push(text); }, notify() {}, select() {}, input() {} } };
+  const ctx = {
+    ui: {
+      setStatus: (key: string, text: string) => {
+        if (key === 'piframe-subagents') statuses.push(text);
+      },
+      notify() {},
+      select() {},
+      input() {}
+    }
+  };
   const records = new Map<string, any>();
   (globalThis as any)[MANAGER_KEY] = {
     hasRunning: () => [...records.values()].some((r) => r.status === 'running' || r.status === 'queued'),
-    getRecord: (id: string) => records.get(id),
+    getRecord: (id: string) => records.get(id)
   };
   // pi-subagents' stop RPC, as in its cross-extension-rpc.ts.
   events.on('subagents:rpc:stop', ({ requestId, agentId }: any) => {
     const record = records.get(agentId);
-    const reply = !record ? { success: false, error: 'Agent not found' }
-      : record.status !== 'running' ? { success: false, error: 'Agent is not running' }
-      : (record.status = 'stopped', { success: true });
+    const reply = !record
+      ? { success: false, error: 'Agent not found' }
+      : record.status !== 'running'
+        ? { success: false, error: 'Agent is not running' }
+        : ((record.status = 'stopped'), { success: true });
     events.emit(`subagents:rpc:stop:reply:${requestId}`, reply);
   });
   const pi = {
     events,
-    on(name: string, fn: any) { if (!handlers.has(name)) handlers.set(name, []); handlers.get(name)!.push(fn); },
-    registerCommand(name: string, def: any) { commands.set(name, def); },
-    registerTool(def: any) { tools.set(def.name, def); },
+    on(name: string, fn: any) {
+      if (!handlers.has(name)) handlers.set(name, []);
+      handlers.get(name)!.push(fn);
+    },
+    registerCommand(name: string, def: any) {
+      commands.set(name, def);
+    },
+    registerTool(def: any) {
+      tools.set(def.name, def);
+    },
     getSettings: () => ({}),
-    setModel: async () => true,
+    setModel: async () => true
   };
-  const fire = async (name: string) => { for (const fn of handlers.get(name) ?? []) await fn({}, ctx); };
+  const fire = async (name: string) => {
+    for (const fn of handlers.get(name) ?? []) await fn({}, ctx);
+  };
   const last = () => JSON.parse(statuses[statuses.length - 1]);
   return { pi, events, commands, tools, statuses, records, fire, last, ctx };
 }
@@ -77,12 +97,22 @@ test('the generated extension reports pi-subagents state and stops agents for re
   assert.equal(state.anyRunning, false);
   assert.deepEqual(state.agents, []);
 
-  fake.records.set('agent-1', { id: 'agent-1', status: 'running', type: 'worker', description: 'Add tests', startedAt: 1000, toolUses: 13 });
+  fake.records.set('agent-1', {
+    id: 'agent-1',
+    status: 'running',
+    type: 'worker',
+    description: 'Add tests',
+    startedAt: 1000,
+    toolUses: 13
+  });
   fake.events.emit('subagents:started', { id: 'agent-1', type: 'worker', description: 'Add tests' });
   state = fake.last();
   assert.equal(state.anyRunning, true);
   assert.equal(state.idleSince, null);
-  assert.deepEqual(state.agents.map((a: any) => [a.id, a.status, a.toolUses]), [['agent-1', 'running', 13]]);
+  assert.deepEqual(
+    state.agents.map((a: any) => [a.id, a.status, a.toolUses]),
+    [['agent-1', 'running', 13]]
+  );
 
   // The internal command the daemon sends stops it through the stop RPC.
   await fake.commands.get('piframe-subagent-stop').handler('agent-1', fake.ctx);

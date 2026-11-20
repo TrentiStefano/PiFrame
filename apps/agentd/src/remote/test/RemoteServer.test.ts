@@ -75,11 +75,13 @@ test('RemoteServer: two-listener architecture (local loopback vs dedicated remot
   try {
     // 1. Direct local request to /api/session-bootstrap gets master token
     const localRes = await new Promise<any>((resolve, reject) => {
-      http.get(`http://127.0.0.1:${localPort}/api/session-bootstrap`, (res) => {
-        let data = '';
-        res.on('data', chunk => data += chunk);
-        res.on('end', () => resolve({ status: res.statusCode, data: JSON.parse(data), headers: res.headers }));
-      }).on('error', reject);
+      http
+        .get(`http://127.0.0.1:${localPort}/api/session-bootstrap`, (res) => {
+          let data = '';
+          res.on('data', (chunk) => (data += chunk));
+          res.on('end', () => resolve({ status: res.statusCode, data: JSON.parse(data), headers: res.headers }));
+        })
+        .on('error', reject);
     });
     assert.strictEqual(localRes.status, 200);
     assert.strictEqual(localRes.data.token, masterToken);
@@ -87,15 +89,18 @@ test('RemoteServer: two-listener architecture (local loopback vs dedicated remot
 
     // 2. Local listener strictly rejects proxy headers (H2 defense)
     const proxyOnLocal = await new Promise<number>((resolve, reject) => {
-      const req = http.request({
-        host: '127.0.0.1',
-        port: localPort,
-        path: '/api/session-bootstrap',
-        headers: {
-          Host: `127.0.0.1:${localPort}`,
-          'X-Forwarded-For': '198.51.100.1'
-        }
-      }, (res) => resolve(res.statusCode || 0));
+      const req = http.request(
+        {
+          host: '127.0.0.1',
+          port: localPort,
+          path: '/api/session-bootstrap',
+          headers: {
+            Host: `127.0.0.1:${localPort}`,
+            'X-Forwarded-For': '198.51.100.1'
+          }
+        },
+        (res) => resolve(res.statusCode || 0)
+      );
       req.on('error', reject);
       req.end();
     });
@@ -114,18 +119,21 @@ test('RemoteServer: two-listener architecture (local loopback vs dedicated remot
 
     // 4. Remote listener request without auth returns 401 needsPairing
     const remoteUnauth = await new Promise<any>((resolve, reject) => {
-      const req = http.request({
-        host: '127.0.0.1',
-        port: remotePort,
-        path: '/api/session-bootstrap',
-        headers: {
-          Host: testTunnelHost
+      const req = http.request(
+        {
+          host: '127.0.0.1',
+          port: remotePort,
+          path: '/api/session-bootstrap',
+          headers: {
+            Host: testTunnelHost
+          }
+        },
+        (res) => {
+          let data = '';
+          res.on('data', (chunk) => (data += chunk));
+          res.on('end', () => resolve({ status: res.statusCode, data: JSON.parse(data) }));
         }
-      }, (res) => {
-        let data = '';
-        res.on('data', chunk => data += chunk);
-        res.on('end', () => resolve({ status: res.statusCode, data: JSON.parse(data) }));
-      });
+      );
       req.on('error', reject);
       req.end();
     });
@@ -134,19 +142,22 @@ test('RemoteServer: two-listener architecture (local loopback vs dedicated remot
 
     // 5. Remote listener NEVER accepts master token
     const masterOnRemote = await new Promise<any>((resolve, reject) => {
-      const req = http.request({
-        host: '127.0.0.1',
-        port: remotePort,
-        path: '/api/session-bootstrap',
-        headers: {
-          Host: testTunnelHost,
-          Authorization: `Bearer ${masterToken}`
+      const req = http.request(
+        {
+          host: '127.0.0.1',
+          port: remotePort,
+          path: '/api/session-bootstrap',
+          headers: {
+            Host: testTunnelHost,
+            Authorization: `Bearer ${masterToken}`
+          }
+        },
+        (res) => {
+          let data = '';
+          res.on('data', (chunk) => (data += chunk));
+          res.on('end', () => resolve({ status: res.statusCode, data: JSON.parse(data) }));
         }
-      }, (res) => {
-        let data = '';
-        res.on('data', chunk => data += chunk);
-        res.on('end', () => resolve({ status: res.statusCode, data: JSON.parse(data) }));
-      });
+      );
       req.on('error', reject);
       req.end();
     });
@@ -158,26 +169,31 @@ test('RemoteServer: two-listener architecture (local loopback vs dedicated remot
 
     const pairRes = await new Promise<any>((resolve, reject) => {
       const payload = JSON.stringify({ pairingSecret: pairing.secret });
-      const req = http.request({
-        host: '127.0.0.1',
-        port: remotePort,
-        path: '/api/remote/pair',
-        method: 'POST',
-        headers: {
-          Host: testTunnelHost,
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(payload),
-          'User-Agent': 'Mozilla/5.0 (iPhone; iOS 17)'
+      const req = http.request(
+        {
+          host: '127.0.0.1',
+          port: remotePort,
+          path: '/api/remote/pair',
+          method: 'POST',
+          headers: {
+            Host: testTunnelHost,
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(payload),
+            'User-Agent': 'Mozilla/5.0 (iPhone; iOS 17)'
+          }
+        },
+        (res) => {
+          let data = '';
+          res.on('data', (chunk) => (data += chunk));
+          res.on('end', () =>
+            resolve({
+              status: res.statusCode,
+              data: JSON.parse(data),
+              cookie: res.headers['set-cookie']
+            })
+          );
         }
-      }, (res) => {
-        let data = '';
-        res.on('data', chunk => data += chunk);
-        res.on('end', () => resolve({
-          status: res.statusCode,
-          data: JSON.parse(data),
-          cookie: res.headers['set-cookie']
-        }));
-      });
+      );
       req.on('error', reject);
       req.write(payload);
       req.end();
@@ -201,19 +217,21 @@ test('RemoteServer: two-listener architecture (local loopback vs dedicated remot
 
     await new Promise<void>((resolve, reject) => {
       ws.on('open', () => {
-        ws.send(JSON.stringify({
-          protocol: 1,
-          kind: 'hello',
-          id: 'hl_test',
-          ts: Date.now(),
-          type: 'connection.hello',
-          payload: {
-            token: deviceToken,
-            client: { name: 'phone_web', version: '1.0', platform: 'ios' },
-            encoding: 'json',
-            capabilities: []
-          }
-        }));
+        ws.send(
+          JSON.stringify({
+            protocol: 1,
+            kind: 'hello',
+            id: 'hl_test',
+            ts: Date.now(),
+            type: 'connection.hello',
+            payload: {
+              token: deviceToken,
+              client: { name: 'phone_web', version: '1.0', platform: 'ios' },
+              encoding: 'json',
+              capabilities: []
+            }
+          })
+        );
       });
 
       ws.on('message', (raw) => {
@@ -228,7 +246,7 @@ test('RemoteServer: two-listener architecture (local loopback vs dedicated remot
 
     // Check connection is flagged as remote in manager
     const conns = manager.getAll();
-    const remoteConn = conns.find(c => c.deviceId === deviceId);
+    const remoteConn = conns.find((c) => c.deviceId === deviceId);
     assert.ok(remoteConn);
     assert.strictEqual(remoteConn?.isRemote, true);
 
@@ -245,19 +263,21 @@ test('RemoteServer: two-listener architecture (local loopback vs dedicated remot
     });
 
     wsMaster.on('open', () => {
-      wsMaster.send(JSON.stringify({
-        protocol: 1,
-        kind: 'hello',
-        id: 'hl_master',
-        ts: Date.now(),
-        type: 'connection.hello',
-        payload: {
-          token: masterToken,
-          client: { name: 'attacker', version: '1.0' },
-          encoding: 'json',
-          capabilities: []
-        }
-      }));
+      wsMaster.send(
+        JSON.stringify({
+          protocol: 1,
+          kind: 'hello',
+          id: 'hl_master',
+          ts: Date.now(),
+          type: 'connection.hello',
+          payload: {
+            token: masterToken,
+            client: { name: 'attacker', version: '1.0' },
+            encoding: 'json',
+            capabilities: []
+          }
+        })
+      );
     });
 
     const masterCloseCode = await masterClosePromise;
@@ -274,7 +294,6 @@ test('RemoteServer: two-listener architecture (local loopback vs dedicated remot
     const closeInfo = await closedPromise;
     assert.strictEqual(closeInfo.code, 4003);
     assert.ok(closeInfo.reason.includes('Device Revoked'));
-
   } finally {
     await remoteManager.stop().catch(() => {});
     wss.close();
@@ -282,6 +301,8 @@ test('RemoteServer: two-listener architecture (local loopback vs dedicated remot
     remoteServer.close();
     if (origHome) process.env.PI_FRAME_HOME = origHome;
     else delete process.env.PI_FRAME_HOME;
-    try { fs.rmSync(testHome, { recursive: true, force: true }); } catch {}
+    try {
+      fs.rmSync(testHome, { recursive: true, force: true });
+    } catch {}
   }
 });

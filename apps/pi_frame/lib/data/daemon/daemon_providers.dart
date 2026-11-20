@@ -53,9 +53,7 @@ final connectionStateProvider = StreamProvider<DaemonConnectionState>((ref) {
   });
 });
 
-final sessionListProvider = FutureProvider<List<Map<String, dynamic>>>((
-  ref,
-) async {
+final sessionListProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final client = ref.watch(pcpClientProvider);
   final connection = ref.watch(connectionStateProvider);
   if (client == null || connection.value != DaemonConnectionState.connected) {
@@ -71,9 +69,7 @@ final sessionListProvider = FutureProvider<List<Map<String, dynamic>>>((
 
   final res = await client.listSessions().timeout(const Duration(seconds: 8));
   final data = res['data'] as Map<String, dynamic>? ?? res;
-  return (data['sessions'] as List? ?? res['sessions'] as List?)
-          ?.cast<Map<String, dynamic>>() ??
-      [];
+  return (data['sessions'] as List? ?? res['sessions'] as List?)?.cast<Map<String, dynamic>>() ?? [];
 });
 
 final sessionDisplayNamesProvider = Provider<Map<String, String>>((ref) {
@@ -82,13 +78,10 @@ final sessionDisplayNamesProvider = Provider<Map<String, String>>((ref) {
 
 final sessionDisplayNameProvider = Provider.family<String, String>((ref, id) {
   final sessions = ref.watch(sessionListProvider).value ?? const [];
-  final metadata = ref.watch(
-    sessionStateFamily(id).select((state) => (state.sessionName, state.cwd)),
-  );
+  final metadata = ref.watch(sessionStateFamily(id).select((state) => (state.sessionName, state.cwd)));
   final listed = sessions.where((session) => session['id'] == id).firstOrNull;
   if (metadata.$1 == null && metadata.$2.isEmpty) {
-    return ref.watch(sessionDisplayNamesProvider)[id] ??
-        (listed?['name'] ?? id).toString();
+    return ref.watch(sessionDisplayNamesProvider)[id] ?? (listed?['name'] ?? id).toString();
   }
   final current = <String, dynamic>{
     ...?listed,
@@ -107,14 +100,10 @@ final activeSessionIdProvider = StateProvider<String?>((ref) => null);
 final showSettingsProvider = StateProvider<bool>((ref) => false);
 final settingsTabIndexProvider = StateProvider<int>((ref) => 0);
 
-final sessionStateFamily =
-    StateNotifierProvider.family<SessionStateNotifier, SessionState, String>((
-      ref,
-      sessionId,
-    ) {
-      final client = ref.watch(pcpClientProvider);
-      return SessionStateNotifier(sessionId, client);
-    });
+final sessionStateFamily = StateNotifierProvider.family<SessionStateNotifier, SessionState, String>((ref, sessionId) {
+  final client = ref.watch(pcpClientProvider);
+  return SessionStateNotifier(sessionId, client);
+});
 
 class SessionStateNotifier extends StateNotifier<SessionState> {
   final String sessionId;
@@ -122,8 +111,7 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
   StreamSubscription? _sub;
   StreamSubscription? _snapSub;
 
-  SessionStateNotifier(this.sessionId, this.client)
-    : super(SessionState(sessionId: sessionId, cwd: '')) {
+  SessionStateNotifier(this.sessionId, this.client) : super(SessionState(sessionId: sessionId, cwd: '')) {
     _init();
   }
 
@@ -131,11 +119,7 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     if (client == null) return;
 
     _snapSub = client!.snapshots(sessionId).listen((snapshot) {
-      final nextState = applySessionSnapshot(
-        sessionId,
-        snapshot.seq,
-        snapshot.payload,
-      );
+      final nextState = applySessionSnapshot(sessionId, snapshot.seq, snapshot.payload);
       state = nextState;
       unawaited(refreshSessionStats());
       unawaited(refreshDefaults());
@@ -174,9 +158,7 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
 
       if (olderEntries.isNotEmpty) {
         final existingIds = state.entries.map((e) => e.id).toSet();
-        final dedupedOlder = olderEntries
-            .where((e) => !existingIds.contains(e.id))
-            .toList();
+        final dedupedOlder = olderEntries.where((e) => !existingIds.contains(e.id)).toList();
         state = state.copyWith(
           entries: [...dedupedOlder, ...state.entries],
           hasMoreHistory: hasMore,
@@ -198,13 +180,9 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
 
   Future<void> refreshDefaults() async {
     if (client == null || state.readOnly || _defaultsLoading) return;
-    final needsModel =
-        state.currentModel == null || state.currentModel!.isEmpty;
-    final needsModelIdentity =
-        state.currentModelProvider == null || state.currentModelId == null;
-    final needsThinking =
-        state.currentThinkingLevel == null ||
-        state.currentThinkingLevel!.isEmpty;
+    final needsModel = state.currentModel == null || state.currentModel!.isEmpty;
+    final needsModelIdentity = state.currentModelProvider == null || state.currentModelId == null;
+    final needsThinking = state.currentThinkingLevel == null || state.currentThinkingLevel!.isEmpty;
     if (!needsModel && !needsModelIdentity && !needsThinking) return;
 
     _defaultsLoading = true;
@@ -215,41 +193,27 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
       String? resolvedThinking;
 
       if (needsModel || needsModelIdentity) {
-        final res = await client!
-            .getAvailableModels(sessionId)
-            .timeout(const Duration(seconds: 4));
+        final res = await client!.getAvailableModels(sessionId).timeout(const Duration(seconds: 4));
         final data = res['data'] as Map<String, dynamic>? ?? res;
         final currentModelRaw = data['currentModel'] ?? data['model'];
         if (currentModelRaw is Map) {
-          resolvedModel = (currentModelRaw['name'] ?? currentModelRaw['id'])
-              ?.toString();
+          resolvedModel = (currentModelRaw['name'] ?? currentModelRaw['id'])?.toString();
           resolvedModelProvider = currentModelRaw['provider']?.toString();
           resolvedModelId = currentModelRaw['id']?.toString();
         } else if (currentModelRaw is String && currentModelRaw.isNotEmpty) {
           resolvedModel = currentModelRaw;
         }
 
-        final models =
-            (data['models'] as List<dynamic>?)
-                ?.cast<Map<String, dynamic>>() ??
-            [];
+        final models = (data['models'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [];
         if (needsModelIdentity && currentModelRaw != null) {
-          final rawId = currentModelRaw is Map
-              ? currentModelRaw['id']?.toString()
-              : currentModelRaw.toString();
-          final rawName = currentModelRaw is Map
-              ? currentModelRaw['name']?.toString()
-              : currentModelRaw.toString();
+          final rawId = currentModelRaw is Map ? currentModelRaw['id']?.toString() : currentModelRaw.toString();
+          final rawName = currentModelRaw is Map ? currentModelRaw['name']?.toString() : currentModelRaw.toString();
           final byId = rawId == null
               ? <Map<String, dynamic>>[]
-              : models
-                    .where((model) => model['id']?.toString() == rawId)
-                    .toList();
+              : models.where((model) => model['id']?.toString() == rawId).toList();
           final matches = byId.isNotEmpty
               ? byId
-              : models
-                    .where((model) => model['name']?.toString() == rawName)
-                    .toList();
+              : models.where((model) => model['name']?.toString() == rawName).toList();
           if (matches.length == 1) {
             resolvedModelProvider = matches.single['provider']?.toString();
             resolvedModelId = matches.single['id']?.toString();
@@ -262,8 +226,7 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
             orElse: () => models.isNotEmpty ? models.first : const {},
           );
           if (defaultModel.isNotEmpty) {
-            resolvedModel = (defaultModel['name'] ?? defaultModel['id'])
-                ?.toString();
+            resolvedModel = (defaultModel['name'] ?? defaultModel['id'])?.toString();
             resolvedModelProvider = defaultModel['provider']?.toString();
             resolvedModelId = defaultModel['id']?.toString();
           }
@@ -274,24 +237,14 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
         }
       }
 
-      if (needsThinking &&
-          (resolvedThinking == null || resolvedThinking.isEmpty)) {
-        final tRes = await client!
-            .getAvailableThinkingLevels(sessionId)
-            .timeout(const Duration(seconds: 4));
+      if (needsThinking && (resolvedThinking == null || resolvedThinking.isEmpty)) {
+        final tRes = await client!.getAvailableThinkingLevels(sessionId).timeout(const Duration(seconds: 4));
         final tData = tRes['data'] as Map<String, dynamic>? ?? tRes;
-        final levelRaw =
-            tData['currentLevel'] ??
-            tData['thinkingLevel'] ??
-            tData['defaultLevel'];
+        final levelRaw = tData['currentLevel'] ?? tData['thinkingLevel'] ?? tData['defaultLevel'];
         if (levelRaw != null) {
           resolvedThinking = levelRaw.toString();
         } else {
-          final levels =
-              (tData['levels'] as List<dynamic>?)
-                  ?.map((e) => e.toString())
-                  .toList() ??
-              [];
+          final levels = (tData['levels'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
           if (levels.contains('medium')) {
             resolvedThinking = 'medium';
           } else if (levels.isNotEmpty) {
@@ -305,8 +258,7 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
       if (mounted && (resolvedModel != null || resolvedThinking != null)) {
         state = state.copyWith(
           currentModel: resolvedModel ?? state.currentModel,
-          currentModelProvider:
-              resolvedModelProvider ?? state.currentModelProvider,
+          currentModelProvider: resolvedModelProvider ?? state.currentModelProvider,
           currentModelId: resolvedModelId ?? state.currentModelId,
           currentThinkingLevel: resolvedThinking ?? state.currentThinkingLevel,
         );
@@ -335,8 +287,7 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
       final data = result['data'] as Map<String, dynamic>? ?? result;
       if (mounted) {
         final updatedData = Map<String, dynamic>.from(data);
-        if (state.contextWindowOverride != null &&
-            state.contextWindowOverride! > 0) {
+        if (state.contextWindowOverride != null && state.contextWindowOverride! > 0) {
           final cu = updatedData['contextUsage'] as Map?;
           final tokens = (cu?['tokens'] as num?)?.toDouble();
           final win = state.contextWindowOverride!;
@@ -371,14 +322,10 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
   }
 
   void _markPromptFailed(String text, String message, {String? entryId}) {
-    final index = entryId == null
-        ? -1
-        : state.entries.indexWhere((entry) => entry.id == entryId);
+    final index = entryId == null ? -1 : state.entries.indexWhere((entry) => entry.id == entryId);
     final targetIndex = index >= 0
         ? index
-        : state.entries.lastIndexWhere(
-            (entry) => entry.role == 'user' && entry.text == text,
-          );
+        : state.entries.lastIndexWhere((entry) => entry.role == 'user' && entry.text == text);
     if (!mounted || targetIndex < 0) return;
     final entries = List<SessionEntry>.from(state.entries);
     final entry = entries[targetIndex];
@@ -431,10 +378,7 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     } catch (error) {
       _markPromptFailed(
         entry.text,
-        error.toString().replaceFirst(
-          RegExp(r'^(Bad state|Exception):\s*'),
-          '',
-        ),
+        error.toString().replaceFirst(RegExp(r'^(Bad state|Exception):\s*'), ''),
         entryId: retryId,
       );
       if (mounted) state = state.copyWith(agentStatus: previousStatus);
@@ -457,26 +401,16 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
         text: text,
         timestamp: DateTime.now().millisecondsSinceEpoch,
       );
-      state = state.copyWith(
-        entries: [...state.entries, userEntry],
-        agentStatus: AgentStatus.working,
-      );
+      state = state.copyWith(entries: [...state.entries, userEntry], agentStatus: AgentStatus.working);
     }
     try {
       if (promptClient == null) throw StateError('Daemon non connesso');
-      await promptClient.sendPrompt(
-        sessionId,
-        text,
-        streamingBehavior: streamingBehavior,
-      );
+      await promptClient.sendPrompt(sessionId, text, streamingBehavior: streamingBehavior);
     } catch (error) {
       if (mounted && optimisticId != null) {
         _markPromptFailed(
           text,
-          error.toString().replaceFirst(
-            RegExp(r'^(Bad state|Exception):\s*'),
-            '',
-          ),
+          error.toString().replaceFirst(RegExp(r'^(Bad state|Exception):\s*'), ''),
           entryId: optimisticId,
         );
         state = state.copyWith(agentStatus: prevStatus);
@@ -620,20 +554,15 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     }
   }
 
-  Future<({List<Map<String, dynamic>> models, String? warning})>
-  getAvailableModelsWithWarning() async {
+  Future<({List<Map<String, dynamic>> models, String? warning})> getAvailableModelsWithWarning() async {
     if (client == null) {
       return (models: <Map<String, dynamic>>[], warning: null);
     }
     final res = await client!.getAvailableModels(sessionId);
     final data = res['data'] as Map<String, dynamic>? ?? res;
-    final models =
-        (data['models'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [];
+    final models = (data['models'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [];
     final warning = data['warning']?.toString();
-    return (
-      models: models,
-      warning: warning?.isNotEmpty == true ? warning : null,
-    );
+    return (models: models, warning: warning?.isNotEmpty == true ? warning : null);
   }
 
   Future<List<String>> getAvailableThinkingLevels() async {
@@ -656,9 +585,7 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     final result = await client!.setContextWindowOverride(sessionId, size);
     final data = result['data'] as Map<String, dynamic>? ?? result;
     final hasOverride = data.containsKey('contextWindowOverride');
-    final acceptedLimit = hasOverride
-        ? (data['contextWindowOverride'] as num?)?.toInt()
-        : size;
+    final acceptedLimit = hasOverride ? (data['contextWindowOverride'] as num?)?.toInt() : size;
     final reserve = (data['compactionReservePercent'] as num?)?.toDouble();
     state = state.copyWith(
       contextWindowOverride: acceptedLimit,
@@ -669,24 +596,14 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
 
   Future<void> setCompactionReservePercent(double percent) async {
     if (!percent.isFinite || percent <= 0 || percent >= 100) {
-      throw ArgumentError.value(
-        percent,
-        'percent',
-        'Must be greater than 0 and less than 100',
-      );
+      throw ArgumentError.value(percent, 'percent', 'Must be greater than 0 and less than 100');
     }
     if (client == null) throw StateError('Daemon non connesso');
-    final result = await client!.setCompactionReservePercent(
-      sessionId,
-      percent,
-    );
+    final result = await client!.setCompactionReservePercent(sessionId, percent);
     final data = result['data'] as Map<String, dynamic>? ?? result;
-    final reserve =
-        (data['compactionReservePercent'] as num?)?.toDouble() ?? percent;
+    final reserve = (data['compactionReservePercent'] as num?)?.toDouble() ?? percent;
     final hasOverride = data.containsKey('contextWindowOverride');
-    final acceptedLimit = hasOverride
-        ? (data['contextWindowOverride'] as num?)?.toInt()
-        : state.contextWindowOverride;
+    final acceptedLimit = hasOverride ? (data['contextWindowOverride'] as num?)?.toInt() : state.contextWindowOverride;
     state = state.copyWith(
       contextWindowOverride: acceptedLimit,
       clearContextWindowOverride: hasOverride && acceptedLimit == null,

@@ -13,9 +13,7 @@ void main() {
   final languageDir = Directory('lib/data/language');
 
   // Matches the Italian branch: `isItalian ? 'value'` (value may span lines).
-  final italianValue = RegExp(
-    r"isItalian\s*\?\s*'((?:[^'\\\r\n]|\\.)*)'",
-  );
+  final italianValue = RegExp(r"isItalian\s*\?\s*'((?:[^'\\\r\n]|\\.)*)'");
 
   // Internal IDs from the design docs must never reach user copy.
   final internalIds = <String, RegExp>{
@@ -65,10 +63,6 @@ void main() {
 
     // Guard against a regex that silently matches nothing.
     expect(checked, greaterThan(100), reason: 'Expected to scan the Italian strings');
-    expect(
-      violations,
-      isEmpty,
-      reason: 'Fix these Italian strings:\n${violations.join('\n')}',
-    );
+    expect(violations, isEmpty, reason: 'Fix these Italian strings:\n${violations.join('\n')}');
   });
 }

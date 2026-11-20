@@ -28,38 +28,83 @@ const server = http.createServer((request, response) => {
   request.on('end', () => {
     response.writeHead(200, { 'Content-Type': 'text/event-stream' });
     const chunk = (delta, finish_reason = null) => ({
-      id: 'smoke', object: 'chat.completion.chunk', created: 1, model: 'smoke',
-      choices: [{ index: 0, delta, finish_reason }],
+      id: 'smoke',
+      object: 'chat.completion.chunk',
+      created: 1,
+      model: 'smoke',
+      choices: [{ index: 0, delta, finish_reason }]
     });
-    for (const frame of [chunk({ role: 'assistant' }), chunk({ content: 'Real Pi transport works.' }), chunk({}, 'stop')]) {
+    for (const frame of [
+      chunk({ role: 'assistant' }),
+      chunk({ content: 'Real Pi transport works.' }),
+      chunk({}, 'stop')
+    ]) {
       response.write(`data: ${JSON.stringify(frame)}\n\n`);
     }
     response.end('data: [DONE]\n\n');
   });
 });
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
-fs.writeFileSync(path.join(agentDir, 'models.json'), JSON.stringify({ providers: {
-  'frame-smoke': {
-    baseUrl: `http://127.0.0.1:${server.address().port}/v1`, api: 'openai-completions', apiKey: 'local-test-only',
-    models: [{ id: 'smoke', name: 'Smoke', reasoning: false, input: ['text'], contextWindow: 32000, maxTokens: 512,
-      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } }],
-  },
-} }));
-fs.writeFileSync(path.join(agentDir, 'settings.json'), JSON.stringify({
-  defaultProvider: 'frame-smoke', defaultModel: 'smoke', packages: [],
-}));
+fs.writeFileSync(
+  path.join(agentDir, 'models.json'),
+  JSON.stringify({
+    providers: {
+      'frame-smoke': {
+        baseUrl: `http://127.0.0.1:${server.address().port}/v1`,
+        api: 'openai-completions',
+        apiKey: 'local-test-only',
+        models: [
+          {
+            id: 'smoke',
+            name: 'Smoke',
+            reasoning: false,
+            input: ['text'],
+            contextWindow: 32000,
+            maxTokens: 512,
+            cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }
+          }
+        ]
+      }
+    }
+  })
+);
+fs.writeFileSync(
+  path.join(agentDir, 'settings.json'),
+  JSON.stringify({
+    defaultProvider: 'frame-smoke',
+    defaultModel: 'smoke',
+    packages: []
+  })
+);
 const env = { PI_CODING_AGENT_DIR: agentDir, PI_OFFLINE: '1' };
-const previousEnv = Object.fromEntries(['PI_CODING_AGENT_DIR', 'PI_OFFLINE', 'PI_FRAME_HOME'].map((key) => [key, process.env[key]]));
+const previousEnv = Object.fromEntries(
+  ['PI_CODING_AGENT_DIR', 'PI_OFFLINE', 'PI_FRAME_HOME'].map((key) => [key, process.env[key]])
+);
 let registry;
 let onEvent;
 let transport;
 try {
   transport = new StdioPiTransport({ executablePath: installation.path });
-  await transport.start({ cwd: workspaceDir, env, args: [
-    '--mode', 'rpc', '--offline', '--no-extensions', '--no-skills', '--no-prompt-templates',
-    '--provider', 'frame-smoke', '--model', 'smoke', '--session-dir', path.join(agentDir, 'sessions'),
-    '--session-id', 'frame-smoke-session',
-  ] });
+  await transport.start({
+    cwd: workspaceDir,
+    env,
+    args: [
+      '--mode',
+      'rpc',
+      '--offline',
+      '--no-extensions',
+      '--no-skills',
+      '--no-prompt-templates',
+      '--provider',
+      'frame-smoke',
+      '--model',
+      'smoke',
+      '--session-dir',
+      path.join(agentDir, 'sessions'),
+      '--session-id',
+      'frame-smoke-session'
+    ]
+  });
   const state = (await transport.send({ command: 'get_state' })).data;
   assert.equal(state.model.provider, 'frame-smoke');
   const events = [];
@@ -72,22 +117,31 @@ try {
   })();
   const prompt = await transport.send({ command: 'prompt', arguments: { message: 'Reply once without tools.' } });
   assert.equal(prompt.success, true);
-  await Promise.race([settled, new Promise((_, reject) => {
-    const deadline = setTimeout(() => reject(new Error('Real Pi smoke timed out')), 15000);
-    deadline.unref();
-  })]);
+  await Promise.race([
+    settled,
+    new Promise((_, reject) => {
+      const deadline = setTimeout(() => reject(new Error('Real Pi smoke timed out')), 15000);
+      deadline.unref();
+    })
+  ]);
   assert.equal(calls, 1);
-  assert.ok(events.some((e) => e.type === 'message_update' && e.assistantMessageEvent?.delta === 'Real Pi transport works.'));
+  assert.ok(
+    events.some((e) => e.type === 'message_update' && e.assistantMessageEvent?.delta === 'Real Pi transport works.')
+  );
   const history = (await transport.send({ command: 'get_entries' })).data;
   assert.ok(history.entries.some((e) => e.message?.role === 'assistant'));
   const saved = (await transport.send({ command: 'get_state' })).data.sessionFile;
   assert.ok(saved && fs.existsSync(saved));
-  await assert.rejects(transport.send({ command: 'set_model', arguments: { provider: 'does-not-exist', modelId: 'invalid' } }));
+  await assert.rejects(
+    transport.send({ command: 'set_model', arguments: { provider: 'does-not-exist', modelId: 'invalid' } })
+  );
   await transport.stop({ graceMs: 1000 });
   transport = new StdioPiTransport({ executablePath: installation.path });
-  await transport.start({ cwd: workspaceDir, env, args: [
-    '--mode', 'rpc', '--offline', '--no-extensions', '--no-skills', '--no-prompt-templates', '--session', saved,
-  ] });
+  await transport.start({
+    cwd: workspaceDir,
+    env,
+    args: ['--mode', 'rpc', '--offline', '--no-extensions', '--no-skills', '--no-prompt-templates', '--session', saved]
+  });
   const restored = (await transport.send({ command: 'get_entries' })).data;
   assert.equal(restored.entries.length, history.entries.length);
   await transport.stop({ graceMs: 1000 });
@@ -99,7 +153,7 @@ try {
     capabilities: { version: installation.version, supported: true, modes: ['rpc'], features: [] },
     workerIdleTimeoutMs: 0,
     connectionManager: { broadcast: (id, event) => onEvent?.(id, event) },
-    sessionIndex: new SessionIndex({ sessionsDir: path.join(agentDir, 'sessions') }),
+    sessionIndex: new SessionIndex({ sessionsDir: path.join(agentDir, 'sessions') })
   });
   const external = await registry.openSession('frame-smoke-session');
   assert.equal(external.entries.length, 2);
@@ -113,7 +167,10 @@ try {
   const forkSettled = new Promise((resolve, reject) => {
     const timeout = setTimeout(() => reject(new Error('Fork did not settle')), 15000);
     onEvent = (id, event) => {
-      if (id === fork.id && event.type === 'run.settled') { clearTimeout(timeout); resolve(); }
+      if (id === fork.id && event.type === 'run.settled') {
+        clearTimeout(timeout);
+        resolve();
+      }
     };
   });
   await forkWorker.send({ command: 'prompt', arguments: { message: 'Persist the fork with one response.' } });
@@ -123,7 +180,9 @@ try {
   const list = await registry.listSessions(undefined, 1000);
   assert.equal(list.filter((item) => item.sessionFile === fork.sessionFile).length, 1);
   assert.deepEqual(fs.readFileSync(saved), originalBytes);
-  console.log(`Pi ${installation.version}: prompt, stream, settlement, history, reopen, failure propagation, daemon clone/fork PASS (loopback mock model).`);
+  console.log(
+    `Pi ${installation.version}: prompt, stream, settlement, history, reopen, failure propagation, daemon clone/fork PASS (loopback mock model).`
+  );
 } finally {
   await registry?.closeAll();
   await transport?.stop({ graceMs: 1000 });

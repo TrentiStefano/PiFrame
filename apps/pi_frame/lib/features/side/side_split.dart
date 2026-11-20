@@ -36,8 +36,7 @@ class SideSplit extends ConsumerStatefulWidget {
   ConsumerState<SideSplit> createState() => _SideSplitState();
 }
 
-class _SideSplitState extends ConsumerState<SideSplit>
-    with SingleTickerProviderStateMixin {
+class _SideSplitState extends ConsumerState<SideSplit> with SingleTickerProviderStateMixin {
   late final AnimationController _open;
   ProviderSubscription<SideThreadState>? _threadSub;
   bool _reduced = false;
@@ -52,17 +51,10 @@ class _SideSplitState extends ConsumerState<SideSplit>
   @override
   void initState() {
     super.initState();
-    _open = AnimationController(
-      vsync: this,
-      duration: FrameMotion.panel,
-      reverseDuration: FrameMotion.panelExit,
-    );
+    _open = AnimationController(vsync: this, duration: FrameMotion.panel, reverseDuration: FrameMotion.panelExit);
     _lastOpen = ref.read(sideThreadFamily(widget.sessionId)).isOpen;
     _open.value = _lastOpen ? 1 : 0;
-    _threadSub = ref.listenManual<SideThreadState>(
-      sideThreadFamily(widget.sessionId),
-      (_, next) => _sync(next.isOpen),
-    );
+    _threadSub = ref.listenManual<SideThreadState>(sideThreadFamily(widget.sessionId), (_, next) => _sync(next.isOpen));
   }
 
   @override
@@ -70,9 +62,7 @@ class _SideSplitState extends ConsumerState<SideSplit>
     super.didChangeDependencies();
     _reduced = FrameMotion.reduced(context);
     _open.duration = _reduced ? FrameMotion.crossFade : FrameMotion.panel;
-    _open.reverseDuration = _reduced
-        ? FrameMotion.crossFade
-        : FrameMotion.panelExit;
+    _open.reverseDuration = _reduced ? FrameMotion.crossFade : FrameMotion.panelExit;
   }
 
   @override
@@ -126,13 +116,9 @@ class _SideSplitState extends ConsumerState<SideSplit>
             final raw = _open.value;
             final shown = raw > 0;
             // Width follows the panel curve; reduced motion never moves the edge.
-            final factor = _reduced
-                ? (shown ? 1.0 : 0.0)
-                : FrameMotion.panelCurve.transform(raw);
+            final factor = _reduced ? (shown ? 1.0 : 0.0) : FrameMotion.panelCurve.transform(raw);
             // Content fades in only after the width is half way.
-            final contentOpacity = _reduced
-                ? raw
-                : ((raw - 0.5) / 0.5).clamp(0.0, 1.0);
+            final contentOpacity = _reduced ? raw : ((raw - 0.5) / 0.5).clamp(0.0, 1.0);
 
             final side = SizedBox(
               key: const ValueKey('side-split-panel'),
@@ -177,12 +163,7 @@ class _SideSplitState extends ConsumerState<SideSplit>
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(child: widget.main),
-                if (shown)
-                  _SideDivider(
-                    width: kSideDividerWidth * factor,
-                    color: tokens.border,
-                    onDrag: _dragDivider,
-                  ),
+                if (shown) _SideDivider(width: kSideDividerWidth * factor, color: tokens.border, onDrag: _dragDivider),
                 side,
               ],
             );
@@ -202,11 +183,7 @@ class _SideDivider extends StatelessWidget {
   final Color color;
   final ValueChanged<double> onDrag;
 
-  const _SideDivider({
-    required this.width,
-    required this.color,
-    required this.onDrag,
-  });
+  const _SideDivider({required this.width, required this.color, required this.onDrag});
 
   @override
   Widget build(BuildContext context) {

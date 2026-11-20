@@ -56,8 +56,10 @@ export class ConnectionManager {
 
   public broadcast(sessionId: string, msg: ServerMessage | PcpEnvelope<any>): void {
     for (const conn of this.connections.values()) {
-      if ((conn.state === 'ready' || conn.state === 'attached') &&
-          (sessionId === '@daemon' || conn.attachedSessions.has(sessionId))) {
+      if (
+        (conn.state === 'ready' || conn.state === 'attached') &&
+        (sessionId === '@daemon' || conn.attachedSessions.has(sessionId))
+      ) {
         conn.send(msg);
       }
     }
@@ -66,9 +68,11 @@ export class ConnectionManager {
   /** Broadcast ONLY to genuine local connections (never to remote devices). */
   public broadcastLocal(sessionId: string, msg: ServerMessage | PcpEnvelope<any>): void {
     for (const conn of this.connections.values()) {
-      if (!conn.isRemote &&
-          (conn.state === 'ready' || conn.state === 'attached') &&
-          (sessionId === '@daemon' || conn.attachedSessions.has(sessionId))) {
+      if (
+        !conn.isRemote &&
+        (conn.state === 'ready' || conn.state === 'attached') &&
+        (sessionId === '@daemon' || conn.attachedSessions.has(sessionId))
+      ) {
         conn.send(msg);
       }
     }

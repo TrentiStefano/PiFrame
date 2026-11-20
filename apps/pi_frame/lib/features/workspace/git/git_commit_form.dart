@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+
 import '../../../ui/precision.dart';
+
 import 'package:flutter/services.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
@@ -57,10 +59,8 @@ class GitCommitFields extends StatelessWidget {
 
     return CallbackShortcuts(
       bindings: {
-        const SingleActivator(LogicalKeyboardKey.enter, control: true):
-            _commitFromKeyboard,
-        const SingleActivator(LogicalKeyboardKey.enter, meta: true):
-            _commitFromKeyboard,
+        const SingleActivator(LogicalKeyboardKey.enter, control: true): _commitFromKeyboard,
+        const SingleActivator(LogicalKeyboardKey.enter, meta: true): _commitFromKeyboard,
       },
       child: Column(
         key: const ValueKey('git-commit-form'),
@@ -84,10 +84,7 @@ class GitCommitFields extends StatelessWidget {
                     style: text.body.copyWith(color: tokens.textPrimary),
                     decoration: InputDecoration(
                       isDense: true,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: FrameSpace.x2,
-                        vertical: FrameSpace.x2,
-                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2, vertical: FrameSpace.x2),
                       hintText: strings.commitSubjectLabel,
                     ),
                   ),
@@ -98,34 +95,22 @@ class GitCommitFields extends StatelessWidget {
                       // The counter takes the rest of the line and wraps at large
                       // text scale instead of overflowing the pane.
                       TextButton(
-                          key: const ValueKey('git-commit-body-toggle'),
-                          onPressed: onToggleBody,
-                          style: TextButton.styleFrom(
-                            minimumSize: const Size(0, FrameSize.hitMin),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: FrameSpace.x2,
-                            ),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            visualDensity: VisualDensity.compact,
-                          ),
-                          child: Text(
-                            bodyOpen
-                                ? strings.commitBodyHide
-                                : strings.commitBodyShow,
-                            style: text.label,
-                          ),
+                        key: const ValueKey('git-commit-body-toggle'),
+                        onPressed: onToggleBody,
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size(0, FrameSize.hitMin),
+                          padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2),
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          visualDensity: VisualDensity.compact,
                         ),
+                        child: Text(bodyOpen ? strings.commitBodyHide : strings.commitBodyShow, style: text.label),
+                      ),
                       Flexible(
                         child: Text(
-                          strings.commitSubjectCount(
-                            length,
-                            gitCommitSubjectGuide,
-                          ),
+                          strings.commitSubjectCount(length, gitCommitSubjectGuide),
                           key: const ValueKey('git-commit-subject-counter'),
                           textAlign: TextAlign.end,
-                          style: text.caption.copyWith(
-                            color: over ? tokens.warning : tokens.textMuted,
-                          ),
+                          style: text.caption.copyWith(color: over ? tokens.warning : tokens.textMuted),
                         ),
                       ),
                     ],
@@ -144,10 +129,7 @@ class GitCommitFields extends StatelessWidget {
               style: text.body.copyWith(color: tokens.textPrimary),
               decoration: InputDecoration(
                 isDense: true,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: FrameSpace.x2,
-                  vertical: FrameSpace.x2,
-                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2, vertical: FrameSpace.x2),
                 hintText: strings.commitBodyLabel,
               ),
             ),
@@ -190,11 +172,14 @@ class GitCommitButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final button = Tooltip(
       message: tooltip,
-      child: PressFeedback(enabled: (enabled ? onPressed : null) != null, child: FilledButton(
-        key: const ValueKey('git-commit-btn'),
-        onPressed: enabled ? onPressed : null,
-        child: Text(label),
-      )),
+      child: PressFeedback(
+        enabled: (enabled ? onPressed : null) != null,
+        child: FilledButton(
+          key: const ValueKey('git-commit-btn'),
+          onPressed: enabled ? onPressed : null,
+          child: Text(label),
+        ),
+      ),
     );
     if (fullWidth) {
       return SizedBox(width: double.infinity, child: button);

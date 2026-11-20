@@ -17,17 +17,9 @@ Widget _reduced(Widget child) {
 }
 
 void main() {
-  testWidgets('activity indicator is static under reduced motion', (
-    tester,
-  ) async {
+  testWidgets('activity indicator is static under reduced motion', (tester) async {
     await tester.pumpWidget(
-      _reduced(
-        const FrameActivityIndicator(
-          size: 14,
-          color: Colors.white,
-          semanticLabel: 'Working',
-        ),
-      ),
+      _reduced(const FrameActivityIndicator(size: 14, color: Colors.white, semanticLabel: 'Working')),
     );
     expect(find.byType(CircularProgressIndicator), findsNothing);
     expect(find.byIcon(Icons.sync_outlined), findsOneWidget);
@@ -35,9 +27,7 @@ void main() {
     expect(find.bySemanticsLabel('Working'), findsOneWidget);
   });
 
-  testWidgets('composer run status line shows no spinner under reduced motion', (
-    tester,
-  ) async {
+  testWidgets('composer run status line shows no spinner under reduced motion', (tester) async {
     await tester.pumpWidget(
       _reduced(
         ComposerRunStatusLine(
@@ -53,12 +43,8 @@ void main() {
     expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 
-  testWidgets('subagent header dot shows no spinner under reduced motion', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      _reduced(const SubagentStatusDot(running: true)),
-    );
+  testWidgets('subagent header dot shows no spinner under reduced motion', (tester) async {
+    await tester.pumpWidget(_reduced(const SubagentStatusDot(running: true)));
     expect(find.byType(CircularProgressIndicator), findsNothing);
   });
 }

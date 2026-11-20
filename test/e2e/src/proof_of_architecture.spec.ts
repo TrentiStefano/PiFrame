@@ -29,7 +29,7 @@ test('M1 Proof of Architecture: GUI disconnect does not abort agent execution; c
     config: DEFAULT_CONFIG,
     token,
     version,
-    startedAt,
+    startedAt
   });
 
   await new Promise<void>((resolve, reject) => {
@@ -59,7 +59,7 @@ test('M1 Proof of Architecture: GUI disconnect does not abort agent execution; c
     },
     onDetach: async (conn, sid) => {
       await registry.detachClient(sid, conn);
-    },
+    }
   });
 
   registry = new SessionRegistry({
@@ -68,10 +68,10 @@ test('M1 Proof of Architecture: GUI disconnect does not abort agent execution; c
       version: '0.85.1',
       supported: true,
       modes: ['rpc'],
-      features: ['thinking', 'tools', 'compaction'],
+      features: ['thinking', 'tools', 'compaction']
     },
     workerIdleTimeoutMs: 60000,
-    connectionManager: manager,
+    connectionManager: manager
   });
 
   dispatcher = new Dispatcher(registry, manager);
@@ -95,8 +95,8 @@ test('M1 Proof of Architecture: GUI disconnect does not abort agent execution; c
       token,
       client: { name: 'client-1', version: '1.0.0', platform: 'test' },
       encoding: 'json',
-      capabilities: ['replay.v1'],
-    },
+      capabilities: ['replay.v1']
+    }
   });
 
   // Wait for welcome
@@ -124,7 +124,7 @@ test('M1 Proof of Architecture: GUI disconnect does not abort agent execution; c
     sessionId,
     commandId: makeId('att'),
     type: 'session.attach',
-    payload: {},
+    payload: {}
   });
 
   // Client 1 initiates prompt
@@ -136,7 +136,7 @@ test('M1 Proof of Architecture: GUI disconnect does not abort agent execution; c
     sessionId,
     commandId: makeId('prm'),
     type: 'agent.prompt',
-    payload: { text: 'Stream me a slow message' },
+    payload: { text: 'Stream me a slow message' }
   });
 
   const client1Events: any[] = [];
@@ -160,7 +160,9 @@ test('M1 Proof of Architecture: GUI disconnect does not abort agent execution; c
   });
 
   assert.ok(disconnectSeq >= 3, `Expected disconnectSeq >= 3, got ${disconnectSeq}`);
-  console.log(`[E2E] Client 1 received 3 text.delta events up to seq=${disconnectSeq}. Terminating connection abruptly...`);
+  console.log(
+    `[E2E] Client 1 received 3 text.delta events up to seq=${disconnectSeq}. Terminating connection abruptly...`
+  );
 
   // ---------------------------------------------------------------------------
   // 3. Abrupt disconnect of Client 1 (GUI crash simulation)
@@ -203,8 +205,8 @@ test('M1 Proof of Architecture: GUI disconnect does not abort agent execution; c
       token,
       client: { name: 'client-2', version: '1.0.0', platform: 'test' },
       encoding: 'json',
-      capabilities: ['replay.v1'],
-    },
+      capabilities: ['replay.v1']
+    }
   });
 
   await new Promise<void>((resolve) => {
@@ -227,7 +229,7 @@ test('M1 Proof of Architecture: GUI disconnect does not abort agent execution; c
     sessionId,
     commandId: makeId('att2'),
     type: 'session.attach',
-    payload: { lastSeq: disconnectSeq },
+    payload: { lastSeq: disconnectSeq }
   });
 
   const client2Events: any[] = [];
@@ -245,11 +247,17 @@ test('M1 Proof of Architecture: GUI disconnect does not abort agent execution; c
     });
   });
 
-  console.log(`[E2E] Client 2 received ${client2Events.length} events starting from seq=${client2Events[0]?.seq} to run.settled`);
+  console.log(
+    `[E2E] Client 2 received ${client2Events.length} events starting from seq=${client2Events[0]?.seq} to run.settled`
+  );
 
   // Verify continuity
   assert.ok(client2Events.length > 0);
-  assert.equal(client2Events[0].seq, disconnectSeq + 1, 'First event replayed to Client 2 must immediately follow disconnectSeq');
+  assert.equal(
+    client2Events[0].seq,
+    disconnectSeq + 1,
+    'First event replayed to Client 2 must immediately follow disconnectSeq'
+  );
 
   // Verify all seqs are strictly sequential
   for (let i = 1; i < client2Events.length; i++) {
@@ -261,8 +269,14 @@ test('M1 Proof of Architecture: GUI disconnect does not abort agent execution; c
   }
 
   // Verify completion
-  assert.ok(client2Events.some((e) => e.type === 'message.completed'), 'Must receive message.completed');
-  assert.ok(client2Events.some((e) => e.type === 'run.settled'), 'Must receive run.settled');
+  assert.ok(
+    client2Events.some((e) => e.type === 'message.completed'),
+    'Must receive message.completed'
+  );
+  assert.ok(
+    client2Events.some((e) => e.type === 'run.settled'),
+    'Must receive run.settled'
+  );
 
   // Cleanup
   ws2.close();
@@ -270,5 +284,7 @@ test('M1 Proof of Architecture: GUI disconnect does not abort agent execution; c
   await new Promise<void>((resolve) => httpServer.close(() => resolve()));
   delete process.env.FAKE_PI_SCENARIO;
 
-  console.log('[E2E] PROOF OF ARCHITECTURE VERIFIED: Disconnecting GUI leaves Pi active and streaming, reconnect replays flawlessly!');
+  console.log(
+    '[E2E] PROOF OF ARCHITECTURE VERIFIED: Disconnecting GUI leaves Pi active and streaming, reconnect replays flawlessly!'
+  );
 });

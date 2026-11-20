@@ -32,26 +32,10 @@ class _MockBranchClient extends PcpClient {
       behind: 0,
       lastCommitUnix: 1699900000,
     ),
-    const WorkspaceBranchInfo(
-      name: 'fix#12',
-      isCurrent: false,
-      lastCommitUnix: 1699800000,
-    ),
-    const WorkspaceBranchInfo(
-      name: 'feature/ä-ü',
-      isCurrent: false,
-      lastCommitUnix: 1699700000,
-    ),
-    const WorkspaceBranchInfo(
-      name: 'emoji-🚀',
-      isCurrent: false,
-      lastCommitUnix: 1699600000,
-    ),
-    const WorkspaceBranchInfo(
-      name: 'quote"branch',
-      isCurrent: false,
-      lastCommitUnix: 1699500000,
-    ),
+    const WorkspaceBranchInfo(name: 'fix#12', isCurrent: false, lastCommitUnix: 1699800000),
+    const WorkspaceBranchInfo(name: 'feature/ä-ü', isCurrent: false, lastCommitUnix: 1699700000),
+    const WorkspaceBranchInfo(name: 'emoji-🚀', isCurrent: false, lastCommitUnix: 1699600000),
+    const WorkspaceBranchInfo(name: 'quote"branch', isCurrent: false, lastCommitUnix: 1699500000),
   ];
 
   String currentBranch = 'main';
@@ -61,8 +45,7 @@ class _MockBranchClient extends PcpClient {
 
   final switchCalls = <({String branch, String onDirty})>[];
   Object? switchErrorToThrow;
-  WorkspaceSwitchBranchResult Function(String branch, String onDirty)?
-      onSwitchBranch;
+  WorkspaceSwitchBranchResult Function(String branch, String onDirty)? onSwitchBranch;
 
   @override
   Future<WorkspaceListBranchesResult> listBranches(String sessionId) async {
@@ -75,11 +58,7 @@ class _MockBranchClient extends PcpClient {
   }
 
   @override
-  Future<WorkspaceSwitchBranchResult> switchBranch(
-    String sessionId,
-    String branch, {
-    String onDirty = 'block',
-  }) async {
+  Future<WorkspaceSwitchBranchResult> switchBranch(String sessionId, String branch, {String onDirty = 'block'}) async {
     switchCalls.add((branch: branch, onDirty: onDirty));
     if (switchErrorToThrow != null) {
       throw switchErrorToThrow!;
@@ -88,18 +67,11 @@ class _MockBranchClient extends PcpClient {
       return onSwitchBranch!(branch, onDirty);
     }
     currentBranch = branch;
-    return WorkspaceSwitchBranchResult(
-      currentBranch: branch,
-      stashed: false,
-      stashMessage: null,
-    );
+    return WorkspaceSwitchBranchResult(currentBranch: branch, stashed: false, stashMessage: null);
   }
 
   @override
-  Future<Map<String, dynamic>> refreshWorkspace(
-    String sessionId, {
-    String? cwd,
-  }) async {
+  Future<Map<String, dynamic>> refreshWorkspace(String sessionId, {String? cwd}) async {
     refreshCount++;
     return {
       'data': {
@@ -129,18 +101,11 @@ Widget _wrapWithApp({
       appLanguageProvider.overrideWith((ref) => AppLanguageNotifier()..setLanguage(language)),
       sessionStateFamily('session-a').overrideWith(
         (ref) => SessionStateNotifier('session-a', null)
-          ..state = SessionState(
-            sessionId: 'session-a',
-            cwd: '/repo',
-            agentStatus: agentStatus,
-            readOnly: readOnly,
-          ),
+          ..state = SessionState(sessionId: 'session-a', cwd: '/repo', agentStatus: agentStatus, readOnly: readOnly),
       ),
     ],
     child: MaterialApp(
-      theme: ThemeData.light().copyWith(
-        extensions: const [FrameTokens.light],
-      ),
+      theme: ThemeData.light().copyWith(extensions: const [FrameTokens.light]),
       home: Scaffold(body: child),
     ),
   );
@@ -154,12 +119,8 @@ void main() {
         _wrapWithApp(
           child: Builder(
             builder: (context) => ElevatedButton(
-              onPressed: () => BranchPickerDialog.show(
-                context,
-                sessionId: 'session-a',
-                client: client,
-                currentBranch: 'main',
-              ),
+              onPressed: () =>
+                  BranchPickerDialog.show(context, sessionId: 'session-a', client: client, currentBranch: 'main'),
               child: const Text('Open'),
             ),
           ),
@@ -187,12 +148,8 @@ void main() {
         _wrapWithApp(
           child: Builder(
             builder: (context) => ElevatedButton(
-              onPressed: () => BranchPickerDialog.show(
-                context,
-                sessionId: 'session-a',
-                client: client,
-                currentBranch: 'main',
-              ),
+              onPressed: () =>
+                  BranchPickerDialog.show(context, sessionId: 'session-a', client: client, currentBranch: 'main'),
               child: const Text('Open'),
             ),
           ),
@@ -204,10 +161,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Enter query 'login'
-      await tester.enterText(
-        find.byKey(const ValueKey('branch-picker-search-field')),
-        'login',
-      );
+      await tester.enterText(find.byKey(const ValueKey('branch-picker-search-field')), 'login');
       await tester.pumpAndSettle();
 
       expect(find.text('feature/login'), findsOneWidget);
@@ -221,12 +175,8 @@ void main() {
         _wrapWithApp(
           child: Builder(
             builder: (context) => ElevatedButton(
-              onPressed: () => BranchPickerDialog.show(
-                context,
-                sessionId: 'session-a',
-                client: client,
-                currentBranch: 'main',
-              ),
+              onPressed: () =>
+                  BranchPickerDialog.show(context, sessionId: 'session-a', client: client, currentBranch: 'main'),
               child: const Text('Open'),
             ),
           ),
@@ -236,10 +186,7 @@ void main() {
 
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
-      await tester.enterText(
-        find.byKey(const ValueKey('branch-picker-search-field')),
-        'zzz-no-such-branch',
-      );
+      await tester.enterText(find.byKey(const ValueKey('branch-picker-search-field')), 'zzz-no-such-branch');
       await tester.pumpAndSettle();
 
       expect(find.text('feature/login'), findsNothing);
@@ -255,12 +202,8 @@ void main() {
         _wrapWithApp(
           child: Builder(
             builder: (context) => ElevatedButton(
-              onPressed: () => BranchPickerDialog.show(
-                context,
-                sessionId: 'session-a',
-                client: client,
-                currentBranch: 'main',
-              ),
+              onPressed: () =>
+                  BranchPickerDialog.show(context, sessionId: 'session-a', client: client, currentBranch: 'main'),
               child: const Text('Open'),
             ),
           ),
@@ -424,13 +367,16 @@ void main() {
       expect(selected, 'feature/login');
     });
 
-    testWidgets('picker row layout with very long branch and upstream names at 540px width has no overflow', (tester) async {
+    testWidgets('picker row layout with very long branch and upstream names at 540px width has no overflow', (
+      tester,
+    ) async {
       final client = _MockBranchClient();
       client.mockBranches = [
         const WorkspaceBranchInfo(
           name: 'features/super-extremely-ultra-long-branch-name-that-would-normally-overflow-any-fixed-width-screen-without-ellipsis-guarding-the-layout-completely-1234567890',
           isCurrent: true,
-          upstream: 'origin/super-extremely-ultra-long-upstream-remote-tracking-reference-that-exceeds-normal-bounds/main',
+          upstream:
+              'origin/super-extremely-ultra-long-upstream-remote-tracking-reference-that-exceeds-normal-bounds/main',
           ahead: 12,
           behind: 34,
           lastCommitUnix: 1700000000,
@@ -517,9 +463,7 @@ void main() {
       // Check dialog appears with counts
       expect(find.text('Uncommitted Changes'), findsOneWidget);
       expect(
-        find.text(
-          'You have 3 modified and 2 untracked files. Switching branch is blocked to protect your changes.',
-        ),
+        find.text('You have 3 modified and 2 untracked files. Switching branch is blocked to protect your changes.'),
         findsOneWidget,
       );
       expect(find.text('Cancel'), findsOneWidget);
@@ -580,7 +524,10 @@ void main() {
 
       // Verify snackbar indicates stashed changes
       expect(find.textContaining('Switched to feature/login'), findsOneWidget);
-      expect(find.textContaining('Your changes were stashed: piframe: before switching to feature/login'), findsOneWidget);
+      expect(
+        find.textContaining('Your changes were stashed: piframe: before switching to feature/login'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('success triggers Git Changes refresh + label update', (tester) async {
@@ -640,19 +587,14 @@ void main() {
       expect(find.text('Branch switch failed'), findsOneWidget);
       expect(find.textContaining('fatal: error switching branch'), findsOneWidget);
       expect(
-        find.text(
-          'Your changes are safe in the stash: piframe: before switching to feature/login (2025-01-01)',
-        ),
+        find.text('Your changes are safe in the stash: piframe: before switching to feature/login (2025-01-01)'),
         findsOneWidget,
       );
     });
 
     testWidgets('BRANCH_NOT_FOUND shows message and triggers refresh', (tester) async {
       final client = _MockBranchClient();
-      client.switchErrorToThrow = PcpException(
-        'Branch not found',
-        code: 'BRANCH_NOT_FOUND',
-      );
+      client.switchErrorToThrow = PcpException('Branch not found', code: 'BRANCH_NOT_FOUND');
 
       await tester.pumpWidget(
         _wrapWithApp(
@@ -674,7 +616,9 @@ void main() {
       expect(client.refreshCount, greaterThan(initialRefreshCount));
     });
 
-    testWidgets('busy/read-only rejection shows message "Cannot switch branch while the agent is working"', (tester) async {
+    testWidgets('busy/read-only rejection shows message "Cannot switch branch while the agent is working"', (
+      tester,
+    ) async {
       final client = _MockBranchClient();
       client.switchErrorToThrow = PcpException(
         'Repository writes are disabled while the Pi worker is active.',
@@ -695,10 +639,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('branch-picker-item-feature/login')));
       await tester.pumpAndSettle();
 
-      expect(
-        find.text('Cannot switch branch while the agent is working'),
-        findsOneWidget,
-      );
+      expect(find.text('Cannot switch branch while the agent is working'), findsOneWidget);
     });
 
     testWidgets('detached HEAD renders short SHA in branch chip', (tester) async {
@@ -735,10 +676,7 @@ void main() {
       expect(inkWell.onTap, isNull);
 
       // Verify tooltip explains why
-      final tooltipFinder = find.ancestor(
-        of: inkWellFinder,
-        matching: find.byType(Tooltip),
-      );
+      final tooltipFinder = find.ancestor(of: inkWellFinder, matching: find.byType(Tooltip));
       expect(tooltipFinder, findsOneWidget);
       final tooltip = tester.widget<Tooltip>(tooltipFinder);
       expect(tooltip.message, 'Cannot switch branch while the agent is working');

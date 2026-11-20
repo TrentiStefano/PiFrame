@@ -4,12 +4,7 @@ import * as crypto from 'node:crypto';
 import { ulid } from 'ulid';
 import { getPiFrameBaseDir } from '../config/config.js';
 import { timingSafeEqualStrings } from '../server/auth.js';
-import type {
-  PairedDevice,
-  PublicPairedDevice,
-  PairingSecret,
-  RemoteDeviceMode
-} from './types.js';
+import type { PairedDevice, PublicPairedDevice, PairingSecret, RemoteDeviceMode } from './types.js';
 
 /** Sliding lifetime of a device credential: renewed on every authenticated use. */
 export const DEVICE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -51,7 +46,6 @@ function safeHashEqual(aHex: string, bHex: string): boolean {
 }
 
 function sanitizeText(value: string, max: number): string {
-  // eslint-disable-next-line no-control-regex
   return value.replace(/[\u0000-\u001f\u007f]/g, '').slice(0, max);
 }
 

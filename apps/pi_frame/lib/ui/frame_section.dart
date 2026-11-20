@@ -11,12 +11,7 @@ class FrameSection extends StatelessWidget {
   final String? description;
   final Widget child;
 
-  const FrameSection({
-    super.key,
-    required this.title,
-    this.description,
-    required this.child,
-  });
+  const FrameSection({super.key, required this.title, this.description, required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -34,17 +29,11 @@ class FrameSection extends StatelessWidget {
         children: [
           Semantics(
             header: true,
-            child: Text(
-              title,
-              style: text.title.copyWith(color: tokens.textPrimary),
-            ),
+            child: Text(title, style: text.title.copyWith(color: tokens.textPrimary)),
           ),
           if (description != null) ...[
             const SizedBox(height: FrameSpace.x1),
-            Text(
-              description!,
-              style: text.body.copyWith(color: tokens.textSecondary),
-            ),
+            Text(description!, style: text.body.copyWith(color: tokens.textSecondary)),
           ],
           const SizedBox(height: FrameSpace.x3),
           child,

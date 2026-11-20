@@ -76,13 +76,17 @@ export class CloudflaredTunnelProvider extends BaseTunnelProvider {
 
     const stat = fs.statSync(tmpFile);
     if (stat.size < 10 * 1024 * 1024) {
-      try { fs.unlinkSync(tmpFile); } catch {}
+      try {
+        fs.unlinkSync(tmpFile);
+      } catch {}
       throw new Error(`Downloaded binary is incomplete or corrupted (${stat.size} bytes)`);
     }
 
     fs.renameSync(tmpFile, destFile);
     if (!isWin) {
-      try { fs.chmodSync(destFile, 0o755); } catch {}
+      try {
+        fs.chmodSync(destFile, 0o755);
+      } catch {}
     }
 
     return destFile;

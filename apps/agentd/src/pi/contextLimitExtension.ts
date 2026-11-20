@@ -29,25 +29,38 @@ export function contextLimitExtension(pi: any): void {
     // Shift only the in-memory window; never rewrite Pi settings or the model catalogue.
     // A larger native reserve can compact earlier, but never later than our threshold.
     const window = Math.max(1, Math.min(maximum, threshold + reserve - 1));
-    if (model.contextWindow === window && model.piframeOriginalContextWindow === maximum &&
-        model.piframeContextPolicy?.limit === policy.limit && model.piframeContextPolicy?.percent === policy.percent) return;
+    if (
+      model.contextWindow === window &&
+      model.piframeOriginalContextWindow === maximum &&
+      model.piframeContextPolicy?.limit === policy.limit &&
+      model.piframeContextPolicy?.percent === policy.percent
+    )
+      return;
     applying = true;
     try {
       const ok = await pi.setModel({
-        ...model, contextWindow: window, piframeOriginalContextWindow: maximum, piframeContextPolicy: policy,
+        ...model,
+        contextWindow: window,
+        piframeOriginalContextWindow: maximum,
+        piframeContextPolicy: policy,
         // RPC get_state serializes this live value; do not confuse cumulative session tokens with context usage.
-        get piframeContextUsage() { return typeof ctx.getContextUsage === 'function' ? ctx.getContextUsage() : null; },
+        get piframeContextUsage() {
+          return typeof ctx.getContextUsage === 'function' ? ctx.getContextUsage() : null;
+        }
       });
       if (!ok) throw new Error('Impossibile applicare il limite al modello attivo.');
-    } finally { applying = false; }
+    } finally {
+      applying = false;
+    }
   };
   pi.registerCommand('piframe-reload', {
     description: 'PiFrame internal reload',
     handler: async (_args: string, ctx: any) => {
       // ctx.reload() is Pi's own resource reload (extensions, skills, prompts, context files).
-      if (typeof ctx?.reload !== 'function') throw new Error('Aggiorna Pi: ricaricamento non disponibile in questa versione.');
+      if (typeof ctx?.reload !== 'function')
+        throw new Error('Aggiorna Pi: ricaricamento non disponibile in questa versione.');
       await ctx.reload();
-    },
+    }
   });
   const localAuthTitle = (title: string) => `piframe-local:${title}`;
   const authTimeoutMs = 10 * 60 * 1000;
@@ -69,52 +82,75 @@ export function contextLimitExtension(pi: any): void {
         const auth = provider.auth ?? {};
         const name = provider.name ?? provider.id;
         const result = [];
-        if (typeof auth.oauth?.login === 'function') result.push({ provider, type: 'oauth', label: `${name} (${provider.id}) — OAuth` });
-        if (typeof auth.apiKey?.login === 'function') result.push({ provider, type: 'api_key', label: `${name} (${provider.id}) — API key` });
+        if (typeof auth.oauth?.login === 'function')
+          result.push({ provider, type: 'oauth', label: `${name} (${provider.id}) — OAuth` });
+        if (typeof auth.apiKey?.login === 'function')
+          result.push({ provider, type: 'api_key', label: `${name} (${provider.id}) — API key` });
         return result;
       });
       if (choices.length === 0) {
         ctx.ui.notify('No interactive Pi provider login is available.', 'warning');
         return;
       }
-      const selectedLabel = await ctx.ui.select(localAuthTitle('Sign in to a Pi provider'), choices.map((choice: any) => choice.label), { timeout: authTimeoutMs });
+      const selectedLabel = await ctx.ui.select(
+        localAuthTitle('Sign in to a Pi provider'),
+        choices.map((choice: any) => choice.label),
+        { timeout: authTimeoutMs }
+      );
       const selected = choices.find((choice: any) => choice.label === selectedLabel);
       if (!selected) return;
       try {
-        await runtime.login(selected.provider.id, selected.type, {
-          signal: AbortSignal.timeout(authTimeoutMs),
-          prompt: async (prompt: any) => {
-            let answer: string | undefined;
-            if (prompt.type === 'select') {
-              const labels = prompt.options.map((option: any, index: number) => `${option.label}${prompt.options.filter((other: any) => other.label === option.label).length > 1 ? ` (${index + 1})` : ''}`);
-              const choice = await ctx.ui.select(localAuthTitle(prompt.message), labels, { signal: prompt.signal, timeout: authTimeoutMs });
-              const index = labels.indexOf(choice);
-              answer = index < 0 ? undefined : prompt.options[index].id;
-            } else {
-              const placeholder = prompt.type === 'secret'
-                ? `piframe-secret:${prompt.placeholder ?? ''}`
-                : prompt.placeholder;
-              answer = await ctx.ui.input(localAuthTitle(prompt.message), placeholder, { signal: prompt.signal, timeout: authTimeoutMs });
+        await runtime.login(
+          selected.provider.id,
+          selected.type,
+          {
+            signal: AbortSignal.timeout(authTimeoutMs),
+            prompt: async (prompt: any) => {
+              let answer: string | undefined;
+              if (prompt.type === 'select') {
+                const labels = prompt.options.map(
+                  (option: any, index: number) =>
+                    `${option.label}${prompt.options.filter((other: any) => other.label === option.label).length > 1 ? ` (${index + 1})` : ''}`
+                );
+                const choice = await ctx.ui.select(localAuthTitle(prompt.message), labels, {
+                  signal: prompt.signal,
+                  timeout: authTimeoutMs
+                });
+                const index = labels.indexOf(choice);
+                answer = index < 0 ? undefined : prompt.options[index].id;
+              } else {
+                const placeholder =
+                  prompt.type === 'secret' ? `piframe-secret:${prompt.placeholder ?? ''}` : prompt.placeholder;
+                answer = await ctx.ui.input(localAuthTitle(prompt.message), placeholder, {
+                  signal: prompt.signal,
+                  timeout: authTimeoutMs
+                });
+              }
+              if (answer === undefined) throw new Error('Authentication cancelled');
+              return answer;
+            },
+            notify: (event: any) => {
+              const message =
+                event.type === 'auth_url'
+                  ? [event.instructions, event.url].filter(Boolean).join('\n')
+                  : event.type === 'device_code'
+                    ? [`Code: ${event.userCode}`, `Open: ${event.verificationUri}`].join('\n')
+                    : event.type === 'info'
+                      ? [
+                          event.message,
+                          ...(event.links ?? []).map((link: any) => `${link.label ?? 'Open'}: ${link.url}`)
+                        ].join('\n')
+                      : event.message;
+              ctx.ui.notify(message, 'info');
             }
-            if (answer === undefined) throw new Error('Authentication cancelled');
-            return answer;
           },
-          notify: (event: any) => {
-            const message = event.type === 'auth_url'
-              ? [event.instructions, event.url].filter(Boolean).join('\n')
-              : event.type === 'device_code'
-                ? [`Code: ${event.userCode}`, `Open: ${event.verificationUri}`].join('\n')
-                : event.type === 'info'
-                  ? [event.message, ...(event.links ?? []).map((link: any) => `${link.label ?? 'Open'}: ${link.url}`)].join('\n')
-                  : event.message;
-            ctx.ui.notify(message, 'info');
-          },
-        }, { getDeviceId: () => deviceId, agentName: 'PiFrame' });
+          { getDeviceId: () => deviceId, agentName: 'PiFrame' }
+        );
         ctx.ui.notify(`Signed in to ${selected.provider.name ?? selected.provider.id}.`, 'info');
       } catch (error: any) {
         if (!/cancel/i.test(error?.message ?? '')) throw error;
       }
-    },
+    }
   });
   pi.registerCommand('piframe-auth-logout', {
     description: 'PiFrame internal provider logout',
@@ -129,34 +165,52 @@ export function contextLimitExtension(pi: any): void {
         const provider = runtime.getProvider(credential.providerId);
         return {
           credential,
-          label: `${provider?.name ?? credential.providerId} (${credential.providerId}) — ${credential.type}`,
+          label: `${provider?.name ?? credential.providerId} (${credential.providerId}) — ${credential.type}`
         };
       });
-      const selectedLabel = await ctx.ui.select(localAuthTitle('Sign out of a Pi provider'), choices.map((choice: any) => choice.label), { timeout: authTimeoutMs });
+      const selectedLabel = await ctx.ui.select(
+        localAuthTitle('Sign out of a Pi provider'),
+        choices.map((choice: any) => choice.label),
+        { timeout: authTimeoutMs }
+      );
       const selected = choices.find((choice: any) => choice.label === selectedLabel);
       if (!selected) return;
       await runtime.logout(selected.credential.providerId);
       ctx.ui.notify(`Signed out of ${selected.credential.providerId}.`, 'info');
-    },
+    }
   });
   pi.registerCommand('piframe-context-policy', {
     description: 'PiFrame internal context policy',
     handler: async (args: string, ctx: any) => {
       const next = JSON.parse(args);
-      if ((next.limit !== null && (!Number.isSafeInteger(next.limit) || next.limit <= 0)) ||
-          typeof next.percent !== 'number' || !Number.isFinite(next.percent) || next.percent <= 0 || next.percent >= 100) {
+      if (
+        (next.limit !== null && (!Number.isSafeInteger(next.limit) || next.limit <= 0)) ||
+        typeof next.percent !== 'number' ||
+        !Number.isFinite(next.percent) ||
+        next.percent <= 0 ||
+        next.percent >= 100
+      ) {
         throw new Error('Invalid PiFrame context policy');
       }
       const previous = policy;
       policy = next;
-      try { await apply(ctx); lastAttemptTokens = null; } catch (error) { policy = previous; throw error; }
-    },
+      try {
+        await apply(ctx);
+        lastAttemptTokens = null;
+      } catch (error) {
+        policy = previous;
+        throw error;
+      }
+    }
   });
   pi.on('session_start', async (_event: unknown, ctx: any) => {
     compacting = false;
     lastAttemptTokens = null;
     // Older Pi versions keep their native defaults until a policy is explicitly requested.
-    if (typeof pi.getSettings !== 'function') { policy = null; return; }
+    if (typeof pi.getSettings !== 'function') {
+      policy = null;
+      return;
+    }
     policy = { limit: null, percent: 2.5 };
     await apply(ctx);
   });
@@ -168,7 +222,10 @@ export function contextLimitExtension(pi: any): void {
     const maximum = ctx.model.piframeOriginalContextWindow ?? ctx.model.contextWindow;
     const limit = Math.min(policy.limit ?? maximum, maximum);
     const threshold = Math.max(1, Math.floor(limit * (1 - policy.percent / 100)));
-    if (tokens < threshold) { lastAttemptTokens = null; return; }
+    if (tokens < threshold) {
+      lastAttemptTokens = null;
+      return;
+    }
     // No tight retries when a summary fails or cannot shrink the retained context.
     if (lastAttemptTokens !== null && tokens <= lastAttemptTokens) return;
     lastAttemptTokens = tokens;
@@ -176,13 +233,24 @@ export function contextLimitExtension(pi: any): void {
     try {
       ctx.compact({
         customInstructions: `Keep the summarized context below ${threshold} tokens while preserving decisions and pending work.`,
-        onComplete: () => { compacting = false; },
-        onError: () => { compacting = false; },
+        onComplete: () => {
+          compacting = false;
+        },
+        onError: () => {
+          compacting = false;
+        }
       });
-    } catch (error) { compacting = false; throw error; }
+    } catch (error) {
+      compacting = false;
+      throw error;
+    }
   });
-  pi.on('model_select', async (_event: unknown, ctx: any) => { await apply(ctx); });
-  pi.on('before_agent_start', async (_event: unknown, ctx: any) => { await apply(ctx); });
+  pi.on('model_select', async (_event: unknown, ctx: any) => {
+    await apply(ctx);
+  });
+  pi.on('before_agent_start', async (_event: unknown, ctx: any) => {
+    await apply(ctx);
+  });
 }
 
 export function ensureContextLimitExtension(baseDir = getPiFrameBaseDir()): string {
@@ -199,7 +267,7 @@ export function ensureContextLimitExtension(baseDir = getPiFrameBaseDir()): stri
     '  // The bridge must never take the context limit down with it.',
     '  try { piframeSubagentBridge(pi); } catch (error) { console.error(`PiFrame subagent bridge: ${error?.message ?? error}`); }',
     '}',
-    '',
+    ''
   ].join('\n');
   if (!fs.existsSync(file) || fs.readFileSync(file, 'utf8') !== source) {
     const temporary = `${file}.${process.pid}.tmp`;
@@ -211,7 +279,10 @@ export function ensureContextLimitExtension(baseDir = getPiFrameBaseDir()): stri
 
 export async function applyContextPolicy(worker: StdioPiTransport, policy: ContextPolicy): Promise<any> {
   const configuration = { limit: policy.contextWindowOverride, percent: policy.compactionReservePercent };
-  await worker.send({ command: 'prompt', arguments: { message: `/piframe-context-policy ${JSON.stringify(configuration)}` } });
+  await worker.send({
+    command: 'prompt',
+    arguments: { message: `/piframe-context-policy ${JSON.stringify(configuration)}` }
+  });
   const state = (await worker.send({ command: 'get_state' })).data;
   const applied = state?.model?.piframeContextPolicy;
   if (applied?.limit !== configuration.limit || applied?.percent !== configuration.percent) {

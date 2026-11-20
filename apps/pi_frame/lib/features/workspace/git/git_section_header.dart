@@ -36,9 +36,7 @@ class GitSectionHeader extends StatelessWidget {
         height: FrameSize.rowList,
         padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2),
         decoration: BoxDecoration(
-          color: selected
-              ? tokens.surfaceElevated
-              : tokens.surfaceElevated.withValues(alpha: 0.6),
+          color: selected ? tokens.surfaceElevated : tokens.surfaceElevated.withValues(alpha: 0.6),
           border: Border(
             top: BorderSide(color: tokens.borderStrong, width: 0.5),
             bottom: BorderSide(color: tokens.borderStrong, width: 0.5),
@@ -54,11 +52,7 @@ class GitSectionHeader extends StatelessWidget {
             const SizedBox(width: FrameSpace.x2),
             Text(
               title.toUpperCase(),
-              style: text.caption.copyWith(
-                color: tokens.displayText,
-                fontWeight: FontWeight.w700,
-                letterSpacing: .5,
-              ),
+              style: text.caption.copyWith(color: tokens.displayText, fontWeight: FontWeight.w700, letterSpacing: .5),
             ),
             const SizedBox(width: FrameSpace.x2),
             Container(
@@ -70,10 +64,7 @@ class GitSectionHeader extends StatelessWidget {
               ),
               child: Text(
                 '$count',
-                style: text.caption.copyWith(
-                  color: tokens.textPrimary,
-                  fontWeight: FontWeight.w600,
-                ),
+                style: text.caption.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.w600),
               ),
             ),
             const Spacer(),

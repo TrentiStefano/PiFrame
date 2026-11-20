@@ -110,7 +110,9 @@ function createSetup() {
 
   const cleanup = () => {
     metricsService.stop();
-    try { fs.unlinkSync(tmpDev); } catch {}
+    try {
+      fs.unlinkSync(tmpDev);
+    } catch {}
   };
 
   return {

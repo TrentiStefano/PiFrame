@@ -19,10 +19,7 @@ class FpsNotifier extends StateNotifier<int> {
   }
 
   void _init() {
-    _ref.listen<NerdStatsSettings>(
-      nerdStatsSettingsProvider,
-      (prev, next) => _evaluateRegistration(),
-    );
+    _ref.listen<NerdStatsSettings>(nerdStatsSettingsProvider, (prev, next) => _evaluateRegistration());
     _evaluateRegistration();
   }
 

@@ -38,11 +38,7 @@ class PackageLoadingView extends StatelessWidget {
       children: [
         Row(
           children: [
-            Icon(
-              Icons.hourglass_empty_outlined,
-              color: tokens.textMuted,
-              size: FrameSize.icon,
-            ),
+            Icon(Icons.hourglass_empty_outlined, color: tokens.textMuted, size: FrameSize.icon),
             const SizedBox(width: FrameSpace.x2),
             Text(
               strings.packagesLoading,
@@ -64,9 +60,7 @@ class PackageLoadingView extends StatelessWidget {
           PressFeedback(
             child: OutlinedButton.icon(
               key: const ValueKey('packages-load-retry'),
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size(0, FrameSize.rowForm),
-              ),
+              style: OutlinedButton.styleFrom(minimumSize: const Size(0, FrameSize.rowForm)),
               onPressed: onRetry,
               icon: const Icon(Icons.refresh_outlined, size: FrameSize.icon),
               label: Text(strings.retryAction),
@@ -88,10 +82,7 @@ class _SkeletonRow extends StatelessWidget {
     Widget bar(double width, double height) => Container(
       width: width,
       height: height,
-      decoration: BoxDecoration(
-        color: tokens.border,
-        borderRadius: BorderRadius.circular(tokens.radiusSm),
-      ),
+      decoration: BoxDecoration(color: tokens.border, borderRadius: BorderRadius.circular(tokens.radiusSm)),
     );
     return Padding(
       key: const ValueKey('packages-skeleton-row'),

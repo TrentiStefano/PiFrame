@@ -64,7 +64,7 @@ export function subagentContextLimitExtension(pi: any): void {
       if (typeof pi.setModel === 'function') {
         await pi.setModel({
           ...ctx.model,
-          contextWindow: limit,
+          contextWindow: limit
         });
       }
     }
@@ -165,10 +165,7 @@ export function ensureSubagentContextLimitExtensionIfReferenced(
   options: EnsureSubagentContextLimitOptions = {}
 ): string | null {
   try {
-    const agentDir =
-      options.agentDir ||
-      process.env.PI_CODING_AGENT_DIR ||
-      path.join(os.homedir(), '.pi', 'agent');
+    const agentDir = options.agentDir || process.env.PI_CODING_AGENT_DIR || path.join(os.homedir(), '.pi', 'agent');
     const piframeDir = options.piframeDir || getPiFrameBaseDir();
 
     const settingsPath = path.join(agentDir, 'settings.json');
@@ -183,7 +180,7 @@ export function ensureSubagentContextLimitExtensionIfReferenced(
       return null;
     }
 
-    if (content.charCodeAt(0) === 0xFEFF) {
+    if (content.charCodeAt(0) === 0xfeff) {
       content = content.slice(1);
     }
 
@@ -223,11 +220,7 @@ export function ensureSubagentContextLimitExtensionIfReferenced(
 
     let referenced = false;
     for (const override of Object.values(agentOverrides)) {
-      if (
-        override &&
-        typeof override === 'object' &&
-        Array.isArray((override as any).subagentOnlyExtensions)
-      ) {
+      if (override && typeof override === 'object' && Array.isArray((override as any).subagentOnlyExtensions)) {
         if ((override as any).subagentOnlyExtensions.some(matchesExtension)) {
           referenced = true;
           break;
@@ -244,4 +237,3 @@ export function ensureSubagentContextLimitExtensionIfReferenced(
     return null;
   }
 }
-

@@ -69,8 +69,7 @@ StdioPiTransport.prototype.start = function (this: StdioPiTransport, ...args: Pa
   return originalStart.apply(this, args);
 };
 test.afterEach(async () => {
-  await Promise.all(startedTransports.splice(0).map((transport) =>
-    transport.stop({ graceMs: 500 }).catch(() => {})));
+  await Promise.all(startedTransports.splice(0).map((transport) => transport.stop({ graceMs: 500 }).catch(() => {})));
 });
 
 async function waitFor(condition: () => boolean, timeoutMs = 5000): Promise<void> {
@@ -157,7 +156,13 @@ test('StdioPiTransport does not correlate late explicit IDs to another command',
   await transport.start({ cwd: process.cwd() });
   // Simulate a timed-out request A and a still-pending same-type request B.
   let settled = false;
-  const entry = { resolve: () => { settled = true; }, reject: () => {}, command: 'get_state' };
+  const entry = {
+    resolve: () => {
+      settled = true;
+    },
+    reject: () => {},
+    command: 'get_state'
+  };
   (transport as any).pendingCommands.set('B', entry);
   (transport as any).fifoPendingCommands.push({ id: 'B', ...entry });
   (transport as any).handleIncomingObject({ type: 'response', id: 'A', command: 'get_state', success: true });

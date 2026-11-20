@@ -33,8 +33,7 @@ class FrameTextShimmer extends StatefulWidget {
   State<FrameTextShimmer> createState() => _FrameTextShimmerState();
 }
 
-class _FrameTextShimmerState extends State<FrameTextShimmer>
-    with SingleTickerProviderStateMixin {
+class _FrameTextShimmerState extends State<FrameTextShimmer> with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final bool _isTest;
 
@@ -42,10 +41,7 @@ class _FrameTextShimmerState extends State<FrameTextShimmer>
   void initState() {
     super.initState();
     _isTest = isWidgetTestBinding;
-    _controller = AnimationController(
-      vsync: this,
-      duration: widget.duration,
-    );
+    _controller = AnimationController(vsync: this, duration: widget.duration);
     if (!_isTest) {
       _controller.repeat();
     }
@@ -83,11 +79,7 @@ class _FrameTextShimmerState extends State<FrameTextShimmer>
             return LinearGradient(
               begin: Alignment.centerLeft,
               end: Alignment.centerRight,
-              colors: [
-                base,
-                highlight,
-                base,
-              ],
+              colors: [base, highlight, base],
               stops: const [0.35, 0.5, 0.65],
               transform: _SlideGradientTransform(dx),
             ).createShader(bounds);

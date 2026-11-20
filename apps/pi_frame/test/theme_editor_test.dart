@@ -80,9 +80,7 @@ void main() {
     });
   });
 
-  testWidgets('ThemeEditorDialog customization and save workflow', (
-    tester,
-  ) async {
+  testWidgets('ThemeEditorDialog customization and save workflow', (tester) async {
     final repository = ThemeRepository();
     addTearDown(repository.dispose);
     for (final flavor in ['light', 'dark']) {

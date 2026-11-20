@@ -1,10 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import type {
-  PiSubagentPackageInfo,
-  PiSubagentPackageId,
-} from '@piframe/pcp-ts';
+import type { PiSubagentPackageInfo, PiSubagentPackageId } from '@piframe/pcp-ts';
 import { parseFrontmatter } from './frontmatter.js';
 
 export const BUILTIN_NICOBALION_NAMES = new Set([
@@ -21,14 +18,10 @@ export const BUILTIN_NICOBALION_NAMES = new Set([
   'researcher',
   'reviewer',
   'scout',
-  'worker',
+  'worker'
 ]);
 
-export const BUILTIN_TINTINWEB_NAMES = new Set([
-  'general-purpose',
-  'Explore',
-  'Plan',
-]);
+export const BUILTIN_TINTINWEB_NAMES = new Set(['general-purpose', 'Explore', 'Plan']);
 
 export interface DiscoveredAgentRaw {
   name: string;
@@ -61,10 +54,7 @@ export interface PackageDetectionResult {
 /**
  * Detect subagent packages in settings.json and filesystem.
  */
-export function detectSubagentPackages(
-  agentDir: string,
-  settings: Record<string, any> = {}
-): PackageDetectionResult {
+export function detectSubagentPackages(agentDir: string, settings: Record<string, any> = {}): PackageDetectionResult {
   const packagesList: PiSubagentPackageInfo[] = [];
 
   // Check pi-subagents (nicobailon)
@@ -90,9 +80,7 @@ export function detectSubagentPackages(
 
   if (nicobailonDir) {
     try {
-      const pkgJson = JSON.parse(
-        fs.readFileSync(path.join(nicobailonDir, 'package.json'), 'utf8')
-      );
+      const pkgJson = JSON.parse(fs.readFileSync(path.join(nicobailonDir, 'package.json'), 'utf8'));
       nicobailonVersion = typeof pkgJson.version === 'string' ? pkgJson.version : null;
     } catch {
       nicobailonVersion = null;
@@ -103,17 +91,11 @@ export function detectSubagentPackages(
     id: 'pi-subagents',
     version: nicobailonVersion,
     installed: nicobailonDir !== null,
-    configFile: displayPath(path.join(agentDir, 'settings.json')),
+    configFile: displayPath(path.join(agentDir, 'settings.json'))
   });
 
   // Check @tintinweb/pi-subagents
-  const tintinwebDefaultDir = path.join(
-    agentDir,
-    'npm',
-    'node_modules',
-    '@tintinweb',
-    'pi-subagents'
-  );
+  const tintinwebDefaultDir = path.join(agentDir, 'npm', 'node_modules', '@tintinweb', 'pi-subagents');
   let tintinwebDir: string | null = null;
   let tintinwebVersion: string | null = null;
 
@@ -132,9 +114,7 @@ export function detectSubagentPackages(
 
   if (tintinwebDir) {
     try {
-      const pkgJson = JSON.parse(
-        fs.readFileSync(path.join(tintinwebDir, 'package.json'), 'utf8')
-      );
+      const pkgJson = JSON.parse(fs.readFileSync(path.join(tintinwebDir, 'package.json'), 'utf8'));
       tintinwebVersion = typeof pkgJson.version === 'string' ? pkgJson.version : null;
     } catch {
       tintinwebVersion = null;
@@ -145,13 +125,13 @@ export function detectSubagentPackages(
     id: '@tintinweb/pi-subagents',
     version: tintinwebVersion,
     installed: tintinwebDir !== null,
-    configFile: displayPath(path.join(agentDir, 'subagents.json')),
+    configFile: displayPath(path.join(agentDir, 'subagents.json'))
   });
 
   return {
     packages: packagesList,
     nicobailonDir,
-    tintinwebDir,
+    tintinwebDir
   };
 }
 
@@ -186,9 +166,10 @@ function readAgentsFromDir(
       try {
         const content = fs.readFileSync(fullPath, 'utf8');
         const { frontmatter } = parseFrontmatter(content);
-        const name = (typeof frontmatter.name === 'string' && frontmatter.name.trim())
-          ? frontmatter.name.trim()
-          : path.basename(file, '.md');
+        const name =
+          typeof frontmatter.name === 'string' && frontmatter.name.trim()
+            ? frontmatter.name.trim()
+            : path.basename(file, '.md');
         const description = typeof frontmatter.description === 'string' ? frontmatter.description.trim() : null;
         const frontmatterModel = typeof frontmatter.model === 'string' ? frontmatter.model.trim() : null;
         const frontmatterThinking = typeof frontmatter.thinking === 'string' ? frontmatter.thinking.trim() : null;
@@ -241,7 +222,7 @@ function readAgentsFromDir(
           readOnlyReason,
           frontmatterModel,
           frontmatterThinking,
-          filePath: fullPath,
+          filePath: fullPath
         });
       } catch {
         // Skip unreadable files
@@ -258,7 +239,7 @@ const SOURCE_PRIORITY: Record<string, number> = {
   builtin: 0,
   package: 1,
   user: 2,
-  project: 3,
+  project: 3
 };
 
 /**
@@ -295,7 +276,7 @@ export function discoverAgents(
           editable: false,
           readOnlyReason: 'tintinweb: edit agent file',
           frontmatterModel: null,
-          frontmatterThinking: null,
+          frontmatterThinking: null
         });
       }
     }

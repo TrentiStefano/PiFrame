@@ -41,18 +41,13 @@ class _FakeInstallerLauncher implements InstallerLauncher {
 }
 
 void main() {
-  testWidgets('UpdatesSection renders current version and check button', (
-    tester,
-  ) async {
+  testWidgets('UpdatesSection renders current version and check button', (tester) async {
     final client = _FakeUpdateClient();
     final storage = MemoryUpdateStorage();
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          updateClientProvider.overrideWithValue(client),
-          updateStorageProvider.overrideWithValue(storage),
-        ],
+        overrides: [updateClientProvider.overrideWithValue(client), updateStorageProvider.overrideWithValue(storage)],
         child: MaterialApp(
           theme: ThemeData.dark().copyWith(extensions: [FrameTokens.dark]),
           home: const Scaffold(body: UpdatesSection()),
@@ -71,18 +66,13 @@ void main() {
     expect(find.text('Frequenza di controllo:'), findsNothing);
   });
 
-  testWidgets('opt-in checkbox toggles and reveals frequency dropdown', (
-    tester,
-  ) async {
+  testWidgets('opt-in checkbox toggles and reveals frequency dropdown', (tester) async {
     final client = _FakeUpdateClient();
     final storage = MemoryUpdateStorage();
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          updateClientProvider.overrideWithValue(client),
-          updateStorageProvider.overrideWithValue(storage),
-        ],
+        overrides: [updateClientProvider.overrideWithValue(client), updateStorageProvider.overrideWithValue(storage)],
         child: MaterialApp(
           theme: ThemeData.dark().copyWith(extensions: [FrameTokens.dark]),
           home: const Scaffold(body: UpdatesSection()),
@@ -109,9 +99,7 @@ void main() {
     expect(find.text('Ogni giorno'), findsOneWidget);
   });
 
-  testWidgets('displays up-to-date card when check returns no newer release', (
-    tester,
-  ) async {
+  testWidgets('displays up-to-date card when check returns no newer release', (tester) async {
     final client = _FakeUpdateClient();
     client.nextRelease = AppRelease(
       tagName: 'v1.0.0',
@@ -124,10 +112,7 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          updateClientProvider.overrideWithValue(client),
-          updateStorageProvider.overrideWithValue(storage),
-        ],
+        overrides: [updateClientProvider.overrideWithValue(client), updateStorageProvider.overrideWithValue(storage)],
         child: MaterialApp(
           theme: ThemeData.dark().copyWith(extensions: [FrameTokens.dark]),
           home: const Scaffold(body: UpdatesSection()),
@@ -139,15 +124,10 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('check_for_updates_button')));
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('PiFrame è aggiornato all\'ultima versione disponibile'),
-      findsOneWidget,
-    );
+    expect(find.text('PiFrame è aggiornato all\'ultima versione disponibile'), findsOneWidget);
   });
 
-  testWidgets('displays update available card, download, and install dialog', (
-    tester,
-  ) async {
+  testWidgets('displays update available card, download, and install dialog', (tester) async {
     final client = _FakeUpdateClient();
     final launcher = _FakeInstallerLauncher();
     client.nextRelease = AppRelease(
@@ -158,7 +138,8 @@ void main() {
       assets: [
         const ReleaseAsset(
           name: 'PiFrame-Setup-99.0.0-windows-x64.exe',
-          downloadUrl: 'https://github.com/TrentiStefano/piframe/releases/download/v99.0.0/PiFrame-Setup-99.0.0-windows-x64.exe',
+          downloadUrl:
+              'https://github.com/TrentiStefano/piframe/releases/download/v99.0.0/PiFrame-Setup-99.0.0-windows-x64.exe',
           size: 52428800,
           contentType: 'application/octet-stream',
         ),

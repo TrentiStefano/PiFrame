@@ -53,7 +53,11 @@ export class UiRequestBroker {
     return this.requests.get(requestId)?.raw.localOnly === true;
   }
 
-  public claimRequest(requestId: string, clientId: string, leaseDurationMs = 30000): { success: boolean; reason?: string } {
+  public claimRequest(
+    requestId: string,
+    clientId: string,
+    leaseDurationMs = 30000
+  ): { success: boolean; reason?: string } {
     const req = this.requests.get(requestId);
     if (!req) {
       return { success: false, reason: 'Request not found' };

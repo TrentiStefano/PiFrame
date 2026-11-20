@@ -12,11 +12,18 @@ class DialogClient extends PcpClient {
   bool cancelled = false;
   DialogClient() : super(port: 0, token: 'test');
   @override
-  Future<Map<String, dynamic>> claimUiRequest(String sessionId, String requestId) async =>
-      {'state': 'completed', 'data': {'claimed': true}};
+  Future<Map<String, dynamic>> claimUiRequest(String sessionId, String requestId) async => {
+    'state': 'completed',
+    'data': {'claimed': true},
+  };
   @override
-  Future<Map<String, dynamic>> respondUiRequest(String sessionId, String requestId,
-      {dynamic value, bool? confirmed, bool? cancelled}) async {
+  Future<Map<String, dynamic>> respondUiRequest(
+    String sessionId,
+    String requestId, {
+    dynamic value,
+    bool? confirmed,
+    bool? cancelled,
+  }) async {
     responded = confirmed == true;
     this.cancelled = cancelled == true;
     return {'state': 'completed'};
@@ -26,18 +33,26 @@ class DialogClient extends PcpClient {
 void main() {
   testWidgets('claim reads data envelope and confirmation reaches client', (tester) async {
     final client = DialogClient();
-    await tester.pumpWidget(ProviderScope(
-      overrides: [pcpClientProvider.overrideWithValue(client)],
-      child: MaterialApp(
-        theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
-        home: Scaffold(body: Builder(builder: (context) => TextButton(
-          onPressed: () => ExtensionUiDialog.show(context, sessionId: 's', request: {
-            'requestId': 'ui', 'method': 'confirm', 'title': 'Confirm action', 'dialog': true,
-          }),
-          child: const Text('Open'),
-        ))),
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [pcpClientProvider.overrideWithValue(client)],
+        child: MaterialApp(
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => ExtensionUiDialog.show(
+                  context,
+                  sessionId: 's',
+                  request: {'requestId': 'ui', 'method': 'confirm', 'title': 'Confirm action', 'dialog': true},
+                ),
+                child: const Text('Open'),
+              ),
+            ),
+          ),
+        ),
       ),
-    ));
+    );
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Conferma'));
@@ -51,9 +66,7 @@ void main() {
     return ProviderScope(
       overrides: [daemonEndpointProvider.overrideWith((ref) async => null)],
       child: MaterialApp(
-        theme: ThemeData.dark().copyWith(
-          extensions: const [FrameTokens.dark],
-        ),
+        theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
         home: Scaffold(body: child),
       ),
     );
@@ -69,14 +82,7 @@ void main() {
       'dialog': true,
     };
 
-    await tester.pumpWidget(
-      wrapWithTheme(
-        ExtensionUiDialog(
-          sessionId: 's_test',
-          request: request,
-        ),
-      ),
-    );
+    await tester.pumpWidget(wrapWithTheme(ExtensionUiDialog(sessionId: 's_test', request: request)));
 
     expect(find.text('Esecuzione comando pericoloso'), findsOneWidget);
     expect(find.textContaining('L\'estensione desidera eseguire rm -rf'), findsOneWidget);
@@ -87,20 +93,27 @@ void main() {
 
   testWidgets('extension UI timeout sends cancellation to the daemon', (tester) async {
     final client = DialogClient();
-    await tester.pumpWidget(ProviderScope(
-      overrides: [pcpClientProvider.overrideWithValue(client)],
-      child: MaterialApp(
-        theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
-        home: Scaffold(body: ExtensionUiDialog(
-          sessionId: 's_timeout',
-          request: {
-            'requestId': 'timeout_1', 'method': 'input', 'title': 'API key',
-            'timeoutMs': 1000, 'dialog': true,
-          },
-          isCard: true,
-        )),
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [pcpClientProvider.overrideWithValue(client)],
+        child: MaterialApp(
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+          home: Scaffold(
+            body: ExtensionUiDialog(
+              sessionId: 's_timeout',
+              request: {
+                'requestId': 'timeout_1',
+                'method': 'input',
+                'title': 'API key',
+                'timeoutMs': 1000,
+                'dialog': true,
+              },
+              isCard: true,
+            ),
+          ),
+        ),
       ),
-    ));
+    );
     await tester.pump(const Duration(seconds: 1));
     await tester.pumpAndSettle();
     expect(client.cancelled, isTrue);
@@ -108,13 +121,20 @@ void main() {
   });
 
   testWidgets('PiFrame auth secret prompts are masked and hide the internal marker', (tester) async {
-    await tester.pumpWidget(wrapWithTheme(ExtensionUiDialog(
-      sessionId: 's_secret',
-      request: {
-        'requestId': 'secret_1', 'method': 'input', 'title': 'API key',
-        'placeholder': 'piframe-secret:Paste the key', 'dialog': true,
-      },
-    )));
+    await tester.pumpWidget(
+      wrapWithTheme(
+        ExtensionUiDialog(
+          sessionId: 's_secret',
+          request: {
+            'requestId': 'secret_1',
+            'method': 'input',
+            'title': 'API key',
+            'placeholder': 'piframe-secret:Paste the key',
+            'dialog': true,
+          },
+        ),
+      ),
+    );
     final field = tester.widget<TextField>(find.byType(TextField));
     expect(field.obscureText, isTrue);
     expect(field.decoration?.hintText, 'Paste the key');
@@ -131,14 +151,7 @@ void main() {
       'dialog': true,
     };
 
-    await tester.pumpWidget(
-      wrapWithTheme(
-        ExtensionUiDialog(
-          sessionId: 's_test',
-          request: request,
-        ),
-      ),
-    );
+    await tester.pumpWidget(wrapWithTheme(ExtensionUiDialog(sessionId: 's_test', request: request)));
 
     expect(find.text('Scegli ambiente'), findsOneWidget);
     expect(find.text('Development'), findsOneWidget);
@@ -148,27 +161,32 @@ void main() {
 
   testWidgets('/agents Workflows choice cancels the menu and opens the PiFrame panel', (tester) async {
     final client = DialogClient();
-    final container = ProviderContainer(
-      overrides: [pcpClientProvider.overrideWithValue(client)],
-    );
+    final container = ProviderContainer(overrides: [pcpClientProvider.overrideWithValue(client)]);
     addTearDown(() {
       container.dispose();
       client.dispose();
     });
-    await tester.pumpWidget(UncontrolledProviderScope(
-      container: container,
-      child: MaterialApp(
-        theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
-        home: const Scaffold(body: ExtensionUiDialog(
-          sessionId: 's_agents',
-          request: {
-            'requestId': 'agents_1', 'method': 'select', 'title': 'Agents',
-            'options': ['Workflows (1)', 'Create new agent', 'Settings'], 'dialog': true,
-          },
-          isCard: true,
-        )),
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: MaterialApp(
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+          home: const Scaffold(
+            body: ExtensionUiDialog(
+              sessionId: 's_agents',
+              request: {
+                'requestId': 'agents_1',
+                'method': 'select',
+                'title': 'Agents',
+                'options': ['Workflows (1)', 'Create new agent', 'Settings'],
+                'dialog': true,
+              },
+              isCard: true,
+            ),
+          ),
+        ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Workflows (1)'));
     await tester.tap(find.text('Invia'));

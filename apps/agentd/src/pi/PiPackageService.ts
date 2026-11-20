@@ -36,7 +36,7 @@ export interface PiPackageOperations {
 type PackageCommandRunner = (
   file: string,
   args: string[],
-  options: ExecFileOptionsWithStringEncoding,
+  options: ExecFileOptionsWithStringEncoding
 ) => Promise<{ stdout: string; stderr: string }>;
 
 interface ListedPackage {
@@ -107,15 +107,18 @@ export function pinnedNpmSource(source: string, version: string): string {
 
 export class PiPackageService implements PiPackageOperations {
   private readonly installPaths = new Map<string, string>();
-  private readonly updateChecks = new Map<string, {
-    version: string;
-    latestVersion: string;
-    updateError?: string;
-  }>();
+  private readonly updateChecks = new Map<
+    string,
+    {
+      version: string;
+      latestVersion: string;
+      updateError?: string;
+    }
+  >();
 
   constructor(
     private readonly piExecutablePath: string,
-    private readonly runCommand: PackageCommandRunner = execFileAsync,
+    private readonly runCommand: PackageCommandRunner = execFileAsync
   ) {}
 
   private async execute(launch: PiLaunchCommand, timeout = 120_000): Promise<string> {
@@ -126,7 +129,7 @@ export class PiPackageService implements PiPackageOperations {
         maxBuffer: 2 * 1024 * 1024,
         windowsHide: true,
         encoding: 'utf8',
-        env: getAugmentedEnv({ npm_config_prefer_online: 'true' }),
+        env: getAugmentedEnv({ npm_config_prefer_online: 'true' })
       });
       return stdout.trim();
     } catch (cause) {
@@ -146,12 +149,15 @@ export class PiPackageService implements PiPackageOperations {
     const spec = base === source ? `${source.slice(4)}@latest` : source.slice(4);
     const output = await this.execute(
       resolveNpmLaunch(this.piExecutablePath, ['view', spec, 'version', '--json']),
-      30_000,
+      30_000
     );
     const decoded: unknown = JSON.parse(output);
     const versions = typeof decoded === 'string' ? [decoded] : decoded;
-    if (!Array.isArray(versions) || versions.length === 0 ||
-        !versions.every((version): version is string => typeof version === 'string' && valid(version) !== null)) {
+    if (
+      !Array.isArray(versions) ||
+      versions.length === 0 ||
+      !versions.every((version): version is string => typeof version === 'string' && valid(version) !== null)
+    ) {
       throw new Error(`npm returned no valid version for ${source}.`);
     }
     return rsort(versions)[0];
@@ -167,16 +173,32 @@ export class PiPackageService implements PiPackageOperations {
     }
     const spec = `${base.slice(4)}@${target}`;
     try {
-      await this.execute(resolveNpmLaunch(this.piExecutablePath, [
-        'install', spec, '--prefix', installPath.slice(0, index),
-        '--dry-run', '--ignore-scripts', '--package-lock=false',
-        '--legacy-peer-deps', '--no-audit', '--no-fund', '--json',
-      ]), 30_000);
+      await this.execute(
+        resolveNpmLaunch(this.piExecutablePath, [
+          'install',
+          spec,
+          '--prefix',
+          installPath.slice(0, index),
+          '--dry-run',
+          '--ignore-scripts',
+          '--package-lock=false',
+          '--legacy-peer-deps',
+          '--no-audit',
+          '--no-fund',
+          '--json'
+        ]),
+        30_000
+      );
       return undefined;
     } catch (error) {
       const cause = error instanceof Error ? error.cause : undefined;
-      if (typeof cause !== 'object' || cause === null || !('stdout' in cause) ||
-          typeof cause.stdout !== 'string' || !cause.stdout.trim().startsWith('{')) {
+      if (
+        typeof cause !== 'object' ||
+        cause === null ||
+        !('stdout' in cause) ||
+        typeof cause.stdout !== 'string' ||
+        !cause.stdout.trim().startsWith('{')
+      ) {
         throw error;
       }
       let response: unknown;
@@ -186,54 +208,68 @@ export class PiPackageService implements PiPackageOperations {
         if (parseError instanceof SyntaxError) throw error;
         throw parseError;
       }
-      if (typeof response !== 'object' || response === null || !('error' in response) ||
-          typeof response.error !== 'object' || response.error === null ||
-          !('code' in response.error) || response.error.code !== 'EBADPLATFORM') {
+      if (
+        typeof response !== 'object' ||
+        response === null ||
+        !('error' in response) ||
+        typeof response.error !== 'object' ||
+        response.error === null ||
+        !('code' in response.error) ||
+        response.error.code !== 'EBADPLATFORM'
+      ) {
         throw error;
       }
-      const details = 'summary' in response.error && typeof response.error.summary === 'string'
-        ? response.error.summary : 'Unsupported package platform.';
+      const details =
+        'summary' in response.error && typeof response.error.summary === 'string'
+          ? response.error.summary
+          : 'Unsupported package platform.';
       return `${source}: version ${target} is not installable on ${process.platform}/${process.arch}: ${details}`;
     }
   }
 
   async list(checkUpdates = false): Promise<PiPackageInfo[]> {
     const listed = parsePiListOutput(await this.run(['list']));
-    return Promise.all(listed.map(async ({ source, installPath }) => {
-      let name = source;
-      let version: string | null = null;
-      if (installPath) {
-        this.installPaths.set(source, installPath);
-        try {
-          const manifest = JSON.parse(
-            await fs.readFile(path.join(installPath, 'package.json'), 'utf8'),
-          ) as { name?: unknown; version?: unknown };
-          if (typeof manifest.name === 'string') name = manifest.name;
-          if (typeof manifest.version === 'string') version = manifest.version;
-        } catch {
-          // Keep the configured source visible if local package metadata is unavailable.
+    return Promise.all(
+      listed.map(async ({ source, installPath }) => {
+        let name = source;
+        let version: string | null = null;
+        if (installPath) {
+          this.installPaths.set(source, installPath);
+          try {
+            const manifest = JSON.parse(await fs.readFile(path.join(installPath, 'package.json'), 'utf8')) as {
+              name?: unknown;
+              version?: unknown;
+            };
+            if (typeof manifest.name === 'string') name = manifest.name;
+            if (typeof manifest.version === 'string') version = manifest.version;
+          } catch {
+            // Keep the configured source visible if local package metadata is unavailable.
+          }
         }
-      }
-      const pinnedVersion = pinnedNpmVersion(source);
-      const info: PiPackageInfo = { source, name, version, pinnedVersion };
-      const previousCheck = this.updateChecks.get(source);
-      if (previousCheck?.version === version) {
-        info.latestVersion = previousCheck.latestVersion;
-        info.updateError = previousCheck.updateError;
-      }
-      if (checkUpdates && npmBaseSource(source) && !pinnedVersion) {
-        if (!version || !valid(version)) {
-          throw new Error(`Cannot read the installed version of ${source}.`);
+        const pinnedVersion = pinnedNpmVersion(source);
+        const info: PiPackageInfo = { source, name, version, pinnedVersion };
+        const previousCheck = this.updateChecks.get(source);
+        if (previousCheck?.version === version) {
+          info.latestVersion = previousCheck.latestVersion;
+          info.updateError = previousCheck.updateError;
         }
-        info.latestVersion = await this.latestNpmVersion(source);
-        info.updateError = gt(info.latestVersion, version)
-          ? await this.checkNpmCompatibility(source, info.latestVersion) : undefined;
-        this.updateChecks.set(source, {
-          version, latestVersion: info.latestVersion, updateError: info.updateError,
-        });
-      }
-      return info;
-    }));
+        if (checkUpdates && npmBaseSource(source) && !pinnedVersion) {
+          if (!version || !valid(version)) {
+            throw new Error(`Cannot read the installed version of ${source}.`);
+          }
+          info.latestVersion = await this.latestNpmVersion(source);
+          info.updateError = gt(info.latestVersion, version)
+            ? await this.checkNpmCompatibility(source, info.latestVersion)
+            : undefined;
+          this.updateChecks.set(source, {
+            version,
+            latestVersion: info.latestVersion,
+            updateError: info.updateError
+          });
+        }
+        return info;
+      })
+    );
   }
 
   private async requireInstalled(source: string): Promise<PiPackageInfo> {
@@ -264,7 +300,7 @@ export class PiPackageService implements PiPackageOperations {
     if (target && (!after.version || !valid(after.version) || lt(after.version, target))) {
       throw new Error(
         `${source}: installed version ${after.version ?? 'unknown'}, expected ${target}. ` +
-        `The update did not install the available version.${output ? `\n${output}` : ''}`,
+          `The update did not install the available version.${output ? `\n${output}` : ''}`
       );
     }
     return { output, status: 'updated', previousVersion: before.version, version: after.version };
@@ -281,7 +317,9 @@ export class PiPackageService implements PiPackageOperations {
     const output = await this.run(['install', pinnedSource]);
     const installed = await this.requireInstalled(pinnedSource);
     if (installed.version?.replace(/^v/, '') !== version.trim().replace(/^v/, '')) {
-      throw new Error(`${pinnedSource}: installed version ${installed.version ?? 'unknown'} does not match the pinned version.`);
+      throw new Error(
+        `${pinnedSource}: installed version ${installed.version ?? 'unknown'} does not match the pinned version.`
+      );
     }
     return { output, source: pinnedSource };
   }

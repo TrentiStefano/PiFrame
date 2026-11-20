@@ -49,9 +49,7 @@ class SideConversationRecord {
       status: status ?? this.status,
       model: model ?? this.model,
       closeReason: clearCloseReason ? null : (closeReason ?? this.closeReason),
-      errorMessage: clearErrorMessage
-          ? null
-          : (errorMessage ?? this.errorMessage),
+      errorMessage: clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
       entries: entries ?? this.entries,
     );
   }
@@ -109,9 +107,7 @@ class SideThreadState {
       model: model ?? this.model,
       closeReason: clearCloseReason ? null : (closeReason ?? this.closeReason),
       isOpen: isOpen ?? this.isOpen,
-      errorMessage: clearErrorMessage
-          ? null
-          : (errorMessage ?? this.errorMessage),
+      errorMessage: clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
       conversations: conversations ?? this.conversations,
       selectedConversationId: clearSelectedConversationId
           ? null
@@ -120,10 +116,9 @@ class SideThreadState {
   }
 }
 
-final sideThreadFamily =
-    StateNotifierProvider.family<SideThreadNotifier, SideThreadState, String>(
-      (ref, parentSessionId) => SideThreadNotifier(parentSessionId, ref),
-    );
+final sideThreadFamily = StateNotifierProvider.family<SideThreadNotifier, SideThreadState, String>(
+  (ref, parentSessionId) => SideThreadNotifier(parentSessionId, ref),
+);
 
 /// Set by a toggle that must not animate (Ctrl+Shift+B). The split consumes and clears it.
 final sideInstantToggleProvider = StateProvider<bool>((ref) => false);
@@ -132,18 +127,13 @@ enum ChatSidecarTab { agents, side, tasks }
 
 /// The unsent text of a session's side conversation. Kept outside the panel,
 /// so hiding the plugins pane (or switching tab) does not lose a draft.
-final sideDraftFamily = StateProvider.family<String, String>(
-  (ref, parentSessionId) => '',
-);
+final sideDraftFamily = StateProvider.family<String, String>((ref, parentSessionId) => '');
 
-final chatSidecarTabFamily = StateProvider.family<ChatSidecarTab, String>(
-  (ref, sessionId) => ChatSidecarTab.side,
-);
+final chatSidecarTabFamily = StateProvider.family<ChatSidecarTab, String>((ref, sessionId) => ChatSidecarTab.side);
 
-final sideSessionFamily =
-    StateNotifierProvider.family<SideSessionNotifier, SessionState, String>(
-      (ref, parentSessionId) => SideSessionNotifier(parentSessionId, ref),
-    );
+final sideSessionFamily = StateNotifierProvider.family<SideSessionNotifier, SessionState, String>(
+  (ref, parentSessionId) => SideSessionNotifier(parentSessionId, ref),
+);
 
 class SideSessionNotifier extends StateNotifier<SessionState> {
   final String parentSessionId;
@@ -153,14 +143,7 @@ class SideSessionNotifier extends StateNotifier<SessionState> {
   String? _streamId;
 
   SideSessionNotifier(this.parentSessionId, this.ref)
-    : super(
-        const SessionState(
-          sessionId: '',
-          cwd: '',
-          readOnly: true,
-          readOnlyReason: 'side',
-        ),
-      );
+    : super(const SessionState(sessionId: '', cwd: '', readOnly: true, readOnlyReason: 'side'));
 
   void initStream(String streamId, PcpClient client) {
     if (_streamId == streamId && _eventSub != null) return;
@@ -169,27 +152,15 @@ class SideSessionNotifier extends StateNotifier<SessionState> {
     _snapSub?.cancel();
 
     final parentCwd = ref.read(sessionStateFamily(parentSessionId)).cwd;
-    state = SessionState(
-      sessionId: streamId,
-      cwd: parentCwd,
-      readOnly: true,
-      readOnlyReason: 'side',
-    );
+    state = SessionState(sessionId: streamId, cwd: parentCwd, readOnly: true, readOnlyReason: 'side');
 
     _snapSub = client.snapshots(streamId).listen((snapshot) {
-      final applied = applySessionSnapshot(
-        streamId,
-        snapshot.seq,
-        snapshot.payload,
-      );
+      final applied = applySessionSnapshot(streamId, snapshot.seq, snapshot.payload);
       state = applied.copyWith(readOnly: true, readOnlyReason: 'side');
     });
 
     _eventSub = client.events(streamId).listen((event) {
-      state = reduceSessionState(
-        state,
-        event,
-      ).copyWith(readOnly: true, readOnlyReason: 'side');
+      state = reduceSessionState(state, event).copyWith(readOnly: true, readOnlyReason: 'side');
     });
 
     client.attach(streamId);
@@ -201,12 +172,7 @@ class SideSessionNotifier extends StateNotifier<SessionState> {
     _eventSub = null;
     _snapSub = null;
     _streamId = null;
-    state = const SessionState(
-      sessionId: '',
-      cwd: '',
-      readOnly: true,
-      readOnlyReason: 'side',
-    );
+    state = const SessionState(sessionId: '', cwd: '', readOnly: true, readOnlyReason: 'side');
   }
 
   @override
@@ -223,8 +189,7 @@ class SideThreadNotifier extends StateNotifier<SideThreadState> {
   StreamSubscription? _streamEventSub;
   StreamSubscription? _parentEventSub;
 
-  SideThreadNotifier(this.parentSessionId, this.ref)
-    : super(SideThreadState(parentSessionId: parentSessionId));
+  SideThreadNotifier(this.parentSessionId, this.ref) : super(SideThreadState(parentSessionId: parentSessionId));
 
   Future<void> openSide({String? question}) async {
     final client = ref.read(pcpClientProvider);
@@ -254,10 +219,7 @@ class SideThreadNotifier extends StateNotifier<SideThreadState> {
     if (client == null) {
       final withErr = updatedConversations.map((c) {
         if (c.id == tempRecordId) {
-          return c.copyWith(
-            status: 'error',
-            errorMessage: 'Daemon non connesso',
-          );
+          return c.copyWith(status: 'error', errorMessage: 'Daemon non connesso');
         }
         return c;
       }).toList();
@@ -283,10 +245,8 @@ class SideThreadNotifier extends StateNotifier<SideThreadState> {
     try {
       final res = await client.openSide(parentSessionId, question: question);
       final data = res['data'] as Map<String, dynamic>? ?? res;
-      final sideId =
-          (data['sideId'] ?? res['sideId'])?.toString() ?? tempRecordId;
-      final streamId =
-          (data['streamId'] ?? res['streamId'])?.toString() ?? sideId;
+      final sideId = (data['sideId'] ?? res['sideId'])?.toString() ?? tempRecordId;
+      final streamId = (data['streamId'] ?? res['streamId'])?.toString() ?? sideId;
       final model = (data['model'] ?? res['model'])?.toString();
 
       final activeConversations = state.conversations.map((c) {
@@ -306,9 +266,7 @@ class SideThreadNotifier extends StateNotifier<SideThreadState> {
         selectedConversationId: sideId,
       );
 
-      ref
-          .read(sideSessionFamily(parentSessionId).notifier)
-          .initStream(streamId, client);
+      ref.read(sideSessionFamily(parentSessionId).notifier).initStream(streamId, client);
 
       _listenToEvents(client, streamId, sideId);
     } catch (e) {
@@ -339,10 +297,7 @@ class SideThreadNotifier extends StateNotifier<SideThreadState> {
       return c;
     }).toList();
 
-    state = state.copyWith(
-      conversations: updatedList,
-      selectedConversationId: id,
-    );
+    state = state.copyWith(conversations: updatedList, selectedConversationId: id);
   }
 
   void deleteConversation(String id) {
@@ -384,17 +339,11 @@ class SideThreadNotifier extends StateNotifier<SideThreadState> {
           }
           return c;
         }).toList();
-        state = state.copyWith(
-          model: newModel,
-          status: 'active',
-          conversations: updatedList,
-        );
+        state = state.copyWith(model: newModel, status: 'active', conversations: updatedList);
       }
     } else if (event is SideClosedEvent) {
       if (event.sideId == sideId || event.sideId.isEmpty) {
-        final currentEntries = ref
-            .read(sideSessionFamily(parentSessionId))
-            .entries;
+        final currentEntries = ref.read(sideSessionFamily(parentSessionId)).entries;
         final updatedList = state.conversations.map((c) {
           if (c.id == sideId) {
             return c.copyWith(
@@ -405,11 +354,7 @@ class SideThreadNotifier extends StateNotifier<SideThreadState> {
           }
           return c;
         }).toList();
-        state = state.copyWith(
-          status: 'closed',
-          closeReason: event.reason,
-          conversations: updatedList,
-        );
+        state = state.copyWith(status: 'closed', closeReason: event.reason, conversations: updatedList);
       }
     }
   }
@@ -418,9 +363,7 @@ class SideThreadNotifier extends StateNotifier<SideThreadState> {
     final client = ref.read(pcpClientProvider);
     if (client == null) return;
     final sideId = state.sideId;
-    if (sideId == null ||
-        state.status != 'active' ||
-        state.selectedConversationId != sideId) {
+    if (sideId == null || state.status != 'active' || state.selectedConversationId != sideId) {
       await openSide(question: text);
       return;
     }
@@ -454,12 +397,7 @@ class SideThreadNotifier extends StateNotifier<SideThreadState> {
       }
       return c;
     }).toList();
-    state = state.copyWith(
-      status: 'closed',
-      closeReason: 'user',
-      isOpen: false,
-      conversations: updatedList,
-    );
+    state = state.copyWith(status: 'closed', closeReason: 'user', isOpen: false, conversations: updatedList);
   }
 
   void togglePanel({bool instant = false}) {

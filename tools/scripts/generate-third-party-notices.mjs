@@ -24,7 +24,7 @@ const result = await build({
   write: false,
   outfile: 'pi-agentd.cjs',
   metafile: true,
-  logLevel: 'error',
+  logLevel: 'error'
 });
 
 // Map package name -> package directory, taken from the bundled input paths.

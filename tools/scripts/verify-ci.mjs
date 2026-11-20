@@ -2,10 +2,10 @@
 /**
  * Local pre-pull-request verification.
  *
- * Runs, on this machine, the steps the GitHub workflows (ci.yml + the validation job and desktop/web
- * builds of release.yml) run after a merge to `main`, so a broken change is caught before it burns
- * runner minutes. It verifies what `main` will look like AFTER the pull request: the committed HEAD is
- * checked out in a temporary worktree and `origin/main` is merged into it first.
+ * Runs, on this machine, the `verify` tier of the shared step list (tools/guardrails/src/steps.mjs): the
+ * same steps ci.yml runs on every pull request, plus the release.yml desktop/web builds with --release, so a
+ * broken change is caught before it burns runner minutes. It verifies what `main` will look like AFTER the
+ * pull request: the committed HEAD is checked out in a temporary worktree and `origin/main` is merged into it first.
  *
  *   pnpm run verify                 CI + release validation
  *   pnpm run verify -- --release    + flutter build (desktop of this OS) and web, as in the release job
@@ -20,7 +20,7 @@
 import { spawnSync, execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const IS_WIN = process.platform === 'win32';
@@ -82,12 +82,16 @@ const stateDir = path.join(gitDir, 'verify-ci');
 fs.mkdirSync(stateDir, { recursive: true });
 
 // A result is valid for the same content (tree), the same base and the same level of checking.
-const level = [opt.release ? 'release' : 'ci', opt.e2e ? 'e2e' : '', opt.noMerge ? 'nomerge' : ''].filter(Boolean).join('+');
+const level = [opt.release ? 'release' : 'ci', opt.e2e ? 'e2e' : '', opt.noMerge ? 'nomerge' : '']
+  .filter(Boolean)
+  .join('+');
 const cacheKey = `${treeSha}-${opt.noMerge ? 'x' : baseSha}-${level}`;
 const cacheFile = path.join(stateDir, `${cacheKey}.ok`);
 
 if (!opt.force && fs.existsSync(cacheFile)) {
-  console.log(green(`✔ Already verified (${level}): tree ${treeSha.slice(0, 10)} on ${BASE_REF} ${baseSha.slice(0, 10)}.`));
+  console.log(
+    green(`✔ Already verified (${level}): tree ${treeSha.slice(0, 10)} on ${BASE_REF} ${baseSha.slice(0, 10)}.`)
+  );
   console.log(dim('  Use --force to run again.'));
   process.exit(0);
 }
@@ -118,7 +122,9 @@ try {
   // flutter missing is reported by the first Flutter step
 }
 if (process.platform !== 'linux') {
-  warnings.push(`Running on ${process.platform}: workflows run on Linux (and Windows/macOS for installers); path/case differences are not covered.`);
+  warnings.push(
+    `Running on ${process.platform}: workflows run on Linux (and Windows/macOS for installers); path/case differences are not covered.`
+  );
 }
 for (const w of warnings) console.warn(yellow(`! ${w}`));
 
@@ -156,59 +162,44 @@ if (!opt.noMerge) {
     console.log(dim(`HEAD already contains ${BASE_REF}.`));
   } else {
     try {
-      git(work, '-c', 'user.name=verify', '-c', 'user.email=verify@localhost', 'merge', '--no-edit', '--quiet', baseSha);
+      git(
+        work,
+        '-c',
+        'user.name=verify',
+        '-c',
+        'user.email=verify@localhost',
+        'merge',
+        '--no-edit',
+        '--quiet',
+        baseSha
+      );
       console.log(dim(`Merged ${BASE_REF} (${ahead} commit(s)) into the verification worktree.`));
     } catch (err) {
       console.error(String(err.stderr || err.message).trim());
-      fail(`Merging ${BASE_REF} into your branch conflicts. Merge or rebase ${BASE_REF} first, resolve the conflicts, commit, then run verify again.`);
+      fail(
+        `Merging ${BASE_REF} into your branch conflicts. Merge or rebase ${BASE_REF} first, resolve the conflicts, commit, then run verify again.`
+      );
     }
   }
 }
 
 // ---------------------------------------------------------------------------
-// Steps (mirror .github/workflows/ci.yml and the release.yml validate/build jobs)
+// Steps: the shared step list (tools/guardrails), the same one ci.yml follows
 // ---------------------------------------------------------------------------
 
 const pkg = JSON.parse(fs.readFileSync(path.join(work, 'package.json'), 'utf8'));
-const appVersion = pkg.version;
-const flutterPlatform = { win32: 'windows', darwin: 'macos', linux: 'linux' }[process.platform];
-
-/** @type {{name: string, cmd: string, args: string[], cwd?: string, node?: boolean}[]} */
-const steps = [
-  { name: 'Install dependencies (frozen lockfile)', cmd: 'pnpm', args: ['install', '--frozen-lockfile'] },
-  { name: 'Verify Pi target recon', cmd: process.execPath, args: ['tools/recon/verify.ts'], node: true },
-  { name: 'PCP schema validation', cmd: 'pnpm', args: ['--filter', '@piframe/pcp-spec', 'run', 'test'] },
-  { name: 'Build TypeScript packages', cmd: 'pnpm', args: ['-r', 'run', 'build'] },
-  { name: 'Node tests (all packages)', cmd: 'pnpm', args: ['-r', 'run', 'test'] },
-  { name: 'Third-party notices up to date', cmd: 'pnpm', args: ['run', 'check:notices'] },
-  { name: 'Version metadata synchronized', cmd: 'pnpm', args: ['run', 'check:version'] },
-  { name: 'Daemon bundle contents', cmd: 'pnpm', args: ['run', 'check:agentd-bundle'] },
-  { name: 'Daemon bundle smoke test', cmd: 'pnpm', args: ['run', 'smoke:agentd-bundle'] },
-  { name: 'Windows release-name tests', cmd: process.execPath, args: ['--test', 'tools/scripts/test-windows-release-name.test.mjs'], node: true },
-  { name: 'Flutter dependencies', cmd: process.execPath, args: ['tools/scripts/setup-flutter.js'], node: true },
-  { name: 'Flutter analyze (all projects)', cmd: process.execPath, args: ['tools/scripts/lint-flutter.js'], node: true },
-  { name: 'Flutter tests (all projects)', cmd: process.execPath, args: ['tools/scripts/test-flutter.js'], node: true }
-];
-
-if (opt.release || opt.e2e) {
-  steps.push({
-    name: 'Build Flutter web app (as in the release job)',
-    cmd: 'flutter',
-    args: ['build', 'web', '--release', '--no-web-resources-cdn', '--pwa-strategy=none', `--dart-define=PI_FRAME_VERSION=${appVersion}`],
-    cwd: 'apps/pi_frame'
-  });
-}
-if (opt.release) {
-  steps.push({
-    name: `Build Flutter ${flutterPlatform} desktop app (as in the release job)`,
-    cmd: 'flutter',
-    args: ['build', flutterPlatform, '--release', '--build-name', appVersion, '--build-number', '1', `--dart-define=PI_FRAME_VERSION=${appVersion}`],
-    cwd: 'apps/pi_frame'
-  });
-}
-if (opt.e2e) {
-  steps.push({ name: 'Emulated-iPhone remote web test', cmd: process.execPath, args: ['tools/remote-e2e/remote-iphone-e2e.mjs'], node: true });
-}
+// Loaded from the worktree, so the steps are the ones of what `main` will be after the merge.
+const { stepList } = await import(pathToFileURL(path.join(work, 'tools/guardrails/src/index.mjs')).href);
+const steps = stepList('verify', {
+  release: opt.release,
+  e2e: opt.e2e,
+  platform: { win32: 'windows', darwin: 'macos', linux: 'linux' }[process.platform],
+  appVersion: pkg.version
+}).map(({ name, command: [program, ...args], cwd }) => {
+  // `node` steps run on this Node.js, without a shell; everything else goes through the shell on Windows (.cmd shims).
+  const node = program === 'node';
+  return { name, cmd: node ? process.execPath : program, args, cwd, node };
+});
 
 const logFile = path.join(stateDir, 'last.log');
 fs.writeFileSync(logFile, '');
@@ -222,7 +213,9 @@ function tail(file, lines = 70) {
 }
 
 const started = Date.now();
-console.log(`\nVerifying (${level}) tree ${treeSha.slice(0, 10)} + ${opt.noMerge ? 'no merge' : `${BASE_REF} ${baseSha.slice(0, 10)}`}`);
+console.log(
+  `\nVerifying (${level}) tree ${treeSha.slice(0, 10)} + ${opt.noMerge ? 'no merge' : `${BASE_REF} ${baseSha.slice(0, 10)}`}`
+);
 console.log(dim(`Output log: ${logFile}\n`));
 
 let index = 0;
@@ -262,9 +255,20 @@ if (dirty.length > 0) {
     `\n! The test run rewrote ${files.length} tracked file(s) in the verification worktree (discarded with it). ` +
     'If the same files show up as modified in your working tree after running the tests yourself, do not commit them:';
   console.warn(yellow(header));
-  console.warn(files.slice(0, 10).map((l) => `    ${l}`).join('\n'));
+  console.warn(
+    files
+      .slice(0, 10)
+      .map((l) => `    ${l}`)
+      .join('\n')
+  );
 }
 
-fs.writeFileSync(cacheFile, JSON.stringify({ head: headSha, tree: treeSha, base: baseSha, level, at: new Date().toISOString() }));
+fs.writeFileSync(
+  cacheFile,
+  JSON.stringify({ head: headSha, tree: treeSha, base: baseSha, level, at: new Date().toISOString() })
+);
 const total = ((Date.now() - started) / 60000).toFixed(1);
-console.log(green(`\n✔ All ${steps.length} steps passed in ${total} min.`) + dim(`  Result cached for this exact content (${level}).`));
+console.log(
+  green(`\n✔ All ${steps.length} steps passed in ${total} min.`) +
+    dim(`  Result cached for this exact content (${level}).`)
+);

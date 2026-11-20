@@ -44,10 +44,7 @@ class FrameMiddleEllipsis extends StatelessWidget {
           return label(text);
         }
         final maxWidth = constraints.maxWidth;
-        final shown = middleEllipsize(
-          text,
-          (candidate) => fits(candidate, maxWidth),
-        );
+        final shown = middleEllipsize(text, (candidate) => fits(candidate, maxWidth));
         if (shown == text) {
           return label(text);
         }
@@ -57,14 +54,8 @@ class FrameMiddleEllipsis extends StatelessWidget {
   }
 
   Widget Function(String) _label(TextStyle style) {
-    return (String shown) => Text(
-      shown,
-      maxLines: 1,
-      softWrap: false,
-      overflow: TextOverflow.clip,
-      semanticsLabel: text,
-      style: style,
-    );
+    return (String shown) =>
+        Text(shown, maxLines: 1, softWrap: false, overflow: TextOverflow.clip, semanticsLabel: text, style: style);
   }
 
   /// Returns [text] when [fits] accepts it, otherwise the longest middle

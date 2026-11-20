@@ -7,21 +7,14 @@ import 'package:pi_frame/ui/code/diff_block.dart';
 void main() {
   Widget wrapWithTheme(Widget child) {
     return MaterialApp(
-      theme: ThemeData.dark().copyWith(
-        extensions: const [FrameTokens.dark],
-      ),
+      theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
       home: Scaffold(body: child),
     );
   }
 
   testWidgets('CodeBlock renders language badge and code content', (tester) async {
     await tester.pumpWidget(
-      wrapWithTheme(
-        const CodeBlock(
-          code: 'final x = 42;\n// comment\nprint(x);',
-          language: 'dart',
-        ),
-      ),
+      wrapWithTheme(const CodeBlock(code: 'final x = 42;\n// comment\nprint(x);', language: 'dart')),
     );
 
     expect(find.text('DART'), findsOneWidget);
@@ -38,14 +31,7 @@ void main() {
 +another addition
 ''';
 
-    await tester.pumpWidget(
-      wrapWithTheme(
-        const DiffBlock(
-          diffText: diff,
-          filename: 'lib/main.dart',
-        ),
-      ),
-    );
+    await tester.pumpWidget(wrapWithTheme(const DiffBlock(diffText: diff, filename: 'lib/main.dart')));
 
     expect(find.text('lib/main.dart'), findsOneWidget);
     expect(find.text('+2'), findsOneWidget);

@@ -14,11 +14,15 @@ const bundlePath = path.join(root, 'apps/agentd/dist/pi-agentd.cjs');
 const child = spawn(process.execPath, [bundlePath, '--port', '0'], {
   cwd: root,
   env: { ...process.env, PI_FRAME_HOME: home },
-  stdio: ['ignore', 'pipe', 'pipe'],
+  stdio: ['ignore', 'pipe', 'pipe']
 });
 let logs = '';
-child.stdout.setEncoding('utf8').on('data', (chunk) => { logs += chunk; });
-child.stderr.setEncoding('utf8').on('data', (chunk) => { logs += chunk; });
+child.stdout.setEncoding('utf8').on('data', (chunk) => {
+  logs += chunk;
+});
+child.stderr.setEncoding('utf8').on('data', (chunk) => {
+  logs += chunk;
+});
 
 const waitUntil = async (predicate, timeoutMs = 10000) => {
   const until = Date.now() + timeoutMs;
@@ -48,26 +52,30 @@ try {
     return messages.find(predicate);
   };
 
-  socket.send(JSON.stringify({
-    protocol: 1,
-    kind: 'hello',
-    id: 'smoke_hello',
-    ts: Date.now(),
-    type: 'connection.hello',
-    payload: { token, client: { name: 'bundle-smoke', version: '0.1.0' }, encoding: 'json', capabilities: [] },
-  }));
+  socket.send(
+    JSON.stringify({
+      protocol: 1,
+      kind: 'hello',
+      id: 'smoke_hello',
+      ts: Date.now(),
+      type: 'connection.hello',
+      payload: { token, client: { name: 'bundle-smoke', version: '0.1.0' }, encoding: 'json', capabilities: [] }
+    })
+  );
   await waitFor((message) => message.kind === 'welcome');
 
   const commandId = 'smoke_workspace_list_files';
-  socket.send(JSON.stringify({
-    protocol: 1,
-    kind: 'command',
-    id: 'smoke_workspace_list_files_message',
-    ts: Date.now(),
-    commandId,
-    type: 'workspace.listFiles',
-    payload: {},
-  }));
+  socket.send(
+    JSON.stringify({
+      protocol: 1,
+      kind: 'command',
+      id: 'smoke_workspace_list_files_message',
+      ts: Date.now(),
+      commandId,
+      type: 'workspace.listFiles',
+      payload: {}
+    })
+  );
   const result = await waitFor((message) => message.kind === 'result' && message.commandId === commandId);
   assert.equal(result.payload.state, 'rejected');
   assert.match(result.payload.error, /sessionId is required/i);
@@ -79,7 +87,7 @@ try {
     child.kill('SIGTERM');
     await Promise.race([
       new Promise((resolve) => child.once('exit', resolve)),
-      new Promise((resolve) => setTimeout(resolve, 5000)),
+      new Promise((resolve) => setTimeout(resolve, 5000))
     ]);
   }
   rmSync(home, { recursive: true, force: true });

@@ -3,7 +3,14 @@ import assert from 'node:assert/strict';
 import { buildPrCreateArgs, splitArgs } from './pr-args.mjs';
 
 test('verify flags are split from gh arguments, values with spaces stay intact', () => {
-  const argv = ['--release', '--title', 'fix(ui): Phase 1 safety', '--body-file', 'C:/tmp/body dir/body.md', '--no-merge'];
+  const argv = [
+    '--release',
+    '--title',
+    'fix(ui): Phase 1 safety',
+    '--body-file',
+    'C:/tmp/body dir/body.md',
+    '--no-merge'
+  ];
   assert.deepEqual(splitArgs(argv), {
     verifyArgs: ['--release', '--no-merge'],
     ghArgs: ['--title', 'fix(ui): Phase 1 safety', '--body-file', 'C:/tmp/body dir/body.md']

@@ -15,10 +15,15 @@ test('event-loop monitor reports a block that is longer than the threshold', asy
   const stop = startEventLoopMonitor((ms) => reports.push(ms), { intervalMs: 20, thresholdMs: 100 });
   await new Promise((resolve) => setTimeout(resolve, 60));
   const until = Date.now() + 250;
-  while (Date.now() < until) { /* block the loop on purpose */ }
+  while (Date.now() < until) {
+    /* block the loop on purpose */
+  }
   await new Promise((resolve) => setTimeout(resolve, 60));
   stop();
-  assert.ok(reports.some((ms) => ms >= 100), `expected a stall report, got ${JSON.stringify(reports)}`);
+  assert.ok(
+    reports.some((ms) => ms >= 100),
+    `expected a stall report, got ${JSON.stringify(reports)}`
+  );
 });
 
 test('dev CPU profile is written after the requested seconds and stays off without the variable', async () => {
@@ -30,7 +35,9 @@ test('dev CPU profile is written after the requested seconds and stays off witho
       assert.equal(startDevCpuProfile({ PIFRAME_DEV_PROFILE_SECONDS: '0.2' }, profile, resolve), true);
     });
     const until = Date.now() + 50;
-    while (Date.now() < until) { /* give the profiler something to sample */ }
+    while (Date.now() < until) {
+      /* give the profiler something to sample */
+    }
     await done;
     const parsed = JSON.parse(fs.readFileSync(profile, 'utf8'));
     assert.ok(Array.isArray(parsed.nodes) && parsed.nodes.length > 0);

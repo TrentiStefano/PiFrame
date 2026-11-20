@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -8,12 +9,10 @@ class UpdatesPeriodicWatcher extends ConsumerStatefulWidget {
   const UpdatesPeriodicWatcher({super.key});
 
   @override
-  ConsumerState<UpdatesPeriodicWatcher> createState() =>
-      _UpdatesPeriodicWatcherState();
+  ConsumerState<UpdatesPeriodicWatcher> createState() => _UpdatesPeriodicWatcherState();
 }
 
-class _UpdatesPeriodicWatcherState
-    extends ConsumerState<UpdatesPeriodicWatcher> {
+class _UpdatesPeriodicWatcherState extends ConsumerState<UpdatesPeriodicWatcher> {
   Timer? _timer;
 
   @override

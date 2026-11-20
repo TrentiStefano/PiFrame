@@ -28,15 +28,9 @@ export function parseIoregOutput(output: string): {
     }
   }
 
-  const percent =
-    utilizations.length > 0
-      ? Math.round(Math.max(...utilizations) * 10) / 10
-      : null;
+  const percent = utilizations.length > 0 ? Math.round(Math.max(...utilizations) * 10) / 10 : null;
 
-  const memoryUsedBytes =
-    memories.length > 0
-      ? memories.reduce((a, b) => a + b, 0)
-      : null;
+  const memoryUsedBytes = memories.length > 0 ? memories.reduce((a, b) => a + b, 0) : null;
 
   return {
     percent,

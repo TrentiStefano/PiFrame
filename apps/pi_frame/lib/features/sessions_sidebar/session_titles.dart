@@ -7,9 +7,7 @@ const int provisionalTitleMaxLength = 60;
 
 /// Names the daemon gives a session that was never renamed: an empty name, the
 /// session id, or the `Session HH:MM[:SS]` default created at start.
-final RegExp _daemonDefaultName = RegExp(
-  r'^Session \d{1,2}:\d{2}(:\d{2})?( ?[AaPp][Mm])?$',
-);
+final RegExp _daemonDefaultName = RegExp(r'^Session \d{1,2}:\d{2}(:\d{2})?( ?[AaPp][Mm])?$');
 
 /// Whether [name] is a title the user or Pi chose, as opposed to a placeholder.
 /// A user rename or a title from Pi always wins over the provisional title.
@@ -32,10 +30,7 @@ String? firstUserPrompt(SessionState state) {
 
 /// Collapses whitespace and cuts [text] to [maxLength] characters with an
 /// ellipsis. Text that already fits is returned unchanged.
-String truncateProvisionalTitle(
-  String text, {
-  int maxLength = provisionalTitleMaxLength,
-}) {
+String truncateProvisionalTitle(String text, {int maxLength = provisionalTitleMaxLength}) {
   final flat = text.replaceAll(RegExp(r'\s+'), ' ').trim();
   if (flat.length <= maxLength) return flat;
   return '${flat.substring(0, maxLength - 1).trimRight()}…';

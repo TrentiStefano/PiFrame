@@ -15,7 +15,12 @@ test('RemoteAuthManager: generates pairing secret, pairs, and consumes single-us
   assert.ok(pairing.expiresAt > Date.now());
 
   // Pairing by secret
-  const result = auth.pair(pairing.secret, 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)', '198.51.100.1', 'view');
+  const result = auth.pair(
+    pairing.secret,
+    'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)',
+    '198.51.100.1',
+    'view'
+  );
   assert.ok(result.deviceId.startsWith('dev_'));
   assert.ok(result.deviceToken.startsWith('rem_dev_'));
   assert.strictEqual(result.device.name, 'Apple iOS Device');
@@ -44,7 +49,9 @@ test('RemoteAuthManager: generates pairing secret, pairs, and consumes single-us
   assert.ok(/^[a-f0-9]{64}$/.test(parsed.devices[0].tokenHash));
 
   // Cleanup
-  try { fs.unlinkSync(tmpFile); } catch {}
+  try {
+    fs.unlinkSync(tmpFile);
+  } catch {}
 });
 
 test('RemoteAuthManager: rate limiting locks out IP after 5 failed attempts', () => {
@@ -55,25 +62,18 @@ test('RemoteAuthManager: rate limiting locks out IP after 5 failed attempts', ()
   const ip = '198.51.100.42';
 
   for (let i = 0; i < 4; i++) {
-    assert.throws(
-      () => auth.pair('wrong_secret', undefined, ip),
-      /Invalid pairing secret/
-    );
+    assert.throws(() => auth.pair('wrong_secret', undefined, ip), /Invalid pairing secret/);
   }
 
   // 5th attempt triggers lockout and consumes/destroys the pairing secret
-  assert.throws(
-    () => auth.pair('wrong_secret', undefined, ip),
-    /Invalid pairing secret/
-  );
+  assert.throws(() => auth.pair('wrong_secret', undefined, ip), /Invalid pairing secret/);
 
   // 6th attempt is blocked by rate limiting
-  assert.throws(
-    () => auth.pair('wrong_secret', undefined, ip),
-    /Too many failed pairing attempts/
-  );
+  assert.throws(() => auth.pair('wrong_secret', undefined, ip), /Too many failed pairing attempts/);
 
-  try { fs.unlinkSync(tmpFile); } catch {}
+  try {
+    fs.unlinkSync(tmpFile);
+  } catch {}
 });
 
 test('RemoteAuthManager: 5 global failed attempts destroy active pairing for everyone', () => {
@@ -83,29 +83,22 @@ test('RemoteAuthManager: 5 global failed attempts destroy active pairing for eve
 
   // 4 failed attempts from 4 different IPs
   for (let i = 1; i <= 4; i++) {
-    assert.throws(
-      () => auth.pair('guessed_secret', undefined, `10.0.0.${i}`),
-      /Invalid pairing secret/
-    );
+    assert.throws(() => auth.pair('guessed_secret', undefined, `10.0.0.${i}`), /Invalid pairing secret/);
   }
 
   // Active pairing is still present
   assert.ok(auth.getActivePairing() !== null);
 
   // 5th attempt burns the pairing secret globally
-  assert.throws(
-    () => auth.pair('guessed_secret', undefined, '10.0.0.5'),
-    /Invalid pairing secret/
-  );
+  assert.throws(() => auth.pair('guessed_secret', undefined, '10.0.0.5'), /Invalid pairing secret/);
 
   // The pairing secret is now destroyed; even legitimate client cannot use it
   assert.strictEqual(auth.getActivePairing(), null);
-  assert.throws(
-    () => auth.pair(p.secret, undefined, '10.0.0.99'),
-    /Pairing session expired or not initiated/
-  );
+  assert.throws(() => auth.pair(p.secret, undefined, '10.0.0.99'), /Pairing session expired or not initiated/);
 
-  try { fs.unlinkSync(tmpFile); } catch {}
+  try {
+    fs.unlinkSync(tmpFile);
+  } catch {}
 });
 
 test('RemoteAuthManager: enforces max 10 paired devices limit', () => {
@@ -125,7 +118,9 @@ test('RemoteAuthManager: enforces max 10 paired devices limit', () => {
     /Maximum number of paired devices reached/
   );
 
-  try { fs.unlinkSync(tmpFile); } catch {}
+  try {
+    fs.unlinkSync(tmpFile);
+  } catch {}
 });
 
 test('RemoteAuthManager: revoking single device, changing mode, or revoking all', () => {
@@ -157,5 +152,7 @@ test('RemoteAuthManager: revoking single device, changing mode, or revoking all'
   assert.strictEqual(auth.getPairedDevices().length, 0);
   assert.strictEqual(auth.verifyDeviceToken(dev2.deviceToken), null);
 
-  try { fs.unlinkSync(tmpFile); } catch {}
+  try {
+    fs.unlinkSync(tmpFile);
+  } catch {}
 });

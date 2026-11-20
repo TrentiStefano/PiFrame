@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/daemon/daemon_providers.dart';
@@ -115,13 +116,9 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
   }
 
   void _listenToSession() {
-    _subscription = ref.listen<SessionState>(
-      sessionStateFamily(sessionId),
-      (prev, next) {
-        _syncFromSession(next);
-      },
-      fireImmediately: true,
-    );
+    _subscription = ref.listen<SessionState>(sessionStateFamily(sessionId), (prev, next) {
+      _syncFromSession(next);
+    }, fireImmediately: true);
   }
 
   static bool _areEntriesEqual(List<SessionEntry> a, List<SessionEntry> b) {
@@ -153,8 +150,7 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
     }
 
     // 2. Process historical entries (cached when unchanged)
-    if (_lastParsedEntries == null ||
-        !_areEntriesEqual(_lastParsedEntries!, sessionState.entries)) {
+    if (_lastParsedEntries == null || !_areEntriesEqual(_lastParsedEntries!, sessionState.entries)) {
       _cachedHistoricalTasks.clear();
       for (final entry in sessionState.entries) {
         if (entry.text.isNotEmpty &&
@@ -208,10 +204,7 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
     }
 
     // Filter out deleted tasks and sort by ID
-    final updatedList = currentTasks.values
-        .where((t) => !t.isDeleted)
-        .toList()
-      ..sort((a, b) => a.id.compareTo(b.id));
+    final updatedList = currentTasks.values.where((t) => !t.isDeleted).toList()..sort((a, b) => a.id.compareTo(b.id));
 
     if (!_areListsEqual(state, updatedList)) {
       state = updatedList;
@@ -251,9 +244,7 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
         final decoded = jsonDecode(rawText);
         if (decoded is Map<String, dynamic>) {
           final details = decoded['details'] ?? decoded;
-          final dynamic rawList = details is Map
-              ? (details['tasks'] ?? details['todos'])
-              : null;
+          final dynamic rawList = details is Map ? (details['tasks'] ?? details['todos']) : null;
           if (rawList is List) {
             for (final item in rawList) {
               if (item is Map) {
@@ -281,9 +272,7 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
     if (idMatches.isNotEmpty) {
       for (int i = 0; i < idMatches.length; i++) {
         final startIdx = idMatches[i].start;
-        final endIdx = (i + 1 < idMatches.length)
-            ? idMatches[i + 1].start
-            : rawText.length;
+        final endIdx = (i + 1 < idMatches.length) ? idMatches[i + 1].start : rawText.length;
         var block = rawText.substring(startIdx, endIdx);
         final closeIdx = block.lastIndexOf('}');
         if (closeIdx != -1) {
@@ -291,15 +280,13 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
         }
 
         final fields = _parseBlockFields(block);
-        final idStr = fields['id'] ??
-            RegExp(r"""['"]?id['"]?\s*:\s*(\d+)""").firstMatch(block)?.group(1);
+        final idStr = fields['id'] ?? RegExp(r"""['"]?id['"]?\s*:\s*(\d+)""").firstMatch(block)?.group(1);
         final id = idStr != null ? int.tryParse(idStr) ?? 0 : 0;
         if (id <= 0) continue;
 
-        final statusRaw = fields['status'] ??
-            RegExp(r"""['"]?status['"]?\s*:\s*['"]?([a-zA-Z0-9_-]+)['"]?""")
-                .firstMatch(block)
-                ?.group(1);
+        final statusRaw =
+            fields['status'] ??
+            RegExp(r"""['"]?status['"]?\s*:\s*['"]?([a-zA-Z0-9_-]+)['"]?""").firstMatch(block)?.group(1);
         final status = _normalizeStatus(statusRaw);
 
         final subject = fields['subject'] ?? fields['title'];
@@ -361,11 +348,7 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
                 }
               }
             } else {
-              tasks[id] = TodoItem(
-                id: id,
-                subject: 'Task #$id',
-                status: status,
-              );
+              tasks[id] = TodoItem(id: id, subject: 'Task #$id', status: status);
             }
           }
         }
@@ -391,11 +374,7 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
             status: rawSt != null ? st : existing.status,
           );
         } else {
-          tasks[id] = TodoItem(
-            id: id,
-            subject: sub,
-            status: st,
-          );
+          tasks[id] = TodoItem(id: id, subject: sub, status: st);
         }
       }
     }
@@ -489,10 +468,19 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
   String? _normalizeStatus(String? raw) {
     if (raw == null) return null;
     final lower = raw.trim().toLowerCase();
-    if (lower == 'completed' || lower == 'done' || lower == 'closed' || lower == 'finished' || lower == 'completato' || lower == 'completata') {
+    if (lower == 'completed' ||
+        lower == 'done' ||
+        lower == 'closed' ||
+        lower == 'finished' ||
+        lower == 'completato' ||
+        lower == 'completata') {
       return 'completed';
     }
-    if (lower == 'in_progress' || lower == 'inprogress' || lower == 'running' || lower == 'working' || lower == 'in corso') {
+    if (lower == 'in_progress' ||
+        lower == 'inprogress' ||
+        lower == 'running' ||
+        lower == 'working' ||
+        lower == 'in corso') {
       return 'in_progress';
     }
     if (lower == 'pending' || lower == 'todo' || lower == 'open' || lower == 'da fare') {
@@ -610,7 +598,9 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
       if (existing != null) {
         tasks[id] = existing.copyWith(
           subject: subject ?? existing.subject,
-          status: status ?? (effectiveAction == 'toggle' ? (existing.isCompleted ? 'pending' : 'completed') : existing.status),
+          status:
+              status ??
+              (effectiveAction == 'toggle' ? (existing.isCompleted ? 'pending' : 'completed') : existing.status),
           description: args['description']?.toString() ?? existing.description,
         );
       } else if (subject != null) {
@@ -649,14 +639,10 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
     final client = ref.read(pcpClientProvider);
     if (client != null) {
       final strings = ref.read(appStringsProvider);
-      final verb = newStatus == 'completed'
-          ? strings.todoVerbCompleted
-          : strings.todoVerbPending;
-      client.sendPrompt(
-        sessionId,
-        strings.todoSteerPrompt(id, task.subject, verb),
-        streamingBehavior: 'steer',
-      ).catchError((_) => <String, dynamic>{});
+      final verb = newStatus == 'completed' ? strings.todoVerbCompleted : strings.todoVerbPending;
+      client
+          .sendPrompt(sessionId, strings.todoSteerPrompt(id, task.subject, verb), streamingBehavior: 'steer')
+          .catchError((_) => <String, dynamic>{});
     }
   }
 
@@ -668,30 +654,22 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
       _nextGeneratedId++;
     }
     final newId = _nextGeneratedId++;
-    final newItem = TodoItem(
-      id: newId,
-      subject: trimmed,
-      status: 'pending',
-    );
+    final newItem = TodoItem(id: newId, subject: trimmed, status: 'pending');
     _userManualTasks[newId] = newItem;
     state = [...state, newItem]..sort((a, b) => a.id.compareTo(b.id));
 
     final client = ref.read(pcpClientProvider);
     if (client != null) {
-      client.sendPrompt(
-        sessionId,
-        'Nuovo task aggiunto dall\'utente: #$newId "$trimmed".',
-        streamingBehavior: 'steer',
-      ).catchError((_) => <String, dynamic>{});
+      client
+          .sendPrompt(sessionId, 'Nuovo task aggiunto dall\'utente: #$newId "$trimmed".', streamingBehavior: 'steer')
+          .catchError((_) => <String, dynamic>{});
     }
   }
 
   bool _areListsEqual(List<TodoItem> a, List<TodoItem> b) {
     if (a.length != b.length) return false;
     for (int i = 0; i < a.length; i++) {
-      if (a[i].id != b[i].id ||
-          a[i].subject != b[i].subject ||
-          a[i].status != b[i].status) {
+      if (a[i].id != b[i].id || a[i].subject != b[i].subject || a[i].status != b[i].status) {
         return false;
       }
     }

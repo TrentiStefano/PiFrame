@@ -23,8 +23,8 @@ test('SessionIndex: extractSessionMetadata correctly extracts usage, model, thin
       content: 'Thinking and acting...',
       usage: {
         cost: 0.015,
-        tokens: { total: 4000, input: 3000, output: 1000 },
-      },
+        tokens: { total: 4000, input: 3000, output: 1000 }
+      }
     }),
     JSON.stringify({
       type: 'message',
@@ -32,9 +32,9 @@ test('SessionIndex: extractSessionMetadata correctly extracts usage, model, thin
       content: 'Finished task.',
       usage: {
         cost: { total: 0.025 },
-        tokens: { total: 6500, input: 5000, output: 1500 },
-      },
-    }),
+        tokens: { total: 6500, input: 5000, output: 1500 }
+      }
+    })
   ];
 
   fs.writeFileSync(sessionFile, lines.join('\n'), 'utf8');
@@ -46,7 +46,7 @@ test('SessionIndex: extractSessionMetadata correctly extracts usage, model, thin
   assert.strictEqual(meta.thinkingLevel, 'high');
   assert.ok(meta.usage);
   assert.ok((meta.usage as any).byModel);
-  assert.strictEqual(Math.abs((meta.usage as any).byModel['claude-3-5-sonnet'].cost - 0.040) < 0.0001, true);
+  assert.strictEqual(Math.abs((meta.usage as any).byModel['claude-3-5-sonnet'].cost - 0.04) < 0.0001, true);
   assert.strictEqual((meta.usage.tokens as any).total, 6500);
 
   // Text read asynchronously once gives the same result as reading the file synchronously.
@@ -69,18 +69,18 @@ test('SessionIndex: extractSessionMetadata extracts per-model costs across multi
     JSON.stringify({
       type: 'message',
       role: 'assistant',
-      usage: { cost: 46.818, tokens: { total: 100000000 } },
+      usage: { cost: 46.818, tokens: { total: 100000000 } }
     }),
     JSON.stringify({ type: 'model_change', modelId: 'github-copilot/claude-haiku-5-5' }),
     JSON.stringify({
       type: 'message',
       role: 'assistant',
-      usage: { cost: 27.539, tokens: { total: 356000000 } },
+      usage: { cost: 27.539, tokens: { total: 356000000 } }
     }),
     JSON.stringify({
       type: 'compaction',
-      usage: { cost: 1.183, tokens: { total: 43000000 } },
-    }),
+      usage: { cost: 1.183, tokens: { total: 43000000 } }
+    })
   ];
 
   fs.writeFileSync(sessionFile, lines.join('\n'), 'utf8');
@@ -100,12 +100,20 @@ test('SessionIndex: tool usage is not attributed to the parent model and missing
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentd-usage-source-'));
   t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
   const sessionFile = path.join(tmpDir, 'session.jsonl');
-  fs.writeFileSync(sessionFile, [
-    { type: 'model_change', modelId: 'parent-model' },
-    { type: 'message', message: { role: 'assistant', model: 'parent-model', usage: { cost: 0.02 } } },
-    { type: 'message', message: { role: 'toolResult', usage: { cost: 0.0125 } } },
-    { type: 'message', message: { role: 'assistant', model: 'unknown-price-model', usage: { tokens: { total: 15 } } } },
-  ].map((entry) => JSON.stringify(entry)).join('\n'));
+  fs.writeFileSync(
+    sessionFile,
+    [
+      { type: 'model_change', modelId: 'parent-model' },
+      { type: 'message', message: { role: 'assistant', model: 'parent-model', usage: { cost: 0.02 } } },
+      { type: 'message', message: { role: 'toolResult', usage: { cost: 0.0125 } } },
+      {
+        type: 'message',
+        message: { role: 'assistant', model: 'unknown-price-model', usage: { tokens: { total: 15 } } }
+      }
+    ]
+      .map((entry) => JSON.stringify(entry))
+      .join('\n')
+  );
   const usage = new SessionIndex().extractSessionMetadata(sessionFile).usage as any;
   assert.equal(usage.byModel['parent-model'].cost, 0.02);
   assert.equal(usage.byModel['Tools/summaries'].cost, 0.0125);
@@ -117,26 +125,36 @@ test('SessionIndex: getSubagents accumulates nested Pi usage as child sessions g
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentd-nested-subagent-'));
   t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
   const subFile = path.join(tmpDir, 'worker.jsonl');
-  fs.writeFileSync(subFile, [
-    { type: 'session', id: 'worker#nested', parentSession: 'parent.jsonl', cwd: '/test' },
-    { type: 'model_change', modelId: 'test-model' },
-    { type: 'message', message: { role: 'assistant', content: 'First turn', usage: { cost: { total: 0.0175 } } } },
-  ].map((entry) => JSON.stringify(entry)).join('\n') + '\n');
+  fs.writeFileSync(
+    subFile,
+    [
+      { type: 'session', id: 'worker#nested', parentSession: 'parent.jsonl', cwd: '/test' },
+      { type: 'model_change', modelId: 'test-model' },
+      { type: 'message', message: { role: 'assistant', content: 'First turn', usage: { cost: { total: 0.0175 } } } }
+    ]
+      .map((entry) => JSON.stringify(entry))
+      .join('\n') + '\n'
+  );
   const index = new SessionIndex({ sessionsDir: tmpDir, cachePath: path.join(tmpDir, 'index.json') });
   const initial = await index.getSubagents('parent', path.join(tmpDir, 'parent.jsonl'));
   assert.strictEqual(initial.length, 1);
   assert.strictEqual(initial[0].cost, 0.0175);
   assert.strictEqual(initial[0].unlinked, true);
 
-  fs.appendFileSync(subFile, [
-    { type: 'message', message: { role: 'assistant', content: 'Second turn', usage: { cost: 0.025 } } },
-    { type: 'message', message: { role: 'assistant', content: 'Third turn', usage: { cost: { amount: 0.0075 } } } },
-    // Legacy wrapper usage must win over the same message usage, not count twice.
-    { type: 'message', usage: { cost: 0.01 }, message: { role: 'assistant', usage: { cost: 0.01 } } },
-    { type: 'message', message: { role: 'assistant', usage: { cost: { total: 'Infinity' } } } },
-    { type: 'message', message: { role: 'assistant', usage: { cost: 'invalid' } } },
-    { type: 'message', usage: { tokens: { total: 99 } }, message: { role: 'assistant', usage: { cost: 0.004 } } },
-  ].map((entry) => JSON.stringify(entry)).join('\n') + '\n');
+  fs.appendFileSync(
+    subFile,
+    [
+      { type: 'message', message: { role: 'assistant', content: 'Second turn', usage: { cost: 0.025 } } },
+      { type: 'message', message: { role: 'assistant', content: 'Third turn', usage: { cost: { amount: 0.0075 } } } },
+      // Legacy wrapper usage must win over the same message usage, not count twice.
+      { type: 'message', usage: { cost: 0.01 }, message: { role: 'assistant', usage: { cost: 0.01 } } },
+      { type: 'message', message: { role: 'assistant', usage: { cost: { total: 'Infinity' } } } },
+      { type: 'message', message: { role: 'assistant', usage: { cost: 'invalid' } } },
+      { type: 'message', usage: { tokens: { total: 99 } }, message: { role: 'assistant', usage: { cost: 0.004 } } }
+    ]
+      .map((entry) => JSON.stringify(entry))
+      .join('\n') + '\n'
+  );
   const before = fs.readFileSync(subFile, 'utf8');
   const updated = await index.getSubagents('parent', path.join(tmpDir, 'parent.jsonl'));
   assert.strictEqual(updated.length, 1);
@@ -155,21 +173,60 @@ test('SessionIndex: getSubagents uses parent Agent identity and persisted child 
   const parentFile = path.join(sessionsDir, 'parent.jsonl');
   const childFile = path.join(sessionsDir, 'unrelated-child-uuid.jsonl');
   const agentId = '1f84d18e-7a93-42c';
-  fs.writeFileSync(parentFile, [
-    { type: 'session', id: 'parent', cwd: '/test' },
-    { type: 'message', message: { role: 'toolResult', toolName: 'Agent', toolCallId: 'call-agent', details: {
-      agentId, modelName: 'parent-requested-model', cost: 0.01, status: 'running', subagentType: 'codebase-analyzer', description: 'Inspect code',
-    } } },
-    { type: 'message', message: { role: 'toolResult', toolName: 'Agent', toolCallId: 'call-agent', details: {
-      agentId, modelName: 'parent-requested-model', cost: 0.04, status: 'completed', subagentType: 'codebase-analyzer', description: 'Inspect code',
-    } } },
-  ].map((entry) => JSON.stringify(entry)).join('\n') + '\n');
-  fs.writeFileSync(childFile, [
-    { type: 'session', id: 'child-jsonl-uuid', parentSession: parentFile, cwd: '/test' },
-    { type: 'session_info', name: `codebase-analyzer#${agentId.slice(0, 8)}` },
-    { type: 'model_change', modelId: 'requested-model' },
-    { type: 'message', message: { role: 'assistant', model: 'gpt-6 luna', content: 'Finished', usage: { cost: 0.025 } } },
-  ].map((entry) => JSON.stringify(entry)).join('\n') + '\n');
+  fs.writeFileSync(
+    parentFile,
+    [
+      { type: 'session', id: 'parent', cwd: '/test' },
+      {
+        type: 'message',
+        message: {
+          role: 'toolResult',
+          toolName: 'Agent',
+          toolCallId: 'call-agent',
+          details: {
+            agentId,
+            modelName: 'parent-requested-model',
+            cost: 0.01,
+            status: 'running',
+            subagentType: 'codebase-analyzer',
+            description: 'Inspect code'
+          }
+        }
+      },
+      {
+        type: 'message',
+        message: {
+          role: 'toolResult',
+          toolName: 'Agent',
+          toolCallId: 'call-agent',
+          details: {
+            agentId,
+            modelName: 'parent-requested-model',
+            cost: 0.04,
+            status: 'completed',
+            subagentType: 'codebase-analyzer',
+            description: 'Inspect code'
+          }
+        }
+      }
+    ]
+      .map((entry) => JSON.stringify(entry))
+      .join('\n') + '\n'
+  );
+  fs.writeFileSync(
+    childFile,
+    [
+      { type: 'session', id: 'child-jsonl-uuid', parentSession: parentFile, cwd: '/test' },
+      { type: 'session_info', name: `codebase-analyzer#${agentId.slice(0, 8)}` },
+      { type: 'model_change', modelId: 'requested-model' },
+      {
+        type: 'message',
+        message: { role: 'assistant', model: 'gpt-6 luna', content: 'Finished', usage: { cost: 0.025 } }
+      }
+    ]
+      .map((entry) => JSON.stringify(entry))
+      .join('\n') + '\n'
+  );
   const index = new SessionIndex({ sessionsDir, cachePath: path.join(tmpDir, 'cache.json') });
   const agents = await index.getSubagents('parent', parentFile);
   assert.equal(agents.length, 1);
@@ -188,21 +245,71 @@ test('SessionIndex: getSubagents returns parent-only Agent results and leaves mi
   fs.mkdirSync(sessionsDir, { recursive: true });
   t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
   const parentFile = path.join(sessionsDir, 'parent.jsonl');
-  fs.writeFileSync(parentFile, [
-    { type: 'session', id: 'parent', cwd: '/test' },
-    { type: 'message', message: { role: 'toolResult', toolName: 'Agent', toolCallId: 'foreground-call', details: {
-      agentId: 'foreground-agent-id', modelName: 'gpt-6 luna', cost: 0.01, status: 'running', subagentType: 'researcher',
-    } } },
-    { type: 'message', message: { role: 'toolResult', toolName: 'Agent', toolCallId: 'foreground-call', details: {
-      agentId: 'foreground-agent-id', modelName: 'gpt-6 luna', cost: 0.025, status: 'completed', subagentType: 'researcher',
-    } } },
-    { type: 'message', message: { role: 'toolResult', toolName: 'Agent', toolCallId: 'foreground-call', details: {
-      agentId: 'foreground-agent-id', status: 'completed', subagentType: 'researcher',
-    } } },
-    { type: 'message', message: { role: 'toolResult', toolName: 'Agent', toolCallId: 'missing-cost-call', details: {
-      agentId: 'missing-cost-agent', modelName: 'gpt-6 luna', status: 'running', subagentType: 'researcher',
-    } } },
-  ].map((entry) => JSON.stringify(entry)).join('\n') + '\n');
+  fs.writeFileSync(
+    parentFile,
+    [
+      { type: 'session', id: 'parent', cwd: '/test' },
+      {
+        type: 'message',
+        message: {
+          role: 'toolResult',
+          toolName: 'Agent',
+          toolCallId: 'foreground-call',
+          details: {
+            agentId: 'foreground-agent-id',
+            modelName: 'gpt-6 luna',
+            cost: 0.01,
+            status: 'running',
+            subagentType: 'researcher'
+          }
+        }
+      },
+      {
+        type: 'message',
+        message: {
+          role: 'toolResult',
+          toolName: 'Agent',
+          toolCallId: 'foreground-call',
+          details: {
+            agentId: 'foreground-agent-id',
+            modelName: 'gpt-6 luna',
+            cost: 0.025,
+            status: 'completed',
+            subagentType: 'researcher'
+          }
+        }
+      },
+      {
+        type: 'message',
+        message: {
+          role: 'toolResult',
+          toolName: 'Agent',
+          toolCallId: 'foreground-call',
+          details: {
+            agentId: 'foreground-agent-id',
+            status: 'completed',
+            subagentType: 'researcher'
+          }
+        }
+      },
+      {
+        type: 'message',
+        message: {
+          role: 'toolResult',
+          toolName: 'Agent',
+          toolCallId: 'missing-cost-call',
+          details: {
+            agentId: 'missing-cost-agent',
+            modelName: 'gpt-6 luna',
+            status: 'running',
+            subagentType: 'researcher'
+          }
+        }
+      }
+    ]
+      .map((entry) => JSON.stringify(entry))
+      .join('\n') + '\n'
+  );
   const index = new SessionIndex({ sessionsDir, cachePath: path.join(tmpDir, 'cache.json') });
   const agents = await index.getSubagents('parent');
   assert.equal(agents.length, 2);
@@ -223,28 +330,57 @@ test('SessionIndex: getSubagents avoids ambiguous prefixes and unrelated parent 
   const parentFile = path.join(sessionsDir, 'parent.jsonl');
   const childFile = path.join(sessionsDir, 'child.jsonl');
   const unrelatedFile = path.join(sessionsDir, 'unrelated-child.jsonl');
-  fs.writeFileSync(parentFile, [
-    { type: 'session', id: 'parent', cwd: '/test' },
-    ...['1f84d18e-agent-a', '1f84d18e-agent-b'].map((agentId) => ({
-      type: 'message', message: { role: 'toolResult', toolName: 'Agent', toolCallId: `call-${agentId}`, details: {
-        agentId, modelName: 'parent-model', cost: 0.01, status: 'completed', subagentType: 'analyzer',
-      } },
-    })),
-  ].map((entry) => JSON.stringify(entry)).join('\n') + '\n');
-  fs.writeFileSync(childFile, [
-    { type: 'session', id: 'child-session', parentSession: parentFile, cwd: '/test' },
-    { type: 'session_info', name: 'analyzer#1f84d18e' },
-  ].map((entry) => JSON.stringify(entry)).join('\n') + '\n');
-  fs.writeFileSync(unrelatedFile, JSON.stringify({
-    type: 'session', id: 'unrelated-child', parentSession: path.join(sessionsDir, 'other', 'parent.jsonl'), cwd: '/test',
-  }) + '\n');
+  fs.writeFileSync(
+    parentFile,
+    [
+      { type: 'session', id: 'parent', cwd: '/test' },
+      ...['1f84d18e-agent-a', '1f84d18e-agent-b'].map((agentId) => ({
+        type: 'message',
+        message: {
+          role: 'toolResult',
+          toolName: 'Agent',
+          toolCallId: `call-${agentId}`,
+          details: {
+            agentId,
+            modelName: 'parent-model',
+            cost: 0.01,
+            status: 'completed',
+            subagentType: 'analyzer'
+          }
+        }
+      }))
+    ]
+      .map((entry) => JSON.stringify(entry))
+      .join('\n') + '\n'
+  );
+  fs.writeFileSync(
+    childFile,
+    [
+      { type: 'session', id: 'child-session', parentSession: parentFile, cwd: '/test' },
+      { type: 'session_info', name: 'analyzer#1f84d18e' }
+    ]
+      .map((entry) => JSON.stringify(entry))
+      .join('\n') + '\n'
+  );
+  fs.writeFileSync(
+    unrelatedFile,
+    JSON.stringify({
+      type: 'session',
+      id: 'unrelated-child',
+      parentSession: path.join(sessionsDir, 'other', 'parent.jsonl'),
+      cwd: '/test'
+    }) + '\n'
+  );
   const index = new SessionIndex({ sessionsDir, cachePath: path.join(tmpDir, 'cache.json') });
   const agents = await index.getSubagents('parent', parentFile);
   assert.deepEqual(agents.map((agent) => agent.id).sort(), ['1f84d18e-agent-a', '1f84d18e-agent-b', 'child-session']);
   assert.equal(agents.find((agent) => agent.id === 'child-session')?.model, undefined);
   assert.equal(agents.find((agent) => agent.id === 'child-session')?.unlinked, true);
   assert.ok(agents.filter((agent) => agent.id !== 'child-session').every((agent) => !agent.unlinked));
-  assert.equal((await index.getSubagents('parent')).some((agent) => agent.id === 'unrelated-child'), false);
+  assert.equal(
+    (await index.getSubagents('parent')).some((agent) => agent.id === 'unrelated-child'),
+    false
+  );
 });
 
 test('SessionIndex: notification tool-call identity updates the actual agent and child', async (t) => {
@@ -253,19 +389,48 @@ test('SessionIndex: notification tool-call identity updates the actual agent and
   const parentFile = path.join(tmpDir, 'parent.jsonl');
   const childFile = path.join(tmpDir, 'child.jsonl');
   const agentId = 'c44c9b4f-81e3-482';
-  fs.writeFileSync(parentFile, [
-    { type: 'session', id: 'parent', cwd: '/repo' },
-    { type: 'message', message: { role: 'toolResult', toolName: 'Agent', toolCallId: 'call-agent', details: {
-      agentId, status: 'background', subagentType: 'reviewer', description: 'Review pending cost changes',
-    } } },
-    { type: 'custom_message', customType: 'subagent-notification', content: '<task-notification><task-id>different-task-id</task-id><tool-use-id>call-agent</tool-use-id><status>Done</status><summary>Agent finished</summary></task-notification>' },
-  ].map((entry) => JSON.stringify(entry)).join('\n') + '\n');
-  fs.writeFileSync(childFile, [
-    { type: 'session', id: 'child-session', parentSession: parentFile, cwd: '/repo' },
-    { type: 'session_info', name: 'reviewer#c44c9b4f' },
-    { type: 'model_change', modelId: 'actual-model' },
-    { type: 'message', message: { role: 'assistant', content: 'Result preview is not a name', usage: { cost: { total: 0.0175 } } } },
-  ].map((entry) => JSON.stringify(entry)).join('\n') + '\n');
+  fs.writeFileSync(
+    parentFile,
+    [
+      { type: 'session', id: 'parent', cwd: '/repo' },
+      {
+        type: 'message',
+        message: {
+          role: 'toolResult',
+          toolName: 'Agent',
+          toolCallId: 'call-agent',
+          details: {
+            agentId,
+            status: 'background',
+            subagentType: 'reviewer',
+            description: 'Review pending cost changes'
+          }
+        }
+      },
+      {
+        type: 'custom_message',
+        customType: 'subagent-notification',
+        content:
+          '<task-notification><task-id>different-task-id</task-id><tool-use-id>call-agent</tool-use-id><status>Done</status><summary>Agent finished</summary></task-notification>'
+      }
+    ]
+      .map((entry) => JSON.stringify(entry))
+      .join('\n') + '\n'
+  );
+  fs.writeFileSync(
+    childFile,
+    [
+      { type: 'session', id: 'child-session', parentSession: parentFile, cwd: '/repo' },
+      { type: 'session_info', name: 'reviewer#c44c9b4f' },
+      { type: 'model_change', modelId: 'actual-model' },
+      {
+        type: 'message',
+        message: { role: 'assistant', content: 'Result preview is not a name', usage: { cost: { total: 0.0175 } } }
+      }
+    ]
+      .map((entry) => JSON.stringify(entry))
+      .join('\n') + '\n'
+  );
   const index = new SessionIndex({ sessionsDir: tmpDir, cachePath: path.join(tmpDir, 'cache.json') });
   const agents = await index.getSubagents('parent', parentFile);
   assert.equal(agents.length, 1);
@@ -284,27 +449,50 @@ test('SessionIndex: a background agent whose notification never arrived settles 
   t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
   const parentFile = path.join(tmpDir, 'parent.jsonl');
   const launch = (agentId: string, callId: string) => ({
-    type: 'message', message: { role: 'toolResult', toolName: 'Agent', toolCallId: callId, details: {
-      agentId, status: 'background', subagentType: 'general-purpose', description: `Task ${agentId}`,
-    } },
+    type: 'message',
+    message: {
+      role: 'toolResult',
+      toolName: 'Agent',
+      toolCallId: callId,
+      details: {
+        agentId,
+        status: 'background',
+        subagentType: 'general-purpose',
+        description: `Task ${agentId}`
+      }
+    }
   });
-  fs.writeFileSync(parentFile, [
-    { type: 'session', id: 'parent', cwd: '/repo' },
-    launch('aaaaaaaa-idle', 'call-idle'),
-    launch('bbbbbbbb-live', 'call-live'),
-    launch('cccccccc-done', 'call-done'),
-  ].map((entry) => JSON.stringify(entry)).join('\n') + '\n');
+  fs.writeFileSync(
+    parentFile,
+    [
+      { type: 'session', id: 'parent', cwd: '/repo' },
+      launch('aaaaaaaa-idle', 'call-idle'),
+      launch('bbbbbbbb-live', 'call-live'),
+      launch('cccccccc-done', 'call-done')
+    ]
+      .map((entry) => JSON.stringify(entry))
+      .join('\n') + '\n'
+  );
   const child = (name: string, prefix: string, last: object) => {
     const file = path.join(tmpDir, `${name}.jsonl`);
-    fs.writeFileSync(file, [
-      { type: 'session', id: name, parentSession: parentFile, cwd: '/repo', timestamp: new Date().toISOString() },
-      { type: 'session_info', name: `general-purpose#${prefix}` },
-      { type: 'message', message: { role: 'user', content: 'Audit operator parameters and settings' } },
-      { type: 'message', message: last },
-    ].map((entry) => JSON.stringify(entry)).join('\n') + '\n');
+    fs.writeFileSync(
+      file,
+      [
+        { type: 'session', id: name, parentSession: parentFile, cwd: '/repo', timestamp: new Date().toISOString() },
+        { type: 'session_info', name: `general-purpose#${prefix}` },
+        { type: 'message', message: { role: 'user', content: 'Audit operator parameters and settings' } },
+        { type: 'message', message: last }
+      ]
+        .map((entry) => JSON.stringify(entry))
+        .join('\n') + '\n'
+    );
     return file;
   };
-  const pendingTool = { role: 'assistant', stopReason: 'toolUse', content: [{ type: 'toolCall', name: 'bash', arguments: { command: 'make test' } }] };
+  const pendingTool = {
+    role: 'assistant',
+    stopReason: 'toolUse',
+    content: [{ type: 'toolCall', name: 'bash', arguments: { command: 'make test' } }]
+  };
   // Stopped writing mid tool call 17 hours ago: the agent is gone.
   const idleFile = child('child-idle', 'aaaaaaaa', pendingTool);
   const old = new Date(Date.now() - 17 * 60 * 60 * 1000);
@@ -312,7 +500,11 @@ test('SessionIndex: a background agent whose notification never arrived settles 
   // Still writing: really running.
   child('child-live', 'bbbbbbbb', pendingTool);
   // Wrote its final answer but the notification was lost.
-  child('child-done', 'cccccccc', { role: 'assistant', stopReason: 'stop', content: [{ type: 'text', text: 'All done' }] });
+  child('child-done', 'cccccccc', {
+    role: 'assistant',
+    stopReason: 'stop',
+    content: [{ type: 'text', text: 'All done' }]
+  });
 
   const index = new SessionIndex({ sessionsDir: tmpDir, cachePath: path.join(tmpDir, 'cache.json') });
   const agents = await index.getSubagents('parent', parentFile);
@@ -328,15 +520,26 @@ test('SessionIndex: relative parent paths do not collide by basename', async (t)
   for (const group of ['a', 'b']) {
     const dir = path.join(tmpDir, group);
     fs.mkdirSync(dir);
-    fs.writeFileSync(path.join(dir, 'parent.jsonl'), JSON.stringify({ type: 'session', id: `parent-${group}`, cwd: '/repo' }) + '\n');
-    fs.writeFileSync(path.join(dir, 'child.jsonl'), [
-      { type: 'session', id: `child-${group}`, parentSession: 'parent.jsonl', cwd: '/repo' },
-      { type: 'session_info', name: `reviewer#${group}` },
-    ].map((entry) => JSON.stringify(entry)).join('\n') + '\n');
+    fs.writeFileSync(
+      path.join(dir, 'parent.jsonl'),
+      JSON.stringify({ type: 'session', id: `parent-${group}`, cwd: '/repo' }) + '\n'
+    );
+    fs.writeFileSync(
+      path.join(dir, 'child.jsonl'),
+      [
+        { type: 'session', id: `child-${group}`, parentSession: 'parent.jsonl', cwd: '/repo' },
+        { type: 'session_info', name: `reviewer#${group}` }
+      ]
+        .map((entry) => JSON.stringify(entry))
+        .join('\n') + '\n'
+    );
   }
   const index = new SessionIndex({ sessionsDir: tmpDir, cachePath: path.join(tmpDir, 'cache.json') });
   const agents = await index.getSubagents('parent-a', path.join(tmpDir, 'a', 'parent.jsonl'));
-  assert.deepEqual(agents.map((agent) => agent.id), ['child-a']);
+  assert.deepEqual(
+    agents.map((agent) => agent.id),
+    ['child-a']
+  );
 });
 
 test('SessionIndex: getSubagents includes persisted subagents in temporary worktrees', async (t) => {
@@ -349,16 +552,21 @@ test('SessionIndex: getSubagents includes persisted subagents in temporary workt
 
   const parentFile = path.join(sessionsDir, 'parent.jsonl');
   const childFile = path.join(sessionsDir, 'child.jsonl');
-  fs.writeFileSync(childFile, [
-    { type: 'session', id: 'worker#abc12345', parentSession: parentFile, cwd: worktreeCwd },
-    { type: 'session_info', name: 'reviewer#abc12345' },
-    { type: 'model_change', modelId: 'test-model' },
-    { type: 'message', message: { role: 'assistant', content: 'Done', usage: { cost: { total: 0.042 } } } },
-  ].map((entry) => JSON.stringify(entry)).join('\n') + '\n');
+  fs.writeFileSync(
+    childFile,
+    [
+      { type: 'session', id: 'worker#abc12345', parentSession: parentFile, cwd: worktreeCwd },
+      { type: 'session_info', name: 'reviewer#abc12345' },
+      { type: 'model_change', modelId: 'test-model' },
+      { type: 'message', message: { role: 'assistant', content: 'Done', usage: { cost: { total: 0.042 } } } }
+    ]
+      .map((entry) => JSON.stringify(entry))
+      .join('\n') + '\n'
+  );
 
   const index = new SessionIndex({
     sessionsDir,
-    cachePath: path.join(tmpDir, 'cache.json'),
+    cachePath: path.join(tmpDir, 'cache.json')
   });
   const subagents = await index.getSubagents('parent', parentFile);
 
@@ -384,7 +592,7 @@ test('SessionIndex: getSubagents parses object and number costs without NaN', as
       type: 'session',
       id: 'worker#1',
       parentSession: parentBasename,
-      cwd: '/test',
+      cwd: '/test'
     }),
     JSON.stringify({ type: 'session_info', name: 'worker#1' }),
     JSON.stringify({ type: 'model_change', modelId: 'gpt-6-luna' }),
@@ -393,16 +601,16 @@ test('SessionIndex: getSubagents parses object and number costs without NaN', as
       role: 'assistant',
       content: 'Subagent output completed.',
       usage: {
-        cost: { total: 0.0175 },
-      },
-    }),
+        cost: { total: 0.0175 }
+      }
+    })
   ];
 
   fs.writeFileSync(subFile, lines.join('\n'), 'utf8');
 
   const index = new SessionIndex({
     sessionsDir,
-    cachePath: path.join(tmpDir, 'cache.json'),
+    cachePath: path.join(tmpDir, 'cache.json')
   });
   const subagents = await index.getSubagents('main-sess', path.join(sessionsDir, parentBasename));
 

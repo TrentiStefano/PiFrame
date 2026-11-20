@@ -9,7 +9,7 @@ import { getLogPath } from './runtime.js';
  */
 export function startEventLoopMonitor(
   report: (blockedMs: number) => void,
-  { intervalMs = 250, thresholdMs = 500 } = {},
+  { intervalMs = 250, thresholdMs = 500 } = {}
 ): () => void {
   let last = Date.now();
   const timer = setInterval(() => {
@@ -29,7 +29,7 @@ export function startEventLoopMonitor(
 export function startDevCpuProfile(
   env: NodeJS.ProcessEnv,
   file: string,
-  onDone: (file: string) => void = () => {},
+  onDone: (file: string) => void = () => {}
 ): boolean {
   const seconds = Number(env.PIFRAME_DEV_PROFILE_SECONDS);
   if (!Number.isFinite(seconds) || seconds <= 0) return false;
@@ -60,7 +60,7 @@ export function reportSlowCommand(type: string, sessionId: string | undefined, m
  */
 export function enableDevFileLog(
   env: NodeJS.ProcessEnv = process.env,
-  file: string = getLogPath(),
+  file: string = getLogPath()
 ): (() => void) | null {
   if (env.PIFRAME_DEV_LOG !== '1') return null;
   const write = (level: string, message: string) => {
@@ -80,6 +80,8 @@ export function enableDevFileLog(
   return () => {
     stopMonitor();
     devWrite = null;
-    levels.forEach((level, index) => { console[level] = originals[index]; });
+    levels.forEach((level, index) => {
+      console[level] = originals[index];
+    });
   };
 }

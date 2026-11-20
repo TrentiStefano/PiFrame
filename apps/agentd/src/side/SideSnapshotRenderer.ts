@@ -185,4 +185,3 @@ export function cleanStaleSideDirs(baseDir: string): void {
     console.warn('[SideConversationManager] Failed to clean stale side directories:', err);
   }
 }
-

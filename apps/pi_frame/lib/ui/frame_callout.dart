@@ -50,16 +50,16 @@ class _FrameCalloutState extends State<FrameCallout> {
   bool _showDetails = false;
 
   Color _toneColor(FrameTokens tokens) => switch (widget.tone) {
-        FrameCalloutTone.info => tokens.info,
-        FrameCalloutTone.warning => tokens.warning,
-        FrameCalloutTone.danger => tokens.danger,
-      };
+    FrameCalloutTone.info => tokens.info,
+    FrameCalloutTone.warning => tokens.warning,
+    FrameCalloutTone.danger => tokens.danger,
+  };
 
   IconData get _toneIcon => switch (widget.tone) {
-        FrameCalloutTone.info => Icons.info_outlined,
-        FrameCalloutTone.warning => Icons.warning_amber_outlined,
-        FrameCalloutTone.danger => Icons.error_outlined,
-      };
+    FrameCalloutTone.info => Icons.info_outlined,
+    FrameCalloutTone.warning => Icons.warning_amber_outlined,
+    FrameCalloutTone.danger => Icons.error_outlined,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -91,10 +91,7 @@ class _FrameCalloutState extends State<FrameCallout> {
                   child: Text(
                     widget.title,
                     key: ValueKey('$prefix-title'),
-                    style: text.bodyLarge.copyWith(
-                      color: tokens.textPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: text.bodyLarge.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.w600),
                   ),
                 ),
               ),
@@ -118,8 +115,7 @@ class _FrameCalloutState extends State<FrameCallout> {
                 if (details != null)
                   TextButton.icon(
                     key: ValueKey('$prefix-details-toggle'),
-                    onPressed: () =>
-                        setState(() => _showDetails = !_showDetails),
+                    onPressed: () => setState(() => _showDetails = !_showDetails),
                     icon: Icon(
                       _showDetails ? Icons.expand_less_outlined : Icons.expand_more_outlined,
                       size: FrameSize.icon,

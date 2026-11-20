@@ -13,8 +13,7 @@ class ReducedMotionSettings {
 
   const ReducedMotionSettings({this.enabled = false});
 
-  ReducedMotionSettings copyWith({bool? enabled}) =>
-      ReducedMotionSettings(enabled: enabled ?? this.enabled);
+  ReducedMotionSettings copyWith({bool? enabled}) => ReducedMotionSettings(enabled: enabled ?? this.enabled);
 
   Map<String, dynamic> toJson() => {'enabled': enabled};
 
@@ -26,8 +25,7 @@ class ReducedMotionSettings {
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is ReducedMotionSettings && enabled == other.enabled;
+      identical(this, other) || other is ReducedMotionSettings && enabled == other.enabled;
 
   @override
   int get hashCode => enabled.hashCode;
@@ -37,8 +35,8 @@ class ReducedMotionSettingsNotifier extends StateNotifier<ReducedMotionSettings>
   final File? _customStorageFile;
 
   ReducedMotionSettingsNotifier({File? storageFile})
-      : _customStorageFile = storageFile,
-        super(const ReducedMotionSettings()) {
+    : _customStorageFile = storageFile,
+      super(const ReducedMotionSettings()) {
     _load();
   }
 
@@ -47,9 +45,7 @@ class ReducedMotionSettingsNotifier extends StateNotifier<ReducedMotionSettings>
     if (kIsWeb || Platform.environment.containsKey('FLUTTER_TEST')) return null;
     try {
       final env = Platform.environment;
-      final home = Platform.isWindows
-          ? (env['USERPROFILE'] ?? 'C:\\Users\\Default')
-          : (env['HOME'] ?? '/tmp');
+      final home = Platform.isWindows ? (env['USERPROFILE'] ?? 'C:\\Users\\Default') : (env['HOME'] ?? '/tmp');
       final dir = Directory('$home/.piframe');
       if (!dir.existsSync()) dir.createSync(recursive: true);
       return File('${dir.path}/reduced_motion_settings.json');
@@ -85,7 +81,6 @@ class ReducedMotionSettingsNotifier extends StateNotifier<ReducedMotionSettings>
   }
 }
 
-final reducedMotionSettingsProvider =
-    StateNotifierProvider<ReducedMotionSettingsNotifier, ReducedMotionSettings>(
+final reducedMotionSettingsProvider = StateNotifierProvider<ReducedMotionSettingsNotifier, ReducedMotionSettings>(
   (ref) => ReducedMotionSettingsNotifier(),
 );

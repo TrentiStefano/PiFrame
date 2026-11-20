@@ -5,7 +5,7 @@ import {
   readSettingsFile,
   writeTextAtomicallyWithBackup,
   writeJsonAtomicallyWithBackup,
-  type SettingsWriterLockOptions,
+  type SettingsWriterLockOptions
 } from './settingsWriter.js';
 
 /**
@@ -205,7 +205,7 @@ export async function applyAgentFileChanges(
             if (content !== before) {
               await writeTextAtomicallyWithBackup(change.filePath, content, {
                 ...lockOptions,
-                lockHandle: fileLock,
+                lockHandle: fileLock
               });
               written.push(change.filePath);
             }
@@ -217,7 +217,7 @@ export async function applyAgentFileChanges(
       if (originalsModified) {
         await writeJsonAtomicallyWithBackup(originalsPath, originals, {
           ...lockOptions,
-          lockHandle: originalsLock,
+          lockHandle: originalsLock
         });
       }
     },

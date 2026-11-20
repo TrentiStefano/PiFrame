@@ -1,8 +1,6 @@
 /// Parser for Git unified diffs into structured hunks and lines.
 class DiffParser {
-  static final RegExp _hunkHeaderRegex = RegExp(
-    r'^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(.*)',
-  );
+  static final RegExp _hunkHeaderRegex = RegExp(r'^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(.*)');
 
   /// Parses a unified diff string into a [ParsedDiff] with hunks and lines.
   static ParsedDiff parse(String diffText) {
@@ -47,33 +45,37 @@ class DiffParser {
         }
 
         if (rawLine.startsWith('+')) {
-          currentBuilder.addLine(DiffLine(
-            type: DiffLineType.addition,
-            oldLineNumber: null,
-            newLineNumber: currentBuilder.currentNewLine++,
-            text: rawLine.length > 1 ? rawLine.substring(1) : '',
-          ));
+          currentBuilder.addLine(
+            DiffLine(
+              type: DiffLineType.addition,
+              oldLineNumber: null,
+              newLineNumber: currentBuilder.currentNewLine++,
+              text: rawLine.length > 1 ? rawLine.substring(1) : '',
+            ),
+          );
         } else if (rawLine.startsWith('-')) {
-          currentBuilder.addLine(DiffLine(
-            type: DiffLineType.deletion,
-            oldLineNumber: currentBuilder.currentOldLine++,
-            newLineNumber: null,
-            text: rawLine.length > 1 ? rawLine.substring(1) : '',
-          ));
+          currentBuilder.addLine(
+            DiffLine(
+              type: DiffLineType.deletion,
+              oldLineNumber: currentBuilder.currentOldLine++,
+              newLineNumber: null,
+              text: rawLine.length > 1 ? rawLine.substring(1) : '',
+            ),
+          );
         } else if (rawLine.startsWith('\\ No newline at end of file')) {
           // Ignore newline marker
           continue;
         } else {
           // Context line (starts with space or empty)
-          final text = rawLine.startsWith(' ')
-              ? (rawLine.length > 1 ? rawLine.substring(1) : '')
-              : rawLine;
-          currentBuilder.addLine(DiffLine(
-            type: DiffLineType.context,
-            oldLineNumber: currentBuilder.currentOldLine++,
-            newLineNumber: currentBuilder.currentNewLine++,
-            text: text,
-          ));
+          final text = rawLine.startsWith(' ') ? (rawLine.length > 1 ? rawLine.substring(1) : '') : rawLine;
+          currentBuilder.addLine(
+            DiffLine(
+              type: DiffLineType.context,
+              oldLineNumber: currentBuilder.currentOldLine++,
+              newLineNumber: currentBuilder.currentNewLine++,
+              text: text,
+            ),
+          );
         }
       }
     }
@@ -172,14 +174,14 @@ class DiffHunk {
           additions.add(lines[i]);
           i++;
         }
-        final maxCount = deletions.length > additions.length
-            ? deletions.length
-            : additions.length;
+        final maxCount = deletions.length > additions.length ? deletions.length : additions.length;
         for (int k = 0; k < maxCount; k++) {
-          rows.add(SplitDiffRow(
-            left: k < deletions.length ? deletions[k] : null,
-            right: k < additions.length ? additions[k] : null,
-          ));
+          rows.add(
+            SplitDiffRow(
+              left: k < deletions.length ? deletions[k] : null,
+              right: k < additions.length ? additions[k] : null,
+            ),
+          );
         }
       } else if (line.type == DiffLineType.addition) {
         rows.add(SplitDiffRow(left: null, right: line));
@@ -192,11 +194,7 @@ class DiffHunk {
   }
 }
 
-enum DiffLineType {
-  context,
-  addition,
-  deletion,
-}
+enum DiffLineType { context, addition, deletion }
 
 class DiffLine {
   final DiffLineType type;
@@ -204,12 +202,7 @@ class DiffLine {
   final int? newLineNumber;
   final String text;
 
-  const DiffLine({
-    required this.type,
-    this.oldLineNumber,
-    this.newLineNumber,
-    required this.text,
-  });
+  const DiffLine({required this.type, this.oldLineNumber, this.newLineNumber, required this.text});
 }
 
 class SplitDiffRow {

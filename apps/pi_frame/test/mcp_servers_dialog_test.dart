@@ -37,10 +37,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
-            body: McpServersDialog(
-              tokens: tokens,
-              initialServers: testServers,
-            ),
+            body: McpServersDialog(tokens: tokens, initialServers: testServers),
           ),
         ),
       );
@@ -60,14 +57,10 @@ void main() {
       expect(find.byKey(const ValueKey('mcp-checkbox-dart')), findsOneWidget);
       expect(find.byKey(const ValueKey('mcp-checkbox-git')), findsOneWidget);
 
-      final dartCheckbox = tester.widget<Checkbox>(
-        find.byKey(const ValueKey('mcp-checkbox-dart')),
-      );
+      final dartCheckbox = tester.widget<Checkbox>(find.byKey(const ValueKey('mcp-checkbox-dart')));
       expect(dartCheckbox.value, isTrue);
 
-      final gitCheckbox = tester.widget<Checkbox>(
-        find.byKey(const ValueKey('mcp-checkbox-git')),
-      );
+      final gitCheckbox = tester.widget<Checkbox>(find.byKey(const ValueKey('mcp-checkbox-git')));
       expect(gitCheckbox.value, isFalse);
 
       // Tap on tools chip for dart

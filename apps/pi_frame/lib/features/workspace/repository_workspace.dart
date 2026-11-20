@@ -33,9 +33,7 @@ export 'repository_state.dart';
 export 'workspace_change_paths.dart';
 export 'workspace_pane.dart';
 
-final repoExpandedDirsProvider = StateProvider.family<Set<String>, String>(
-  (ref, sessionId) => <String>{},
-);
+final repoExpandedDirsProvider = StateProvider.family<Set<String>, String>((ref, sessionId) => <String>{});
 
 class RepositoryPane extends ConsumerStatefulWidget {
   const RepositoryPane({
@@ -87,9 +85,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        ref
-            .read(repositoryStateProvider(widget.sessionId).notifier)
-            .loadFiles();
+        ref.read(repositoryStateProvider(widget.sessionId).notifier).loadFiles();
       }
     });
   }
@@ -104,9 +100,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
       _searchQuery = '';
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          ref
-              .read(repositoryStateProvider(widget.sessionId).notifier)
-              .loadFiles();
+          ref.read(repositoryStateProvider(widget.sessionId).notifier).loadFiles();
         }
       });
     }
@@ -122,16 +116,14 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
   Object? _cachedRawFiles;
 
   void _collapseAll() {
-    ref.read(repoExpandedDirsProvider(widget.sessionId).notifier).state =
-        <String>{};
+    ref.read(repoExpandedDirsProvider(widget.sessionId).notifier).state = <String>{};
   }
 
   void _expandAll(List<Map<String, dynamic>> raw) {
     final nodes = _getTreeNodes(raw);
     final allDirs = <String>{};
     _collectAllDirs(nodes, allDirs);
-    ref.read(repoExpandedDirsProvider(widget.sessionId).notifier).state =
-        allDirs;
+    ref.read(repoExpandedDirsProvider(widget.sessionId).notifier).state = allDirs;
   }
 
   List<_TreeNode> _getTreeNodes(List<Map<String, dynamic>> raw) {
@@ -141,11 +133,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
     return _cachedTreeNodes;
   }
 
-  List<_TreeNode> _filterTree(
-    List<_TreeNode> nodes,
-    String query,
-    Set<String> matchingDirs,
-  ) {
+  List<_TreeNode> _filterTree(List<_TreeNode> nodes, String query, Set<String> matchingDirs) {
     final clean = query.toLowerCase();
     final result = <_TreeNode>[];
     for (final node in nodes) {
@@ -155,18 +143,10 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
         if (filteredChildren.isNotEmpty) {
           matchingDirs.add(node.path);
           matchingDirs.addAll(subMatches);
-          result.add(
-            _TreeNode(
-              name: node.name,
-              path: node.path,
-              isDirectory: true,
-              children: filteredChildren,
-            ),
-          );
+          result.add(_TreeNode(name: node.name, path: node.path, isDirectory: true, children: filteredChildren));
         }
       } else {
-        if (node.name.toLowerCase().contains(clean) ||
-            node.path.toLowerCase().contains(clean)) {
+        if (node.name.toLowerCase().contains(clean) || node.path.toLowerCase().contains(clean)) {
           result.add(node);
         }
       }
@@ -174,16 +154,9 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
     return result;
   }
 
-  Widget _fileList(
-    FrameTokens tokens,
-    RepositoryState repo,
-    String? selectedPath, {
-    required bool isCwdEmpty,
-  }) {
+  Widget _fileList(FrameTokens tokens, RepositoryState repo, String? selectedPath, {required bool isCwdEmpty}) {
     final isAttaching =
-        (repo.error != null &&
-            (repo.error!.contains('not found') ||
-                repo.error!.contains('Session not found'))) ||
+        (repo.error != null && (repo.error!.contains('not found') || repo.error!.contains('Session not found'))) ||
         (repo.files.isEmpty && isCwdEmpty);
 
     if (isAttaching || (repo.loading && repo.files.isEmpty)) {
@@ -195,17 +168,10 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
             SizedBox(
               width: 18,
               height: 18,
-              child: FrameActivityIndicator(
-                size: FrameSize.iconLg,
-                color: tokens.accent,
-              ),
+              child: FrameActivityIndicator(size: FrameSize.iconLg, color: tokens.accent),
             ),
             const SizedBox(height: 8),
-            Text(
-              strings.loadingFiles,
-              style: FrameText.of(context).caption
-                  .copyWith(color: tokens.textMuted),
-            ),
+            Text(strings.loadingFiles, style: FrameText.of(context).caption.copyWith(color: tokens.textMuted)),
           ],
         ),
       );
@@ -215,10 +181,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
       final error = repo.error;
       if (error == null) {
         return Center(
-          child: Text(
-            strings.noFilesAvailable,
-            style: TextStyle(color: tokens.textMuted),
-          ),
+          child: Text(strings.noFilesAvailable, style: TextStyle(color: tokens.textMuted)),
         );
       }
       return repositoryErrorCallout(strings, error, strings.filesLoadFailed);
@@ -227,9 +190,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
     final expandedDirs = ref.watch(repoExpandedDirsProvider(widget.sessionId));
     final rootNodes = _getTreeNodes(repo.files);
     final matchingDirs = <String>{};
-    final displayNodes = _searchQuery.isEmpty
-        ? rootNodes
-        : _filterTree(rootNodes, _searchQuery, matchingDirs);
+    final displayNodes = _searchQuery.isEmpty ? rootNodes : _filterTree(rootNodes, _searchQuery, matchingDirs);
 
     final effectiveExpanded = _searchQuery.isEmpty
         ? expandedDirs
@@ -243,12 +204,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(
-            FrameSpace.x2,
-            FrameSpace.x1 + 2,
-            FrameSpace.x2,
-            FrameSpace.x1 + 2,
-          ),
+          padding: const EdgeInsets.fromLTRB(FrameSpace.x2, FrameSpace.x1 + 2, FrameSpace.x2, FrameSpace.x1 + 2),
           child: FrameSearchField(
             keyPrefix: 'repository-tree-search',
             strings: strings,
@@ -266,24 +222,18 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                     child: Text(
                       strings.noFilesFound(_searchQuery),
                       textAlign: TextAlign.center,
-                      style: FrameText.of(context).body
-                          .copyWith(color: tokens.textMuted),
+                      style: FrameText.of(context).body.copyWith(color: tokens.textMuted),
                     ),
                   ),
                 )
               : ListView.builder(
-                  key: PageStorageKey<String>(
-                    'repository-files-${widget.sessionId}-$_searchQuery',
-                  ),
+                  key: PageStorageKey<String>('repository-files-${widget.sessionId}-$_searchQuery'),
                   itemCount: flatRows.length,
                   itemBuilder: (context, index) {
                     final row = flatRows[index];
                     final node = row.node;
-                    final selected =
-                        !node.isDirectory && node.path == selectedPath;
-                    final isExpanded =
-                        node.isDirectory &&
-                        effectiveExpanded.contains(node.path);
+                    final selected = !node.isDirectory && node.path == selectedPath;
+                    final isExpanded = node.isDirectory && effectiveExpanded.contains(node.path);
 
                     return _TreeRow(
                       key: ValueKey(node.path),
@@ -294,41 +244,21 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                       rootPath: repo.rootPath,
                       onTap: () {
                         if (node.isDirectory) {
-                          final currentExpanded = ref.read(
-                            repoExpandedDirsProvider(widget.sessionId),
-                          );
+                          final currentExpanded = ref.read(repoExpandedDirsProvider(widget.sessionId));
                           final next = Set<String>.from(currentExpanded);
                           if (next.contains(node.path)) {
                             next.remove(node.path);
                           } else {
                             next.add(node.path);
                           }
-                          ref
-                                  .read(
-                                    repoExpandedDirsProvider(widget.sessionId)
-                                        .notifier,
-                                  )
-                                  .state =
-                              next;
+                          ref.read(repoExpandedDirsProvider(widget.sessionId).notifier).state = next;
                         } else {
-                          ref
-                              .read(
-                                repositoryStateProvider(widget.sessionId)
-                                    .notifier,
-                              )
-                              .selectFile(node.path);
+                          ref.read(repositoryStateProvider(widget.sessionId).notifier).selectFile(node.path);
                         }
                       },
                       onAddToChat: (filePath) {
-                        appendFileMentionToComposer(
-                          ref,
-                          widget.sessionId,
-                          filePath,
-                        );
-                        FrameSnackBar.show(
-                          context,
-                          message: strings.addedFileToChat(filePath),
-                        );
+                        appendFileMentionToComposer(ref, widget.sessionId, filePath);
+                        FrameSnackBar.show(context, message: strings.addedFileToChat(filePath));
                       },
                     );
                   },
@@ -343,37 +273,23 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
     final tokens = context.tokens;
     final repo = ref.watch(repositoryStateProvider(widget.sessionId));
     final (readOnly, readOnlyReason, agentStatus, cwd) = ref.watch(
-      sessionStateFamily(widget.sessionId)
-          .select((s) => (s.readOnly, s.readOnlyReason, s.agentStatus, s.cwd)),
+      sessionStateFamily(widget.sessionId).select((s) => (s.readOnly, s.readOnlyReason, s.agentStatus, s.cwd)),
     );
 
-    ref.listen<String>(
-      sessionStateFamily(widget.sessionId).select((s) => s.cwd),
-      (prev, next) {
-        final currentRepo = ref.read(repositoryStateProvider(widget.sessionId));
-        if (next.isNotEmpty &&
-            (prev == null || prev.isEmpty || currentRepo.error != null)) {
-          ref
-              .read(repositoryStateProvider(widget.sessionId).notifier)
-              .loadFiles();
-        }
-      },
-    );
+    ref.listen<String>(sessionStateFamily(widget.sessionId).select((s) => s.cwd), (prev, next) {
+      final currentRepo = ref.read(repositoryStateProvider(widget.sessionId));
+      if (next.isNotEmpty && (prev == null || prev.isEmpty || currentRepo.error != null)) {
+        ref.read(repositoryStateProvider(widget.sessionId).notifier).loadFiles();
+      }
+    });
 
-    ref.listen<RepositoryState>(repositoryStateProvider(widget.sessionId), (
-      prev,
-      next,
-    ) {
-      if (next.selectedPath != null &&
-          next.selectedPath != prev?.selectedPath) {
-        final currentExpanded = ref.read(
-          repoExpandedDirsProvider(widget.sessionId),
-        );
+    ref.listen<RepositoryState>(repositoryStateProvider(widget.sessionId), (prev, next) {
+      if (next.selectedPath != null && next.selectedPath != prev?.selectedPath) {
+        final currentExpanded = ref.read(repoExpandedDirsProvider(widget.sessionId));
         final updated = Set<String>.from(currentExpanded);
         _expandParentsOf(next.selectedPath!, updated);
         if (updated.length != currentExpanded.length) {
-          ref.read(repoExpandedDirsProvider(widget.sessionId).notifier).state =
-              updated;
+          ref.read(repoExpandedDirsProvider(widget.sessionId).notifier).state = updated;
         }
       }
     });
@@ -404,8 +320,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
             Icons.folder_outlined,
             companionTabs: widget.companionTabs,
             companionTabLabels: workspaceCompanionTabLabels(strings),
-            activeCompanionTab:
-                widget.activeCompanionTab ?? WorkspacePane.repository,
+            activeCompanionTab: widget.activeCompanionTab ?? WorkspacePane.repository,
             onSelectCompanionTab: widget.onSelectCompanionTab,
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
@@ -415,9 +330,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                 if (!kIsWeb)
                   FrameIconAction(
                     key: const ValueKey('repository-terminal-btn'),
-                    tooltip:
-                        ref.watch(terminalSettingsProvider).mode ==
-                            TerminalMode.native
+                    tooltip: ref.watch(terminalSettingsProvider).mode == TerminalMode.native
                         ? strings.openNativeTerminalTooltip
                         : (_terminalOpen && !_terminalCollapsed
                               ? strings.hideTerminalTooltip
@@ -427,11 +340,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                       final termSettings = ref.read(terminalSettingsProvider);
                       if (termSettings.mode == TerminalMode.native) {
                         launchNativeTerminal(
-                          cwd:
-                              repo.rootPath ??
-                              ref
-                                  .read(sessionStateFamily(widget.sessionId))
-                                  .cwd,
+                          cwd: repo.rootPath ?? ref.read(sessionStateFamily(widget.sessionId)).cwd,
                           nativeApp: termSettings.nativeApp,
                           customPath: termSettings.customPath,
                         );
@@ -439,20 +348,14 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                         _toggleTerminal();
                       }
                     },
-                    icon: _terminalOpen
-                        ? Icons.terminal_outlined
-                        : Icons.terminal_outlined,
+                    icon: _terminalOpen ? Icons.terminal_outlined : Icons.terminal_outlined,
                   ),
                 // Collapse all and expand all are rarely needed, so they sit
                 // in the overflow menu next to the frequent actions.
                 PopupMenuButton<String>(
                   key: const ValueKey('repository-tree-more-btn'),
                   tooltip: strings.repositoryMoreActionsTooltip,
-                  icon: Icon(
-                    Icons.more_horiz_outlined,
-                    size: FrameSize.icon,
-                    color: tokens.textSecondary,
-                  ),
+                  icon: Icon(Icons.more_horiz_outlined, size: FrameSize.icon, color: tokens.textSecondary),
                   iconSize: FrameSize.icon,
                   padding: EdgeInsets.zero,
                   onSelected: (choice) {
@@ -480,12 +383,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                   tooltip: strings.refreshFilesTooltip,
                   onPressed: repo.loading
                       ? null
-                      : () => ref
-                            .read(
-                              repositoryStateProvider(widget.sessionId)
-                                  .notifier,
-                            )
-                            .loadFiles(),
+                      : () => ref.read(repositoryStateProvider(widget.sessionId).notifier).loadFiles(),
                   icon: Icons.refresh_outlined,
                 ),
                 if (widget.onCollapse != null)
@@ -500,20 +398,13 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
           ),
           if (repo.rootPath != null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                FrameSpace.x3,
-                FrameSpace.x1,
-                FrameSpace.x3,
-                FrameSpace.x2,
-              ),
+              padding: const EdgeInsets.fromLTRB(FrameSpace.x3, FrameSpace.x1, FrameSpace.x3, FrameSpace.x2),
               child: Tooltip(
                 message: repo.rootPath!,
                 child: FrameMiddleEllipsis(
                   text: repo.rootPath!,
-                  style: FrameText.of(context).caption.copyWith(
-                    color: tokens.textSecondary,
-                    fontFamily: tokens.monoFontFamily,
-                  ),
+                  style: FrameText.of(context).caption
+                      .copyWith(color: tokens.textSecondary, fontFamily: tokens.monoFontFamily),
                 ),
               ),
             ),
@@ -523,12 +414,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                 final Widget upperContent;
                 if (path == null) {
                   // No file opened: file tree occupies 100% of the pane width!
-                  upperContent = _fileList(
-                    tokens,
-                    repo,
-                    path,
-                    isCwdEmpty: cwd.isEmpty,
-                  );
+                  upperContent = _fileList(tokens, repo, path, isCwdEmpty: cwd.isEmpty);
                 } else {
                   final compactFiles = constraints.maxWidth < 480;
                   if (compactFiles) {
@@ -541,19 +427,12 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                       blockReason: blockReason,
                     );
                   } else {
-                    final treeWidth = (constraints.maxWidth * 0.28)
-                        .clamp(180.0, 260.0)
-                        .toDouble();
+                    final treeWidth = (constraints.maxWidth * 0.28).clamp(180.0, 260.0).toDouble();
                     upperContent = Row(
                       children: [
                         SizedBox(
                           width: treeWidth,
-                          child: _fileList(
-                            tokens,
-                            repo,
-                            path,
-                            isCwdEmpty: cwd.isEmpty,
-                          ),
+                          child: _fileList(tokens, repo, path, isCwdEmpty: cwd.isEmpty),
                         ),
                         VerticalDivider(width: 1, color: tokens.borderStrong),
                         Expanded(
@@ -586,18 +465,14 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                         child: GestureDetector(
                           behavior: HitTestBehavior.opaque,
                           onVerticalDragUpdate: (details) {
-                            final nextHeight =
-                                _terminalHeight - details.delta.dy;
+                            final nextHeight = _terminalHeight - details.delta.dy;
                             if (nextHeight < 60) {
                               setState(() => _terminalCollapsed = true);
                             } else {
                               setState(() {
                                 _terminalHeight = nextHeight.clamp(
                                   100.0,
-                                  (constraints.maxHeight * 0.85).clamp(
-                                    120.0,
-                                    1000.0,
-                                  ),
+                                  (constraints.maxHeight * 0.85).clamp(120.0, 1000.0),
                                 );
                               });
                             }
@@ -612,9 +487,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                                 decoration: BoxDecoration(
                                   color: tokens.borderStrong,
                                   // A 2 px grip: any radius at or above 1 px gives the same pill.
-                                  borderRadius: BorderRadius.circular(
-                                    tokens.radiusSm,
-                                  ),
+                                  borderRadius: BorderRadius.circular(tokens.radiusSm),
                                 ),
                               ),
                             ),
@@ -622,18 +495,12 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                         ),
                       ),
                       SizedBox(
-                        height: _terminalHeight.clamp(
-                          100.0,
-                          (constraints.maxHeight * 0.85).clamp(120.0, 1000.0),
-                        ),
+                        height: _terminalHeight.clamp(100.0, (constraints.maxHeight * 0.85).clamp(120.0, 1000.0)),
                         child: IntegratedTerminalPanel(
-                          key: ValueKey(
-                            'integrated_terminal_${widget.sessionId}',
-                          ),
+                          key: ValueKey('integrated_terminal_${widget.sessionId}'),
                           cwd: repo.rootPath ?? cwd,
                           tokens: tokens,
-                          onCollapseDownward: () =>
-                              setState(() => _terminalCollapsed = true),
+                          onCollapseDownward: () => setState(() => _terminalCollapsed = true),
                           onClose: () => setState(() => _terminalOpen = false),
                         ),
                       ),
@@ -648,8 +515,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
               padding: const EdgeInsets.all(8),
               child: Text(
                 strings.fileListLimitedNotice,
-                style: FrameText.of(context).caption
-                    .copyWith(color: tokens.textMuted),
+                style: FrameText.of(context).caption.copyWith(color: tokens.textMuted),
               ),
             ),
         ],
@@ -670,21 +536,14 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
         ),
         child: Row(
           children: [
-            Icon(
-              Icons.keyboard_arrow_up_outlined,
-              size: FrameSize.icon,
-              color: tokens.accent,
-            ),
+            Icon(Icons.keyboard_arrow_up_outlined, size: FrameSize.icon, color: tokens.accent),
             const SizedBox(width: 6),
             Icon(Icons.terminal_outlined, size: 13, color: tokens.displayText),
             const SizedBox(width: 6),
             Text(
               strings.terminalBadge,
-              style: FrameText.of(context).caption.copyWith(
-                color: tokens.displayText,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.5,
-              ),
+              style: FrameText.of(context).caption
+                  .copyWith(color: tokens.displayText, fontWeight: FontWeight.bold, letterSpacing: 0.5),
             ),
             const Spacer(),
             FrameIconAction(
@@ -712,12 +571,7 @@ class _TreeNode {
   final bool isDirectory;
   final List<_TreeNode> children;
 
-  const _TreeNode({
-    required this.name,
-    required this.path,
-    required this.isDirectory,
-    this.children = const [],
-  });
+  const _TreeNode({required this.name, required this.path, required this.isDirectory, this.children = const []});
 }
 
 class _TreeDirBuilder {
@@ -729,19 +583,11 @@ class _TreeDirBuilder {
   _TreeDirBuilder(this.name, this.path);
 
   List<_TreeNode> toChildren() {
-    final sortedDirs = dirs.values.toList()
-      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-    final sortedFiles = List<_TreeNode>.of(files)
-      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    final sortedDirs = dirs.values.toList()..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    final sortedFiles = List<_TreeNode>.of(files)..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
     return [
-      for (final d in sortedDirs)
-        _TreeNode(
-          name: d.name,
-          path: d.path,
-          isDirectory: true,
-          children: d.toChildren(),
-        ),
+      for (final d in sortedDirs) _TreeNode(name: d.name, path: d.path, isDirectory: true, children: d.toChildren()),
       ...sortedFiles,
     ];
   }
@@ -762,15 +608,10 @@ List<_TreeNode> _buildFileTree(List<Map<String, dynamic>> raw) {
     for (var i = 0; i < segments.length - 1; i++) {
       final seg = segments[i];
       accumulated = accumulated.isEmpty ? seg : '$accumulated/$seg';
-      curr = curr.dirs.putIfAbsent(
-        seg,
-        () => _TreeDirBuilder(seg, accumulated),
-      );
+      curr = curr.dirs.putIfAbsent(seg, () => _TreeDirBuilder(seg, accumulated));
     }
     final fileName = segments.last;
-    curr.files.add(
-      _TreeNode(name: fileName, path: cleanPath, isDirectory: false),
-    );
+    curr.files.add(_TreeNode(name: fileName, path: cleanPath, isDirectory: false));
   }
   return root.toChildren();
 }
@@ -781,10 +622,7 @@ class _FlatTreeRow {
   const _FlatTreeRow({required this.node, required this.depth});
 }
 
-List<_FlatTreeRow> _flattenTree(
-  List<_TreeNode> nodes,
-  Set<String> expandedDirs,
-) {
+List<_FlatTreeRow> _flattenTree(List<_TreeNode> nodes, Set<String> expandedDirs) {
   final result = <_FlatTreeRow>[];
   void walk(List<_TreeNode> list, int depth) {
     for (final node in list) {
@@ -809,15 +647,11 @@ void _collectAllDirs(List<_TreeNode> nodes, Set<String> target) {
 }
 
 void _expandParentsOf(String path, Set<String> target) {
-  final normalized = path
-      .replaceAll('\\', '/')
-      .replaceFirst(RegExp(r'^\.?/'), '');
+  final normalized = path.replaceAll('\\', '/').replaceFirst(RegExp(r'^\.?/'), '');
   final segments = normalized.split('/').where((s) => s.isNotEmpty).toList();
   var accumulated = '';
   for (var i = 0; i < segments.length - 1; i++) {
-    accumulated = accumulated.isEmpty
-        ? segments[i]
-        : '$accumulated/${segments[i]}';
+    accumulated = accumulated.isEmpty ? segments[i] : '$accumulated/${segments[i]}';
     target.add(accumulated);
   }
 }
@@ -864,18 +698,11 @@ class _TreeRowState extends ConsumerState<_TreeRow> {
   /// the root uses (`\` for Windows roots).
   static String _absolutePath(String root, String relative) {
     final separator = root.contains('\\') && !root.contains('/') ? '\\' : '/';
-    final base = root.endsWith('/') || root.endsWith('\\')
-        ? root.substring(0, root.length - 1)
-        : root;
+    final base = root.endsWith('/') || root.endsWith('\\') ? root.substring(0, root.length - 1) : root;
     return '$base$separator${relative.replaceAll('/', separator)}';
   }
 
-  PopupMenuItem<String> _menuItem(
-    String value,
-    IconData icon,
-    Color color,
-    String label,
-  ) {
+  PopupMenuItem<String> _menuItem(String value, IconData icon, Color color, String label) {
     return PopupMenuItem<String>(
       key: ValueKey('tree-menu-$value'),
       value: value,
@@ -894,49 +721,21 @@ class _TreeRowState extends ConsumerState<_TreeRow> {
     final tokens = widget.tokens;
     final items = <PopupMenuEntry<String>>[
       if (!node.isDirectory && widget.onAddToChat != null)
-        _menuItem(
-          'chat',
-          Icons.add_comment_outlined,
-          tokens.accent,
-          strings.addPathToChat,
-        ),
+        _menuItem('chat', Icons.add_comment_outlined, tokens.accent, strings.addPathToChat),
       if (node.isDirectory && widget.rootPath != null)
-        _menuItem(
-          'session',
-          Icons.add_outlined,
-          tokens.accent,
-          strings.newSessionHere,
-        ),
+        _menuItem('session', Icons.add_outlined, tokens.accent, strings.newSessionHere),
       if (node.isDirectory && widget.onAddToChat != null)
-        _menuItem(
-          'chat-folder',
-          Icons.create_new_folder_outlined,
-          tokens.accent,
-          strings.addFolderToChat,
-        ),
-      _menuItem(
-        'copy',
-        Icons.copy_outlined,
-        tokens.textMuted,
-        strings.copyPath,
-      ),
+        _menuItem('chat-folder', Icons.create_new_folder_outlined, tokens.accent, strings.addFolderToChat),
+      _menuItem('copy', Icons.copy_outlined, tokens.textMuted, strings.copyPath),
     ];
-    showMenu<String>(
-      context: context,
-      position: menuPositionFor(context, anchor),
-      items: items,
-    ).then((choice) {
+    showMenu<String>(context: context, position: menuPositionFor(context, anchor), items: items).then((choice) {
       if (!mounted || choice == null) return;
       switch (choice) {
         case 'chat':
         case 'chat-folder':
           widget.onAddToChat!(node.path);
         case 'session':
-          createSession(
-            context,
-            ref,
-            cwd: _absolutePath(widget.rootPath!, node.path),
-          );
+          createSession(context, ref, cwd: _absolutePath(widget.rootPath!, node.path));
         case 'copy':
           Clipboard.setData(ClipboardData(text: node.path));
           FrameSnackBar.show(context, message: strings.pathCopied(node.path));
@@ -979,32 +778,20 @@ class _TreeRowState extends ConsumerState<_TreeRow> {
               return KeyEventResult.handled;
             },
             child: Material(
-              color: widget.selected
-                  ? tokens.surfaceElevated
-                  : tokens.surface.withValues(alpha: 0),
+              color: widget.selected ? tokens.surfaceElevated : tokens.surface.withValues(alpha: 0),
               child: InkWell(
                 onTap: widget.onTap,
-                onSecondaryTapUp: (details) => _showMenu(
-                  pointerAnchorRect(details.globalPosition),
-                  strings,
-                ),
+                onSecondaryTapUp: (details) => _showMenu(pointerAnchorRect(details.globalPosition), strings),
                 hoverColor: tokens.accent.withValues(alpha: 0.08),
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(
-                    minHeight: FrameSize.rowList,
-                  ),
+                  constraints: const BoxConstraints(minHeight: FrameSize.rowList),
                   child: Padding(
-                    padding: EdgeInsets.only(
-                      left: FrameSpace.x1 + indent,
-                      right: FrameSpace.x1,
-                    ),
+                    padding: EdgeInsets.only(left: FrameSpace.x1 + indent, right: FrameSpace.x1),
                     child: Row(
                       children: [
                         if (node.isDirectory) ...[
                           Icon(
-                            widget.isExpanded
-                                ? Icons.expand_more_outlined
-                                : Icons.chevron_right_outlined,
+                            widget.isExpanded ? Icons.expand_more_outlined : Icons.chevron_right_outlined,
                             size: FrameSize.icon,
                             color: tokens.textMuted,
                           ),
@@ -1029,12 +816,8 @@ class _TreeRowState extends ConsumerState<_TreeRow> {
                             style: text.body.copyWith(
                               color: widget.selected
                                   ? tokens.accent
-                                  : (node.isDirectory
-                                        ? tokens.textPrimary
-                                        : tokens.textSecondary),
-                              fontWeight: widget.selected || node.isDirectory
-                                  ? FontWeight.w600
-                                  : FontWeight.normal,
+                                  : (node.isDirectory ? tokens.textPrimary : tokens.textSecondary),
+                              fontWeight: widget.selected || node.isDirectory ? FontWeight.w600 : FontWeight.normal,
                             ),
                           ),
                         ),
@@ -1071,12 +854,7 @@ class WorkspaceFileEntry {
   final String? parentDir;
   final int depth;
 
-  const WorkspaceFileEntry({
-    required this.path,
-    required this.fileName,
-    this.parentDir,
-    this.depth = 0,
-  });
+  const WorkspaceFileEntry({required this.path, required this.fileName, this.parentDir, this.depth = 0});
 
   factory WorkspaceFileEntry.fromMap(Map<String, dynamic> map) {
     final filePath = map['path'].toString();
@@ -1087,11 +865,6 @@ class WorkspaceFileEntry {
     final parent = filePath.substring(0, lastSlash);
     final name = filePath.substring(lastSlash + 1);
     final slashCount = '/'.allMatches(parent).length;
-    return WorkspaceFileEntry(
-      path: filePath,
-      fileName: name,
-      parentDir: parent,
-      depth: slashCount + 1,
-    );
+    return WorkspaceFileEntry(path: filePath, fileName: name, parentDir: parent, depth: slashCount + 1);
   }
 }

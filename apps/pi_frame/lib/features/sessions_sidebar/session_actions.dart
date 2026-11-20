@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+
 import '../../ui/precision.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_protocol/pi_frame_protocol.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -14,24 +16,13 @@ import '../../data/language/strings_shell.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../dialogs/new_session_dialog.dart';
 
-Future<String?> _chooseSessionDirectory(
-  BuildContext context,
-  String initialDirectory,
-) => showNewSessionDialog(context, initialDirectory: initialDirectory);
+Future<String?> _chooseSessionDirectory(BuildContext context, String initialDirectory) =>
+    showNewSessionDialog(context, initialDirectory: initialDirectory);
 
-Future<void> createSession(
-  BuildContext context,
-  WidgetRef ref, {
-  String? name,
-  String? cwd,
-}) async {
+Future<void> createSession(BuildContext context, WidgetRef ref, {String? name, String? cwd}) async {
   final client = ref.read(pcpClientProvider);
   if (client == null) return;
-  if (!await resolveDirtyRepository(
-    context,
-    ref,
-    ref.read(activeSessionIdProvider),
-  )) {
+  if (!await resolveDirtyRepository(context, ref, ref.read(activeSessionIdProvider))) {
     return;
   }
   if (!context.mounted) return;
@@ -39,9 +30,7 @@ Future<void> createSession(
   var workingDirectory = cwd;
   if (workingDirectory == null) {
     final activeId = ref.read(activeSessionIdProvider);
-    final initialDirectory = activeId == null
-        ? ''
-        : ref.read(sessionStateFamily(activeId)).cwd;
+    final initialDirectory = activeId == null ? '' : ref.read(sessionStateFamily(activeId)).cwd;
     workingDirectory = await _chooseSessionDirectory(context, initialDirectory);
   }
   if (!context.mounted) return;
@@ -69,19 +58,11 @@ Future<void> createSession(
     } else {
       // The daemon accepted the command but returned no session: say so
       // instead of leaving the user with no feedback.
-      FrameSnackBar.show(
-        context,
-        message: ref.read(appStringsProvider).sessionCreateNoIdNotice,
-        isError: true,
-      );
+      FrameSnackBar.show(context, message: ref.read(appStringsProvider).sessionCreateNoIdNotice, isError: true);
     }
   } catch (error) {
     if (context.mounted) {
-      FrameSnackBar.show(
-        context,
-        message: ref.read(appStringsProvider).creationFailedNotice(error),
-        isError: true,
-      );
+      FrameSnackBar.show(context, message: ref.read(appStringsProvider).creationFailedNotice(error), isError: true);
     }
   }
 }
@@ -105,22 +86,17 @@ Future<void> deleteSessionWithConfirmation(
             Expanded(child: Text(strings.deleteSessionDialogTitle)),
           ],
         ),
-        content: Text(
-          strings.deleteSessionConfirmBody(sessionName),
-        ),
+        content: Text(strings.deleteSessionConfirmBody(sessionName)),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text(strings.cancel),
-          ),
-          PressFeedback(enabled: true, child: FilledButton(
-            style: FilledButton.styleFrom(
-              backgroundColor: tokens.danger,
-              foregroundColor: tokens.surface,
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(strings.cancel)),
+          PressFeedback(
+            enabled: true,
+            child: FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: tokens.danger, foregroundColor: tokens.surface),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text(strings.deleteAction),
             ),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text(strings.deleteAction),
-          )),
+          ),
         ],
       );
     },
@@ -141,18 +117,11 @@ Future<void> deleteSessionWithConfirmation(
     ref.invalidate(sessionListProvider);
 
     if (context.mounted) {
-      FrameSnackBar.show(
-        context,
-        message: strings.sessionDeletedNotice(sessionName),
-      );
+      FrameSnackBar.show(context, message: strings.sessionDeletedNotice(sessionName));
     }
   } catch (error) {
     if (context.mounted) {
-      FrameSnackBar.show(
-        context,
-        message: strings.deletionFailedNotice(error),
-        isError: true,
-      );
+      FrameSnackBar.show(context, message: strings.deletionFailedNotice(error), isError: true);
     }
   }
 }
@@ -175,22 +144,14 @@ Future<void> removeRepoWithConfirmation(
           children: [
             const Icon(Icons.folder_delete_outlined, size: FrameSize.iconLg),
             const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                strings.removeRepoDialogTitle(repoName),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
+            Expanded(child: Text(strings.removeRepoDialogTitle(repoName), overflow: TextOverflow.ellipsis)),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              strings.repoSessionsCountNotice(folderSessions.length),
-              style: FrameText.of(context).body,
-            ),
+            Text(strings.repoSessionsCountNotice(folderSessions.length), style: FrameText.of(context).body),
             const SizedBox(height: 16),
             InkWell(
               key: const ValueKey('hide-repo-only-btn'),
@@ -247,7 +208,8 @@ Future<void> removeRepoWithConfirmation(
                         children: [
                           Text(
                             strings.deleteAllRepoSessionsTitle,
-                            style: FrameText.of(context).body.copyWith(fontWeight: FontWeight.bold, color: tokens.danger),
+                            style: FrameText.of(context).body
+                                .copyWith(fontWeight: FontWeight.bold, color: tokens.danger),
                           ),
                           const SizedBox(height: 2),
                           Text(
@@ -263,12 +225,7 @@ Future<void> removeRepoWithConfirmation(
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text(strings.cancel),
-          ),
-        ],
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: Text(strings.cancel))],
       );
     },
   );
@@ -298,11 +255,8 @@ Future<void> removeRepoWithConfirmation(
     // Step 2: Second warning with type "delete" box
     final confirmed = await showDialog<bool>(
       context: context,
-      builder: (ctx) => _DeleteRepoConfirmDialog(
-        folder: folder,
-        repoName: repoName,
-        sessionsCount: folderSessions.length,
-      ),
+      builder: (ctx) =>
+          _DeleteRepoConfirmDialog(folder: folder, repoName: repoName, sessionsCount: folderSessions.length),
     );
 
     if (confirmed != true || !context.mounted) return;
@@ -329,18 +283,11 @@ Future<void> removeRepoWithConfirmation(
       ref.invalidate(sessionListProvider);
 
       if (context.mounted) {
-        FrameSnackBar.show(
-          context,
-          message: strings.allRepoSessionsDeletedNotice(repoName),
-        );
+        FrameSnackBar.show(context, message: strings.allRepoSessionsDeletedNotice(repoName));
       }
     } catch (error) {
       if (context.mounted) {
-        FrameSnackBar.show(
-          context,
-          message: strings.deletionErrorNotice(error),
-          isError: true,
-        );
+        FrameSnackBar.show(context, message: strings.deletionErrorNotice(error), isError: true);
       }
     }
   }
@@ -351,15 +298,10 @@ class _DeleteRepoConfirmDialog extends ConsumerStatefulWidget {
   final String repoName;
   final int sessionsCount;
 
-  const _DeleteRepoConfirmDialog({
-    required this.folder,
-    required this.repoName,
-    required this.sessionsCount,
-  });
+  const _DeleteRepoConfirmDialog({required this.folder, required this.repoName, required this.sessionsCount});
 
   @override
-  ConsumerState<_DeleteRepoConfirmDialog> createState() =>
-      _DeleteRepoConfirmDialogState();
+  ConsumerState<_DeleteRepoConfirmDialog> createState() => _DeleteRepoConfirmDialogState();
 }
 
 class _DeleteRepoConfirmDialogState extends ConsumerState<_DeleteRepoConfirmDialog> {
@@ -389,38 +331,27 @@ class _DeleteRepoConfirmDialogState extends ConsumerState<_DeleteRepoConfirmDial
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            strings.deleteRepoWarningBody(widget.sessionsCount, widget.folder),
-            style: FrameText.of(context).body,
-          ),
+          Text(strings.deleteRepoWarningBody(widget.sessionsCount, widget.folder), style: FrameText.of(context).body),
           const SizedBox(height: 14),
           TextField(
             controller: _textController,
             autofocus: true,
-            decoration: const InputDecoration(
-              hintText: 'delete',
-              border: OutlineInputBorder(),
-              isDense: true,
-            ),
+            decoration: const InputDecoration(hintText: 'delete', border: OutlineInputBorder(), isDense: true),
             onChanged: (_) => setState(() {}),
           ),
         ],
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context, false),
-          child: Text(strings.cancel),
-        ),
-        PressFeedback(enabled: (canDelete ? () => Navigator.pop(context, true) : null) != null, child: FilledButton(
-          style: FilledButton.styleFrom(
-            backgroundColor: tokens.danger,
-            foregroundColor: tokens.surface,
+        TextButton(onPressed: () => Navigator.pop(context, false), child: Text(strings.cancel)),
+        PressFeedback(
+          enabled: (canDelete ? () => Navigator.pop(context, true) : null) != null,
+          child: FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: tokens.danger, foregroundColor: tokens.surface),
+            onPressed: canDelete ? () => Navigator.pop(context, true) : null,
+            child: Text(strings.deleteAllAction),
           ),
-          onPressed: canDelete ? () => Navigator.pop(context, true) : null,
-          child: Text(strings.deleteAllAction),
-        )),
+        ),
       ],
     );
   }
 }
-

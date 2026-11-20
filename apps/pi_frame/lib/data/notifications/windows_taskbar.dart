@@ -1,14 +1,9 @@
 import 'dart:ffi';
+
 import 'package:ffi/ffi.dart';
 import 'package:flutter/foundation.dart';
 
-enum WindowsTaskbarProgressState {
-  noProgress,
-  indeterminate,
-  normal,
-  error,
-  paused,
-}
+enum WindowsTaskbarProgressState { noProgress, indeterminate, normal, error, paused }
 
 /// Direct Win32 COM implementation of [ITaskbarList3] for Windows taskbar progress
 /// indicators without depending on plugin C++ code that may have null dereferences.
@@ -25,26 +20,13 @@ class WindowsTaskbar {
 
     try {
       final ole32 = DynamicLibrary.open('ole32.dll');
-      final coInitializeEx = ole32.lookupFunction<
-        Int32 Function(Pointer<Void>, Uint32),
-        int Function(Pointer<Void>, int)
-      >('CoInitializeEx');
-      final coCreateInstance = ole32.lookupFunction<
-        Int32 Function(
-          Pointer<Uint8>,
-          Pointer<Void>,
-          Uint32,
-          Pointer<Uint8>,
-          Pointer<Pointer<Void>>,
-        ),
-        int Function(
-          Pointer<Uint8>,
-          Pointer<Void>,
-          int,
-          Pointer<Uint8>,
-          Pointer<Pointer<Void>>,
-        )
-      >('CoCreateInstance');
+      final coInitializeEx = ole32
+          .lookupFunction<Int32 Function(Pointer<Void>, Uint32), int Function(Pointer<Void>, int)>('CoInitializeEx');
+      final coCreateInstance = ole32
+          .lookupFunction<
+            Int32 Function(Pointer<Uint8>, Pointer<Void>, Uint32, Pointer<Uint8>, Pointer<Pointer<Void>>),
+            int Function(Pointer<Uint8>, Pointer<Void>, int, Pointer<Uint8>, Pointer<Pointer<Void>>)
+          >('CoCreateInstance');
 
       // COINIT_APARTMENTTHREADED = 0x2
       coInitializeEx(nullptr, 0x2);
@@ -52,8 +34,22 @@ class WindowsTaskbar {
       // CLSID_TaskbarList: {56FDF344-FD6D-11D0-958A-006097C9A090}
       final clsid = calloc<Uint8>(16);
       const clsidBytes = [
-        0x44, 0xF3, 0xFD, 0x56, 0x6D, 0xFD, 0xD0, 0x11,
-        0x95, 0x8A, 0x00, 0x60, 0x97, 0xC9, 0xA0, 0x90,
+        0x44,
+        0xF3,
+        0xFD,
+        0x56,
+        0x6D,
+        0xFD,
+        0xD0,
+        0x11,
+        0x95,
+        0x8A,
+        0x00,
+        0x60,
+        0x97,
+        0xC9,
+        0xA0,
+        0x90,
       ];
       for (var i = 0; i < 16; i++) {
         clsid[i] = clsidBytes[i];
@@ -61,23 +57,14 @@ class WindowsTaskbar {
 
       // IID_ITaskbarList3: {EA1AFB91-9E28-4B86-90E9-9E9F8A5EEFAF}
       final iid = calloc<Uint8>(16);
-      const iidBytes = [
-        0x91, 0xFB, 0x1A, 0xEA, 0x28, 0x9E, 0x86, 0x4B,
-        0x90, 0xE9, 0x9E, 0x9F, 0x8A, 0x5E, 0xEF, 0xAF,
-      ];
+      const iidBytes = [0x91, 0xFB, 0x1A, 0xEA, 0x28, 0x9E, 0x86, 0x4B, 0x90, 0xE9, 0x9E, 0x9F, 0x8A, 0x5E, 0xEF, 0xAF];
       for (var i = 0; i < 16; i++) {
         iid[i] = iidBytes[i];
       }
 
       final ppTaskbar = calloc<Pointer<Void>>();
       const clsctxInprocServer = 0x1;
-      final hr = coCreateInstance(
-        clsid,
-        nullptr,
-        clsctxInprocServer,
-        iid,
-        ppTaskbar,
-      );
+      final hr = coCreateInstance(clsid, nullptr, clsctxInprocServer, iid, ppTaskbar);
       calloc.free(clsid);
       calloc.free(iid);
 

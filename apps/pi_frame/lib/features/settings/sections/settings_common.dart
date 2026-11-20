@@ -30,16 +30,10 @@ Widget buildSettingsInfoRow(FrameTokens tokens, String label, String value) {
     padding: const EdgeInsets.symmetric(vertical: FrameSpace.x2),
     child: LayoutBuilder(
       builder: (context, constraints) {
-        final labelWidget = Text(
-          label,
-          style: text.body.copyWith(color: tokens.textSecondary),
-        );
+        final labelWidget = Text(label, style: text.body.copyWith(color: tokens.textSecondary));
         final valueWidget = Text(
           value,
-          style: text.body.copyWith(
-            color: tokens.textPrimary,
-            fontWeight: FontWeight.w600,
-          ),
+          style: text.body.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.w600),
         );
         if (constraints.maxWidth < 520) {
           return Column(

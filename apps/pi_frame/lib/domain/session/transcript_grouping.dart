@@ -37,9 +37,7 @@ class TranscriptLiveState {
   static const empty = TranscriptLiveState();
 
   bool get hasContent =>
-      streamingThinking.trim().isNotEmpty ||
-      streamingText.trim().isNotEmpty ||
-      activeToolCalls.isNotEmpty;
+      streamingThinking.trim().isNotEmpty || streamingText.trim().isNotEmpty || activeToolCalls.isNotEmpty;
 
   TranscriptLiveState copyWith({
     bool? isRunning,
@@ -62,14 +60,10 @@ class TranscriptLiveState {
   /// Derives live state directly from a [SessionState].
   factory TranscriptLiveState.fromSession(SessionState session) {
     final lastEntry = session.entries.isNotEmpty ? session.entries.last : null;
-    final lastStopReason = lastEntry?.metadata?['stopReason']
-        ?.toString()
-        .toLowerCase();
+    final lastStopReason = lastEntry?.metadata?['stopReason']?.toString().toLowerCase();
     final lastCancelled = lastEntry?.metadata?['cancelled'] == true;
 
-    final lastUserEntry = session.entries.reversed
-        .where((e) => e.role == 'user')
-        .firstOrNull;
+    final lastUserEntry = session.entries.reversed.where((e) => e.role == 'user').firstOrNull;
     final hasUserSendError = lastUserEntry?.metadata?['sendError'] != null;
 
     final hasActiveError =
@@ -112,10 +106,7 @@ final class EntryBlock extends TranscriptBlock {
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is EntryBlock &&
-          runtimeType == other.runtimeType &&
-          entry == other.entry;
+      identical(this, other) || other is EntryBlock && runtimeType == other.runtimeType && entry == other.entry;
 
   @override
   int get hashCode => entry.hashCode;
@@ -172,8 +163,7 @@ final class StepsGroupBlock extends TranscriptBlock {
   });
 
   @override
-  String toString() =>
-      'StepsGroupBlock($groupId, stepCount: $stepCount, isRunning: $isRunning, hasError: $hasError)';
+  String toString() => 'StepsGroupBlock($groupId, stepCount: $stepCount, isRunning: $isRunning, hasError: $hasError)';
 }
 
 /// An intermediate assistant response rendered outside the compacted step groups,
@@ -201,8 +191,7 @@ final class IntermediateTextBlock extends TranscriptBlock {
   int get hashCode => Object.hash(entry, turnId);
 
   @override
-  String toString() =>
-      'IntermediateTextBlock(entry: ${entry.id}, turnId: $turnId)';
+  String toString() => 'IntermediateTextBlock(entry: ${entry.id}, turnId: $turnId)';
 }
 
 /// The final assistant response of a turn, rendered as text only.
@@ -228,18 +217,13 @@ final class LiveTailBlock extends TranscriptBlock {
   final String text;
   final TranscriptLiveState live;
 
-  const LiveTailBlock({
-    required this.turnId,
-    required this.text,
-    required this.live,
-  });
+  const LiveTailBlock({required this.turnId, required this.text, required this.live});
 
   bool get isRunning => live.isRunning;
   bool get hasText => text.trim().isNotEmpty;
 
   @override
-  String toString() =>
-      'LiveTailBlock(turnId: $turnId, text: "$text", isRunning: $isRunning)';
+  String toString() => 'LiveTailBlock(turnId: $turnId, text: "$text", isRunning: $isRunning)';
 }
 
 /// Sealed base class for items inside a [StepsGroupBlock].
@@ -268,12 +252,7 @@ final class ThinkingStep extends StepItem {
   @override
   final int? timestamp;
 
-  const ThinkingStep({
-    required this.id,
-    required this.text,
-    this.isStreaming = false,
-    this.timestamp,
-  });
+  const ThinkingStep({required this.id, required this.text, this.isStreaming = false, this.timestamp});
 
   @override
   String toString() => 'ThinkingStep($id, streaming: $isStreaming)';
@@ -297,12 +276,10 @@ final class ToolStep extends StepItem {
   bool get isRunning => tool.isRunning;
   int? get startedAt => tool.startedAt;
   int? get durationMs => tool.durationMs;
-  Duration? get duration =>
-      durationMs != null ? Duration(milliseconds: durationMs!) : null;
+  Duration? get duration => durationMs != null ? Duration(milliseconds: durationMs!) : null;
 
   @override
-  String toString() =>
-      'ToolStep($id, name: $toolName, isRunning: $isRunning, isError: $isError)';
+  String toString() => 'ToolStep($id, name: $toolName, isRunning: $isRunning, isError: $isError)';
 }
 
 /// An intermediate assistant text block that occurred prior to later tool calls or assistant messages.
@@ -314,12 +291,7 @@ final class IntermediateTextStep extends StepItem {
   @override
   final int? timestamp;
 
-  const IntermediateTextStep({
-    required this.id,
-    required this.text,
-    this.entry,
-    this.timestamp,
-  });
+  const IntermediateTextStep({required this.id, required this.text, this.entry, this.timestamp});
 
   @override
   String toString() => 'IntermediateTextStep($id, text: "$text")';
@@ -333,19 +305,12 @@ final class SubagentNotificationStep extends StepItem {
   @override
   final int? timestamp;
 
-  const SubagentNotificationStep({
-    required this.id,
-    required this.entry,
-    this.timestamp,
-  });
+  const SubagentNotificationStep({required this.id, required this.entry, this.timestamp});
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is SubagentNotificationStep &&
-          runtimeType == other.runtimeType &&
-          id == other.id &&
-          entry == other.entry;
+      other is SubagentNotificationStep && runtimeType == other.runtimeType && id == other.id && entry == other.entry;
 
   @override
   int get hashCode => Object.hash(id, entry);
@@ -393,20 +358,11 @@ List<TranscriptBlock> groupTranscript({
 
   // Mode off: return every entry as an EntryBlock, plus LiveTailBlock if live content exists.
   if (mode == StepGroupingMode.off) {
-    final result = <TranscriptBlock>[
-      for (final entry in cleanEntries) EntryBlock(entry),
-    ];
+    final result = <TranscriptBlock>[for (final entry in cleanEntries) EntryBlock(entry)];
     if (live.isRunning && (live.hasContent || live.streamingText.isNotEmpty)) {
-      final lastUser = cleanEntries.reversed
-          .where((e) => e.role == 'user')
-          .firstOrNull;
-      final turnId =
-          (lastUser?.metadata?['optimisticId'] as String?) ??
-          lastUser?.id ??
-          'turn_start';
-      result.add(
-        LiveTailBlock(turnId: turnId, text: live.streamingText, live: live),
-      );
+      final lastUser = cleanEntries.reversed.where((e) => e.role == 'user').firstOrNull;
+      final turnId = (lastUser?.metadata?['optimisticId'] as String?) ?? lastUser?.id ?? 'turn_start';
+      result.add(LiveTailBlock(turnId: turnId, text: live.streamingText, live: live));
     }
     return result;
   }
@@ -416,13 +372,7 @@ List<TranscriptBlock> groupTranscript({
   final output = <TranscriptBlock>[];
 
   for (final turn in turns) {
-    _processTurn(
-      turn: turn,
-      mode: mode,
-      live: live,
-      output: output,
-      showIntermediateAnswers: showIntermediateAnswers,
-    );
+    _processTurn(turn: turn, mode: mode, live: live, output: output, showIntermediateAnswers: showIntermediateAnswers);
   }
 
   return output;
@@ -430,14 +380,7 @@ List<TranscriptBlock> groupTranscript({
 
 List<_TurnData> _partitionTurns(List<SessionEntry> entries) {
   if (entries.isEmpty) {
-    return const [
-      _TurnData(
-        turnId: 'turn_start',
-        userEntry: null,
-        nonUserEntries: [],
-        isLastTurn: true,
-      ),
-    ];
+    return const [_TurnData(turnId: 'turn_start', userEntry: null, nonUserEntries: [], isLastTurn: true)];
   }
 
   final turns = <_TurnData>[];
@@ -449,14 +392,7 @@ List<_TurnData> _partitionTurns(List<SessionEntry> entries) {
   }
 
   if (userIndices.isEmpty) {
-    turns.add(
-      _TurnData(
-        turnId: 'turn_start',
-        userEntry: null,
-        nonUserEntries: entries,
-        isLastTurn: true,
-      ),
-    );
+    turns.add(_TurnData(turnId: 'turn_start', userEntry: null, nonUserEntries: entries, isLastTurn: true));
     return turns;
   }
 
@@ -474,23 +410,13 @@ List<_TurnData> _partitionTurns(List<SessionEntry> entries) {
 
   for (int u = 0; u < userIndices.length; u++) {
     final userIdx = userIndices[u];
-    final nextUserIdx = u + 1 < userIndices.length
-        ? userIndices[u + 1]
-        : entries.length;
+    final nextUserIdx = u + 1 < userIndices.length ? userIndices[u + 1] : entries.length;
     final isLast = u == userIndices.length - 1;
     final userEntry = entries[userIdx];
     final nonUserEntries = entries.sublist(userIdx + 1, nextUserIdx);
 
-    final turnId =
-        (userEntry.metadata?['optimisticId'] as String?) ?? userEntry.id;
-    turns.add(
-      _TurnData(
-        turnId: turnId,
-        userEntry: userEntry,
-        nonUserEntries: nonUserEntries,
-        isLastTurn: isLast,
-      ),
-    );
+    final turnId = (userEntry.metadata?['optimisticId'] as String?) ?? userEntry.id;
+    turns.add(_TurnData(turnId: turnId, userEntry: userEntry, nonUserEntries: nonUserEntries, isLastTurn: isLast));
   }
 
   return turns;
@@ -503,21 +429,13 @@ void _processTurn({
   required List<TranscriptBlock> output,
   bool showIntermediateAnswers = true,
 }) {
-  final assistantEntries = turn.nonUserEntries
-      .where((e) => e.role == 'assistant')
-      .toList();
+  final assistantEntries = turn.nonUserEntries.where((e) => e.role == 'assistant').toList();
 
-  final hasCommittedThinking = assistantEntries.any(
-    (e) => e.thinking != null && e.thinking!.trim().isNotEmpty,
-  );
-  final hasStreamingThinking =
-      turn.isLastTurn &&
-      live.isRunning &&
-      live.streamingThinking.trim().isNotEmpty;
+  final hasCommittedThinking = assistantEntries.any((e) => e.thinking != null && e.thinking!.trim().isNotEmpty);
+  final hasStreamingThinking = turn.isLastTurn && live.isRunning && live.streamingThinking.trim().isNotEmpty;
 
   final hasCommittedTools = assistantEntries.any((e) => e.toolCalls.isNotEmpty);
-  final hasActiveTools =
-      turn.isLastTurn && live.isRunning && live.activeToolCalls.isNotEmpty;
+  final hasActiveTools = turn.isLastTurn && live.isRunning && live.activeToolCalls.isNotEmpty;
   final hasTools = hasCommittedTools || hasActiveTools;
 
   // Identify final assistant entry candidate (if any).
@@ -533,9 +451,7 @@ void _processTurn({
       if (asst.text.trim().isNotEmpty) {
         final asstIdx = turn.nonUserEntries.indexOf(asst);
         final after = turn.nonUserEntries.sublist(asstIdx + 1);
-        final everythingAfterHasNoTextAndNoTools = after.every(
-          (e) => e.text.trim().isEmpty && e.toolCalls.isEmpty,
-        );
+        final everythingAfterHasNoTextAndNoTools = after.every((e) => e.text.trim().isEmpty && e.toolCalls.isEmpty);
         if (everythingAfterHasNoTextAndNoTools) {
           finalAssistantEntry = asst;
         }
@@ -551,17 +467,13 @@ void _processTurn({
       .any((e) => e.text.trim().isNotEmpty);
   if (!hasCommittedIntermediateText && assistantEntries.isNotEmpty) {
     final last = assistantEntries.last;
-    if (last.text.trim().isNotEmpty &&
-        (last.toolCallsAfterText.isNotEmpty || hasActiveTools)) {
+    if (last.text.trim().isNotEmpty && (last.toolCallsAfterText.isNotEmpty || hasActiveTools)) {
       hasCommittedIntermediateText = true;
     }
   }
 
   // Thinking encompasses explicit model thinking as well as intermediate reasoning answers.
-  final hasThinking =
-      hasCommittedThinking ||
-      hasStreamingThinking ||
-      hasCommittedIntermediateText;
+  final hasThinking = hasCommittedThinking || hasStreamingThinking || hasCommittedIntermediateText;
 
   final hasSubagents = turn.nonUserEntries.any(_isSubagentNotificationEntry);
 
@@ -602,22 +514,10 @@ void _processTurn({
           entry.id == finalAssistantEntry?.id &&
           entry.toolCalls.isEmpty &&
           (entry.thinking == null || entry.thinking!.trim().isEmpty);
-      output.add(
-        isPlainFinalAnswer
-            ? FinalTextBlock(entry: entry, turnId: turn.turnId)
-            : EntryBlock(entry),
-      );
+      output.add(isPlainFinalAnswer ? FinalTextBlock(entry: entry, turnId: turn.turnId) : EntryBlock(entry));
     }
-    if (turn.isLastTurn &&
-        live.isRunning &&
-        (live.hasContent || live.streamingText.isNotEmpty)) {
-      output.add(
-        LiveTailBlock(
-          turnId: turn.turnId,
-          text: live.streamingText,
-          live: live,
-        ),
-      );
+    if (turn.isLastTurn && live.isRunning && (live.hasContent || live.streamingText.isNotEmpty)) {
+      output.add(LiveTailBlock(turnId: turn.turnId, text: live.streamingText, live: live));
     }
     return;
   }
@@ -633,9 +533,7 @@ void _processTurn({
     (e) =>
         e.metadata?['sendError'] != null ||
         e.metadata?['stopReason'] == 'error' ||
-        (e.role == 'bashExecution' &&
-            e.metadata?['exitCode'] is int &&
-            e.metadata!['exitCode'] != 0),
+        (e.role == 'bashExecution' && e.metadata?['exitCode'] is int && e.metadata!['exitCode'] != 0),
   );
   final hasUserSendError = turn.userEntry?.metadata?['sendError'] != null;
   final lastAssistant = assistantEntries.lastOrNull;
@@ -643,26 +541,14 @@ void _processTurn({
       lastAssistant?.metadata?['stopReason'] == 'error' ||
       turn.nonUserEntries.any((e) => e.metadata?['sendError'] != null);
   final hasEntryAbort = turn.nonUserEntries.any(
-    (e) =>
-        e.metadata?['stopReason'] == 'aborted' ||
-        e.metadata?['cancelled'] == true,
+    (e) => e.metadata?['stopReason'] == 'aborted' || e.metadata?['cancelled'] == true,
   );
   final isAborted = hasEntryAbort || (turn.isLastTurn && live.aborted);
   final isTurnRunning = turn.isLastTurn && live.isRunning;
-  final isFailed =
-      !isAborted &&
-      (hasTurnEndError ||
-          hasUserSendError ||
-          (turn.isLastTurn && live.hasError));
-  final hasGeneralError =
-      hasEntryError ||
-      hasUserSendError ||
-      isAborted ||
-      (turn.isLastTurn && live.hasError);
+  final isFailed = !isAborted && (hasTurnEndError || hasUserSendError || (turn.isLastTurn && live.hasError));
+  final hasGeneralError = hasEntryError || hasUserSendError || isAborted || (turn.isLastTurn && live.hasError);
 
-  if (mode != StepGroupingMode.full &&
-      showIntermediateAnswers &&
-      hasCommittedIntermediateText) {
+  if (mode != StepGroupingMode.full && showIntermediateAnswers && hasCommittedIntermediateText) {
     // Multi-group flow: intermediate answers are emitted OUTSIDE the step groups,
     // separated by compacted intermediate steps.
     final currentSteps = <StepItem>[];
@@ -671,16 +557,9 @@ void _processTurn({
     void emitGroup({int? endTimestampMs, bool isTrailing = false}) {
       if (currentSteps.isEmpty) return;
 
-      final groupId = groupIndex == 0
-          ? 'steps_${turn.turnId}'
-          : 'steps_${turn.turnId}_$groupIndex';
+      final groupId = groupIndex == 0 ? 'steps_${turn.turnId}' : 'steps_${turn.turnId}_$groupIndex';
       final stepCount = currentSteps
-          .where(
-            (s) =>
-                s is ThinkingStep ||
-                s is ToolStep ||
-                s is SubagentNotificationStep,
-          )
+          .where((s) => s is ThinkingStep || s is ToolStep || s is SubagentNotificationStep)
           .length;
       final latestStep = currentSteps.last;
 
@@ -708,19 +587,15 @@ void _processTurn({
         }
       }
 
-      final hasToolError = currentSteps.whereType<ToolStep>().any(
-        (s) => s.isError,
+      final hasToolError = currentSteps.whereType<ToolStep>().any((s) => s.isError);
+      final hasSubagentError = currentSteps.whereType<SubagentNotificationStep>().any(
+        (s) =>
+            s.entry.metadata?['failed'] == true ||
+            s.entry.metadata?['isError'] == true ||
+            s.entry.metadata?['status'] == 'failed' ||
+            s.entry.metadata?['status'] == 'error' ||
+            s.entry.metadata?['sendError'] != null,
       );
-      final hasSubagentError = currentSteps
-          .whereType<SubagentNotificationStep>()
-          .any(
-            (s) =>
-                s.entry.metadata?['failed'] == true ||
-                s.entry.metadata?['isError'] == true ||
-                s.entry.metadata?['status'] == 'failed' ||
-                s.entry.metadata?['status'] == 'error' ||
-                s.entry.metadata?['sendError'] != null,
-          );
       final isRunningNow = isTurnRunning && isTrailing;
       final groupHasError = hasToolError || hasSubagentError;
 
@@ -745,11 +620,7 @@ void _processTurn({
     for (final entry in turn.nonUserEntries) {
       if (_isSubagentNotificationEntry(entry)) {
         currentSteps.add(
-          SubagentNotificationStep(
-            id: '${entry.id}_subagent',
-            entry: entry,
-            timestamp: entry.timestamp,
-          ),
+          SubagentNotificationStep(id: '${entry.id}_subagent', entry: entry, timestamp: entry.timestamp),
         );
         continue;
       }
@@ -777,9 +648,7 @@ void _processTurn({
         final tool = entry.toolCalls[t];
         currentSteps.add(
           ToolStep(
-            id: tool.toolCallId.isNotEmpty
-                ? tool.toolCallId
-                : '${entry.id}_tool_$t',
+            id: tool.toolCallId.isNotEmpty ? tool.toolCallId : '${entry.id}_tool_$t',
             tool: tool,
             timestamp: tool.startedAt ?? entry.timestamp,
           ),
@@ -787,9 +656,7 @@ void _processTurn({
       }
 
       if (entry.id == finalAssistantEntry?.id) {
-        final endMs = entry.timestamp > 0
-            ? normalizeTimestampToMs(entry.timestamp)
-            : null;
+        final endMs = entry.timestamp > 0 ? normalizeTimestampToMs(entry.timestamp) : null;
         emitGroup(endTimestampMs: endMs);
         output.add(
           FinalTextBlock(
@@ -806,9 +673,7 @@ void _processTurn({
           ),
         );
       } else if (entry.text.trim().isNotEmpty) {
-        final endMs = entry.timestamp > 0
-            ? normalizeTimestampToMs(entry.timestamp)
-            : null;
+        final endMs = entry.timestamp > 0 ? normalizeTimestampToMs(entry.timestamp) : null;
         emitGroup(endTimestampMs: endMs);
         output.add(
           IntermediateTextBlock(
@@ -830,9 +695,7 @@ void _processTurn({
         final tool = entry.toolCalls[t];
         currentSteps.add(
           ToolStep(
-            id: tool.toolCallId.isNotEmpty
-                ? tool.toolCallId
-                : '${entry.id}_tool_$t',
+            id: tool.toolCallId.isNotEmpty ? tool.toolCallId : '${entry.id}_tool_$t',
             tool: tool,
             timestamp: tool.startedAt ?? entry.timestamp,
           ),
@@ -843,56 +706,32 @@ void _processTurn({
     if (turn.isLastTurn && live.isRunning) {
       if (live.streamingThinking.trim().isNotEmpty) {
         currentSteps.add(
-          ThinkingStep(
-            id: 'live_${turn.turnId}_thinking',
-            text: live.streamingThinking.trim(),
-            isStreaming: true,
-          ),
+          ThinkingStep(id: 'live_${turn.turnId}_thinking', text: live.streamingThinking.trim(), isStreaming: true),
         );
       }
 
       if (hasActiveTools) {
-        final existingToolIds = {
-          for (final s in currentSteps.whereType<ToolStep>()) s.toolCallId,
-        };
+        final existingToolIds = {for (final s in currentSteps.whereType<ToolStep>()) s.toolCallId};
         for (int t = 0; t < live.activeToolCalls.length; t++) {
           final tool = live.activeToolCalls[t];
-          if (tool.toolCallId.isNotEmpty &&
-              existingToolIds.contains(tool.toolCallId)) {
+          if (tool.toolCallId.isNotEmpty && existingToolIds.contains(tool.toolCallId)) {
             continue;
           }
-          final stepId = tool.toolCallId.isNotEmpty
-              ? tool.toolCallId
-              : 'live_${turn.turnId}_tool_$t';
-          currentSteps.add(
-            ToolStep(id: stepId, tool: tool, timestamp: tool.startedAt),
-          );
+          final stepId = tool.toolCallId.isNotEmpty ? tool.toolCallId : 'live_${turn.turnId}_tool_$t';
+          currentSteps.add(ToolStep(id: stepId, tool: tool, timestamp: tool.startedAt));
         }
       }
 
-      final hasCandidateLiveText =
-          live.streamingText.trim().isNotEmpty && !hasActiveTools;
+      final hasCandidateLiveText = live.streamingText.trim().isNotEmpty && !hasActiveTools;
 
       if (hasCandidateLiveText) {
         emitGroup(isTrailing: true);
-        output.add(
-          LiveTailBlock(
-            turnId: turn.turnId,
-            text: live.streamingText,
-            live: live,
-          ),
-        );
+        output.add(LiveTailBlock(turnId: turn.turnId, text: live.streamingText, live: live));
       } else {
         final hadSteps = currentSteps.isNotEmpty;
         emitGroup(isTrailing: true);
         if (live.streamingText.isNotEmpty || !hadSteps) {
-          output.add(
-            LiveTailBlock(
-              turnId: turn.turnId,
-              text: live.streamingText,
-              live: live,
-            ),
-          );
+          output.add(LiveTailBlock(turnId: turn.turnId, text: live.streamingText, live: live));
         }
       }
     } else {
@@ -906,13 +745,7 @@ void _processTurn({
 
   for (final entry in turn.nonUserEntries) {
     if (_isSubagentNotificationEntry(entry)) {
-      steps.add(
-        SubagentNotificationStep(
-          id: '${entry.id}_subagent',
-          entry: entry,
-          timestamp: entry.timestamp,
-        ),
-      );
+      steps.add(SubagentNotificationStep(id: '${entry.id}_subagent', entry: entry, timestamp: entry.timestamp));
       continue;
     }
     if (entry.role != 'assistant') continue;
@@ -934,9 +767,7 @@ void _processTurn({
       final tool = asst.toolCalls[t];
       steps.add(
         ToolStep(
-          id: tool.toolCallId.isNotEmpty
-              ? tool.toolCallId
-              : '${asst.id}_tool_$t',
+          id: tool.toolCallId.isNotEmpty ? tool.toolCallId : '${asst.id}_tool_$t',
           tool: tool,
           timestamp: tool.startedAt ?? asst.timestamp,
         ),
@@ -944,77 +775,42 @@ void _processTurn({
     }
 
     if (asst.id != finalAssistantEntry?.id && asst.text.trim().isNotEmpty) {
-      steps.add(
-        IntermediateTextStep(
-          id: '${asst.id}_text',
-          text: asst.text,
-          entry: asst,
-          timestamp: asst.timestamp,
-        ),
-      );
+      steps.add(IntermediateTextStep(id: '${asst.id}_text', text: asst.text, entry: asst, timestamp: asst.timestamp));
     }
 
     for (int t = toolsBeforeText; t < asst.toolCalls.length; t++) {
       final tool = asst.toolCalls[t];
-      final stepId = tool.toolCallId.isNotEmpty
-          ? tool.toolCallId
-          : '${asst.id}_tool_$t';
-      steps.add(
-        ToolStep(
-          id: stepId,
-          tool: tool,
-          timestamp: tool.startedAt ?? asst.timestamp,
-        ),
-      );
+      final stepId = tool.toolCallId.isNotEmpty ? tool.toolCallId : '${asst.id}_tool_$t';
+      steps.add(ToolStep(id: stepId, tool: tool, timestamp: tool.startedAt ?? asst.timestamp));
     }
   }
 
   if (turn.isLastTurn && live.isRunning) {
     if (live.streamingThinking.trim().isNotEmpty) {
       steps.add(
-        ThinkingStep(
-          id: 'live_${turn.turnId}_thinking',
-          text: live.streamingThinking.trim(),
-          isStreaming: true,
-        ),
+        ThinkingStep(id: 'live_${turn.turnId}_thinking', text: live.streamingThinking.trim(), isStreaming: true),
       );
     }
 
     if (live.streamingText.trim().isNotEmpty && hasActiveTools) {
-      steps.add(
-        IntermediateTextStep(
-          id: 'live_${turn.turnId}_text',
-          text: live.streamingText,
-        ),
-      );
+      steps.add(IntermediateTextStep(id: 'live_${turn.turnId}_text', text: live.streamingText));
     }
 
     if (hasActiveTools) {
-      final existingToolIds = {
-        for (final s in steps.whereType<ToolStep>()) s.toolCallId,
-      };
+      final existingToolIds = {for (final s in steps.whereType<ToolStep>()) s.toolCallId};
       for (int t = 0; t < live.activeToolCalls.length; t++) {
         final tool = live.activeToolCalls[t];
-        if (tool.toolCallId.isNotEmpty &&
-            existingToolIds.contains(tool.toolCallId)) {
+        if (tool.toolCallId.isNotEmpty && existingToolIds.contains(tool.toolCallId)) {
           continue;
         }
-        final stepId = tool.toolCallId.isNotEmpty
-            ? tool.toolCallId
-            : 'live_${turn.turnId}_tool_$t';
+        final stepId = tool.toolCallId.isNotEmpty ? tool.toolCallId : 'live_${turn.turnId}_tool_$t';
         steps.add(ToolStep(id: stepId, tool: tool, timestamp: tool.startedAt));
       }
     }
   }
 
   final stepCount = steps
-      .where(
-        (s) =>
-            s is ThinkingStep ||
-            s is ToolStep ||
-            s is SubagentNotificationStep ||
-            s is IntermediateTextStep,
-      )
+      .where((s) => s is ThinkingStep || s is ToolStep || s is SubagentNotificationStep || s is IntermediateTextStep)
       .length;
   final latestStep = steps.isNotEmpty ? steps.last : null;
 
@@ -1060,17 +856,9 @@ void _processTurn({
         s.entry.metadata?['sendError'] != null,
   );
   final lastStep = steps.isNotEmpty ? steps.last : null;
-  final endedOnFailedTool =
-      !isTurnRunning &&
-      finalAssistantEntry == null &&
-      lastStep is ToolStep &&
-      lastStep.isError;
+  final endedOnFailedTool = !isTurnRunning && finalAssistantEntry == null && lastStep is ToolStep && lastStep.isError;
   final legacyFailed =
-      !isAborted &&
-      (hasTurnEndError ||
-          hasUserSendError ||
-          endedOnFailedTool ||
-          (turn.isLastTurn && live.hasError));
+      !isAborted && (hasTurnEndError || hasUserSendError || endedOnFailedTool || (turn.isLastTurn && live.hasError));
   final legacyError = hasToolError || hasSubagentError || hasGeneralError;
 
   final stepsGroup = StepsGroupBlock(
@@ -1086,9 +874,7 @@ void _processTurn({
     latestStep: latestStep,
   );
 
-  final firstStepIdx = turn.nonUserEntries.indexWhere(
-    (e) => e.role == 'assistant' || _isSubagentNotificationEntry(e),
-  );
+  final firstStepIdx = turn.nonUserEntries.indexWhere((e) => e.role == 'assistant' || _isSubagentNotificationEntry(e));
 
   if (firstStepIdx == -1) {
     if (steps.isNotEmpty || (turn.isLastTurn && live.isRunning)) {
@@ -1134,24 +920,11 @@ void _processTurn({
   }
 
   if (turn.isLastTurn && live.isRunning) {
-    final hasCandidateLiveText =
-        live.streamingText.trim().isNotEmpty && !hasActiveTools;
+    final hasCandidateLiveText = live.streamingText.trim().isNotEmpty && !hasActiveTools;
     if (hasCandidateLiveText) {
-      output.add(
-        LiveTailBlock(
-          turnId: turn.turnId,
-          text: live.streamingText,
-          live: live,
-        ),
-      );
+      output.add(LiveTailBlock(turnId: turn.turnId, text: live.streamingText, live: live));
     } else if (steps.isEmpty) {
-      output.add(
-        LiveTailBlock(
-          turnId: turn.turnId,
-          text: live.streamingText,
-          live: live,
-        ),
-      );
+      output.add(LiveTailBlock(turnId: turn.turnId, text: live.streamingText, live: live));
     }
   }
 }
@@ -1169,17 +942,11 @@ int normalizeTimestampToMs(int ts) {
 ///
 /// Verifies that every input entry's text, thinking, and tool calls appear in
 /// exactly one output block or step.
-void assertTranscriptCoverage({
-  required List<SessionEntry> inputEntries,
-  required List<TranscriptBlock> blocks,
-}) {
+void assertTranscriptCoverage({required List<SessionEntry> inputEntries, required List<TranscriptBlock> blocks}) {
   final cleanInput = inputEntries.where((e) => !e.isJunkOrInternal).toList();
   for (final entry in cleanInput) {
     if (_isSubagentNotificationEntry(entry)) {
-      final matchingEntryBlocks = blocks
-          .whereType<EntryBlock>()
-          .where((b) => b.entry.id == entry.id)
-          .toList();
+      final matchingEntryBlocks = blocks.whereType<EntryBlock>().where((b) => b.entry.id == entry.id).toList();
       final matchingSteps = blocks
           .whereType<StepsGroupBlock>()
           .expand((g) => g.steps)
@@ -1196,10 +963,7 @@ void assertTranscriptCoverage({
     }
 
     if (entry.role != 'assistant') {
-      final matchingEntryBlocks = blocks
-          .whereType<EntryBlock>()
-          .where((b) => b.entry.id == entry.id)
-          .toList();
+      final matchingEntryBlocks = blocks.whereType<EntryBlock>().where((b) => b.entry.id == entry.id).toList();
       if (matchingEntryBlocks.length != 1) {
         throw AssertionError(
           'Non-assistant entry ${entry.id} (${entry.role}) must appear exactly once as EntryBlock, found ${matchingEntryBlocks.length}',
@@ -1209,16 +973,11 @@ void assertTranscriptCoverage({
     }
 
     // Assistant entry
-    final entryBlockMatches = blocks
-        .whereType<EntryBlock>()
-        .where((b) => b.entry.id == entry.id)
-        .toList();
+    final entryBlockMatches = blocks.whereType<EntryBlock>().where((b) => b.entry.id == entry.id).toList();
 
     if (entryBlockMatches.isNotEmpty) {
       if (entryBlockMatches.length != 1) {
-        throw AssertionError(
-          'Assistant entry ${entry.id} appears ${entryBlockMatches.length} times as EntryBlock',
-        );
+        throw AssertionError('Assistant entry ${entry.id} appears ${entryBlockMatches.length} times as EntryBlock');
       }
       // Cannot also be in a StepsGroupBlock or FinalTextBlock
       final groupedSteps = blocks
@@ -1226,40 +985,25 @@ void assertTranscriptCoverage({
           .expand((g) => g.steps)
           .where((s) => s.id.startsWith(entry.id))
           .toList();
-      final finalBlocks = blocks
-          .whereType<FinalTextBlock>()
-          .where((f) => f.entry.id == entry.id)
-          .toList();
+      final finalBlocks = blocks.whereType<FinalTextBlock>().where((f) => f.entry.id == entry.id).toList();
       final intermediateBlocks = blocks
           .whereType<IntermediateTextBlock>()
           .where((f) => f.entry.id == entry.id)
           .toList();
-      if (groupedSteps.isNotEmpty ||
-          finalBlocks.isNotEmpty ||
-          intermediateBlocks.isNotEmpty) {
-        throw AssertionError(
-          'Assistant entry ${entry.id} appears as EntryBlock AND in grouped steps/final text',
-        );
+      if (groupedSteps.isNotEmpty || finalBlocks.isNotEmpty || intermediateBlocks.isNotEmpty) {
+        throw AssertionError('Assistant entry ${entry.id} appears as EntryBlock AND in grouped steps/final text');
       }
       continue;
     }
 
     // Grouped assistant entry: verify thinking, tool calls, and text
-    final allSteps = blocks
-        .whereType<StepsGroupBlock>()
-        .expand((g) => g.steps)
-        .toList();
+    final allSteps = blocks.whereType<StepsGroupBlock>().expand((g) => g.steps).toList();
     final allFinalBlocks = blocks.whereType<FinalTextBlock>().toList();
-    final allIntermediateBlocks = blocks
-        .whereType<IntermediateTextBlock>()
-        .toList();
+    final allIntermediateBlocks = blocks.whereType<IntermediateTextBlock>().toList();
 
     // 1. Thinking coverage
     if (entry.thinking != null && entry.thinking!.trim().isNotEmpty) {
-      final matchingThinking = allSteps
-          .whereType<ThinkingStep>()
-          .where((s) => s.id == '${entry.id}_thinking')
-          .toList();
+      final matchingThinking = allSteps.whereType<ThinkingStep>().where((s) => s.id == '${entry.id}_thinking').toList();
       if (matchingThinking.length != 1) {
         throw AssertionError(
           'Thinking of entry ${entry.id} must appear exactly once as ThinkingStep, found ${matchingThinking.length}',
@@ -1273,13 +1017,8 @@ void assertTranscriptCoverage({
     // 2. Tool calls coverage
     for (int t = 0; t < entry.toolCalls.length; t++) {
       final tool = entry.toolCalls[t];
-      final expectedId = tool.toolCallId.isNotEmpty
-          ? tool.toolCallId
-          : '${entry.id}_tool_$t';
-      final matchingTools = allSteps
-          .whereType<ToolStep>()
-          .where((s) => s.id == expectedId)
-          .toList();
+      final expectedId = tool.toolCallId.isNotEmpty ? tool.toolCallId : '${entry.id}_tool_$t';
+      final matchingTools = allSteps.whereType<ToolStep>().where((s) => s.id == expectedId).toList();
       if (matchingTools.length != 1) {
         throw AssertionError(
           'Tool call $expectedId of entry ${entry.id} must appear exactly once as ToolStep, found ${matchingTools.length}',
@@ -1293,33 +1032,20 @@ void assertTranscriptCoverage({
           .whereType<IntermediateTextStep>()
           .where((s) => s.id == '${entry.id}_text')
           .toList();
-      final matchingIntermediateBlock = allIntermediateBlocks
-          .where((b) => b.entry.id == entry.id)
-          .toList();
-      final matchingFinal = allFinalBlocks
-          .where((f) => f.entry.id == entry.id)
-          .toList();
+      final matchingIntermediateBlock = allIntermediateBlocks.where((b) => b.entry.id == entry.id).toList();
+      final matchingFinal = allFinalBlocks.where((f) => f.entry.id == entry.id).toList();
 
-      final totalMatches =
-          matchingIntermediate.length +
-          matchingIntermediateBlock.length +
-          matchingFinal.length;
+      final totalMatches = matchingIntermediate.length + matchingIntermediateBlock.length + matchingFinal.length;
       if (totalMatches != 1) {
         throw AssertionError(
           'Text of entry ${entry.id} must appear exactly once as IntermediateTextStep, IntermediateTextBlock, or FinalTextBlock, found $totalMatches',
         );
       }
-      if (matchingIntermediate.isNotEmpty &&
-          matchingIntermediate.first.text != entry.text) {
-        throw AssertionError(
-          'Intermediate text mismatch for entry ${entry.id}',
-        );
+      if (matchingIntermediate.isNotEmpty && matchingIntermediate.first.text != entry.text) {
+        throw AssertionError('Intermediate text mismatch for entry ${entry.id}');
       }
-      if (matchingIntermediateBlock.isNotEmpty &&
-          matchingIntermediateBlock.first.text != entry.text) {
-        throw AssertionError(
-          'Intermediate block text mismatch for entry ${entry.id}',
-        );
+      if (matchingIntermediateBlock.isNotEmpty && matchingIntermediateBlock.first.text != entry.text) {
+        throw AssertionError('Intermediate block text mismatch for entry ${entry.id}');
       }
       if (matchingFinal.isNotEmpty && matchingFinal.first.text != entry.text) {
         throw AssertionError('Final text mismatch for entry ${entry.id}');

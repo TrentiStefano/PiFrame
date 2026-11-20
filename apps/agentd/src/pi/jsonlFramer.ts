@@ -22,7 +22,8 @@ export class JsonlFramer {
     let start = 0;
 
     for (let i = 0; i < chunk.length; i++) {
-      if (chunk[i] === 0x0A) { // LF '\n'
+      if (chunk[i] === 0x0a) {
+        // LF '\n'
         let lineBuffer: Buffer;
         if (this.totalLength > 0) {
           this.buffer.push(chunk.subarray(start, i));
@@ -36,7 +37,7 @@ export class JsonlFramer {
         start = i + 1;
 
         // Strip optional trailing CR (\r)
-        if (lineBuffer.length > 0 && lineBuffer[lineBuffer.length - 1] === 0x0D) {
+        if (lineBuffer.length > 0 && lineBuffer[lineBuffer.length - 1] === 0x0d) {
           lineBuffer = lineBuffer.subarray(0, lineBuffer.length - 1);
         }
 
@@ -73,7 +74,7 @@ export class JsonlFramer {
       this.buffer = [];
       this.totalLength = 0;
 
-      if (lineBuffer.length > 0 && lineBuffer[lineBuffer.length - 1] === 0x0D) {
+      if (lineBuffer.length > 0 && lineBuffer[lineBuffer.length - 1] === 0x0d) {
         lineBuffer = lineBuffer.subarray(0, lineBuffer.length - 1);
       }
 

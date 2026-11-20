@@ -38,7 +38,9 @@ if (branch === 'main') fail('You are on main. Create a feature branch, commit th
 try {
   out('gh', ['--version']);
 } catch {
-  fail('GitHub CLI (gh) not found. Install it from https://cli.github.com and run `gh auth login`, or open the PR by hand after `pnpm run verify`.');
+  fail(
+    'GitHub CLI (gh) not found. Install it from https://cli.github.com and run `gh auth login`, or open the PR by hand after `pnpm run verify`.'
+  );
 }
 try {
   out('gh', ['auth', 'status']);
@@ -59,7 +61,8 @@ const verify = spawnSync(process.execPath, [path.join(REPO, 'tools/scripts/verif
   cwd: REPO,
   stdio: 'inherit'
 });
-if (verify.status !== 0) fail('Verification failed: no push, no pull request. Fix the problem and run `pnpm run pr` again.');
+if (verify.status !== 0)
+  fail('Verification failed: no push, no pull request. Fix the problem and run `pnpm run pr` again.');
 
 // 3. Push and open the PR.
 console.log(`\nPushing ${branch} ...`);

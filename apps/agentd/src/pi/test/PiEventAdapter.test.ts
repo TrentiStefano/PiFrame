@@ -46,7 +46,10 @@ test('PiEventAdapter: processes real fixture file text-only.jsonl', () => {
     return; // Skip if path different
   }
 
-  const lines = fs.readFileSync(fixturePath, 'utf8').split('\n').filter(l => l.trim().length > 0);
+  const lines = fs
+    .readFileSync(fixturePath, 'utf8')
+    .split('\n')
+    .filter((l) => l.trim().length > 0);
   const ctx = { sessionId: 'session_fixture' };
   const allEvents: any[] = [];
 
@@ -57,7 +60,7 @@ test('PiEventAdapter: processes real fixture file text-only.jsonl', () => {
   }
 
   assert.ok(allEvents.length > 0);
-  assert.ok(allEvents.some(e => e.type === 'run.started'));
-  assert.ok(allEvents.some(e => e.type === 'text.delta'));
-  assert.ok(allEvents.some(e => e.type === 'run.settled'));
+  assert.ok(allEvents.some((e) => e.type === 'run.started'));
+  assert.ok(allEvents.some((e) => e.type === 'text.delta'));
+  assert.ok(allEvents.some((e) => e.type === 'run.settled'));
 });

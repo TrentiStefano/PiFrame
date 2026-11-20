@@ -12,9 +12,7 @@ function checkUsage(rawEvent: PiEvent, ctx: SessionContext, results: Array<{ typ
   if (usage) {
     const inTokens = usage.input ?? usage.inputTokens;
     const outTokens = usage.output ?? usage.outputTokens;
-    if (!ctx.lastUsage ||
-        ctx.lastUsage.inputTokens !== inTokens ||
-        ctx.lastUsage.outputTokens !== outTokens) {
+    if (!ctx.lastUsage || ctx.lastUsage.inputTokens !== inTokens || ctx.lastUsage.outputTokens !== outTokens) {
       ctx.lastUsage = { inputTokens: inTokens, outputTokens: outTokens };
       results.push({
         type: 'usage.updated',
@@ -104,10 +102,14 @@ export function adaptPiEvent(rawEvent: PiEvent, ctx: SessionContext): Array<{ ty
       checkUsage(rawEvent, ctx, results);
       results.push({
         type: 'message.completed',
-        payload: { message: rawEvent.message ? {
-          ...rawEvent.message,
-          id: rawEvent.message.id || `msg_${rawEvent.message.timestamp ?? ulid()}`
-        } : undefined }
+        payload: {
+          message: rawEvent.message
+            ? {
+                ...rawEvent.message,
+                id: rawEvent.message.id || `msg_${rawEvent.message.timestamp ?? ulid()}`
+              }
+            : undefined
+        }
       });
       break;
 
@@ -223,7 +225,11 @@ export function adaptPiEvent(rawEvent: PiEvent, ctx: SessionContext): Array<{ ty
       } else if (method === 'setWidget') {
         results.push({
           type: 'ui.widget',
-          payload: { widgetKey: rawEvent.widgetKey, lines: rawEvent.widgetLines ?? rawEvent.lines, placement: rawEvent.widgetPlacement ?? rawEvent.placement }
+          payload: {
+            widgetKey: rawEvent.widgetKey,
+            lines: rawEvent.widgetLines ?? rawEvent.lines,
+            placement: rawEvent.widgetPlacement ?? rawEvent.placement
+          }
         });
       } else if (method === 'set_editor_text') {
         results.push({
@@ -239,7 +245,8 @@ export function adaptPiEvent(rawEvent: PiEvent, ctx: SessionContext): Array<{ ty
         // Dialog requests requiring response
         const title = String(rawEvent.title ?? '');
         const localAuthRequest = title.startsWith('piframe-local:');
-        const secretInput = rawEvent.method === 'input' && String(rawEvent.placeholder ?? '').startsWith('piframe-secret:');
+        const secretInput =
+          rawEvent.method === 'input' && String(rawEvent.placeholder ?? '').startsWith('piframe-secret:');
         results.push({
           type: 'ui.request',
           payload: {

@@ -10,10 +10,7 @@ enum ContextUsageTone { muted, warning, danger }
 const double kContextWarningPercent = 70;
 const double kContextDangerPercent = 90;
 
-ContextUsageTone contextUsageTone(
-  double percent, {
-  double? compactionReservePercent,
-}) {
+ContextUsageTone contextUsageTone(double percent, {double? compactionReservePercent}) {
   var dangerAt = kContextDangerPercent;
   if (compactionReservePercent != null) {
     final compactionAt = 100 - compactionReservePercent;

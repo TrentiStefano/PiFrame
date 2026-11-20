@@ -25,11 +25,7 @@ class _IdleClient extends PcpClient {
   Stream<PcpSnapshot> snapshots(String sessionId) => const Stream.empty();
 }
 
-Future<void> _pump(
-  WidgetTester tester, {
-  required List<Map<String, dynamic>> sessions,
-  PcpClient? client,
-}) async {
+Future<void> _pump(WidgetTester tester, {required List<Map<String, dynamic>> sessions, PcpClient? client}) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -47,9 +43,7 @@ Future<void> _pump(
 }
 
 void main() {
-  testWidgets('search with no match offers one action that clears the search', (
-    tester,
-  ) async {
+  testWidgets('search with no match offers one action that clears the search', (tester) async {
     await _pump(
       tester,
       client: _IdleClient(),
@@ -75,9 +69,7 @@ void main() {
     expect(find.byKey(const ValueKey('sessions-empty-clear-search')), findsNothing);
   });
 
-  testWidgets('no sessions at all offers one action that starts a new session', (
-    tester,
-  ) async {
+  testWidgets('no sessions at all offers one action that starts a new session', (tester) async {
     await _pump(tester, client: _IdleClient(), sessions: const []);
     final strings = AppStrings(AppLanguage.it);
 
@@ -89,9 +81,7 @@ void main() {
     expect(tester.widget<TextButton>(action).onPressed, isNotNull);
   });
 
-  testWidgets('no sessions at all with the daemon offline disables the new-session action', (
-    tester,
-  ) async {
+  testWidgets('no sessions at all with the daemon offline disables the new-session action', (tester) async {
     await _pump(tester, client: null, sessions: const []);
 
     final action = find.byKey(const ValueKey('sessions-empty-new-session'));

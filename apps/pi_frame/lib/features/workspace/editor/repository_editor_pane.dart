@@ -1,7 +1,9 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+
 import '../../../ui/precision.dart';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -61,8 +63,7 @@ class RepositoryEditorPane extends ConsumerStatefulWidget {
   final String? blockReason;
 
   @override
-  ConsumerState<RepositoryEditorPane> createState() =>
-      _RepositoryEditorPaneState();
+  ConsumerState<RepositoryEditorPane> createState() => _RepositoryEditorPaneState();
 }
 
 class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
@@ -107,9 +108,7 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
   void _openFileSearch() {
     setState(() {
       _showFileSearch = true;
-      if (_editor != null &&
-          _editor!.selection.isValid &&
-          !_editor!.selection.isCollapsed) {
+      if (_editor != null && _editor!.selection.isValid && !_editor!.selection.isCollapsed) {
         final start = _editor!.selection.start;
         final end = _editor!.selection.end;
         if (start < end && end <= _editor!.text.length) {
@@ -167,8 +166,7 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
   void _nextFileSearchMatch() {
     if (_fileSearchMatches.isEmpty || _editor == null) return;
     setState(() {
-      _fileSearchCurrentIndex =
-          (_fileSearchCurrentIndex + 1) % _fileSearchMatches.length;
+      _fileSearchCurrentIndex = (_fileSearchCurrentIndex + 1) % _fileSearchMatches.length;
       _editor!.currentMatchIndex = _fileSearchCurrentIndex;
       _jumpToMatch(_fileSearchCurrentIndex);
     });
@@ -177,9 +175,7 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
   void _prevFileSearchMatch() {
     if (_fileSearchMatches.isEmpty || _editor == null) return;
     setState(() {
-      _fileSearchCurrentIndex =
-          (_fileSearchCurrentIndex - 1 + _fileSearchMatches.length) %
-          _fileSearchMatches.length;
+      _fileSearchCurrentIndex = (_fileSearchCurrentIndex - 1 + _fileSearchMatches.length) % _fileSearchMatches.length;
       _editor!.currentMatchIndex = _fileSearchCurrentIndex;
       _jumpToMatch(_fileSearchCurrentIndex);
     });
@@ -190,10 +186,7 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
       return;
     }
     final match = _fileSearchMatches[index];
-    _editor!.selection = TextSelection(
-      baseOffset: match.start,
-      extentOffset: match.end,
-    );
+    _editor!.selection = TextSelection(baseOffset: match.start, extentOffset: match.end);
   }
 
   /// Saves [path]. Errors are shown in a snack bar, not thrown.
@@ -211,9 +204,7 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
   /// Ctrl/Cmd+S inside the editor. Does nothing when the file is clean or
   /// writes are blocked.
   void _saveIfDirty(String path) {
-    final dirty =
-        ref.read(repositoryStateProvider(widget.sessionId)).buffers[path]?.dirty ??
-        false;
+    final dirty = ref.read(repositoryStateProvider(widget.sessionId)).buffers[path]?.dirty ?? false;
     if (!dirty || widget.writeBlocked) return;
     _saveFile(path);
   }
@@ -221,8 +212,7 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
   /// Closes the file. Unsaved changes ask first (Salva / Non salvare / Annulla).
   Future<void> _closeEditor() async {
     final repo = ref.read(repositoryStateProvider(widget.sessionId));
-    if (repo.dirty &&
-        !await resolveDirtyRepository(context, ref, widget.sessionId)) {
+    if (repo.dirty && !await resolveDirtyRepository(context, ref, widget.sessionId)) {
       return;
     }
     if (!mounted) return;
@@ -249,16 +239,10 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
           keyboardType: TextInputType.number,
           inputFormatters: [FilteringTextInputFormatter.digitsOnly],
           onSubmitted: (_) => submit(),
-          decoration: InputDecoration(
-            isDense: true,
-            hintText: strings.goToLineHint(lineCount),
-          ),
+          decoration: InputDecoration(isDense: true, hintText: strings.goToLineHint(lineCount)),
         ),
         actions: [
-          FrameDialogAction<bool>(
-            label: strings.cancel,
-            role: FrameDialogActionRole.cancel,
-          ),
+          FrameDialogAction<bool>(label: strings.cancel, role: FrameDialogActionRole.cancel),
           FrameDialogAction<bool>(
             label: strings.goToLineAction,
             role: FrameDialogActionRole.primary,
@@ -296,9 +280,7 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
 
   KeyEventResult _onEditorKey(KeyEvent event, String path) {
     if (event is! KeyDownEvent) return KeyEventResult.ignored;
-    final isControl =
-        HardwareKeyboard.instance.isControlPressed ||
-        HardwareKeyboard.instance.isMetaPressed;
+    final isControl = HardwareKeyboard.instance.isControlPressed || HardwareKeyboard.instance.isMetaPressed;
     if (!isControl) return KeyEventResult.ignored;
     switch (event.logicalKey) {
       case LogicalKeyboardKey.keyF:
@@ -402,20 +384,14 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
     final text = FrameText.of(context);
     if (path == null) {
       return Center(
-        child: Text(
-          strings.selectAFile,
-          style: text.body.copyWith(color: tokens.textMuted),
-        ),
+        child: Text(strings.selectAFile, style: text.body.copyWith(color: tokens.textMuted)),
       );
     }
     if (buffer == null) {
       final error = repo.error;
       if (error == null) {
         return Center(
-          child: Text(
-            strings.loadingFiles,
-            style: text.body.copyWith(color: tokens.textMuted),
-          ),
+          child: Text(strings.loadingFiles, style: text.body.copyWith(color: tokens.textMuted)),
         );
       }
       return repositoryErrorCallout(strings, error, strings.filesLoadFailed);
@@ -463,15 +439,14 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
               Tooltip(
                 message: strings.saveWithShortcutTooltip,
                 child: buffer.dirty
-                    ? PressFeedback(enabled: (writeBlocked
-                            ? null
-                            : () => _saveFile(path)) != null, child: FilledButton(
-                        key: const ValueKey('repository-save-btn'),
-                        onPressed: writeBlocked
-                            ? null
-                            : () => _saveFile(path),
-                        child: Text(strings.save),
-                      ))
+                    ? PressFeedback(
+                        enabled: (writeBlocked ? null : () => _saveFile(path)) != null,
+                        child: FilledButton(
+                          key: const ValueKey('repository-save-btn'),
+                          onPressed: writeBlocked ? null : () => _saveFile(path),
+                          child: Text(strings.save),
+                        ),
+                      )
                     : TextButton(
                         key: const ValueKey('repository-save-btn'),
                         onPressed: null,
@@ -491,21 +466,14 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
                 tooltip: strings.addFileToChatTooltip,
                 onPressed: () {
                   appendFileMentionToComposer(ref, widget.sessionId, path);
-                  FrameSnackBar.show(
-                    context,
-                    message: strings.addedFileToChat(path),
-                  );
+                  FrameSnackBar.show(context, message: strings.addedFileToChat(path));
                 },
               ),
               if (isMarkdown)
                 FrameIconAction(
                   key: const ValueKey('repository-markdown-toggle-btn'),
-                  icon: _previewMarkdown
-                      ? Icons.edit_note_outlined
-                      : Icons.visibility_outlined,
-                  tooltip: _previewMarkdown
-                      ? strings.editMarkdownSourceTooltip
-                      : strings.viewMarkdownPreviewTooltip,
+                  icon: _previewMarkdown ? Icons.edit_note_outlined : Icons.visibility_outlined,
+                  tooltip: _previewMarkdown ? strings.editMarkdownSourceTooltip : strings.viewMarkdownPreviewTooltip,
                   selected: _previewMarkdown,
                   onPressed: () {
                     setState(() {
@@ -520,26 +488,16 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
                 selected: _showFileSearch,
                 onPressed: _openFileSearch,
               ),
-              FrameIconAction(
-                icon: Icons.close_outlined,
-                tooltip: strings.closeFileTooltip,
-                onPressed: _closeEditor,
-              ),
+              FrameIconAction(icon: Icons.close_outlined, tooltip: strings.closeFileTooltip, onPressed: _closeEditor),
             ],
           ),
         ),
         if (writeBlocked)
           Container(
             width: double.infinity,
-            padding: const EdgeInsets.symmetric(
-              horizontal: FrameSpace.x3,
-              vertical: FrameSpace.x1,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3, vertical: FrameSpace.x1),
             color: tokens.signalWarning.withValues(alpha: 0.16),
-            child: Text(
-              blockReason!,
-              style: text.caption.copyWith(color: tokens.textSecondary),
-            ),
+            child: Text(blockReason!, style: text.caption.copyWith(color: tokens.textSecondary)),
           ),
         Expanded(
           child: isMarkdown && _previewMarkdown
@@ -551,10 +509,7 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
                     child: SingleChildScrollView(
                       controller: _markdownScrollController,
                       primary: false,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: FrameSpace.x6,
-                        vertical: FrameSpace.x4,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x6, vertical: FrameSpace.x4),
                       child: SelectionArea(
                         child: RichContent(
                           key: ValueKey('repository-md-preview-$path'),
@@ -606,14 +561,9 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
     required AppStrings strings,
   }) {
     final text = FrameText.of(context);
-    final codeStyle = text.monoBody.copyWith(
-      color: tokens.textPrimary,
-      decoration: TextDecoration.none,
-    );
+    final codeStyle = text.monoBody.copyWith(color: tokens.textPrimary, decoration: TextDecoration.none);
     final numberStyle = text.monoBody.copyWith(color: tokens.textMuted);
-    final currentNumberStyle = text.monoBody.copyWith(
-      color: tokens.textPrimary,
-    );
+    final currentNumberStyle = text.monoBody.copyWith(color: tokens.textPrimary);
     final wrap = _wrapLines;
     final textScaler = MediaQuery.textScalerOf(context);
 
@@ -625,9 +575,7 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
           final source = editor.text;
           final lines = source.split('\n');
           final selection = editor.selection;
-          final caret = selection.isValid
-              ? math.min(math.max(selection.baseOffset, 0), source.length)
-              : 0;
+          final caret = selection.isValid ? math.min(math.max(selection.baseOffset, 0), source.length) : 0;
           final caretLine = '\n'.allMatches(source.substring(0, caret)).length;
 
           return LayoutBuilder(
@@ -660,21 +608,12 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
                       // than the bare TextPainter measures it, so leave
                       // headroom: a no-wrap line must never soft-wrap, or
                       // the gutter drifts from the text.
-                      _codeLayout.widestLineWidth(
-                                lines,
-                                codeStyle,
-                                textScaler: textScaler,
-                              ) *
-                              1.1 +
+                      _codeLayout.widestLineWidth(lines, codeStyle, textScaler: textScaler) * 1.1 +
                           2 * _codePadding +
                           FrameSpace.x6,
                     );
-              final bandTop = caretLine < tops.length
-                  ? tops[caretLine]
-                  : _codePadding;
-              final bandHeight = caretLine < heights.length
-                  ? heights[caretLine]
-                  : 0.0;
+              final bandTop = caretLine < tops.length ? tops[caretLine] : _codePadding;
+              final bandHeight = caretLine < heights.length ? heights[caretLine] : 0.0;
 
               final field = SizedBox(
                 width: fieldWidth,
@@ -697,42 +636,23 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
                         controller: editor,
                         focusNode: _textFocusNode,
                         enabled: !readOnly,
-                        onChanged: (value) => ref
-                            .read(
-                              repositoryStateProvider(widget.sessionId)
-                                  .notifier,
-                            )
-                            .edit(path, value),
+                        onChanged: (value) =>
+                            ref.read(repositoryStateProvider(widget.sessionId).notifier).edit(path, value),
                         contextMenuBuilder: (context, editorState) {
                           final value = editorState.textEditingValue;
                           final selection = value.selection;
-                          final items = List<ContextMenuButtonItem>.of(
-                            editorState.contextMenuButtonItems,
-                          );
+                          final items = List<ContextMenuButtonItem>.of(editorState.contextMenuButtonItems);
                           if (selection.isValid && !selection.isCollapsed) {
-                            final range = CodeEditorController.selectedLineRange(
-                              value.text,
-                              selection,
-                            );
+                            final range = CodeEditorController.selectedLineRange(value.text, selection);
                             items.add(
                               ContextMenuButtonItem(
                                 // The menu label shows the file name so the
                                 // line range fits; the chat gets the full path.
                                 label: strings.addSelectionToChat(
-                                  strings.codeLineReference(
-                                    path.split(RegExp(r'[\\/]')).last,
-                                    range.start,
-                                    range.end,
-                                  ),
+                                  strings.codeLineReference(path.split(RegExp(r'[\\/]')).last, range.start, range.end),
                                 ),
                                 onPressed: () {
-                                  appendCodeSelectionToComposer(
-                                    ref,
-                                    widget.sessionId,
-                                    path,
-                                    value.text,
-                                    selection,
-                                  );
+                                  appendCodeSelectionToComposer(ref, widget.sessionId, path, value.text, selection);
                                   editorState.hideToolbar();
                                 },
                               ),
@@ -757,9 +677,7 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
                           focusedBorder: InputBorder.none,
                           disabledBorder: InputBorder.none,
                           contentPadding: const EdgeInsets.all(_codePadding),
-                          hintText: writeBlocked
-                              ? strings.readOnlyBlockedReason
-                              : strings.fileContentHint,
+                          hintText: writeBlocked ? strings.readOnlyBlockedReason : strings.fileContentHint,
                           hintStyle: codeStyle.copyWith(color: tokens.textMuted),
                         ),
                       ),
@@ -810,11 +728,7 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
                 controller: _bodyScrollController,
                 child: SingleChildScrollView(
                   controller: _bodyScrollController,
-                  child: SizedBox(
-                    width: viewportWidth,
-                    height: contentHeight,
-                    child: row,
-                  ),
+                  child: SizedBox(width: viewportWidth, height: contentHeight, child: row),
                 ),
               );
             },
@@ -824,11 +738,7 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
     );
   }
 
-  Widget _fileSearchBar(
-    BuildContext context,
-    FrameTokens tokens,
-    AppStrings strings,
-  ) {
+  Widget _fileSearchBar(BuildContext context, FrameTokens tokens, AppStrings strings) {
     final text = FrameText.of(context);
     return Focus(
       onKeyEvent: (node, event) {
@@ -850,10 +760,7 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
       },
       child: Container(
         key: const ValueKey('repository-file-search-bar'),
-        padding: const EdgeInsets.symmetric(
-          horizontal: FrameSpace.x2,
-          vertical: FrameSpace.x1,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2, vertical: FrameSpace.x1),
         decoration: BoxDecoration(
           color: tokens.surfaceElevated,
           borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -883,27 +790,15 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
             ),
             const SizedBox(width: FrameSpace.x1 + 2),
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: FrameSpace.x1 + 1,
-                vertical: 2,
-              ),
-              decoration: BoxDecoration(
-                color: tokens.surface,
-                borderRadius: BorderRadius.circular(tokens.radiusSm),
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x1 + 1, vertical: 2),
+              decoration: BoxDecoration(color: tokens.surface, borderRadius: BorderRadius.circular(tokens.radiusSm)),
               child: Text(
                 _fileSearchQueryController.text.isEmpty
                     ? ''
                     : _fileSearchMatches.isEmpty
                     ? strings.zeroResults
-                    : strings.searchResultsCount(
-                        _fileSearchCurrentIndex + 1,
-                        _fileSearchMatches.length,
-                      ),
-                style: text.caption.copyWith(
-                  color: tokens.textMuted,
-                  fontWeight: FontWeight.w600,
-                ),
+                    : strings.searchResultsCount(_fileSearchCurrentIndex + 1, _fileSearchMatches.length),
+                style: text.caption.copyWith(color: tokens.textMuted, fontWeight: FontWeight.w600),
               ),
             ),
             const SizedBox(width: FrameSpace.x1),
@@ -911,17 +806,13 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
               key: const ValueKey('repository-file-search-prev'),
               icon: Icons.keyboard_arrow_up_outlined,
               tooltip: strings.previousMatchTooltip,
-              onPressed: _fileSearchMatches.isEmpty
-                  ? null
-                  : _prevFileSearchMatch,
+              onPressed: _fileSearchMatches.isEmpty ? null : _prevFileSearchMatch,
             ),
             FrameIconAction(
               key: const ValueKey('repository-file-search-next'),
               icon: Icons.keyboard_arrow_down_outlined,
               tooltip: strings.nextMatchTooltip,
-              onPressed: _fileSearchMatches.isEmpty
-                  ? null
-                  : _nextFileSearchMatch,
+              onPressed: _fileSearchMatches.isEmpty ? null : _nextFileSearchMatch,
             ),
             FrameIconAction(
               key: const ValueKey('repository-file-search-case'),

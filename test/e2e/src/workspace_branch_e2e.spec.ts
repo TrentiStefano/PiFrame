@@ -19,8 +19,7 @@ import { DEFAULT_CONFIG } from '../../../apps/agentd/dist/config/config.js';
 
 function createTempGitRepo(): { root: string; git: (args: string[]) => string; cleanup: () => void } {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-e2e-branch-repo-'));
-  const git = (args: string[]) =>
-    execFileSync('git', args, { cwd: root, encoding: 'utf8' });
+  const git = (args: string[]) => execFileSync('git', args, { cwd: root, encoding: 'utf8' });
   git(['init', '-q', '-b', 'main']);
   git(['config', 'user.email', 'test@example.com']);
   git(['config', 'user.name', 'PiFrame Test']);
@@ -36,7 +35,7 @@ function createTempGitRepo(): { root: string; git: (args: string[]) => string; c
       try {
         fs.rmSync(root, { recursive: true, force: true });
       } catch {}
-    },
+    }
   };
 }
 
@@ -52,7 +51,7 @@ test('E2E: Workspace Branch Operations - listBranches and switchBranch over WebS
     token,
     version,
     startedAt,
-    listener: 'local',
+    listener: 'local'
   });
 
   await new Promise<void>((resolve, reject) => {
@@ -81,14 +80,14 @@ test('E2E: Workspace Branch Operations - listBranches and switchBranch over WebS
     },
     onDetach: async (conn, sid) => {
       await registry.detachClient(sid, conn);
-    },
+    }
   });
 
   registry = new SessionRegistry({
     piExecutablePath: fakePiPath,
     capabilities: { version: '0.85.1', supported: true, modes: ['rpc'], features: [] },
     workerIdleTimeoutMs: 60000,
-    connectionManager: manager,
+    connectionManager: manager
   });
 
   dispatcher = new Dispatcher(registry, manager);
@@ -130,8 +129,8 @@ test('E2E: Workspace Branch Operations - listBranches and switchBranch over WebS
           token,
           client: { name: 'e2e-test', version: '1.0.0', platform: 'test' },
           encoding: 'json',
-          capabilities: ['replay.v1'],
-        },
+          capabilities: ['replay.v1']
+        }
       })
     );
 
@@ -153,16 +152,14 @@ test('E2E: Workspace Branch Operations - listBranches and switchBranch over WebS
         commandId: listCmdId,
         sessionId,
         type: 'workspace.listBranches',
-        payload: {},
+        payload: {}
       })
     );
 
     const listAck = await waitForMessage((m) => m.kind === 'ack' && m.commandId === listCmdId);
     assert.ok(listAck);
 
-    const listResult = await waitForMessage(
-      (m) => m.kind === 'result' && m.commandId === listCmdId
-    );
+    const listResult = await waitForMessage((m) => m.kind === 'result' && m.commandId === listCmdId);
     assert.equal(listResult.payload.state, 'completed');
     assert.equal(listResult.payload.data.currentBranch, 'main');
     assert.equal(listResult.payload.data.detached, false);
@@ -181,13 +178,11 @@ test('E2E: Workspace Branch Operations - listBranches and switchBranch over WebS
         commandId: switchCmdId,
         sessionId,
         type: 'workspace.switchBranch',
-        payload: { branch: 'feature/test-e2e' },
+        payload: { branch: 'feature/test-e2e' }
       })
     );
 
-    const switchResult = await waitForMessage(
-      (m) => m.kind === 'result' && m.commandId === switchCmdId
-    );
+    const switchResult = await waitForMessage((m) => m.kind === 'result' && m.commandId === switchCmdId);
     assert.equal(switchResult.payload.state, 'completed');
     assert.equal(switchResult.payload.data.currentBranch, 'feature/test-e2e');
     assert.equal(switchResult.payload.data.stashed, false);
@@ -204,19 +199,15 @@ test('E2E: Workspace Branch Operations - listBranches and switchBranch over WebS
         commandId: dirtyBlockCmdId,
         sessionId,
         type: 'workspace.switchBranch',
-        payload: { branch: 'main', onDirty: 'block' },
+        payload: { branch: 'main', onDirty: 'block' }
       })
     );
 
-    const dirtyError = await waitForMessage(
-      (m) => m.kind === 'error' && m.commandId === dirtyBlockCmdId
-    );
+    const dirtyError = await waitForMessage((m) => m.kind === 'error' && m.commandId === dirtyBlockCmdId);
     assert.equal(dirtyError.payload.code, 'WORKSPACE_DIRTY');
     assert.equal(dirtyError.payload.details?.untrackedFiles, 1);
 
-    const dirtyResult = await waitForMessage(
-      (m) => m.kind === 'result' && m.commandId === dirtyBlockCmdId
-    );
+    const dirtyResult = await waitForMessage((m) => m.kind === 'result' && m.commandId === dirtyBlockCmdId);
     assert.equal(dirtyResult.payload.state, 'rejected');
     const dirtyErrorIdx = receivedMessages.indexOf(dirtyError);
     const dirtyResultIdx = receivedMessages.indexOf(dirtyResult);
@@ -233,13 +224,11 @@ test('E2E: Workspace Branch Operations - listBranches and switchBranch over WebS
         commandId: dirtyStashCmdId,
         sessionId,
         type: 'workspace.switchBranch',
-        payload: { branch: 'main', onDirty: 'stash' },
+        payload: { branch: 'main', onDirty: 'stash' }
       })
     );
 
-    const stashResult = await waitForMessage(
-      (m) => m.kind === 'result' && m.commandId === dirtyStashCmdId
-    );
+    const stashResult = await waitForMessage((m) => m.kind === 'result' && m.commandId === dirtyStashCmdId);
     assert.equal(stashResult.payload.state, 'completed');
     assert.equal(stashResult.payload.data.currentBranch, 'main');
     assert.equal(stashResult.payload.data.stashed, true);

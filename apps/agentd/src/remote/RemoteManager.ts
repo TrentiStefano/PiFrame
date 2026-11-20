@@ -1,23 +1,13 @@
 import type * as http from 'node:http';
 import * as net from 'node:net';
 import { EventEmitter } from 'node:events';
-import {
-  loadConfig,
-  patchConfig,
-  validateRemotePatch,
-  type DaemonConfig
-} from '../config/config.js';
+import { loadConfig, patchConfig, validateRemotePatch, type DaemonConfig } from '../config/config.js';
 import { RemoteAuthManager } from './RemoteAuthManager.js';
 import { CloudflaredTunnelProvider } from './CloudflaredTunnelProvider.js';
 import { CustomTunnelProvider } from './CustomTunnelProvider.js';
 import { TailscaleTunnelProvider } from './TailscaleTunnelProvider.js';
 import type { TunnelProvider } from './TunnelProvider.js';
-import type {
-  RemoteStatus,
-  PublicPairedDevice,
-  PairingSecret,
-  RemoteDeviceMode
-} from './types.js';
+import type { RemoteStatus, PublicPairedDevice, PairingSecret, RemoteDeviceMode } from './types.js';
 
 export interface RemoteManagerEvents {
   statusChanged: (status: RemoteStatus) => void;
@@ -142,7 +132,11 @@ export class RemoteManager extends EventEmitter {
 
       // Recreate provider if needed
       const targetProvider = patchToApply.tunnelProvider || this.config.remote.tunnelProvider;
-      if (targetProvider !== this.tunnelProvider.name || options?.customCommand !== undefined || options?.customUrl !== undefined) {
+      if (
+        targetProvider !== this.tunnelProvider.name ||
+        options?.customCommand !== undefined ||
+        options?.customUrl !== undefined
+      ) {
         this.config = {
           ...this.config,
           remote: {
@@ -238,12 +232,7 @@ export class RemoteManager extends EventEmitter {
     }
 
     try {
-      return this.authManager.pair(
-        candidate,
-        userAgent,
-        ip,
-        this.config.remote.defaultMode
-      );
+      return this.authManager.pair(candidate, userAgent, ip, this.config.remote.defaultMode);
     } finally {
       this.emitStatus();
     }

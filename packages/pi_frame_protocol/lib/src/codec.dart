@@ -1,4 +1,5 @@
 import 'dart:convert';
+
 import 'envelope.dart';
 import 'commands.dart';
 import 'events.dart';
@@ -51,9 +52,23 @@ class PcpCodec {
       case 'turn.ended':
         return TurnEndedEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
       case 'message.started':
-        return MessageStartedEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
+        return MessageStartedEvent(
+          protocol: protocol,
+          id: id,
+          ts: ts,
+          sessionId: sessionId,
+          seq: seq,
+          payload: payload,
+        );
       case 'message.completed':
-        return MessageCompletedEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
+        return MessageCompletedEvent(
+          protocol: protocol,
+          id: id,
+          ts: ts,
+          sessionId: sessionId,
+          seq: seq,
+          payload: payload,
+        );
       case 'text.started':
         return TextStartedEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
       case 'text.delta':
@@ -61,17 +76,52 @@ class PcpCodec {
       case 'text.completed':
         return TextCompletedEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
       case 'thinking.started':
-        return ThinkingStartedEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
+        return ThinkingStartedEvent(
+          protocol: protocol,
+          id: id,
+          ts: ts,
+          sessionId: sessionId,
+          seq: seq,
+          payload: payload,
+        );
       case 'thinking.delta':
         return ThinkingDeltaEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
       case 'thinking.completed':
-        return ThinkingCompletedEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
+        return ThinkingCompletedEvent(
+          protocol: protocol,
+          id: id,
+          ts: ts,
+          sessionId: sessionId,
+          seq: seq,
+          payload: payload,
+        );
       case 'toolcall.started':
-        return ToolCallStartedEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
+        return ToolCallStartedEvent(
+          protocol: protocol,
+          id: id,
+          ts: ts,
+          sessionId: sessionId,
+          seq: seq,
+          payload: payload,
+        );
       case 'toolcall.argsDelta':
-        return ToolCallArgsDeltaEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
+        return ToolCallArgsDeltaEvent(
+          protocol: protocol,
+          id: id,
+          ts: ts,
+          sessionId: sessionId,
+          seq: seq,
+          payload: payload,
+        );
       case 'toolcall.completed':
-        return ToolCallCompletedEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
+        return ToolCallCompletedEvent(
+          protocol: protocol,
+          id: id,
+          ts: ts,
+          sessionId: sessionId,
+          seq: seq,
+          payload: payload,
+        );
       case 'usage.updated':
         return UsageUpdatedEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
       case 'tool.started':
@@ -83,19 +133,47 @@ class PcpCodec {
       case 'queue.changed':
         return QueueChangedEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
       case 'compaction.started':
-        return CompactionStartedEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
+        return CompactionStartedEvent(
+          protocol: protocol,
+          id: id,
+          ts: ts,
+          sessionId: sessionId,
+          seq: seq,
+          payload: payload,
+        );
       case 'compaction.ended':
-        return CompactionEndedEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
+        return CompactionEndedEvent(
+          protocol: protocol,
+          id: id,
+          ts: ts,
+          sessionId: sessionId,
+          seq: seq,
+          payload: payload,
+        );
       case 'retry.started':
         return RetryStartedEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
       case 'retry.ended':
         return RetryEndedEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
       case 'summarization.retry':
-        return SummarizationRetryEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
+        return SummarizationRetryEvent(
+          protocol: protocol,
+          id: id,
+          ts: ts,
+          sessionId: sessionId,
+          seq: seq,
+          payload: payload,
+        );
       case 'bash.output':
         return BashOutputEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
       case 'extension.error':
-        return ExtensionErrorEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
+        return ExtensionErrorEvent(
+          protocol: protocol,
+          id: id,
+          ts: ts,
+          sessionId: sessionId,
+          seq: seq,
+          payload: payload,
+        );
       case 'ui.request':
         return UiRequestEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
       case 'ui.claimed':
@@ -113,19 +191,54 @@ class PcpCodec {
       case 'ui.title':
         return UiTitleEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
       case 'workspace.changed':
-        return WorkspaceChangedEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
+        return WorkspaceChangedEvent(
+          protocol: protocol,
+          id: id,
+          ts: ts,
+          sessionId: sessionId,
+          seq: seq,
+          payload: payload,
+        );
       case 'worker.diagnostic':
-        return WorkerDiagnosticEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
+        return WorkerDiagnosticEvent(
+          protocol: protocol,
+          id: id,
+          ts: ts,
+          sessionId: sessionId,
+          seq: seq,
+          payload: payload,
+        );
       case 'worker.crashed':
         return WorkerCrashedEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
       case 'journal.gap':
         return JournalGapEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
       case 'session.indexChanged':
-        return SessionIndexChangedEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
+        return SessionIndexChangedEvent(
+          protocol: protocol,
+          id: id,
+          ts: ts,
+          sessionId: sessionId,
+          seq: seq,
+          payload: payload,
+        );
       case 'daemon.configChanged':
-        return DaemonConfigChangedEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
+        return DaemonConfigChangedEvent(
+          protocol: protocol,
+          id: id,
+          ts: ts,
+          sessionId: sessionId,
+          seq: seq,
+          payload: payload,
+        );
       case 'remote.statusChanged':
-        return RemoteStatusChangedEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
+        return RemoteStatusChangedEvent(
+          protocol: protocol,
+          id: id,
+          ts: ts,
+          sessionId: sessionId,
+          seq: seq,
+          payload: payload,
+        );
       case 'system.metrics':
         return SystemMetricsEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
       case 'side.opened':
@@ -133,7 +246,15 @@ class PcpCodec {
       case 'side.closed':
         return SideClosedEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, payload: payload);
       default:
-        return UnknownEvent(protocol: protocol, id: id, ts: ts, sessionId: sessionId, seq: seq, type: type, payload: payload);
+        return UnknownEvent(
+          protocol: protocol,
+          id: id,
+          ts: ts,
+          sessionId: sessionId,
+          seq: seq,
+          type: type,
+          payload: payload,
+        );
     }
   }
 

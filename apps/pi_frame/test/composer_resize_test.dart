@@ -36,27 +36,19 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         sessionStateFamily('s_resize').overrideWith(
-          (ref) => SessionStateNotifier('s_resize', null)
-            ..state = const SessionState(sessionId: 's_resize', cwd: '/test'),
+          (ref) =>
+              SessionStateNotifier('s_resize', null)..state = const SessionState(sessionId: 's_resize', cwd: '/test'),
         ),
       ],
     );
-    container.read(composerDraftProvider('s_resize').notifier).state =
-        longDraft;
+    container.read(composerDraftProvider('s_resize').notifier).state = longDraft;
     addTearDown(container.dispose);
     return container;
   }
 
-  Finder composerBox() => find
-      .descendant(
-        of: find.byType(Composer),
-        matching: find.byType(AnimatedContainer),
-      )
-      .first;
+  Finder composerBox() => find.descendant(of: find.byType(Composer), matching: find.byType(AnimatedContainer)).first;
 
-  testWidgets('composer height follows a pane drag without a tween tail', (
-    tester,
-  ) async {
+  testWidgets('composer height follows a pane drag without a tween tail', (tester) async {
     final container = makeContainer();
     await tester.pumpWidget(tree(container, 800));
     await tester.pumpAndSettle();

@@ -36,8 +36,7 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
   @override
   void didUpdateWidget(ThinkingBlock oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.isExpanded != null &&
-        widget.isExpanded != oldWidget.isExpanded) {
+    if (widget.isExpanded != null && widget.isExpanded != oldWidget.isExpanded) {
       _internalExpanded = widget.isExpanded!;
     }
   }
@@ -78,9 +77,7 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
     final strings = safeTranscriptStrings(context);
     final words = _countWords(trimmed);
     final newlineIdx = trimmed.indexOf('\n');
-    final firstLine = newlineIdx >= 0
-        ? trimmed.substring(0, newlineIdx)
-        : trimmed;
+    final firstLine = newlineIdx >= 0 ? trimmed.substring(0, newlineIdx) : trimmed;
     final content = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -93,11 +90,7 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.psychology_outlined,
-                    size: FrameSize.icon,
-                    color: tokens.thinking,
-                  ),
+                  Icon(Icons.psychology_outlined, size: FrameSize.icon, color: tokens.thinking),
                   const SizedBox(width: 6),
                   Text(
                     strings.transcriptReasoning,
@@ -135,9 +128,7 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
             margin: const EdgeInsets.only(left: 6, top: 4, bottom: 4),
             padding: const EdgeInsets.only(left: 10),
             decoration: BoxDecoration(
-              border: Border(
-                left: BorderSide(color: tokens.borderStrong, width: 2),
-              ),
+              border: Border(left: BorderSide(color: tokens.borderStrong, width: 2)),
             ),
             child: SelectableText(
               widget.thinkingText,
@@ -158,9 +149,7 @@ class _ThinkingBlockState extends State<ThinkingBlock> {
         child: widget.isStreaming
             ? content
             : AnimatedSize(
-                duration: MediaQuery.disableAnimationsOf(context)
-                    ? Duration.zero
-                    : FrameMotion.small,
+                duration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : FrameMotion.small,
                 curve: FrameMotion.enterCurve,
                 alignment: Alignment.topCenter,
                 child: content,

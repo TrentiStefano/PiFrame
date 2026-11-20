@@ -1,11 +1,6 @@
 import type { WebSocket } from 'ws';
 import { ulid } from 'ulid';
-import type {
-  ServerMessage,
-  PcpEnvelope,
-  PcpWelcomePayload,
-  PcpError
-} from '@piframe/pcp-ts';
+import type { ServerMessage, PcpEnvelope, PcpWelcomePayload, PcpError } from '@piframe/pcp-ts';
 import { parseIncoming, encode } from '@piframe/pcp-ts';
 import { timingSafeEqualStrings } from './auth.js';
 import type { RemoteManager } from '../remote/RemoteManager.js';
@@ -49,7 +44,12 @@ export class Connection {
   private piInfo: { path: string; version: string; supported: boolean };
   private remoteManager?: RemoteManager;
   private onCommandCallback: (conn: Connection, cmd: any) => Promise<void>;
-  private onAttachCallback?: (conn: Connection, sessionId: string, lastSeq: number | null, commandId?: string) => Promise<void>;
+  private onAttachCallback?: (
+    conn: Connection,
+    sessionId: string,
+    lastSeq: number | null,
+    commandId?: string
+  ) => Promise<void>;
   private onDetachCallback?: (conn: Connection, sessionId: string) => Promise<void>;
   private onCloseCallback: (conn: Connection) => void;
 
@@ -149,7 +149,7 @@ export class Connection {
     if (msg.kind === 'command') {
       // Rate limiting: max 200 commands in a 1-second window
       const now = Date.now();
-      this.commandTimestamps = this.commandTimestamps.filter(t => now - t < 1000);
+      this.commandTimestamps = this.commandTimestamps.filter((t) => now - t < 1000);
       if (this.commandTimestamps.length >= 200) {
         this.send({
           protocol: 1,
@@ -169,8 +169,12 @@ export class Connection {
 
       void this.executeCommand(msg).catch((error) => {
         this.send({
-          protocol: 1, kind: 'error', id: `err_${ulid()}`, ts: Date.now(),
-          commandId: msg.commandId, type: 'error',
+          protocol: 1,
+          kind: 'error',
+          id: `err_${ulid()}`,
+          ts: Date.now(),
+          commandId: msg.commandId,
+          type: 'error',
           payload: { code: error.code || 'INTERNAL', message: error.message }
         } as PcpError);
       });

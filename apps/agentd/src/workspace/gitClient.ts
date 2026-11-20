@@ -2,11 +2,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type {
-  WorkspaceBranchInfo,
-  WorkspaceListBranchesResult,
-  WorkspaceSwitchBranchResult
-} from '@piframe/pcp-ts';
+import type { WorkspaceBranchInfo, WorkspaceListBranchesResult, WorkspaceSwitchBranchResult } from '@piframe/pcp-ts';
 
 const execFileAsync = promisify(execFile);
 
@@ -42,7 +38,11 @@ export interface WslPathInfo {
 
 export function parseWslPath(cwd: string): WslPathInfo | null {
   if (process.platform !== 'win32') return null;
-  const normalized = cwd.trim().replace(/^[\\/]+/, '//').replace(/\\/g, '/').replace(/\/+$/, '');
+  const normalized = cwd
+    .trim()
+    .replace(/^[\\/]+/, '//')
+    .replace(/\\/g, '/')
+    .replace(/\/+$/, '');
   const match = normalized.match(/^\/\/(wsl(?:\.localhost|\$))\/([^\/]+)(?:\/(.*))?$/i);
   if (!match) return null;
   const host = match[1];
@@ -77,16 +77,12 @@ async function executeGit(
 
   if (wslInfo) {
     try {
-      return await run(
-        'wsl.exe',
-        ['-d', wslInfo.distro, '--cd', wslInfo.linuxPath, 'git', ...gitArgs],
-        {
-          timeout: timeoutMs,
-          windowsHide: true,
-          maxBuffer: 10 * 1024 * 1024,
-          encoding: 'utf8',
-        }
-      );
+      return await run('wsl.exe', ['-d', wslInfo.distro, '--cd', wslInfo.linuxPath, 'git', ...gitArgs], {
+        timeout: timeoutMs,
+        windowsHide: true,
+        maxBuffer: 10 * 1024 * 1024,
+        encoding: 'utf8'
+      });
     } catch (wslError: any) {
       if (wslError?.code === 'ENOENT') {
         return await run('git', gitArgs, {
@@ -94,7 +90,7 @@ async function executeGit(
           timeout: timeoutMs,
           windowsHide: true,
           maxBuffer: 10 * 1024 * 1024,
-          encoding: 'utf8',
+          encoding: 'utf8'
         });
       }
       throw wslError;
@@ -108,7 +104,7 @@ async function executeGit(
     maxBuffer: 10 * 1024 * 1024,
     encoding: 'utf8',
     // Never block the daemon on a terminal credential prompt.
-    env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+    env: { ...process.env, GIT_TERMINAL_PROMPT: '0' }
   });
 }
 
@@ -213,7 +209,7 @@ function parseNumstat(output: string): { additions: number; deletions: number } 
   if (firstTab < 0 || secondTab < 0) return { additions: 0, deletions: 0 };
   return {
     additions: parseNumstatCount(output.slice(0, firstTab)),
-    deletions: parseNumstatCount(output.slice(firstTab + 1, secondTab)),
+    deletions: parseNumstatCount(output.slice(firstTab + 1, secondTab))
   };
 }
 
@@ -247,15 +243,16 @@ async function getNoIndexNumstats(cwd: string, filePaths: string[]): Promise<Num
   const batchSize = 16;
   for (let i = 0; i < filePaths.length; i += batchSize) {
     numstats.push(
-      ...await Promise.all(
-        filePaths.slice(i, i + batchSize).map((filePath) => countUntrackedLines(cwd, filePath))
-      )
+      ...(await Promise.all(filePaths.slice(i, i + batchSize).map((filePath) => countUntrackedLines(cwd, filePath))))
     );
   }
   return numstats;
 }
 
-function parseStatus(cwd: string, statusOutput: string): {
+function parseStatus(
+  cwd: string,
+  statusOutput: string
+): {
   changes: Map<string, GitFileChange>;
   renameSources: Map<string, string>;
 } {
@@ -279,7 +276,7 @@ function parseStatus(cwd: string, statusOutput: string): {
       stagedStatus: staged ? indexCode : null,
       unstagedStatus: unstaged ? worktreeCode : null,
       additions: 0,
-      deletions: 0,
+      deletions: 0
     });
     if (indexCode === 'R' || indexCode === 'C' || worktreeCode === 'R' || worktreeCode === 'C') {
       const sourcePath = entries[++index];
@@ -312,10 +309,11 @@ export async function getGitStatus(cwd: string): Promise<GitStatusResult> {
 
   // `-b` adds a "## <branch>" header, which replaces two extra git processes (branch and HEAD lookups).
   // Each git process is slow on Windows and WSL, and the status is refreshed often.
-  const statusOutput = await runGit(['status', '--porcelain=v1', '-z', '-b', '--untracked-files=all'], cwd, false) ?? '';
+  const statusOutput =
+    (await runGit(['status', '--porcelain=v1', '-z', '-b', '--untracked-files=all'], cwd, false)) ?? '';
   const header = parseBranchHeader(statusOutput);
   const { changes } = parseStatus(cwd, header ? statusOutput.slice(header.length) : statusOutput);
-  const branch = header?.branch ?? await getCurrentBranch(cwd);
+  const branch = header?.branch ?? (await getCurrentBranch(cwd));
   const headExists = header ? !header.unborn : await hasHead(cwd);
   let numstats: Numstat[] = [];
   if (headExists) {
@@ -324,7 +322,7 @@ export async function getGitStatus(cwd: string): Promise<GitStatusResult> {
     const untrackedPaths = Array.from(changes.values())
       .filter((change) => change.status === 'untracked')
       .map((change) => change.path);
-    numstats.push(...await getNoIndexNumstats(cwd, untrackedPaths));
+    numstats.push(...(await getNoIndexNumstats(cwd, untrackedPaths)));
   } else {
     numstats = await getNoIndexNumstats(cwd, Array.from(changes.keys()));
   }
@@ -347,7 +345,7 @@ export async function getGitStatus(cwd: string): Promise<GitStatusResult> {
     branch: branch ?? undefined,
     files: Array.from(changes.values()),
     totalAdditions,
-    totalDeletions,
+    totalDeletions
   };
 }
 
@@ -363,20 +361,18 @@ export async function getGitDiff(cwd: string, filePath?: string): Promise<string
   }
 
   const normalizedPath = filePath.replace(/\\/g, '/');
-  const statusOutput = await runGit(
-    ['status', '--porcelain=v1', '-z', '--untracked-files=all', '--', `:(literal)${normalizedPath}`],
-    cwd,
-    false
-  ) ?? '';
+  const statusOutput =
+    (await runGit(
+      ['status', '--porcelain=v1', '-z', '--untracked-files=all', '--', `:(literal)${normalizedPath}`],
+      cwd,
+      false
+    )) ?? '';
   let { changes, renameSources } = parseStatus(cwd, statusOutput);
   let change = changes.get(normalizedPath);
   const headExists = await hasHead(cwd);
   if (headExists && change?.stagedStatus === 'A') {
-    const fullStatusOutput = await runGit(
-      ['status', '--porcelain=v1', '-z', '--untracked-files=all'],
-      cwd,
-      false
-    ) ?? '';
+    const fullStatusOutput =
+      (await runGit(['status', '--porcelain=v1', '-z', '--untracked-files=all'], cwd, false)) ?? '';
     ({ changes, renameSources } = parseStatus(cwd, fullStatusOutput));
     change = changes.get(normalizedPath) ?? change;
   }
@@ -392,16 +388,10 @@ export async function getGitDiff(cwd: string, filePath?: string): Promise<string
     if (diff) return diff.trim();
   }
 
-  const canUseNoIndex = headExists
-    ? change?.status === 'untracked'
-    : change !== undefined;
+  const canUseNoIndex = headExists ? change?.status === 'untracked' : change !== undefined;
   const fullPath = path.resolve(cwd, ...normalizedPath.split('/'));
   if (!canUseNoIndex || !fs.existsSync(fullPath)) return '';
-  return (await executeGit(
-    ['diff', '--no-index', '--', '/dev/null', normalizedPath],
-    cwd,
-    [1]
-  )).trim();
+  return (await executeGit(['diff', '--no-index', '--', '/dev/null', normalizedPath], cwd, [1])).trim();
 }
 
 // -----------------------------------------------------------------------------
@@ -497,7 +487,7 @@ export async function getGitDirtyState(cwd: string): Promise<GitDirtyState> {
   return {
     isDirty: changedFiles + untrackedFiles > 0,
     changedFiles,
-    untrackedFiles,
+    untrackedFiles
   };
 }
 
@@ -505,7 +495,7 @@ export async function listGitBranches(cwd: string): Promise<WorkspaceListBranche
   const { isRepo, rootPath } = await checkIsGitRepo(cwd);
   if (!isRepo || !rootPath) {
     throw Object.assign(new Error('Working directory is not inside a Git repository.'), {
-      code: 'WORKSPACE_NOT_REPOSITORY',
+      code: 'WORKSPACE_NOT_REPOSITORY'
     });
   }
 
@@ -519,7 +509,7 @@ export async function listGitBranches(cwd: string): Promise<WorkspaceListBranche
       branches: [],
       currentBranch,
       detached: false,
-      headShortSha: null,
+      headShortSha: null
     };
   }
 
@@ -527,7 +517,7 @@ export async function listGitBranches(cwd: string): Promise<WorkspaceListBranche
     [
       'for-each-ref',
       '--format=%(refname:short)%00%(HEAD)%00%(upstream:short)%00%(upstream:track,nobracket)%00%(committerdate:unix)',
-      'refs/heads',
+      'refs/heads'
     ],
     rootPath,
     false
@@ -571,7 +561,7 @@ export async function listGitBranches(cwd: string): Promise<WorkspaceListBranche
         upstream,
         ahead,
         behind,
-        lastCommitUnix,
+        lastCommitUnix
       });
     }
   }
@@ -590,7 +580,7 @@ export async function listGitBranches(cwd: string): Promise<WorkspaceListBranche
     branches,
     currentBranch,
     detached,
-    headShortSha,
+    headShortSha
   };
 }
 
@@ -621,7 +611,7 @@ export async function switchGitBranch(
     return {
       currentBranch: branch,
       stashed: false,
-      stashMessage: null,
+      stashMessage: null
     };
   }
 
@@ -634,7 +624,7 @@ export async function switchGitBranch(
       err.code = 'WORKSPACE_DIRTY';
       err.details = {
         changedFiles: dirtyState.changedFiles,
-        untrackedFiles: dirtyState.untrackedFiles,
+        untrackedFiles: dirtyState.untrackedFiles
       };
       throw err;
     }
@@ -694,7 +684,7 @@ export async function switchGitBranch(
         err.details = {
           stderr: stderrTrimmed,
           stashRetained: true,
-          stashMessage: effectiveStashMessage,
+          stashMessage: effectiveStashMessage
         };
         throw err;
       }
@@ -713,7 +703,7 @@ export async function switchGitBranch(
         err.details = {
           stderr: stderrTrimmed,
           stashRetained: true,
-          stashMessage: effectiveStashMessage,
+          stashMessage: effectiveStashMessage
         };
         throw err;
       }
@@ -727,7 +717,7 @@ export async function switchGitBranch(
     return {
       currentBranch: branch,
       stashed: createdStashSha !== null,
-      stashMessage: effectiveStashMessage,
+      stashMessage: effectiveStashMessage
     };
   }
 
@@ -750,6 +740,6 @@ export async function switchGitBranch(
   return {
     currentBranch: branch,
     stashed: false,
-    stashMessage: null,
+    stashMessage: null
   };
 }

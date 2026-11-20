@@ -51,9 +51,7 @@ void main() {
     expect(tester.getSize(find.byKey(const ValueKey('s-field'))).height, 32);
   });
 
-  testWidgets('clear button appears only with text and clears it', (
-    tester,
-  ) async {
+  testWidgets('clear button appears only with text and clears it', (tester) async {
     await pumpField(tester);
     expect(find.byKey(const ValueKey('s-clear')), findsNothing);
 
@@ -81,9 +79,7 @@ void main() {
     expect(focusNode.hasFocus, isTrue);
   });
 
-  testWidgets('second Escape, on an empty field, removes focus', (
-    tester,
-  ) async {
+  testWidgets('second Escape, on an empty field, removes focus', (tester) async {
     await pumpField(tester);
     await tester.enterText(find.byKey(const ValueKey('s-field')), 'abc');
     await tester.pump();
@@ -97,9 +93,7 @@ void main() {
     expect(focusNode.hasFocus, isFalse);
   });
 
-  testWidgets('Escape on an already empty field removes focus at once', (
-    tester,
-  ) async {
+  testWidgets('Escape on an already empty field removes focus at once', (tester) async {
     await pumpField(tester);
     focusNode.requestFocus();
     await tester.pump();

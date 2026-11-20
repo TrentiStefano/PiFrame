@@ -9,7 +9,11 @@ interface CachedCapability {
 
 const capsCache = new Map<string, CachedCapability>();
 
-export async function probeCapabilities(executablePath: string, version: string, isSupported: boolean): Promise<PiCapabilities> {
+export async function probeCapabilities(
+  executablePath: string,
+  version: string,
+  isSupported: boolean
+): Promise<PiCapabilities> {
   const defaultCaps: PiCapabilities = {
     version,
     supported: isSupported,

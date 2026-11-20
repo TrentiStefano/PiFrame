@@ -21,7 +21,12 @@ export interface PiInstallation {
 export const MINIMUM_PI_VERSION = '0.85.0';
 
 export function compareSemver(a: string, b: string): number {
-  const parse = (v: string) => v.replace(/^v/, '').split('-')[0].split('.').map(n => parseInt(n, 10) || 0);
+  const parse = (v: string) =>
+    v
+      .replace(/^v/, '')
+      .split('-')[0]
+      .split('.')
+      .map((n) => parseInt(n, 10) || 0);
   const pa = parse(a);
   const pb = parse(b);
   for (let i = 0; i < 3; i++) {
@@ -123,7 +128,9 @@ export async function discoverPi(customPath?: string): Promise<PiInstallation> {
       version: rawVersion,
       supported: isSupported,
       error: isSupported ? undefined : 'PI_VERSION_UNSUPPORTED',
-      hint: isSupported ? undefined : `Versione ${rawVersion} rilevata. Richiesta >= ${MINIMUM_PI_VERSION}. Aggiorna Pi.`
+      hint: isSupported
+        ? undefined
+        : `Versione ${rawVersion} rilevata. Richiesta >= ${MINIMUM_PI_VERSION}. Aggiorna Pi.`
     };
   } catch (err: any) {
     return {

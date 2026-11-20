@@ -13,13 +13,7 @@ class FrameLinearProgress extends StatelessWidget {
   final Color? backgroundColor;
   final double minHeight;
 
-  const FrameLinearProgress({
-    super.key,
-    required this.color,
-    this.value,
-    this.backgroundColor,
-    this.minHeight = 4,
-  });
+  const FrameLinearProgress({super.key, required this.color, this.value, this.backgroundColor, this.minHeight = 4});
 
   @override
   Widget build(BuildContext context) {
@@ -30,11 +24,6 @@ class FrameLinearProgress extends StatelessWidget {
         child: ColoredBox(color: color),
       );
     }
-    return LinearProgressIndicator(
-      value: value,
-      color: color,
-      backgroundColor: backgroundColor,
-      minHeight: minHeight,
-    );
+    return LinearProgressIndicator(value: value, color: color, backgroundColor: backgroundColor, minHeight: minHeight);
   }
 }

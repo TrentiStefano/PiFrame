@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -8,8 +9,8 @@ class PinnedSessionsNotifier extends StateNotifier<List<String>> {
   final bool _persists;
 
   PinnedSessionsNotifier([Iterable<String>? initial])
-      : _persists = initial == null,
-        super(initial != null ? initial.toList() : const <String>[]) {
+    : _persists = initial == null,
+      super(initial != null ? initial.toList() : const <String>[]) {
     if (initial == null) {
       _load();
     }
@@ -22,9 +23,7 @@ class PinnedSessionsNotifier extends StateNotifier<List<String>> {
     if (kIsWeb || !_persists) return null;
     try {
       final env = Platform.environment;
-      final home = Platform.isWindows
-          ? (env['USERPROFILE'] ?? 'C:\\Users\\Default')
-          : (env['HOME'] ?? '/tmp');
+      final home = Platform.isWindows ? (env['USERPROFILE'] ?? 'C:\\Users\\Default') : (env['HOME'] ?? '/tmp');
       final dir = Directory('$home/.piframe');
       if (!dir.existsSync()) {
         dir.createSync(recursive: true);
@@ -105,7 +104,6 @@ class PinnedSessionsNotifier extends StateNotifier<List<String>> {
   bool isPinned(String sessionId) => state.contains(sessionId);
 }
 
-final pinnedSessionsProvider =
-    StateNotifierProvider<PinnedSessionsNotifier, List<String>>((ref) {
+final pinnedSessionsProvider = StateNotifierProvider<PinnedSessionsNotifier, List<String>>((ref) {
   return PinnedSessionsNotifier();
 });

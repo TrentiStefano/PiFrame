@@ -1,7 +1,9 @@
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
+
 import 'startup_audio.dart';
 
 class StartupAssembleOverlay extends StatefulWidget {
@@ -9,25 +11,16 @@ class StartupAssembleOverlay extends StatefulWidget {
   final bool autoStart;
   final VoidCallback? onAnimationComplete;
 
-  const StartupAssembleOverlay({
-    super.key,
-    required this.child,
-    this.autoStart = true,
-    this.onAnimationComplete,
-  });
+  const StartupAssembleOverlay({super.key, required this.child, this.autoStart = true, this.onAnimationComplete});
 
-  static CustomPainter createAssemblePainter({
-    required double progress,
-    required FrameTokens tokens,
-  }) =>
+  static CustomPainter createAssemblePainter({required double progress, required FrameTokens tokens}) =>
       _AssemblePainter(progress: progress, tokens: tokens);
 
   @override
   State<StartupAssembleOverlay> createState() => _StartupAssembleOverlayState();
 }
 
-class _StartupAssembleOverlayState extends State<StartupAssembleOverlay>
-    with SingleTickerProviderStateMixin {
+class _StartupAssembleOverlayState extends State<StartupAssembleOverlay> with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   bool _dismissed = false;
   bool _ciakPlayed = false;
@@ -39,9 +32,7 @@ class _StartupAssembleOverlayState extends State<StartupAssembleOverlay>
     final isTest = !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
     _controller = AnimationController(
       vsync: this,
-      duration: isTest
-          ? const Duration(milliseconds: 50)
-          : FrameMotionTokens.pulseLoop,
+      duration: isTest ? const Duration(milliseconds: 50) : FrameMotionTokens.pulseLoop,
     );
 
     _controller.addListener(_onProgressChanged);
@@ -115,9 +106,7 @@ class _StartupAssembleOverlayState extends State<StartupAssembleOverlay>
             final t = _controller.value;
 
             // Fade out overlay from t = 0.85 to 1.0
-            final overlayOpacity = (t >= 0.85)
-                ? (1.0 - ((t - 0.85) / 0.15)).clamp(0.0, 1.0)
-                : 1.0;
+            final overlayOpacity = (t >= 0.85) ? (1.0 - ((t - 0.85) / 0.15)).clamp(0.0, 1.0) : 1.0;
 
             if (overlayOpacity <= 0) {
               return const SizedBox.shrink();
@@ -143,10 +132,7 @@ class _StartupAssembleOverlayState extends State<StartupAssembleOverlay>
                           // Glow and Icon Stage
                           CustomPaint(
                             size: const Size(140, 140),
-                            painter: _AssemblePainter(
-                              progress: t,
-                              tokens: tokens,
-                            ),
+                            painter: _AssemblePainter(progress: t, tokens: tokens),
                           ),
                           const SizedBox(height: 24),
                           // Subtle brand title fading in
@@ -204,10 +190,7 @@ class _AssemblePainter extends CustomPainter {
   final double progress;
   final FrameTokens tokens;
 
-  _AssemblePainter({
-    required this.progress,
-    required this.tokens,
-  });
+  _AssemblePainter({required this.progress, required this.tokens});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -237,9 +220,7 @@ class _AssemblePainter extends CustomPainter {
 
     // 2. Inner background surface (appears at framing lock)
     if (progress >= 0.48) {
-      final surfacePhase = Curves.easeOutBack.transform(
-        ((progress - 0.48) / 0.16).clamp(0.0, 1.0),
-      );
+      final surfacePhase = Curves.easeOutBack.transform(((progress - 0.48) / 0.16).clamp(0.0, 1.0));
       final surfaceRRect = RRect.fromRectAndRadius(
         Rect.fromCenter(center: Offset.zero, width: 25.6 * surfacePhase, height: 25.6 * surfacePhase),
         Radius.circular(5.5 * surfacePhase),
@@ -258,13 +239,7 @@ class _AssemblePainter extends CustomPainter {
       Rect.fromLTWH(19.25 - 16, 16.0 - 16, 3.25, 6.5), // i block
     ];
 
-    final partColors = [
-      tokens.accent,
-      tokens.danger,
-      tokens.danger,
-      tokens.danger,
-      tokens.warning,
-    ];
+    final partColors = [tokens.accent, tokens.danger, tokens.danger, tokens.danger, tokens.warning];
 
     // Flying trajectories for the assemble phase
     const flyDirections = [
@@ -278,9 +253,7 @@ class _AssemblePainter extends CustomPainter {
     for (var i = 0; i < partOffsets.length; i++) {
       // Staggered arrival between 0.0 and 0.48
       final startT = i * 0.06;
-      final pieceT = Curves.easeOutBack.transform(
-        ((progress - startT) / 0.36).clamp(0.0, 1.0),
-      );
+      final pieceT = Curves.easeOutBack.transform(((progress - startT) / 0.36).clamp(0.0, 1.0));
 
       final flyOffset = flyDirections[i] * (1.0 - pieceT);
       final currentRect = partOffsets[i].shift(flyOffset);
@@ -318,6 +291,5 @@ class _AssemblePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_AssemblePainter oldDelegate) =>
-      oldDelegate.progress != progress || oldDelegate.tokens != tokens;
+  bool shouldRepaint(_AssemblePainter oldDelegate) => oldDelegate.progress != progress || oldDelegate.tokens != tokens;
 }

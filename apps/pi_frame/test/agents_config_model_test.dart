@@ -44,10 +44,7 @@ void main() {
     });
 
     test('PiAgentThinkingInfo parses JSON correctly', () {
-      final info = PiAgentThinkingInfo.fromJson({
-        'effective': 'medium',
-        'origin': 'frontmatter',
-      });
+      final info = PiAgentThinkingInfo.fromJson({'effective': 'medium', 'origin': 'frontmatter'});
       expect(info.effective, 'medium');
       expect(info.origin, 'frontmatter');
 
@@ -77,10 +74,7 @@ void main() {
       expect(empty.unsupportedReason, isNull);
       expect(empty.toJson().containsKey('unsupportedReason'), isFalse);
 
-      final unsupported = PiAgentContextInfo.fromJson({
-        'supported': false,
-        'unsupportedReason': 'not supported here',
-      });
+      final unsupported = PiAgentContextInfo.fromJson({'supported': false, 'unsupportedReason': 'not supported here'});
       expect(unsupported.unsupportedReason, 'not supported here');
       expect(unsupported.toJson()['unsupportedReason'], 'not supported here');
       expect(PiAgentContextInfo.fromJson(unsupported.toJson()), unsupported);
@@ -94,15 +88,8 @@ void main() {
         'description': 'Executes implementation tasks',
         'editable': true,
         'readOnlyReason': null,
-        'model': {
-          'effective': 'anthropic/claude-3-5-sonnet',
-          'origin': 'override',
-          'available': true,
-        },
-        'thinking': {
-          'effective': 'high',
-          'origin': 'override',
-        },
+        'model': {'effective': 'anthropic/claude-3-5-sonnet', 'origin': 'override', 'available': true},
+        'thinking': {'effective': 'high', 'origin': 'override'},
         'context': {
           'supported': true,
           'limit': 272000,
@@ -188,26 +175,17 @@ void main() {
     test('PiAgentsConfig parses full JSON payload tolerantly', () {
       final json = {
         'packages': [
-          {
-            'id': 'pi-subagents',
-            'version': '0.9.5',
-            'installed': true,
-            'configFile': '/config',
-          }
+          {'id': 'pi-subagents', 'version': '0.9.5', 'installed': true, 'configFile': '/config'},
         ],
         'agents': [
           {
             'name': 'reviewer',
             'source': 'builtin',
             'editable': true,
-            'model': {
-              'effective': 'test/model',
-              'origin': 'default',
-              'available': true,
-            },
+            'model': {'effective': 'test/model', 'origin': 'default', 'available': true},
             'thinking': {'effective': 'off', 'origin': 'default'},
             'context': {'supported': false, 'options': []},
-          }
+          },
         ],
         'subagentDefaults': {
           'package': 'pi-subagents',
@@ -215,21 +193,10 @@ void main() {
           'thinking': 'off',
           'modelAvailable': true,
         },
-        'sessionDefaults': {
-          'provider': 'test',
-          'model': 'test/model',
-          'thinking': 'off',
-          'modelAvailable': true,
-        },
+        'sessionDefaults': {'provider': 'test', 'model': 'test/model', 'thinking': 'off', 'modelAvailable': true},
         'thinkingLevels': ['off', 'low', 'medium', 'high'],
         'availableModels': [
-          {
-            'id': 'test/model',
-            'name': 'Test Model',
-            'contextWindow': 200000,
-            'reasoning': false,
-            'tiers': [],
-          }
+          {'id': 'test/model', 'name': 'Test Model', 'contextWindow': 200000, 'reasoning': false, 'tiers': []},
         ],
         'warnings': ['Warning 1'],
       };
@@ -276,53 +243,32 @@ void main() {
       });
       expect(withTolerantAliases.aliases, ['42', 'guide']);
 
-      final withoutAliases = PiAgentInfo.fromJson({
-        'name': 'advisor',
-      });
+      final withoutAliases = PiAgentInfo.fromJson({'name': 'advisor'});
       expect(withoutAliases.aliases, isEmpty);
       expect(withoutAliases.toJson().containsKey('aliases'), isFalse);
 
-      final withNullAliases = PiAgentInfo.fromJson({
-        'name': 'advisor',
-        'aliases': null,
-      });
+      final withNullAliases = PiAgentInfo.fromJson({'name': 'advisor', 'aliases': null});
       expect(withNullAliases.aliases, isEmpty);
     });
 
     test('PiAvailableModel correctly resolves modelProvider and displayName', () {
-      const explicit = PiAvailableModel(
-        id: 'gpt-4o',
-        name: 'GPT-4o',
-        provider: 'openai',
-      );
+      const explicit = PiAvailableModel(id: 'gpt-4o', name: 'GPT-4o', provider: 'openai');
       expect(explicit.modelProvider, 'openai');
       expect(explicit.displayName, 'GPT-4o');
 
-      const slashModel = PiAvailableModel(
-        id: 'github-copilot/gpt-6-luna',
-        name: 'GPT-6 Luna',
-      );
+      const slashModel = PiAvailableModel(id: 'github-copilot/gpt-6-luna', name: 'GPT-6 Luna');
       expect(slashModel.modelProvider, 'github-copilot');
       expect(slashModel.displayName, 'GPT-6 Luna');
 
-      const rawSlashIdNoName = PiAvailableModel(
-        id: 'anthropic/claude-3-5-sonnet',
-        name: '',
-      );
+      const rawSlashIdNoName = PiAvailableModel(id: 'anthropic/claude-3-5-sonnet', name: '');
       expect(rawSlashIdNoName.modelProvider, 'anthropic');
       expect(rawSlashIdNoName.displayName, 'claude-3-5-sonnet');
 
-      const heuristicModel = PiAvailableModel(
-        id: 'claude-sonnet-4',
-        name: 'Claude Sonnet 4',
-      );
+      const heuristicModel = PiAvailableModel(id: 'claude-sonnet-4', name: 'Claude Sonnet 4');
       expect(heuristicModel.modelProvider, 'anthropic');
       expect(heuristicModel.displayName, 'Claude Sonnet 4');
 
-      final fromJson = PiAvailableModel.fromJson({
-        'id': 'google/gemini-pro',
-        'name': 'Gemini Pro',
-      });
+      final fromJson = PiAvailableModel.fromJson({'id': 'google/gemini-pro', 'name': 'Gemini Pro'});
       expect(fromJson.modelProvider, 'google');
       expect(fromJson.displayName, 'Gemini Pro');
       expect(fromJson.toJson()['provider'], 'google');

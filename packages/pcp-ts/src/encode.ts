@@ -1,9 +1,5 @@
 import { ulid } from 'ulid';
-import type {
-  PcpEnvelope,
-  ProtocolKind,
-  PcpMessage
-} from './types.js';
+import type { PcpEnvelope, ProtocolKind, PcpMessage } from './types.js';
 
 export function generateId(prefix?: string): string {
   const id = ulid();

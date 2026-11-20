@@ -56,11 +56,7 @@ class _EmptyChatViewState extends ConsumerState<EmptyChatView> {
     final tokens = context.tokens;
     final text = FrameText.of(context);
     final strings = ref.watch(appStringsProvider);
-    final hints = [
-      strings.emptyChatHintCommands,
-      strings.emptyChatHintAttach,
-      strings.emptyChatHintPalette,
-    ];
+    final hints = [strings.emptyChatHintCommands, strings.emptyChatHintAttach, strings.emptyChatHintPalette];
 
     // Scrolls when the pane is shorter than the content (side panel, phone).
     return SingleChildScrollView(
@@ -73,13 +69,7 @@ class _EmptyChatViewState extends ConsumerState<EmptyChatView> {
               key: const ValueKey('empty-chat'),
               mainAxisSize: MainAxisSize.min,
               children: [
-                ExcludeSemantics(
-                  child: Icon(
-                    Icons.chat_bubble_outline,
-                    size: 32,
-                    color: tokens.textMuted,
-                  ),
-                ),
+                ExcludeSemantics(child: Icon(Icons.chat_bubble_outline, size: 32, color: tokens.textMuted)),
                 const SizedBox(height: FrameSpace.x3),
                 Semantics(
                   header: true,
@@ -100,11 +90,7 @@ class _EmptyChatViewState extends ConsumerState<EmptyChatView> {
                     key: const ValueKey('empty-chat-branch'),
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        Icons.call_split_outlined,
-                        size: FrameSize.icon,
-                        color: tokens.textMuted,
-                      ),
+                      Icon(Icons.call_split_outlined, size: FrameSize.icon, color: tokens.textMuted),
                       const SizedBox(width: FrameSpace.x1),
                       Flexible(
                         child: Text(

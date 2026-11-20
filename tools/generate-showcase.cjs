@@ -10,7 +10,7 @@ const files = [
   path.join(baseDir, 'bento-triptych-fixture-wide.png'),
   path.join(baseDir, 'piframe-live-settings-latte.png'),
   path.join(baseDir, 'bento-triptych-fixture-dark-compact-git.png'),
-  path.join(baseDir, 'bento-triptych-fixture-dark-wide.png'),
+  path.join(baseDir, 'bento-triptych-fixture-dark-wide.png')
 ];
 
 // Check all exist
@@ -23,7 +23,7 @@ for (const f of files) {
 
 // Build ffmpeg filter_complex with crossfades
 // Each image is scaled to 1280x800 with padding if necessary
-const inputArgs = files.map(f => `-loop 1 -t 3 -i "${f}"`).join(' ');
+const inputArgs = files.map((f) => `-loop 1 -t 3 -i "${f}"`).join(' ');
 
 let filter = '';
 // Scale all inputs
@@ -43,7 +43,7 @@ const transitions = ['fade', 'fade', 'fade', 'fade', 'fade'];
 let current = 'v0';
 let offset = 2.3;
 for (let i = 1; i < files.length; i++) {
-  const nextOut = (i === files.length - 1) ? 'vout' : `xf${i}`;
+  const nextOut = i === files.length - 1 ? 'vout' : `xf${i}`;
   filter += `[${current}][v${i}]xfade=transition=fade:duration=0.7:offset=${offset.toFixed(1)}[${nextOut}];`;
   current = nextOut;
   offset += 2.3;

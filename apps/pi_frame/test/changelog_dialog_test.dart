@@ -11,15 +11,11 @@ import 'package:pi_frame/features/changelog/startup_changelog_watcher.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 void main() {
-  Widget buildTestDialog({
-    required ChangelogRelease release,
-  }) {
+  Widget buildTestDialog({required ChangelogRelease release}) {
     return ProviderScope(
       child: MaterialApp(
         theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
-        home: Scaffold(
-          body: ChangelogDialog(release: release),
-        ),
+        home: Scaffold(body: ChangelogDialog(release: release)),
       ),
     );
   }
@@ -61,10 +57,7 @@ void main() {
 
     expect(find.textContaining('Correzioni di Bug'), findsOneWidget);
     expect(find.text('workspace'), findsOneWidget);
-    expect(
-      find.text('do not collapse git changes when opening agents sidecar'),
-      findsOneWidget,
-    );
+    expect(find.text('do not collapse git changes when opening agents sidecar'), findsOneWidget);
 
     // Close button
     expect(find.byKey(const ValueKey('changelog-dialog-close-btn')), findsOneWidget);
@@ -97,19 +90,10 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          changelogServiceProvider.overrideWithValue(mockService),
-        ],
+        overrides: [changelogServiceProvider.overrideWithValue(mockService)],
         child: MaterialApp(
           theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
-          home: const Scaffold(
-            body: Stack(
-              children: [
-                StartupChangelogWatcher(enableInTests: true),
-                Text('App Root'),
-              ],
-            ),
-          ),
+          home: const Scaffold(body: Stack(children: [StartupChangelogWatcher(enableInTests: true), Text('App Root')])),
         ),
       ),
     );

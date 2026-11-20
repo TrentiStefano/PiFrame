@@ -24,12 +24,17 @@ export function parseSelector(value) {
 }
 
 export function encodeParams(params = {}) {
-  return Object.fromEntries(Object.entries(params).map(([key, value]) => [key, typeof value === 'string' ? value : JSON.stringify(value)]));
+  return Object.fromEntries(
+    Object.entries(params).map(([key, value]) => [key, typeof value === 'string' ? value : JSON.stringify(value)])
+  );
 }
 
 export function isMissingProcessError(error) {
-  return error.code === 128 || /not found|no running instance|non trovato/i.test(
-    `${error.message || ''} ${error.stdout || ''} ${error.stderr || ''}`,
+  return (
+    error.code === 128 ||
+    /not found|no running instance|non trovato/i.test(
+      `${error.message || ''} ${error.stdout || ''} ${error.stderr || ''}`
+    )
   );
 }
 
@@ -48,12 +53,14 @@ export function assertSafeHome(home, userHome = os.homedir()) {
   };
   const resolved = prospectiveRealPath(home);
   const forbidden = ['.piframe', '.piframe-dev'].map((name) => prospectiveRealPath(path.join(userHome, name)));
-  const norm = (value) => process.platform === 'win32' ? value.toLowerCase() : value;
-  if (forbidden.some((item) => {
-    const target = norm(resolved);
-    const protectedHome = norm(item);
-    return target === protectedHome || target.startsWith(`${protectedHome}${path.sep}`);
-  })) {
+  const norm = (value) => (process.platform === 'win32' ? value.toLowerCase() : value);
+  if (
+    forbidden.some((item) => {
+      const target = norm(resolved);
+      const protectedHome = norm(item);
+      return target === protectedHome || target.startsWith(`${protectedHome}${path.sep}`);
+    })
+  ) {
     throw new Error(`Refusing unsafe harness home: ${resolved} is inside a real PiFrame home`);
   }
   return resolved;
@@ -71,13 +78,16 @@ export function listScenarios() {
     return index;
   }
   if (!fs.existsSync(scenarioDirectory)) return [];
-  return fs.readdirSync(scenarioDirectory)
+  return fs
+    .readdirSync(scenarioDirectory)
     .filter((name) => name.endsWith('.json') && name !== 'index.json')
     .sort()
     .map((file) => {
       const name = path.basename(file, '.json');
       let details = {};
-      try { details = JSON.parse(fs.readFileSync(path.join(scenarioDirectory, file), 'utf8')); } catch { }
+      try {
+        details = JSON.parse(fs.readFileSync(path.join(scenarioDirectory, file), 'utf8'));
+      } catch {}
       return { name, description: details.description || '', covers: details.covers || [] };
     });
 }
@@ -95,7 +105,11 @@ function runDir(runName) {
 }
 
 function readState(home) {
-  try { return JSON.parse(fs.readFileSync(path.join(home, 'harness.json'), 'utf8')); } catch { return null; }
+  try {
+    return JSON.parse(fs.readFileSync(path.join(home, 'harness.json'), 'utf8'));
+  } catch {
+    return null;
+  }
 }
 
 function writeState(home, state) {
@@ -114,7 +128,9 @@ function daemonPid(home) {
     if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) return undefined;
     const pid = Number(JSON.parse(fs.readFileSync(resolvedFile, 'utf8')).pid);
     return Number.isInteger(pid) && pid > 0 ? pid : undefined;
-  } catch { return undefined; }
+  } catch {
+    return undefined;
+  }
 }
 
 // The sole process-kill path. A PID must belong to this run or be its daemon PID.
@@ -126,13 +142,17 @@ async function killOwned(pid, home, { tree = false, daemon = false } = {}) {
   if (process.platform === 'win32') {
     const args = ['/PID', String(pid), '/F'];
     if (tree) args.push('/T');
-    try { await execFileAsync('taskkill', args, { windowsHide: true }); }
-    catch (error) {
+    try {
+      await execFileAsync('taskkill', args, { windowsHide: true });
+    } catch (error) {
       if (!isMissingProcessError(error)) throw error;
     }
   } else {
-    try { process.kill(tree ? -Number(pid) : Number(pid), 'SIGTERM'); }
-    catch (error) { if (error.code !== 'ESRCH') throw error; }
+    try {
+      process.kill(tree ? -Number(pid) : Number(pid), 'SIGTERM');
+    } catch (error) {
+      if (error.code !== 'ESRCH') throw error;
+    }
   }
 }
 
@@ -143,7 +163,10 @@ export function parseArgs(argv) {
     const arg = argv[i];
     if (arg.startsWith('--')) {
       const [key, inline] = arg.slice(2).split('=', 2);
-      if (['no-daemon-build', 'real-pi', 'daemon', 'all', 'seed', 'reset', 'ctrl', 'shift', 'alt', 'meta'].includes(key)) options[key] = true;
+      if (
+        ['no-daemon-build', 'real-pi', 'daemon', 'all', 'seed', 'reset', 'ctrl', 'shift', 'alt', 'meta'].includes(key)
+      )
+        options[key] = true;
       else {
         const value = inline ?? argv[++i];
         if (value === undefined || value.startsWith('--')) throw new Error(`Missing value for --${key}`);
@@ -155,7 +178,13 @@ export function parseArgs(argv) {
 }
 
 async function run(command, args, opts = {}) {
-  await execFileAsync(command, args, { cwd: ROOT, windowsHide: true, maxBuffer: 8 * 1024 * 1024, shell: process.platform === 'win32', ...opts });
+  await execFileAsync(command, args, {
+    cwd: ROOT,
+    windowsHide: true,
+    maxBuffer: 8 * 1024 * 1024,
+    shell: process.platform === 'win32',
+    ...opts
+  });
 }
 
 function walkNewest(dir, ignored = new Set(['node_modules', 'dist', 'build', '.git'])) {
@@ -167,7 +196,7 @@ function walkNewest(dir, ignored = new Set(['node_modules', 'dist', 'build', '.g
     try {
       if (entry.isDirectory()) newest = Math.max(newest, walkNewest(file, ignored));
       else if (entry.isFile()) newest = Math.max(newest, fs.statSync(file).mtimeMs);
-    } catch { }
+    } catch {}
   }
   return newest;
 }
@@ -185,7 +214,8 @@ async function ensureBuilds(noDaemonBuild, force = false) {
     console.log('Building fake-pi...');
     await run('pnpm', ['--filter', '@piframe/fake-pi', 'build']);
   }
-  if (!fs.existsSync(bundle)) throw new Error(`Missing agentd bundle: ${bundle}; remove --no-daemon-build or build it first`);
+  if (!fs.existsSync(bundle))
+    throw new Error(`Missing agentd bundle: ${bundle}; remove --no-daemon-build or build it first`);
   if (!fs.existsSync(fakeEntrypoint)) throw new Error(`Missing fake-pi entrypoint: ${fakeEntrypoint}`);
 }
 
@@ -209,14 +239,18 @@ export function writeFakePiShims(home) {
   const npmShim = path.join(safeHome, 'node_modules', 'npm', 'bin', 'npm-cli.js');
   const fakeNpm = path.join(ROOT, 'tools', 'fake-pi', 'dist', 'fake-npm.js');
   fs.mkdirSync(path.dirname(npmShim), { recursive: true });
-  fs.writeFileSync(npmShim, [
-    "const { spawnSync } = require('node:child_process');",
-    `const fakeNpm = ${JSON.stringify(fakeNpm)};`,
-    'const result = spawnSync(process.execPath, [fakeNpm, ...process.argv.slice(2)], { stdio: \'inherit\' });',
-    'if (result.error) { console.error(result.error.message); process.exit(1); }',
-    'process.exit(result.status ?? 1);',
-    '',
-  ].join('\n'), { mode: 0o600 });
+  fs.writeFileSync(
+    npmShim,
+    [
+      "const { spawnSync } = require('node:child_process');",
+      `const fakeNpm = ${JSON.stringify(fakeNpm)};`,
+      "const result = spawnSync(process.execPath, [fakeNpm, ...process.argv.slice(2)], { stdio: 'inherit' });",
+      'if (result.error) { console.error(result.error.message); process.exit(1); }',
+      'process.exit(result.status ?? 1);',
+      ''
+    ].join('\n'),
+    { mode: 0o600 }
+  );
   return piShim;
 }
 
@@ -227,7 +261,9 @@ async function runGit(repo, args) {
 function appendExclude(repo, value) {
   const exclude = path.join(repo, '.git', 'info', 'exclude');
   let content = '';
-  try { content = fs.readFileSync(exclude, 'utf8'); } catch { }
+  try {
+    content = fs.readFileSync(exclude, 'utf8');
+  } catch {}
   if (!content.split(/\r?\n/).includes(value)) {
     fs.appendFileSync(exclude, `${content && !content.endsWith('\n') ? '\n' : ''}${value}\n`);
   }
@@ -249,9 +285,14 @@ async function seedGitRepo(repo, files, { dirtyWorkspace = false } = {}) {
     await runGit(repo, ['add', ...Object.keys(files)]);
     await runGit(repo, ['commit', '-m', 'Initial harness fixture']);
   } else {
-    try { await runGit(repo, ['checkout', '-f', 'main']); }
-    catch { await runGit(repo, ['checkout', '-f', '-b', 'main']); }
-    const head = await runGit(repo, ['rev-parse', '--verify', 'HEAD']).then(() => true).catch(() => false);
+    try {
+      await runGit(repo, ['checkout', '-f', 'main']);
+    } catch {
+      await runGit(repo, ['checkout', '-f', '-b', 'main']);
+    }
+    const head = await runGit(repo, ['rev-parse', '--verify', 'HEAD'])
+      .then(() => true)
+      .catch(() => false);
     if (!head) {
       for (const [relative, content] of Object.entries(files)) {
         const target = path.join(repo, relative);
@@ -265,7 +306,9 @@ async function seedGitRepo(repo, files, { dirtyWorkspace = false } = {}) {
     }
   }
   if (dirtyWorkspace) {
-    try { await runGit(repo, ['branch', 'feature/demo', 'main']); } catch { }
+    try {
+      await runGit(repo, ['branch', 'feature/demo', 'main']);
+    } catch {}
     await runGit(repo, ['checkout', '-f', 'main']);
     await runGit(repo, ['reset', '--hard', 'main']);
     fs.writeFileSync(path.join(repo, 'notes.md'), `${files['notes.md']}\nStaged harness edit.\n`);
@@ -280,18 +323,20 @@ async function seedGitRepo(repo, files, { dirtyWorkspace = false } = {}) {
 function writeSessionFixture(sessionsDir, { id, cwd, name, parentSession, count = 3 }) {
   const lines = [
     JSON.stringify({ type: 'session', id, cwd, ...(parentSession ? { parentSession } : {}) }),
-    JSON.stringify({ type: 'session_info', name }),
+    JSON.stringify({ type: 'session_info', name })
   ];
   for (let index = 0; index < count; index++) {
-    lines.push(JSON.stringify({
-      type: 'message',
-      id: `${id}-message-${index + 1}`,
-      message: {
-        role: index % 2 === 0 ? 'user' : 'assistant',
-        content: `Harness fixture message ${index + 1} for ${name}.`,
-        timestamp: new Date(Date.now() - (count - index) * 60_000).toISOString(),
-      },
-    }));
+    lines.push(
+      JSON.stringify({
+        type: 'message',
+        id: `${id}-message-${index + 1}`,
+        message: {
+          role: index % 2 === 0 ? 'user' : 'assistant',
+          content: `Harness fixture message ${index + 1} for ${name}.`,
+          timestamp: new Date(Date.now() - (count - index) * 60_000).toISOString()
+        }
+      })
+    );
   }
   fs.writeFileSync(path.join(sessionsDir, `${id}.jsonl`), `${lines.join('\n')}\n`);
 }
@@ -304,12 +349,15 @@ export async function seedHarnessHome(home, userHome = os.homedir()) {
   const secondRepo = path.join(fixtures, 'second-repo');
   const created = [];
   let gitAvailable = true;
-  try { await execFileAsync('git', ['--version'], { windowsHide: true }); }
-  catch { gitAvailable = false; }
+  try {
+    await execFileAsync('git', ['--version'], { windowsHide: true });
+  } catch {
+    gitAvailable = false;
+  }
   const workspaceFiles = {
     'README.md': '# Harness workspace\n\nSeeded PiFrame harness repository.\n',
     'notes.md': '# Notes\n\nSeeded Git Changes fixture.\n',
-    'src/example.dart': 'void main() {\n  print("PiFrame harness fixture");\n}\n',
+    'src/example.dart': 'void main() {\n  print("PiFrame harness fixture");\n}\n'
   };
   const secondRepoFiles = { 'README.md': '# Second repository\n\nSeeded fixture.\n' };
   fs.mkdirSync(workspace, { recursive: true });
@@ -318,7 +366,9 @@ export async function seedHarnessHome(home, userHome = os.homedir()) {
     try {
       await seedGitRepo(workspace, workspaceFiles, { dirtyWorkspace: true });
       await seedGitRepo(secondRepo, secondRepoFiles);
-      created.push('Git repos: fixtures/workspace (staged, unstaged, and untracked changes; feature/demo) and fixtures/second-repo');
+      created.push(
+        'Git repos: fixtures/workspace (staged, unstaged, and untracked changes; feature/demo) and fixtures/second-repo'
+      );
     } catch (error) {
       if (/not recognized|not found|enoent/i.test(`${error.message} ${error.code || ''}`)) {
         gitAvailable = false;
@@ -333,12 +383,30 @@ export async function seedHarnessHome(home, userHome = os.homedir()) {
   const sessionsDir = path.join(safeHome, 'pi-agent', 'sessions');
   fs.mkdirSync(sessionsDir, { recursive: true });
   writeSessionFixture(sessionsDir, { id: 'harness-workspace-1', cwd: workspace, name: 'Workspace planning', count: 8 });
-  writeSessionFixture(sessionsDir, { id: 'harness-workspace-2', cwd: workspace, name: 'Workspace implementation', count: 5 });
-  writeSessionFixture(sessionsDir, { id: 'harness-long-history', cwd: workspace, name: 'Long history paging', count: 150 });
-  writeSessionFixture(sessionsDir, { id: 'harness-second-repo', cwd: secondRepo, name: 'Second repository review', count: 4 });
   writeSessionFixture(sessionsDir, {
-    id: 'harness-worker-child', cwd: workspace, name: 'worker#fixture-child',
-    parentSession: 'harness-workspace-1', count: 6,
+    id: 'harness-workspace-2',
+    cwd: workspace,
+    name: 'Workspace implementation',
+    count: 5
+  });
+  writeSessionFixture(sessionsDir, {
+    id: 'harness-long-history',
+    cwd: workspace,
+    name: 'Long history paging',
+    count: 150
+  });
+  writeSessionFixture(sessionsDir, {
+    id: 'harness-second-repo',
+    cwd: secondRepo,
+    name: 'Second repository review',
+    count: 4
+  });
+  writeSessionFixture(sessionsDir, {
+    id: 'harness-worker-child',
+    cwd: workspace,
+    name: 'worker#fixture-child',
+    parentSession: 'harness-workspace-1',
+    count: 6
   });
   created.push('5 Pi session JSONL fixtures (including 150-message history and worker child)');
 
@@ -349,12 +417,19 @@ export async function seedHarnessHome(home, userHome = os.homedir()) {
 
   const mcpDir = path.join(safeHome, '.pi', 'agent');
   fs.mkdirSync(mcpDir, { recursive: true });
-  fs.writeFileSync(path.join(mcpDir, 'mcp.json'), JSON.stringify({
-    mcpServers: {
-      'harness-files': { command: 'node', args: ['-e', 'process.exit(0)'], enabled: true },
-      'harness-search': { command: 'node', args: ['-e', 'process.exit(0)'], enabled: false },
-    },
-  }, null, 2));
+  fs.writeFileSync(
+    path.join(mcpDir, 'mcp.json'),
+    JSON.stringify(
+      {
+        mcpServers: {
+          'harness-files': { command: 'node', args: ['-e', 'process.exit(0)'], enabled: true },
+          'harness-search': { command: 'node', args: ['-e', 'process.exit(0)'], enabled: false }
+        }
+      },
+      null,
+      2
+    )
+  );
   created.push('.pi/agent/mcp.json with two MCP server entries');
   console.log(JSON.stringify({ ok: true, home: safeHome, gitAvailable, created }, null, 2));
   return { ok: true, home: safeHome, gitAvailable, created };
@@ -373,9 +448,20 @@ function prepareHome(home, scenario, size, device, useRealPi) {
   writeScenarioControlFile(home, scenario);
   const startedAt = new Date().toISOString();
   const state = {
-    runName: path.basename(home), flutterPid: null, wsUri: null, appId: null,
-    device, size, scenario, startedAt, ownedPids: [], home, controlPort: null, controlToken: null,
-    piShim: shim, realPi: useRealPi,
+    runName: path.basename(home),
+    flutterPid: null,
+    wsUri: null,
+    appId: null,
+    device,
+    size,
+    scenario,
+    startedAt,
+    ownedPids: [],
+    home,
+    controlPort: null,
+    controlToken: null,
+    piShim: shim,
+    realPi: useRealPi
   };
   writeState(home, state);
   return state;
@@ -386,12 +472,25 @@ async function refuseRunningWindowsDebug(home) {
   const executable = path.resolve(ROOT, 'apps/pi_frame/build/windows/x64/runner/Debug/PiFrame.exe');
   const escaped = executable.replace(/'/g, "''");
   const script = `$target='${escaped}'; $owned=@(${(readState(home)?.ownedPids || []).join(',')}); $all=@(Get-CimInstance Win32_Process); $byId=@{}; foreach($p in $all){$byId[[int]$p.ProcessId]=$p}; $all | Where-Object { if (!$_.ExecutablePath -or $_.ExecutablePath -ine $target) { return $false }; $id=[int]$_.ProcessId; while($id -gt 0){ if($id -in $owned){return $false}; if(!$byId.ContainsKey($id)){break}; $id=[int]$byId[$id].ParentProcessId }; return $true } | Select-Object -ExpandProperty ProcessId`;
-  const { stdout } = await execFileAsync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { windowsHide: true });
-  if (stdout.trim()) throw new Error(`Refusing to use Flutter's shared Windows Debug build: PiFrame.exe is already running (PID ${stdout.trim()}). Stop that debug session first. Release PiFrame.exe is unaffected.`);
+  const { stdout } = await execFileAsync('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], {
+    windowsHide: true
+  });
+  if (stdout.trim())
+    throw new Error(
+      `Refusing to use Flutter's shared Windows Debug build: PiFrame.exe is already running (PID ${stdout.trim()}). Stop that debug session first. Release PiFrame.exe is unaffected.`
+    );
 }
 
 function flutterArgs(state) {
-  return ['run', '-d', state.device, '-t', 'lib/main_harness.dart', '--machine', `--dart-define=PIFRAME_HARNESS_SIZE=${state.size}`];
+  return [
+    'run',
+    '-d',
+    state.device,
+    '-t',
+    'lib/main_harness.dart',
+    '--machine',
+    `--dart-define=PIFRAME_HARNESS_SIZE=${state.size}`
+  ];
 }
 
 function addOwned(state, pid) {
@@ -412,7 +511,7 @@ function startFlutter(home, state) {
     FAKE_PI_SCENARIO: state.scenario || 'hello-world',
     FAKE_PI_CONTROL_FILE: path.join(home, 'fake-pi-scenario'),
     HOME: home,
-    USERPROFILE: home,
+    USERPROFILE: home
   };
   if (state.realPi) {
     if (process.env.PI_FRAME_PI_PATH) env.PI_FRAME_PI_PATH = process.env.PI_FRAME_PI_PATH;
@@ -422,9 +521,12 @@ function startFlutter(home, state) {
     env.PI_FRAME_PI_PATH = state.piShim;
   }
   const child = spawn('flutter', flutterArgs(state), {
-    cwd: path.join(ROOT, 'apps', 'pi_frame'), env,
-    shell: process.platform === 'win32', detached: process.platform !== 'win32',
-    windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'],
+    cwd: path.join(ROOT, 'apps', 'pi_frame'),
+    env,
+    shell: process.platform === 'win32',
+    detached: process.platform !== 'win32',
+    windowsHide: true,
+    stdio: ['pipe', 'pipe', 'pipe']
   });
   state.flutterPid = child.pid;
   addOwned(state, child.pid);
@@ -444,12 +546,14 @@ function startFlutter(home, state) {
           if (event?.event === 'app.started') state.appId = event.params?.appId || state.appId;
         }
         if (state.wsUri || state.appId) writeState(home, state);
-      } catch { }
+      } catch {}
     }
   };
   child.stdout.on('data', onData);
   child.stderr.on('data', onData);
-  child.on('error', (error) => { log.write(`\n[flutter spawn error] ${error.stack || error}\n`); });
+  child.on('error', (error) => {
+    log.write(`\n[flutter spawn error] ${error.stack || error}\n`);
+  });
   child.on('exit', (code) => {
     log.write(`\n[flutter exited code=${code}]\n`);
     if (state.flutterPid === child.pid) {
@@ -467,7 +571,11 @@ function startFlutter(home, state) {
 async function stopFlutter(home, state) {
   const child = state.flutterChild;
   if (child && child.stdin && state.appId) {
-    try { child.stdin.write(`${JSON.stringify([{ id: Date.now(), method: 'app.stop', params: { appId: state.appId } }])}\n`); } catch { }
+    try {
+      child.stdin.write(
+        `${JSON.stringify([{ id: Date.now(), method: 'app.stop', params: { appId: state.appId } }])}\n`
+      );
+    } catch {}
   }
   const pid = state.flutterPid;
   if (pid && state.ownedPids.includes(pid)) {
@@ -481,36 +589,48 @@ async function stopFlutter(home, state) {
 }
 
 async function controlServer(home, state) {
-  const server = await import('node:http').then(({ createServer }) => createServer(async (req, res) => {
-    if (req.method !== 'POST' || req.url !== '/control') { res.writeHead(404).end(); return; }
-    let body = '';
-    for await (const chunk of req) body += chunk;
-    try {
-      const command = JSON.parse(body);
-      if (command.token !== state.controlToken) { res.writeHead(403).end(); return; }
-      if (command.method === 'status') {
-        res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ ok: true, flutterPid: state.flutterPid, wsUri: state.wsUri }));
+  const server = await import('node:http').then(({ createServer }) =>
+    createServer(async (req, res) => {
+      if (req.method !== 'POST' || req.url !== '/control') {
+        res.writeHead(404).end();
         return;
-      } else if (command.method === 'reload' || command.method === 'restart') {
-        if (!state.flutterChild || !state.appId) throw new Error('Flutter app is not ready');
-        const id = Date.now();
-        const fullRestart = command.method === 'restart';
-        state.flutterChild.stdin.write(`${JSON.stringify([{ id, method: 'app.restart', params: { appId: state.appId, fullRestart } }])}\n`);
-      } else if (command.method === 'shutdownApp') {
-        await stopFlutter(home, state);
-      } else if (command.method === 'rebuild') {
-        await stopFlutter(home, state);
-        startFlutter(home, state);
-      } else if (command.method === 'stop') {
-        await stopFlutter(home, state);
-        const pid = daemonPid(home);
-        if (pid) await killOwned(pid, home, { daemon: true });
-      } else throw new Error(`Unknown control method: ${command.method}`);
-      res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ ok: true }));
-    } catch (error) {
-      res.writeHead(500, { 'content-type': 'application/json' }).end(JSON.stringify({ error: error.message }));
-    }
-  }));
+      }
+      let body = '';
+      for await (const chunk of req) body += chunk;
+      try {
+        const command = JSON.parse(body);
+        if (command.token !== state.controlToken) {
+          res.writeHead(403).end();
+          return;
+        }
+        if (command.method === 'status') {
+          res
+            .writeHead(200, { 'content-type': 'application/json' })
+            .end(JSON.stringify({ ok: true, flutterPid: state.flutterPid, wsUri: state.wsUri }));
+          return;
+        } else if (command.method === 'reload' || command.method === 'restart') {
+          if (!state.flutterChild || !state.appId) throw new Error('Flutter app is not ready');
+          const id = Date.now();
+          const fullRestart = command.method === 'restart';
+          state.flutterChild.stdin.write(
+            `${JSON.stringify([{ id, method: 'app.restart', params: { appId: state.appId, fullRestart } }])}\n`
+          );
+        } else if (command.method === 'shutdownApp') {
+          await stopFlutter(home, state);
+        } else if (command.method === 'rebuild') {
+          await stopFlutter(home, state);
+          startFlutter(home, state);
+        } else if (command.method === 'stop') {
+          await stopFlutter(home, state);
+          const pid = daemonPid(home);
+          if (pid) await killOwned(pid, home, { daemon: true });
+        } else throw new Error(`Unknown control method: ${command.method}`);
+        res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify({ ok: true }));
+      } catch (error) {
+        res.writeHead(500, { 'content-type': 'application/json' }).end(JSON.stringify({ error: error.message }));
+      }
+    })
+  );
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   state.controlPort = server.address().port;
   state.controlToken = crypto.randomBytes(24).toString('hex');
@@ -523,8 +643,9 @@ async function controlServer(home, state) {
 async function requestControl(state, method) {
   if (!state?.controlPort || !state.controlToken) throw new Error('No live harness supervisor found');
   const response = await fetch(`http://127.0.0.1:${state.controlPort}/control`, {
-    method: 'POST', headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ token: state.controlToken, method }),
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ token: state.controlToken, method })
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || `Supervisor control failed (${response.status})`);
@@ -554,20 +675,48 @@ async function supervise(home, device, size, scenario, realPi) {
 }
 
 class VmClient {
-  constructor(uri) { this.uri = uri; this.socket = null; this.seq = 1; this.waiters = new Map(); }
+  constructor(uri) {
+    this.uri = uri;
+    this.socket = null;
+    this.seq = 1;
+    this.waiters = new Map();
+  }
   async connect() {
     if (typeof WebSocket === 'undefined') throw new Error('Node 22+ global WebSocket is required');
     this.socket = new WebSocket(this.uri);
     await new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('Dart VM websocket connection timed out')), 10_000);
-      this.socket.addEventListener('open', () => { clearTimeout(timer); resolve(); }, { once: true });
-      this.socket.addEventListener('error', () => { clearTimeout(timer); reject(new Error('Dart VM websocket connection failed')); }, { once: true });
+      this.socket.addEventListener(
+        'open',
+        () => {
+          clearTimeout(timer);
+          resolve();
+        },
+        { once: true }
+      );
+      this.socket.addEventListener(
+        'error',
+        () => {
+          clearTimeout(timer);
+          reject(new Error('Dart VM websocket connection failed'));
+        },
+        { once: true }
+      );
     });
     this.socket.addEventListener('message', (event) => {
       let message;
-      try { message = JSON.parse(event.data); } catch { return; }
+      try {
+        message = JSON.parse(event.data);
+      } catch {
+        return;
+      }
       const waiter = this.waiters.get(message.id);
-      if (waiter) { this.waiters.delete(message.id); message.error ? waiter.reject(new Error(message.error.message || JSON.stringify(message.error))) : waiter.resolve(message.result); }
+      if (waiter) {
+        this.waiters.delete(message.id);
+        message.error
+          ? waiter.reject(new Error(message.error.message || JSON.stringify(message.error)))
+          : waiter.resolve(message.result);
+      }
     });
     this.socket.addEventListener('close', () => {
       for (const waiter of this.waiters.values()) waiter.reject(new Error('Dart VM websocket closed'));
@@ -577,12 +726,28 @@ class VmClient {
   call(method, params = {}) {
     const id = this.seq++;
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => { this.waiters.delete(id); reject(new Error(`Dart VM call timed out: ${method}`)); }, 15_000);
-      this.waiters.set(id, { resolve: (value) => { clearTimeout(timer); resolve(value); }, reject: (error) => { clearTimeout(timer); reject(error); } });
+      const timer = setTimeout(() => {
+        this.waiters.delete(id);
+        reject(new Error(`Dart VM call timed out: ${method}`));
+      }, 15_000);
+      this.waiters.set(id, {
+        resolve: (value) => {
+          clearTimeout(timer);
+          resolve(value);
+        },
+        reject: (error) => {
+          clearTimeout(timer);
+          reject(error);
+        }
+      });
       this.socket.send(JSON.stringify({ jsonrpc: '2.0', id, method, params }));
     });
   }
-  close() { try { this.socket?.close(); } catch { } }
+  close() {
+    try {
+      this.socket?.close();
+    } catch {}
+  }
 }
 
 async function invokeExtension(state, extension, params = {}) {
@@ -598,7 +763,9 @@ async function invokeExtension(state, extension, params = {}) {
       return await client.call('ext.piframe.' + extension, { isolateId: isolate.id, ...encoded });
     }
     throw new Error('No isolate advertises ext.piframe.ping');
-  } finally { client.close(); }
+  } finally {
+    client.close();
+  }
 }
 
 async function waitReady(home, timeout = DEFAULT_TIMEOUT) {
@@ -610,15 +777,30 @@ async function waitReady(home, timeout = DEFAULT_TIMEOUT) {
       try {
         await invokeExtension(state, 'ping');
         return state;
-      } catch (error) { lastError = error; }
+      } catch (error) {
+        lastError = error;
+      }
     }
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
-  throw new Error(`Harness did not become ready in ${Math.round(timeout / 1000)}s${lastError ? `: ${lastError.message}` : ''}. See ${path.join(home, 'flutter.log')}`);
+  throw new Error(
+    `Harness did not become ready in ${Math.round(timeout / 1000)}s${lastError ? `: ${lastError.message}` : ''}. See ${path.join(home, 'flutter.log')}`
+  );
 }
 
 async function launchSupervisor(home, state) {
-  const args = [SCRIPT, '__supervise', '--home', home, '--device', state.device, '--size', state.size, '--scenario', state.scenario];
+  const args = [
+    SCRIPT,
+    '__supervise',
+    '--home',
+    home,
+    '--device',
+    state.device,
+    '--size',
+    state.size,
+    '--scenario',
+    state.scenario
+  ];
   if (state.realPi) args.push('--real-pi');
   const child = spawn(process.execPath, args, { cwd: ROOT, detached: true, stdio: 'ignore', windowsHide: true });
   child.unref();
@@ -630,7 +812,8 @@ async function startCommand(options) {
   const home = runDir(runName);
   fs.mkdirSync(home, { recursive: true });
   writeFakePiShims(home);
-  const device = options.device || (process.platform === 'win32' ? 'windows' : process.platform === 'darwin' ? 'macos' : 'linux');
+  const device =
+    options.device || (process.platform === 'win32' ? 'windows' : process.platform === 'darwin' ? 'macos' : 'linux');
   const size = options.size || '1920x1032';
   const scenario = validateScenarioName(options.scenario || 'hello-world');
   if (!/^\d+x\d+$/.test(size)) throw new Error(`Invalid size: ${size}`);
@@ -639,13 +822,23 @@ async function startCommand(options) {
   const previous = readState(home);
   if (previous?.controlPort) {
     try {
-      const status = await fetch(`http://127.0.0.1:${previous.controlPort}/control`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: previous.controlToken, method: 'status' }) });
-      if (status.status === 200) { console.log(JSON.stringify({ ok: true, run: runName, wsUri: previous.wsUri, home, alreadyRunning: true })); return; }
-    } catch { }
+      const status = await fetch(`http://127.0.0.1:${previous.controlPort}/control`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token: previous.controlToken, method: 'status' })
+      });
+      if (status.status === 200) {
+        console.log(JSON.stringify({ ok: true, run: runName, wsUri: previous.wsUri, home, alreadyRunning: true }));
+        return;
+      }
+    } catch {}
   }
   if (previous) await stopRun(runName);
   await refuseRunningWindowsDebug(home);
-  if (options['real-pi']) console.warn('*** WARNING: --real-pi enabled. Harness may invoke a real Pi binary; its environment remains isolated to this run. ***');
+  if (options['real-pi'])
+    console.warn(
+      '*** WARNING: --real-pi enabled. Harness may invoke a real Pi binary; its environment remains isolated to this run. ***'
+    );
   await ensureBuilds(Boolean(options['no-daemon-build']));
   const state = prepareHome(home, scenario, size, device, Boolean(options['real-pi']));
   await launchSupervisor(home, state);
@@ -673,35 +866,69 @@ function selectorParams(selector) {
 
 async function convenience(command, positional, options, runName) {
   const { state } = requireState(runName);
-  let ext, params = {};
-  if (command === 'tap' || command === 'hover' || command === 'longPress' || command === 'rightClick' || command === 'doubleTap') {
+  let ext,
+    params = {};
+  if (
+    command === 'tap' ||
+    command === 'hover' ||
+    command === 'longPress' ||
+    command === 'rightClick' ||
+    command === 'doubleTap'
+  ) {
     ext = command;
     params = selectorParams(positional[0]);
-  }
-  else if (command === 'tapAt') { ext = 'tapAt'; params = { x: positional[0], y: positional[1] }; }
-  else if (command === 'drag') { ext = 'drag'; params = { ...selectorParams(positional[0]), dx: positional[1], dy: positional[2] }; }
-  else if (command === 'type') { ext = 'enterText'; params = { value: positional[0] }; if (options.into) Object.assign(params, selectorParams(options.into)); }
-  else if (command === 'key') { ext = 'sendKey'; params = { key: positional[0], ctrl: !!options.ctrl, shift: !!options.shift, alt: !!options.alt, meta: !!options.meta }; }
-  else if (command === 'scroll') { ext = 'scroll'; params = { ...selectorParams(positional[0]), dx: 0, dy: Number(positional[1]) }; }
-  else if (command === 'tree') {
+  } else if (command === 'tapAt') {
+    ext = 'tapAt';
+    params = { x: positional[0], y: positional[1] };
+  } else if (command === 'drag') {
+    ext = 'drag';
+    params = { ...selectorParams(positional[0]), dx: positional[1], dy: positional[2] };
+  } else if (command === 'type') {
+    ext = 'enterText';
+    params = { value: positional[0] };
+    if (options.into) Object.assign(params, selectorParams(options.into));
+  } else if (command === 'key') {
+    ext = 'sendKey';
+    params = {
+      key: positional[0],
+      ctrl: !!options.ctrl,
+      shift: !!options.shift,
+      alt: !!options.alt,
+      meta: !!options.meta
+    };
+  } else if (command === 'scroll') {
+    ext = 'scroll';
+    params = { ...selectorParams(positional[0]), dx: 0, dy: Number(positional[1]) };
+  } else if (command === 'tree') {
     ext = 'tree';
     if (options.filter) params.filter = options.filter;
     if (options.limit !== undefined) params.maxEntries = Number(options.limit);
     if (options.depth !== undefined) params.maxDepth = Number(options.depth);
-  }
-  else if (command === 'media') {
+  } else if (command === 'media') {
     ext = 'media';
     if (options['text-scale'] !== undefined) params.textScale = options['text-scale'];
     if (options['reduce-motion'] !== undefined) params.reduceMotion = options['reduce-motion'];
     if (options.brightness !== undefined) params.brightness = options.brightness;
     if (options.reset) params.reset = true;
-  }
-  else if (command === 'state') ext = 'state';
-  else if (command === 'resize') { ext = 'resize'; const [width, height] = String(positional[0] || '').split('x').map(Number); params = { width, height }; }
-  else if (command === 'shot') {
+  } else if (command === 'state') ext = 'state';
+  else if (command === 'resize') {
+    ext = 'resize';
+    const [width, height] = String(positional[0] || '')
+      .split('x')
+      .map(Number);
+    params = { width, height };
+  } else if (command === 'shot') {
     ext = 'screenshot';
     const label = (positional[0] || 'shot').replace(/[^a-zA-Z0-9._-]+/g, '-');
-    const output = options.out ? path.resolve(options.out) : path.join(ROOT, 'scratch', 'harness', runName, `${new Date().toISOString().replace(/[:.]/g, '-')}-${label}.png`);
+    const output = options.out
+      ? path.resolve(options.out)
+      : path.join(
+          ROOT,
+          'scratch',
+          'harness',
+          runName,
+          `${new Date().toISOString().replace(/[:.]/g, '-')}-${label}.png`
+        );
     fs.mkdirSync(path.dirname(output), { recursive: true });
     params = { path: output };
     const result = await invokeExtension(state, ext, params);
@@ -709,11 +936,15 @@ async function convenience(command, positional, options, runName) {
     if (result !== undefined) console.log(JSON.stringify(result, null, 2));
     return;
   }
-  if (['tap', 'hover', 'longPress', 'rightClick', 'doubleTap', 'type', 'key', 'scroll', 'drag'].includes(command) && !positional[0]) {
+  if (
+    ['tap', 'hover', 'longPress', 'rightClick', 'doubleTap', 'type', 'key', 'scroll', 'drag'].includes(command) &&
+    !positional[0]
+  ) {
     throw new Error(`Missing argument for ${command}`);
   }
   if (command === 'tapAt') {
-    const x = Number(positional[0]); const y = Number(positional[1]);
+    const x = Number(positional[0]);
+    const y = Number(positional[1]);
     if (!Number.isFinite(x) || !Number.isFinite(y)) throw new Error('tapAt expects numeric x and y');
   }
   if (command === 'drag' && (!Number.isFinite(Number(positional[1])) || !Number.isFinite(Number(positional[2])))) {
@@ -721,16 +952,26 @@ async function convenience(command, positional, options, runName) {
   }
   if (command === 'scroll' && !Number.isFinite(params.dy)) throw new Error('scroll dy must be a number');
   if (command === 'tree') {
-    if (options.limit !== undefined && (!Number.isInteger(params.maxEntries) || params.maxEntries < 1)) throw new Error('--limit must be a positive integer');
-    if (options.depth !== undefined && (!Number.isInteger(params.maxDepth) || params.maxDepth < 0)) throw new Error('--depth must be a non-negative integer');
+    if (options.limit !== undefined && (!Number.isInteger(params.maxEntries) || params.maxEntries < 1))
+      throw new Error('--limit must be a positive integer');
+    if (options.depth !== undefined && (!Number.isInteger(params.maxDepth) || params.maxDepth < 0))
+      throw new Error('--depth must be a non-negative integer');
   }
   if (command === 'media') {
-    if (options['text-scale'] !== undefined && (!Number.isFinite(Number(options['text-scale'])) || Number(options['text-scale']) <= 0)) throw new Error('--text-scale must be a positive number');
-    if (options['reduce-motion'] !== undefined && !['on', 'off', 'system'].includes(options['reduce-motion'])) throw new Error('--reduce-motion must be on, off or system');
-    if (options.brightness !== undefined && !['light', 'dark'].includes(options.brightness)) throw new Error('--brightness must be light or dark');
-    if (!options.reset && Object.keys(options).every((key) => key === 'run')) throw new Error('media needs an override or --reset');
+    if (
+      options['text-scale'] !== undefined &&
+      (!Number.isFinite(Number(options['text-scale'])) || Number(options['text-scale']) <= 0)
+    )
+      throw new Error('--text-scale must be a positive number');
+    if (options['reduce-motion'] !== undefined && !['on', 'off', 'system'].includes(options['reduce-motion']))
+      throw new Error('--reduce-motion must be on, off or system');
+    if (options.brightness !== undefined && !['light', 'dark'].includes(options.brightness))
+      throw new Error('--brightness must be light or dark');
+    if (!options.reset && Object.keys(options).every((key) => key === 'run'))
+      throw new Error('media needs an override or --reset');
   }
-  if (command === 'resize' && (!Number.isInteger(params.width) || !Number.isInteger(params.height))) throw new Error('resize expects WxH');
+  if (command === 'resize' && (!Number.isInteger(params.width) || !Number.isInteger(params.height)))
+    throw new Error('resize expects WxH');
   console.log(JSON.stringify(await invokeExtension(state, ext, params), null, 2));
 }
 
@@ -755,7 +996,8 @@ export function recordPlan(options = {}) {
   const duration = Number(options.duration ?? 2000);
   const fps = Number(options.fps ?? 12);
   const scale = Number(options.scale ?? 0.5);
-  if (!Number.isFinite(duration) || duration <= 0 || duration > 60000) throw new Error('--duration must be between 1 and 60000 ms');
+  if (!Number.isFinite(duration) || duration <= 0 || duration > 60000)
+    throw new Error('--duration must be between 1 and 60000 ms');
   if (!Number.isFinite(fps) || fps <= 0 || fps > 60) throw new Error('--fps must be between 1 and 60');
   if (!Number.isFinite(scale) || scale <= 0 || scale > 2) throw new Error('--scale must be between 0 and 2');
   let crop = null;
@@ -768,7 +1010,12 @@ export function recordPlan(options = {}) {
   }
   let action = options.do === undefined ? null : splitCommandLine(options.do);
   // "tap text:Long history paging" means one selector with spaces in it.
-  if (action && SINGLE_SELECTOR_COMMANDS.has(action[0]) && action.length > 2 && !action.slice(2).some((arg) => arg.startsWith('--'))) {
+  if (
+    action &&
+    SINGLE_SELECTOR_COMMANDS.has(action[0]) &&
+    action.length > 2 &&
+    !action.slice(2).some((arg) => arg.startsWith('--'))
+  ) {
     action = [action[0], action.slice(1).join(' ')];
   }
   if (action && (action.length === 0 || ['record', 'start', 'stop', 'rebuild', 'seed'].includes(action[0]))) {
@@ -787,7 +1034,9 @@ async function findFfmpeg() {
   try {
     await execFileAsync('ffmpeg', ['-version'], { windowsHide: true });
     return 'ffmpeg';
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 /** Builds the ffmpeg filter that crops (logical px times the capture scale). */
@@ -807,10 +1056,21 @@ async function writeContactSheet(ffmpeg, outDir, frames, plan) {
   const tile = `tile=${columns}x${rows}:padding=4:color=gray`;
   try {
     // Each tile is labelled with its frame number, to match manifest.json.
-    await execFileAsync(ffmpeg, [...input, '-vf', `${cropFilter(plan)}drawtext=text='%{n}':x=6:y=6:fontsize=14:fontcolor=white:box=1:boxcolor=black@0.6,select='${select}',${tile}`, ...output], { windowsHide: true });
+    await execFileAsync(
+      ffmpeg,
+      [
+        ...input,
+        '-vf',
+        `${cropFilter(plan)}drawtext=text='%{n}':x=6:y=6:fontsize=14:fontcolor=white:box=1:boxcolor=black@0.6,select='${select}',${tile}`,
+        ...output
+      ],
+      { windowsHide: true }
+    );
   } catch {
     // drawtext needs a font backend that some ffmpeg builds lack.
-    await execFileAsync(ffmpeg, [...input, '-vf', `${cropFilter(plan)}select='${select}',${tile}`, ...output], { windowsHide: true });
+    await execFileAsync(ffmpeg, [...input, '-vf', `${cropFilter(plan)}select='${select}',${tile}`, ...output], {
+      windowsHide: true
+    });
   }
   return picked;
 }
@@ -837,15 +1097,26 @@ async function recordCommand(positional, options, runName) {
     const at = performance.now() - started;
     if (index > 0 && at > plan.duration) break;
     const file = `frame-${String(index).padStart(3, '0')}.png`;
-    const result = await invokeExtension(state, 'screenshot', { path: path.join(outDir, file), pixelRatio: String(plan.scale) });
+    const result = await invokeExtension(state, 'screenshot', {
+      path: path.join(outDir, file),
+      pixelRatio: String(plan.scale)
+    });
     if (result?.ok === false) throw new Error(`Frame ${index} failed: ${result.error}`);
     frames.push({ file, ms: Math.round(at) });
     if (index === 0 && plan.action) {
       actionRun = new Promise((resolve) => {
-        const child = spawn(process.execPath, [SCRIPT, ...plan.action, '--run', runName], { cwd: ROOT, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+        const child = spawn(process.execPath, [SCRIPT, ...plan.action, '--run', runName], {
+          cwd: ROOT,
+          windowsHide: true,
+          stdio: ['ignore', 'pipe', 'pipe']
+        });
         let output = '';
-        child.stdout.on('data', (chunk) => { output += chunk; });
-        child.stderr.on('data', (chunk) => { output += chunk; });
+        child.stdout.on('data', (chunk) => {
+          output += chunk;
+        });
+        child.stderr.on('data', (chunk) => {
+          output += chunk;
+        });
         child.on('close', (code) => resolve({ code, output: output.trim() }));
       });
     }
@@ -865,7 +1136,9 @@ async function recordCommand(positional, options, runName) {
     scale: plan.scale,
     crop: plan.crop,
     action: plan.action?.join(' ') ?? null,
-    actionResult: action ? { ok: !actionFailed(action.code, action.output), exitCode: action.code, output: action.output.slice(0, 2000) } : null,
+    actionResult: action
+      ? { ok: !actionFailed(action.code, action.output), exitCode: action.code, output: action.output.slice(0, 2000) }
+      : null
   };
 
   const ffmpeg = await findFfmpeg();
@@ -875,27 +1148,58 @@ async function recordCommand(positional, options, runName) {
     try {
       manifest.sheetFrames = await writeContactSheet(ffmpeg, outDir, frames, plan);
       manifest.sheet = path.join(outDir, 'sheet.png');
-    } catch (error) { manifest.sheetError = String(error.message).slice(0, 500); }
+    } catch (error) {
+      manifest.sheetError = String(error.message).slice(0, 500);
+    }
     try {
-      await execFileAsync(ffmpeg, ['-y', '-loglevel', 'error', '-framerate', String(actualFps || plan.fps), '-start_number', '0',
-        '-i', path.join(outDir, 'frame-%03d.png'), '-vf', `${cropFilter(plan)}split[a][b];[a]palettegen[p];[b][p]paletteuse`,
-        path.join(outDir, 'anim.gif')], { windowsHide: true });
+      await execFileAsync(
+        ffmpeg,
+        [
+          '-y',
+          '-loglevel',
+          'error',
+          '-framerate',
+          String(actualFps || plan.fps),
+          '-start_number',
+          '0',
+          '-i',
+          path.join(outDir, 'frame-%03d.png'),
+          '-vf',
+          `${cropFilter(plan)}split[a][b];[a]palettegen[p];[b][p]paletteuse`,
+          path.join(outDir, 'anim.gif')
+        ],
+        { windowsHide: true }
+      );
       manifest.gif = path.join(outDir, 'anim.gif');
-    } catch (error) { manifest.gifError = String(error.message).slice(0, 500); }
+    } catch (error) {
+      manifest.gifError = String(error.message).slice(0, 500);
+    }
   }
   if (manifest.actionResult && !manifest.actionResult.ok) {
     manifest.warning = `--do "${manifest.action}" failed, so the recording may not show what you expected. See actionResult.`;
     console.error(`pf-harness record: ${manifest.warning}`);
   }
   fs.writeFileSync(path.join(outDir, 'manifest.json'), JSON.stringify({ ...manifest, frameTimes: frames }, null, 2));
-  console.log(JSON.stringify({ ...manifest, firstFrame: path.join(outDir, frames[0].file), lastFrame: path.join(outDir, frames[frames.length - 1].file) }, null, 2));
+  console.log(
+    JSON.stringify(
+      {
+        ...manifest,
+        firstFrame: path.join(outDir, frames[0].file),
+        lastFrame: path.join(outDir, frames[frames.length - 1].file)
+      },
+      null,
+      2
+    )
+  );
 }
 
 async function tailFile(file, lines) {
   try {
     const content = fs.readFileSync(file, 'utf8').trimEnd().split(/\r?\n/);
     return content.slice(-lines).join('\n');
-  } catch { return `[missing] ${file}`; }
+  } catch {
+    return `[missing] ${file}`;
+  }
 }
 
 async function stopRun(runName) {
@@ -914,7 +1218,12 @@ async function stopRun(runName) {
 
 async function stopAll() {
   let runs = [];
-  try { runs = fs.readdirSync(HARNESS_ROOT, { withFileTypes: true }).filter((entry) => entry.isDirectory() && fs.existsSync(path.join(HARNESS_ROOT, entry.name, 'harness.json'))).map((entry) => entry.name); } catch { }
+  try {
+    runs = fs
+      .readdirSync(HARNESS_ROOT, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(HARNESS_ROOT, entry.name, 'harness.json')))
+      .map((entry) => entry.name);
+  } catch {}
   for (const run of runs) await stopRun(run);
 }
 
@@ -923,7 +1232,10 @@ async function main(argv) {
   const { positional, options } = parseArgs(argv.slice(1));
   const runName = options.run || 'default';
   if (!command || command === 'help' || command === '--help') {
-    console.log('Usage: pnpm harness <start|seed|scenarios|scenario|call|tap|tapAt|rightClick|doubleTap|drag|longPress|hover|type|key|scroll|tree|media|state|resize|shot|record|reload|restart|rebuild|logs|status|stop> [options]'); return;
+    console.log(
+      'Usage: pnpm harness <start|seed|scenarios|scenario|call|tap|tapAt|rightClick|doubleTap|drag|longPress|hover|type|key|scroll|tree|media|state|resize|shot|record|reload|restart|rebuild|logs|status|stop> [options]'
+    );
+    return;
   }
   if (command === '__supervise') {
     const home = options.home;
@@ -948,11 +1260,31 @@ async function main(argv) {
   }
   if (command === 'call') return callCommand(positional[0], positional[1], runName);
   if (command === 'record') return recordCommand(positional, options, runName);
-  if (['tap', 'tapAt', 'rightClick', 'doubleTap', 'drag', 'longPress', 'hover', 'type', 'key', 'scroll', 'tree', 'media', 'state', 'resize', 'shot'].includes(command)) return convenience(command, positional, options, runName);
+  if (
+    [
+      'tap',
+      'tapAt',
+      'rightClick',
+      'doubleTap',
+      'drag',
+      'longPress',
+      'hover',
+      'type',
+      'key',
+      'scroll',
+      'tree',
+      'media',
+      'state',
+      'resize',
+      'shot'
+    ].includes(command)
+  )
+    return convenience(command, positional, options, runName);
   if (['reload', 'restart'].includes(command)) {
     const { state } = requireState(runName);
     await requestControl(state, command);
-    console.log(JSON.stringify({ ok: true, run: runName, action: command })); return;
+    console.log(JSON.stringify({ ok: true, run: runName, action: command }));
+    return;
   }
   if (command === 'rebuild') {
     const { home, state } = requireState(runName);
@@ -966,24 +1298,38 @@ async function main(argv) {
     const refreshed = readState(home) || state;
     await requestControl(refreshed, 'rebuild');
     const ready = await waitReady(home);
-    console.log(JSON.stringify({ ok: true, run: runName, wsUri: ready.wsUri, rebuilt: true })); return;
+    console.log(JSON.stringify({ ok: true, run: runName, wsUri: ready.wsUri, rebuilt: true }));
+    return;
   }
   if (command === 'logs') {
-    const { home } = requireState(runName); const count = Number(options.lines || 100);
+    const { home } = requireState(runName);
+    const count = Number(options.lines || 100);
     if (!Number.isInteger(count) || count < 1) throw new Error('--lines must be a positive integer');
-    console.log('--- flutter.log ---\n' + await tailFile(path.join(home, 'flutter.log'), count));
-    console.log('--- daemon.log ---\n' + await tailFile(path.join(home, 'runtime', 'daemon.log'), count)); return;
+    console.log('--- flutter.log ---\n' + (await tailFile(path.join(home, 'flutter.log'), count)));
+    console.log('--- daemon.log ---\n' + (await tailFile(path.join(home, 'runtime', 'daemon.log'), count)));
+    return;
   }
   if (command === 'status') {
     const { state } = requireState(runName);
     let live = false;
-    try { const r = await fetch(`http://127.0.0.1:${state.controlPort}/control`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ token: state.controlToken, method: 'status' }) }); live = r.status !== 404; } catch { }
-    console.log(JSON.stringify({ ...state, live }, null, 2)); return;
+    try {
+      const r = await fetch(`http://127.0.0.1:${state.controlPort}/control`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token: state.controlToken, method: 'status' })
+      });
+      live = r.status !== 404;
+    } catch {}
+    console.log(JSON.stringify({ ...state, live }, null, 2));
+    return;
   }
   if (command === 'stop') return options.all ? stopAll() : stopRun(runName);
   throw new Error(`Unknown command: ${command}`);
 }
 
 if (process.argv[1] && pathToFileURL(path.resolve(process.argv[1])).href === import.meta.url) {
-  main(process.argv.slice(2)).catch((error) => { console.error(`pf-harness: ${error.message}`); process.exitCode = 1; });
+  main(process.argv.slice(2)).catch((error) => {
+    console.error(`pf-harness: ${error.message}`);
+    process.exitCode = 1;
+  });
 }

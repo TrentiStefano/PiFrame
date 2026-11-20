@@ -19,17 +19,13 @@ import 'ui/startup_assemble_animation.dart';
 
 Future<void> main() => runPiFrame();
 
-Future<void> runPiFrame({
-  Future<void> Function()? configureWindow,
-  Widget Function(Widget child)? rootWrapper,
-}) async {
+Future<void> runPiFrame({Future<void> Function()? configureWindow, Widget Function(Widget child)? rootWrapper}) async {
   WidgetsFlutterBinding.ensureInitialized();
-  final isWindows =
-      !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
-  final isMacOS =
-      !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS;
+  final isWindows = !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+  final isMacOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS;
   final customDesktopChrome = isWindows || isMacOS;
-  final desktopWindowLifecycle = !kIsWeb &&
+  final desktopWindowLifecycle =
+      !kIsWeb &&
       (defaultTargetPlatform == TargetPlatform.windows ||
           defaultTargetPlatform == TargetPlatform.macOS ||
           defaultTargetPlatform == TargetPlatform.linux);
@@ -38,15 +34,9 @@ Future<void> runPiFrame({
     await windowManager.setTitle('PiFrame');
     await windowManager.setMinimumSize(const Size(680, 560));
     if (isWindows) {
-      await windowManager.setTitleBarStyle(
-        TitleBarStyle.hidden,
-        windowButtonVisibility: false,
-      );
+      await windowManager.setTitleBarStyle(TitleBarStyle.hidden, windowButtonVisibility: false);
     } else if (isMacOS) {
-      await windowManager.setTitleBarStyle(
-        TitleBarStyle.hidden,
-        windowButtonVisibility: true,
-      );
+      await windowManager.setTitleBarStyle(TitleBarStyle.hidden, windowButtonVisibility: true);
     }
     await DesktopNotificationService.instance.initialize();
     if (configureWindow != null) {
@@ -97,9 +87,7 @@ class PiFrameApp extends ConsumerWidget {
               // "Animazione di avvio" setting is on; other launches get the
               // 620 ms reveal alone.
               child: playStartupIntro
-                  ? StartupAssembleOverlay(
-                      child: child ?? const SizedBox.shrink(),
-                    )
+                  ? StartupAssembleOverlay(child: child ?? const SizedBox.shrink())
                   : (child ?? const SizedBox.shrink()),
             ),
           );

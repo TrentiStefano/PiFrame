@@ -69,9 +69,13 @@ export function validateCustomTunnelUrl(value: unknown): string {
   if (parsed.username || parsed.password) throw configInvalid('customTunnelUrl must not contain credentials.');
   const host = parsed.hostname.toLowerCase().replace(/^\[|\]$/g, '');
   if (
-    host === 'localhost' || host.endsWith('.localhost') ||
-    host === '0.0.0.0' || host === '::' || host === '::1' ||
-    /^127\./.test(host) || /^::ffff:127\./.test(host)
+    host === 'localhost' ||
+    host.endsWith('.localhost') ||
+    host === '0.0.0.0' ||
+    host === '::' ||
+    host === '::1' ||
+    /^127\./.test(host) ||
+    /^::ffff:127\./.test(host)
   ) {
     throw configInvalid('customTunnelUrl must not point to a loopback address.');
   }
@@ -100,7 +104,8 @@ export function validateRemotePatch(patch: unknown): Partial<RemoteConfig> {
         out.enabled = value;
         break;
       case 'tunnelProvider':
-        if (value !== 'cloudflared' && value !== 'tailscale' && value !== 'custom') throw configInvalid('remote.tunnelProvider is invalid.');
+        if (value !== 'cloudflared' && value !== 'tailscale' && value !== 'custom')
+          throw configInvalid('remote.tunnelProvider is invalid.');
         out.tunnelProvider = value;
         break;
       case 'defaultMode':
@@ -139,10 +144,10 @@ export interface DaemonConfig {
 export const DEFAULT_CONFIG: DaemonConfig = {
   workerIdleTimeoutMs: 30 * 60 * 1000, // D9: 30 minutes
   journal: {
-    maxEvents: 2000,                    // D7: 2000 events
-    maxBytes: 8 * 1024 * 1024,          // D7: 8 MB
-    snapshotEvery: 500,                 // D7: snapshot every 500
-    retentionHours: 24                  // D7: 24 hours
+    maxEvents: 2000, // D7: 2000 events
+    maxBytes: 8 * 1024 * 1024, // D7: 8 MB
+    snapshotEvery: 500, // D7: snapshot every 500
+    retentionHours: 24 // D7: 24 hours
   },
   log: {
     level: 'info'
@@ -222,7 +227,9 @@ export function patchConfig(partial: Partial<DaemonConfig>): DaemonConfig {
   if (partial.workerIdleTimeoutMs !== undefined) {
     const ms = Number(partial.workerIdleTimeoutMs);
     if (isNaN(ms) || ms < 0 || ms > 86400000) {
-      throw new Error(`Invalid workerIdleTimeoutMs: ${partial.workerIdleTimeoutMs}. Must be between 0 and 86400000 ms.`);
+      throw new Error(
+        `Invalid workerIdleTimeoutMs: ${partial.workerIdleTimeoutMs}. Must be between 0 and 86400000 ms.`
+      );
     }
     current.workerIdleTimeoutMs = ms;
   }

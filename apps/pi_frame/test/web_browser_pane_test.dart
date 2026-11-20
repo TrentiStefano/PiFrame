@@ -35,11 +35,7 @@ class _FakeHttpBaseClient extends http.BaseClient {
       headers: {'content-type': 'text/html; charset=utf-8'},
     );
 
-    return http.StreamedResponse(
-      Stream.value(matched.bodyBytes),
-      matched.statusCode,
-      headers: matched.headers,
-    );
+    return http.StreamedResponse(Stream.value(matched.bodyBytes), matched.statusCode, headers: matched.headers);
   }
 }
 
@@ -47,21 +43,13 @@ class _FakeWorkspaceClient extends PcpClient {
   _FakeWorkspaceClient() : super(port: 1, token: 'test');
 
   @override
-  Future<Map<String, dynamic>> refreshWorkspace(
-    String sessionId, {
-    String? cwd,
-  }) async => {
+  Future<Map<String, dynamic>> refreshWorkspace(String sessionId, {String? cwd}) async => {
     'data': {
       'isRepository': true,
       'rootPath': '/repo',
       'branch': 'main',
       'files': [
-        {
-          'path': 'lib/main.dart',
-          'status': 'modified',
-          'staged': false,
-          'unstaged': true,
-        },
+        {'path': 'lib/main.dart', 'status': 'modified', 'staged': false, 'unstaged': true},
       ],
       'totalAdditions': 5,
       'totalDeletions': 2,
@@ -69,18 +57,12 @@ class _FakeWorkspaceClient extends PcpClient {
   };
 
   @override
-  Future<Map<String, dynamic>> getWorkspaceDiff(
-    String sessionId, {
-    String? filePath,
-  }) async => {
+  Future<Map<String, dynamic>> getWorkspaceDiff(String sessionId, {String? filePath}) async => {
     'data': {'diff': 'diff --git a/file b/file\n+test\n'},
   };
 }
 
-Widget _buildTestApp({
-  required Widget child,
-  List<Override> overrides = const [],
-}) {
+Widget _buildTestApp({required Widget child, List<Override> overrides = const []}) {
   return ProviderScope(
     overrides: overrides,
     child: MaterialApp(
@@ -142,28 +124,15 @@ void main() {
           200,
           headers: {'content-type': 'text/html; charset=utf-8'},
         ),
-        'https://error.example.com': http.Response(
-          'Server Error',
-          500,
-          headers: {'content-type': 'text/plain'},
-        ),
+        'https://error.example.com': http.Response('Server Error', 500, headers: {'content-type': 'text/plain'}),
       });
       service = WebBrowserService(client: fakeClient);
     });
 
     test('normalizeUrl handles full URLs, domains, and search queries', () {
-      expect(
-        service.normalizeUrl('https://flutter.dev'),
-        'https://flutter.dev',
-      );
-      expect(
-        service.normalizeUrl('flutter.dev'),
-        'https://flutter.dev',
-      );
-      expect(
-        service.normalizeUrl('http://localhost:8080/app'),
-        'http://localhost:8080/app',
-      );
+      expect(service.normalizeUrl('https://flutter.dev'), 'https://flutter.dev');
+      expect(service.normalizeUrl('flutter.dev'), 'https://flutter.dev');
+      expect(service.normalizeUrl('http://localhost:8080/app'), 'http://localhost:8080/app');
       // Query search
       final searchUrl = service.normalizeUrl('flutter riverpod state', defaultEngine: SearchEngine.duckDuckGo);
       final searchUri = Uri.parse(searchUrl);
@@ -187,9 +156,7 @@ void main() {
     });
 
     test('load parses DuckDuckGo search result with decoded uddg link', () async {
-      final content = await service.load(
-        'https://duckduckgo.com/html/?q=flutter+dev',
-      );
+      final content = await service.load('https://duckduckgo.com/html/?q=flutter+dev');
       expect(content.searchResults.isNotEmpty, isTrue);
       final first = content.searchResults.first;
       expect(first.url, 'https://flutter.dev/');
@@ -197,10 +164,7 @@ void main() {
     });
 
     test('load throws on HTTP error', () async {
-      expect(
-        () => service.load('https://error.example.com'),
-        throwsA(isA<Exception>()),
-      );
+      expect(() => service.load('https://error.example.com'), throwsA(isA<Exception>()));
     });
   });
 
@@ -218,11 +182,7 @@ void main() {
     });
 
     test('Starts with initial home tab and default bookmarks', () {
-      final container = ProviderContainer(
-        overrides: [
-          browserClientProvider.overrideWithValue(fakeClient),
-        ],
-      );
+      final container = ProviderContainer(overrides: [browserClientProvider.overrideWithValue(fakeClient)]);
       addTearDown(container.dispose);
 
       final state = container.read(webBrowserProvider);
@@ -233,11 +193,7 @@ void main() {
     });
 
     test('Navigates to URL and tracks history', () async {
-      final container = ProviderContainer(
-        overrides: [
-          browserClientProvider.overrideWithValue(fakeClient),
-        ],
-      );
+      final container = ProviderContainer(overrides: [browserClientProvider.overrideWithValue(fakeClient)]);
       addTearDown(container.dispose);
 
       final notifier = container.read(webBrowserProvider.notifier);
@@ -263,11 +219,7 @@ void main() {
     });
 
     test('Multi-tab management: newTab, switchTab, closeTab', () async {
-      final container = ProviderContainer(
-        overrides: [
-          browserClientProvider.overrideWithValue(fakeClient),
-        ],
-      );
+      final container = ProviderContainer(overrides: [browserClientProvider.overrideWithValue(fakeClient)]);
       addTearDown(container.dispose);
 
       final notifier = container.read(webBrowserProvider.notifier);
@@ -297,11 +249,7 @@ void main() {
     });
 
     test('setSearchEngine and toggleBookmark updates state', () {
-      final container = ProviderContainer(
-        overrides: [
-          browserClientProvider.overrideWithValue(fakeClient),
-        ],
-      );
+      final container = ProviderContainer(overrides: [browserClientProvider.overrideWithValue(fakeClient)]);
       addTearDown(container.dispose);
 
       final notifier = container.read(webBrowserProvider.notifier);
@@ -310,19 +258,13 @@ void main() {
 
       // Toggle bookmark for a custom URL
       final countBefore = container.read(webBrowserProvider).bookmarks.length;
-      notifier.toggleBookmark(
-        'https://example.com/custom',
-        'Custom Bookmark',
-      );
+      notifier.toggleBookmark('https://example.com/custom', 'Custom Bookmark');
       final bookmarks = container.read(webBrowserProvider).bookmarks;
       expect(bookmarks.length, countBefore + 1);
       expect(bookmarks.any((b) => b.url == 'https://example.com/custom'), isTrue);
 
       // Toggle again to remove
-      notifier.toggleBookmark(
-        'https://example.com/custom',
-        'Custom Bookmark',
-      );
+      notifier.toggleBookmark('https://example.com/custom', 'Custom Bookmark');
       expect(container.read(webBrowserProvider).bookmarks.length, countBefore);
     });
   });
@@ -348,14 +290,8 @@ void main() {
     testWidgets('Renders home dashboard with omnibox, engine selector, and quick search buttons', (tester) async {
       await tester.pumpWidget(
         _buildTestApp(
-          overrides: [
-            browserClientProvider.overrideWithValue(fakeClient),
-          ],
-          child: const SizedBox(
-            width: 480,
-            height: 700,
-            child: WebBrowserPane(sessionId: 'test-session'),
-          ),
+          overrides: [browserClientProvider.overrideWithValue(fakeClient)],
+          child: const SizedBox(width: 480, height: 700, child: WebBrowserPane(sessionId: 'test-session')),
         ),
       );
       await tester.pumpAndSettle();
@@ -371,14 +307,8 @@ void main() {
     testWidgets('Submitting query in omnibox loads content and shows reader view', (tester) async {
       await tester.pumpWidget(
         _buildTestApp(
-          overrides: [
-            browserClientProvider.overrideWithValue(fakeClient),
-          ],
-          child: const SizedBox(
-            width: 480,
-            height: 700,
-            child: WebBrowserPane(sessionId: 'test-session'),
-          ),
+          overrides: [browserClientProvider.overrideWithValue(fakeClient)],
+          child: const SizedBox(width: 480, height: 700, child: WebBrowserPane(sessionId: 'test-session')),
         ),
       );
       await tester.pumpAndSettle();
@@ -392,19 +322,12 @@ void main() {
       expect(find.text('Flutter Architecture Guide'), findsWidgets);
       expect(find.text('Flutter State Management'), findsOneWidget);
       expect(find.text('Getting Started with Riverpod'), findsOneWidget);
-      expect(
-        find.text('final countProvider = StateProvider((ref) => 0);'),
-        findsOneWidget,
-      );
+      expect(find.text('final countProvider = StateProvider((ref) => 0);'), findsOneWidget);
       expect(find.byTooltip('Invia al chat composer'), findsWidgets);
     });
 
     testWidgets('Clicking "Invia a Chat Composer" updates composerDraftProvider', (tester) async {
-      final container = ProviderContainer(
-        overrides: [
-          browserClientProvider.overrideWithValue(fakeClient),
-        ],
-      );
+      final container = ProviderContainer(overrides: [browserClientProvider.overrideWithValue(fakeClient)]);
       addTearDown(container.dispose);
 
       await tester.pumpWidget(
@@ -413,11 +336,7 @@ void main() {
           child: MaterialApp(
             theme: ThemeData.dark().copyWith(extensions: [FrameTokens.dark]),
             home: const Scaffold(
-              body: SizedBox(
-                width: 480,
-                height: 700,
-                child: WebBrowserPane(sessionId: 'session-draft-test'),
-              ),
+              body: SizedBox(width: 480, height: 700, child: WebBrowserPane(sessionId: 'session-draft-test')),
             ),
           ),
         ),
@@ -425,9 +344,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Navigate to guide
-      await container
-          .read(webBrowserProvider.notifier)
-          .navigate('https://flutter.dev/guide');
+      await container.read(webBrowserProvider.notifier).navigate('https://flutter.dev/guide');
       await tester.pumpAndSettle();
 
       // Click "Invia a Chat Composer"
@@ -437,19 +354,13 @@ void main() {
       await tester.pumpAndSettle();
 
       final draft = container.read(composerDraftProvider('session-draft-test'));
-      expect(
-        draft,
-        contains('[Flutter Architecture Guide](https://flutter.dev/guide)'),
-      );
+      expect(draft, contains('[Flutter Architecture Guide](https://flutter.dev/guide)'));
     });
 
     testWidgets('Header chip switcher toggles rightPaneModeProvider between git and browser', (tester) async {
       final fakePcp = _FakeWorkspaceClient();
       final container = ProviderContainer(
-        overrides: [
-          pcpClientProvider.overrideWithValue(fakePcp),
-          browserClientProvider.overrideWithValue(fakeClient),
-        ],
+        overrides: [pcpClientProvider.overrideWithValue(fakePcp), browserClientProvider.overrideWithValue(fakeClient)],
       );
       addTearDown(container.dispose);
 
@@ -502,11 +413,7 @@ void main() {
     });
 
     testWidgets('Tab management UI: adds new tab and closes tab', (tester) async {
-      final container = ProviderContainer(
-        overrides: [
-          browserClientProvider.overrideWithValue(fakeClient),
-        ],
-      );
+      final container = ProviderContainer(overrides: [browserClientProvider.overrideWithValue(fakeClient)]);
       addTearDown(container.dispose);
 
       await tester.pumpWidget(
@@ -515,11 +422,7 @@ void main() {
           child: MaterialApp(
             theme: ThemeData.dark().copyWith(extensions: [FrameTokens.dark]),
             home: const Scaffold(
-              body: SizedBox(
-                width: 480,
-                height: 700,
-                child: WebBrowserPane(sessionId: 'test-session'),
-              ),
+              body: SizedBox(width: 480, height: 700, child: WebBrowserPane(sessionId: 'test-session')),
             ),
           ),
         ),
@@ -546,15 +449,9 @@ void main() {
     });
 
     testWidgets('Error state renders retry button and error details', (tester) async {
-      final errorClient = _FakeHttpBaseClient({
-        'https://broken.link': http.Response('Internal Server Error', 500),
-      });
+      final errorClient = _FakeHttpBaseClient({'https://broken.link': http.Response('Internal Server Error', 500)});
 
-      final container = ProviderContainer(
-        overrides: [
-          browserClientProvider.overrideWithValue(errorClient),
-        ],
-      );
+      final container = ProviderContainer(overrides: [browserClientProvider.overrideWithValue(errorClient)]);
       addTearDown(container.dispose);
 
       await tester.pumpWidget(
@@ -563,20 +460,14 @@ void main() {
           child: MaterialApp(
             theme: ThemeData.dark().copyWith(extensions: [FrameTokens.dark]),
             home: const Scaffold(
-              body: SizedBox(
-                width: 480,
-                height: 700,
-                child: WebBrowserPane(sessionId: 'test-session'),
-              ),
+              body: SizedBox(width: 480, height: 700, child: WebBrowserPane(sessionId: 'test-session')),
             ),
           ),
         ),
       );
       await tester.pumpAndSettle();
 
-      await container
-          .read(webBrowserProvider.notifier)
-          .navigate('https://broken.link');
+      await container.read(webBrowserProvider.notifier).navigate('https://broken.link');
       await tester.pumpAndSettle();
 
       expect(find.text('Impossibile caricare la pagina'), findsOneWidget);
@@ -584,11 +475,7 @@ void main() {
     });
 
     testWidgets('Bookmark button in omnibox toggles bookmark', (tester) async {
-      final container = ProviderContainer(
-        overrides: [
-          browserClientProvider.overrideWithValue(fakeClient),
-        ],
-      );
+      final container = ProviderContainer(overrides: [browserClientProvider.overrideWithValue(fakeClient)]);
       addTearDown(container.dispose);
 
       await tester.pumpWidget(
@@ -597,47 +484,32 @@ void main() {
           child: MaterialApp(
             theme: ThemeData.dark().copyWith(extensions: [FrameTokens.dark]),
             home: const Scaffold(
-              body: SizedBox(
-                width: 480,
-                height: 700,
-                child: WebBrowserPane(sessionId: 'test-session'),
-              ),
+              body: SizedBox(width: 480, height: 700, child: WebBrowserPane(sessionId: 'test-session')),
             ),
           ),
         ),
       );
       await tester.pumpAndSettle();
 
-      await container
-          .read(webBrowserProvider.notifier)
-          .navigate('https://flutter.dev/guide');
+      await container.read(webBrowserProvider.notifier).navigate('https://flutter.dev/guide');
       await tester.pumpAndSettle();
 
       final bookmarkBtn = find.byKey(const ValueKey('browser-bookmark-btn'));
       expect(bookmarkBtn, findsOneWidget);
 
-      expect(
-        container.read(webBrowserProvider).isBookmarked('https://flutter.dev/guide'),
-        isFalse,
-      );
+      expect(container.read(webBrowserProvider).isBookmarked('https://flutter.dev/guide'), isFalse);
 
       // Tap bookmark button
       await tester.tap(bookmarkBtn);
       await tester.pumpAndSettle();
 
-      expect(
-        container.read(webBrowserProvider).isBookmarked('https://flutter.dev/guide'),
-        isTrue,
-      );
+      expect(container.read(webBrowserProvider).isBookmarked('https://flutter.dev/guide'), isTrue);
 
       // Tap again to unbookmark
       await tester.tap(bookmarkBtn);
       await tester.pumpAndSettle();
 
-      expect(
-        container.read(webBrowserProvider).isBookmarked('https://flutter.dev/guide'),
-        isFalse,
-      );
+      expect(container.read(webBrowserProvider).isBookmarked('https://flutter.dev/guide'), isFalse);
     });
   });
 }

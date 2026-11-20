@@ -12,8 +12,7 @@ class StartupUpdatesWatcher extends ConsumerStatefulWidget {
   const StartupUpdatesWatcher({super.key});
 
   @override
-  ConsumerState<StartupUpdatesWatcher> createState() =>
-      _StartupUpdatesWatcherState();
+  ConsumerState<StartupUpdatesWatcher> createState() => _StartupUpdatesWatcherState();
 }
 
 class _StartupUpdatesWatcherState extends ConsumerState<StartupUpdatesWatcher> {
@@ -35,10 +34,7 @@ class _StartupUpdatesWatcherState extends ConsumerState<StartupUpdatesWatcher> {
   @override
   Widget build(BuildContext context) {
     if (!kIsWeb && !Platform.environment.containsKey('FLUTTER_TEST')) {
-      ref.listen(
-        connectionStateProvider,
-        (_, next) => _checkWhenConnected(next),
-      );
+      ref.listen(connectionStateProvider, (_, next) => _checkWhenConnected(next));
       _checkWhenConnected(ref.watch(connectionStateProvider));
     }
     return const SizedBox.shrink();

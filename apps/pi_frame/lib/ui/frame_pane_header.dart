@@ -43,10 +43,7 @@ class FramePaneHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final text = FrameText.of(context);
-    final titleStyle = text.heading.copyWith(
-      fontFamily: tokens.headingFontFamily,
-      color: tokens.textPrimary,
-    );
+    final titleStyle = text.heading.copyWith(fontFamily: tokens.headingFontFamily, color: tokens.textPrimary);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -55,10 +52,7 @@ class FramePaneHeader extends StatelessWidget {
         ConstrainedBox(
           constraints: const BoxConstraints(minHeight: FrameSize.paneHeader),
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: FrameSpace.x3,
-              vertical: 4,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3, vertical: 4),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -69,20 +63,11 @@ class FramePaneHeader extends StatelessWidget {
                       child: Semantics(
                         header: true,
                         child:
-                            titleWidget ??
-                            Text(
-                              title,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: titleStyle,
-                            ),
+                            titleWidget ?? Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: titleStyle),
                       ),
                     ),
                     if (!actionsOnOwnLine)
-                      for (final action in actions) ...[
-                        const SizedBox(width: FrameSpace.x1),
-                        action,
-                      ],
+                      for (final action in actions) ...[const SizedBox(width: FrameSpace.x1), action],
                   ],
                 ),
                 if (subtitleWidget != null) ...[

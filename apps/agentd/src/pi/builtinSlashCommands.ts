@@ -24,7 +24,7 @@ export const PI_BUILTIN_SLASH_COMMANDS = [
   { name: 'compact', description: 'Manually compact the session context' },
   { name: 'resume', description: 'Resume a different session' },
   { name: 'reload', description: 'Reload keybindings, extensions, skills, prompts, themes, and context files' },
-  { name: 'quit', description: 'Quit Pi' },
+  { name: 'quit', description: 'Quit Pi' }
 ].map((command) => ({ ...command, source: 'builtin' }));
 
 export function parsePiBuiltinCommand(text: string): { name: string; args: string } | undefined {

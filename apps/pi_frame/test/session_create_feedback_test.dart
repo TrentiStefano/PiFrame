@@ -44,13 +44,9 @@ class _CreateButton extends ConsumerWidget {
 }
 
 void main() {
-  testWidgets('session create without a session id shows an error snackbar', (
-    tester,
-  ) async {
+  testWidgets('session create without a session id shows an error snackbar', (tester) async {
     final client = _NoIdClient();
-    final container = ProviderContainer(
-      overrides: [pcpClientProvider.overrideWithValue(client)],
-    );
+    final container = ProviderContainer(overrides: [pcpClientProvider.overrideWithValue(client)]);
     addTearDown(container.dispose);
     final expected = container.read(appStringsProvider).sessionCreateNoIdNotice;
 

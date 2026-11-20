@@ -9,11 +9,7 @@ bool _harnessMode = false;
 bool get isHarnessMode => _harnessMode;
 
 class HarnessMediaOverrides {
-  const HarnessMediaOverrides({
-    this.textScale,
-    this.reduceMotion,
-    this.brightness,
-  });
+  const HarnessMediaOverrides({this.textScale, this.reduceMotion, this.brightness});
 
   final double? textScale;
 
@@ -39,8 +35,7 @@ class HarnessMediaOverrides {
 /// the machine's or the harness home's reduce-motion setting.
 const kHarnessDefaultMediaOverrides = HarnessMediaOverrides(reduceMotion: false);
 
-final ValueNotifier<HarnessMediaOverrides> harnessMediaOverrides =
-    ValueNotifier(kHarnessDefaultMediaOverrides);
+final ValueNotifier<HarnessMediaOverrides> harnessMediaOverrides = ValueNotifier(kHarnessDefaultMediaOverrides);
 
 void setHarnessMediaOverrides({
   double? textScale,
@@ -74,9 +69,7 @@ MediaQueryData applyHarnessMediaOverrides(
   disableAnimations: harnessEnabled && overrides.reduceMotion != null
       ? overrides.reduceMotion!
       : media.disableAnimations || reduceMotionPreference,
-  platformBrightness: harnessEnabled
-      ? overrides.brightness ?? media.platformBrightness
-      : media.platformBrightness,
+  platformBrightness: harnessEnabled ? overrides.brightness ?? media.platformBrightness : media.platformBrightness,
 );
 
 void enableHarnessMode() {

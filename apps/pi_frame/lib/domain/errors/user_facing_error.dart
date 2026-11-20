@@ -90,46 +90,27 @@ String? _protocolMessage(Object error) {
 /// text kept in `details`.
 UserFacingError describeError(Object error, AppStrings s) {
   if (error is UserMessageException) {
-    return UserFacingError(
-      title: error.message,
-      details: error.message,
-      isProtocolMessage: true,
-    );
+    return UserFacingError(title: error.message, details: error.message, isProtocolMessage: true);
   }
   final protocol = _protocolMessage(error);
   final details = protocol ?? error.toString().replaceFirst(_rawPrefix, '');
   final lower = error.toString().toLowerCase();
 
   UserFacingError known(String title, String? hint, {bool retryable = false}) =>
-      UserFacingError(
-        title: title,
-        hint: hint,
-        details: details,
-        retryable: retryable,
-      );
+      UserFacingError(title: title, hint: hint, details: details, retryable: retryable);
 
   bool has(List<String> needles) => needles.any(lower.contains);
 
   if (has(['unsupported command type'])) {
     return known(s.errorOutdatedDaemonTitle, s.repositoryDaemonOutdatedError);
   }
-  if (has([
-    'not inside a git repository',
-    'not a git repository',
-    'workspace_not_repository',
-  ])) {
+  if (has(['not inside a git repository', 'not a git repository', 'workspace_not_repository'])) {
     return known(s.errorNotRepositoryTitle, s.errorNotRepositoryHint);
   }
-  if (has([
-    'spawn git',
-    'git enoent',
-    'git: command not found',
-    'git was not found',
-  ])) {
+  if (has(['spawn git', 'git enoent', 'git: command not found', 'git was not found'])) {
     return known(s.errorGitMissingTitle, s.errorGitMissingHint);
   }
-  if (RegExp(r'session( \S+)? not found').hasMatch(lower) ||
-      has(['session_not_found'])) {
+  if (RegExp(r'session( \S+)? not found').hasMatch(lower) || has(['session_not_found'])) {
     return known(s.errorSessionMissingTitle, s.errorSessionMissingHint);
   }
   if (has([
@@ -141,8 +122,7 @@ UserFacingError describeError(Object error, AppStrings s) {
     'websocketchannelexception',
     'connection refused',
   ])) {
-    return known(s.errorDaemonUnreachableTitle, s.errorDaemonUnreachableHint,
-        retryable: true);
+    return known(s.errorDaemonUnreachableTitle, s.errorDaemonUnreachableHint, retryable: true);
   }
   if (has(['command_rejected', 'read-only', 'agent is working', 'pi is working'])) {
     return known(s.errorBusyTitle, s.errorBusyHint, retryable: true);
@@ -150,47 +130,21 @@ UserFacingError describeError(Object error, AppStrings s) {
   if (error is TimeoutException || has(['timed out', 'timeoutexception'])) {
     return known(s.errorTimeoutTitle, s.errorTimeoutHint, retryable: true);
   }
-  if (has([
-    'permission denied',
-    'access is denied',
-    'eacces',
-    'eperm',
-    'operation not permitted',
-  ])) {
+  if (has(['permission denied', 'access is denied', 'eacces', 'eperm', 'operation not permitted'])) {
     return known(s.errorPermissionTitle, s.errorPermissionHint);
   }
-  if (has([
-    'no such file',
-    'enoent',
-    'does not exist',
-    'file_not_found',
-  ])) {
+  if (has(['no such file', 'enoent', 'does not exist', 'file_not_found'])) {
     return known(s.errorNotFoundTitle, s.errorNotFoundHint);
   }
   if (error is SocketException ||
       error is HttpException ||
-      has([
-        'failed host lookup',
-        'network is unreachable',
-        'no route to host',
-        'handshakeexception',
-      ])) {
+      has(['failed host lookup', 'network is unreachable', 'no route to host', 'handshakeexception'])) {
     return known(s.errorNetworkTitle, s.errorNetworkHint, retryable: true);
   }
   if (protocol != null) {
-    return UserFacingError(
-      title: protocol,
-      details: protocol,
-      retryable: true,
-      isProtocolMessage: true,
-    );
+    return UserFacingError(title: protocol, details: protocol, retryable: true, isProtocolMessage: true);
   }
-  return UserFacingError(
-    title: s.errorUnknownTitle,
-    details: details,
-    retryable: true,
-    isGeneric: true,
-  );
+  return UserFacingError(title: s.errorUnknownTitle, details: details, retryable: true, isGeneric: true);
 }
 
 /// Snackbar text for a failed action.

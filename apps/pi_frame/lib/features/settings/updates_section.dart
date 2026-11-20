@@ -47,11 +47,7 @@ class UpdatesSection extends ConsumerWidget {
     return '$day/$month/$year $hour:$min';
   }
 
-  Future<void> _confirmAndInstall(
-    BuildContext context,
-    WidgetRef ref,
-    String? assetName,
-  ) async {
+  Future<void> _confirmAndInstall(BuildContext context, WidgetRef ref, String? assetName) async {
     final strings = ref.read(appStringsProvider);
     final confirmed = await showFrameDialog<bool>(
       context: context,
@@ -59,16 +55,8 @@ class UpdatesSection extends ConsumerWidget {
         title: strings.confirmInstallDialogTitle,
         body: Text(strings.confirmInstallDialogContent(assetName)),
         actions: [
-          FrameDialogAction(
-            label: strings.cancel,
-            role: FrameDialogActionRole.cancel,
-            value: false,
-          ),
-          FrameDialogAction(
-            label: strings.installAndRestartBtn,
-            role: FrameDialogActionRole.primary,
-            value: true,
-          ),
+          FrameDialogAction(label: strings.cancel, role: FrameDialogActionRole.cancel, value: false),
+          FrameDialogAction(label: strings.installAndRestartBtn, role: FrameDialogActionRole.primary, value: true),
         ],
       ),
     );
@@ -87,49 +75,30 @@ class UpdatesSection extends ConsumerWidget {
     final settings = ref.watch(updateSettingsProvider);
     final currentVer = updateState.currentVersion ?? piFrameVersion;
     final isUpToDate = updateState.status == UpdateStatus.upToDate;
-    final isUpdateAvailable =
-        updateState.status == UpdateStatus.updateAvailable;
+    final isUpdateAvailable = updateState.status == UpdateStatus.updateAvailable;
 
     final checkButton = PressFeedback(
       child: FilledButton.icon(
         key: const ValueKey('check_for_updates_button'),
-        style: FilledButton.styleFrom(
-          minimumSize: const Size(0, FrameSize.rowForm),
-        ),
+        style: FilledButton.styleFrom(minimumSize: const Size(0, FrameSize.rowForm)),
         onPressed: updateState.isChecking || updateState.isDownloading
             ? null
             : () {
-                ref
-                    .read(updateControllerProvider.notifier)
-                    .checkForUpdates(isManual: true);
+                ref.read(updateControllerProvider.notifier).checkForUpdates(isManual: true);
               },
         icon: updateState.isChecking
-            ? FrameActivityIndicator(
-                size: FrameSize.icon,
-                strokeWidth: 2,
-                color: tokens.textPrimary,
-              )
+            ? FrameActivityIndicator(size: FrameSize.icon, strokeWidth: 2, color: tokens.textPrimary)
             : const Icon(Icons.refresh_outlined, size: FrameSize.icon),
-        label: Text(
-          updateState.isChecking
-              ? strings.updatesChecking
-              : strings.updatesCheckBtn,
-        ),
+        label: Text(updateState.isChecking ? strings.updatesChecking : strings.updatesCheckBtn),
       ),
     );
 
     return ListView(
       padding: const EdgeInsets.all(FrameSpace.x6),
       children: [
-        Text(
-          strings.updatesTitle,
-          style: text.title.copyWith(color: tokens.textPrimary),
-        ),
+        Text(strings.updatesTitle, style: text.title.copyWith(color: tokens.textPrimary)),
         const SizedBox(height: FrameSpace.x1),
-        Text(
-          strings.updatesSubtitle,
-          style: text.body.copyWith(color: tokens.textMuted),
-        ),
+        Text(strings.updatesSubtitle, style: text.body.copyWith(color: tokens.textMuted)),
         const SizedBox(height: FrameSpace.x4),
 
         // 1. Installed version and the check action.
@@ -138,9 +107,7 @@ class UpdatesSection extends ConsumerWidget {
           description: isUpToDate
               ? strings.updatesUpToDateDesc(currentVer)
               : settings.lastChecked != null
-              ? strings.updatesLastChecked(
-                  _formatDateTime(settings.lastChecked!),
-                )
+              ? strings.updatesLastChecked(_formatDateTime(settings.lastChecked!))
               : strings.updatesNoRecentCheck,
           child: Wrap(
             crossAxisAlignment: WrapCrossAlignment.center,
@@ -163,19 +130,14 @@ class UpdatesSection extends ConsumerWidget {
               PressFeedback(
                 child: OutlinedButton.icon(
                   key: const ValueKey('view_changelog_button'),
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(0, FrameSize.rowForm),
-                  ),
+                  style: OutlinedButton.styleFrom(minimumSize: const Size(0, FrameSize.rowForm)),
                   icon: const Icon(Icons.article_outlined, size: FrameSize.icon),
                   label: Text(strings.viewChangelog),
                   onPressed: () async {
                     final service = ref.read(changelogServiceProvider);
                     final release = await service.loadRelease(version: currentVer);
                     if (context.mounted && release != null) {
-                      await showChangelogDialog(
-                        context: context,
-                        release: release,
-                      );
+                      await showChangelogDialog(context: context, release: release);
                     }
                   },
                 ),
@@ -189,18 +151,12 @@ class UpdatesSection extends ConsumerWidget {
           FrameErrorCallout(
             keyPrefix: 'updates',
             title: strings.updatesCheckErrorTitle,
-            error: describeError(
-              updateState.errorMessage ?? strings.updatesUnexpectedError,
-              strings,
-            ),
+            error: describeError(updateState.errorMessage ?? strings.updatesUnexpectedError, strings),
             strings: strings,
-            onRetry: () => ref
-                .read(updateControllerProvider.notifier)
-                .checkForUpdates(isManual: true),
+            onRetry: () => ref.read(updateControllerProvider.notifier).checkForUpdates(isManual: true),
           ),
           const SizedBox(height: FrameSpace.x8),
-        ] else if (updateState.hasUpdate &&
-            updateState.latestRelease != null) ...[
+        ] else if (updateState.hasUpdate && updateState.latestRelease != null) ...[
           _buildReleaseSection(context, ref, tokens, updateState, strings),
           const SizedBox(height: FrameSpace.x8),
         ],
@@ -215,12 +171,8 @@ class UpdatesSection extends ConsumerWidget {
               Material(
                 type: MaterialType.transparency,
                 child: SwitchListTile(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(tokens.radiusSm),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: FrameSpace.x2,
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2),
                   title: Text(
                     strings.updatesAutoCheckSwitchTitle,
                     style: text.body.copyWith(color: tokens.textPrimary),
@@ -232,9 +184,7 @@ class UpdatesSection extends ConsumerWidget {
                   value: settings.autoCheckEnabled,
                   activeThumbColor: tokens.accent,
                   onChanged: (enabled) {
-                    ref
-                        .read(updateSettingsProvider.notifier)
-                        .setAutoCheckEnabled(enabled);
+                    ref.read(updateSettingsProvider.notifier).setAutoCheckEnabled(enabled);
                   },
                 ),
               ),
@@ -259,22 +209,16 @@ class UpdatesSection extends ConsumerWidget {
                             isDense: true,
                             value: settings.interval,
                             dropdownColor: tokens.surfaceElevated,
-                            style: text.body.copyWith(
-                              color: tokens.textPrimary,
-                            ),
+                            style: text.body.copyWith(color: tokens.textPrimary),
                             items: UpdateCheckInterval.values.map((interval) {
                               return DropdownMenuItem<UpdateCheckInterval>(
                                 value: interval,
-                                child: Text(
-                                  strings.updateIntervalLabel(interval),
-                                ),
+                                child: Text(strings.updateIntervalLabel(interval)),
                               );
                             }).toList(),
                             onChanged: (newInterval) {
                               if (newInterval != null) {
-                                ref
-                                    .read(updateSettingsProvider.notifier)
-                                    .setInterval(newInterval);
+                                ref.read(updateSettingsProvider.notifier).setInterval(newInterval);
                               }
                             },
                           ),
@@ -293,11 +237,7 @@ class UpdatesSection extends ConsumerWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              Icons.security_outlined,
-              size: FrameSize.iconLg,
-              color: tokens.accent,
-            ),
+            Icon(Icons.security_outlined, size: FrameSize.iconLg, color: tokens.accent),
             const SizedBox(width: FrameSpace.x3),
             Expanded(
               child: Text(
@@ -327,9 +267,7 @@ class UpdatesSection extends ConsumerWidget {
     final isInstalling = state.status == UpdateStatus.installing;
 
     return FrameSection(
-      title: release.name.isNotEmpty
-          ? release.name
-          : 'PiFrame ${release.tagName}',
+      title: release.name.isNotEmpty ? release.name : 'PiFrame ${release.tagName}',
       description: release.publishedAt != null
           ? strings.updatesPublishedAt(_formatDateTime(release.publishedAt!))
           : release.tagName,
@@ -340,16 +278,11 @@ class UpdatesSection extends ConsumerWidget {
             alignment: Alignment.centerLeft,
             child: PressFeedback(
               child: OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(0, FrameSize.rowForm),
-                ),
+                style: OutlinedButton.styleFrom(minimumSize: const Size(0, FrameSize.rowForm)),
                 onPressed: () {
                   ref.read(updateControllerProvider.notifier).openReleasePage();
                 },
-                icon: const Icon(
-                  Icons.open_in_new_outlined,
-                  size: FrameSize.icon,
-                ),
+                icon: const Icon(Icons.open_in_new_outlined, size: FrameSize.icon),
                 label: Text(strings.updatesNotesOnGithub),
               ),
             ),
@@ -360,10 +293,7 @@ class UpdatesSection extends ConsumerWidget {
             ConstrainedBox(
               constraints: const BoxConstraints(maxHeight: 180),
               child: SingleChildScrollView(
-                child: Text(
-                  release.body,
-                  style: text.mono.copyWith(color: tokens.textSecondary),
-                ),
+                child: Text(release.body, style: text.mono.copyWith(color: tokens.textSecondary)),
               ),
             ),
           ],
@@ -372,10 +302,7 @@ class UpdatesSection extends ConsumerWidget {
 
           if (asset != null) ...[
             Text(
-              strings.updatesInstallerFile(
-                asset.name,
-                _formatBytes(asset.size),
-              ),
+              strings.updatesInstallerFile(asset.name, _formatBytes(asset.size)),
               style: text.caption.copyWith(color: tokens.textMuted),
             ),
             const SizedBox(height: FrameSpace.x2),
@@ -397,14 +324,9 @@ class UpdatesSection extends ConsumerWidget {
                 ),
                 TextButton(
                   onPressed: () {
-                    ref
-                        .read(updateControllerProvider.notifier)
-                        .cancelDownload();
+                    ref.read(updateControllerProvider.notifier).cancelDownload();
                   },
-                  child: Text(
-                    strings.cancel,
-                    style: text.caption.copyWith(color: tokens.danger),
-                  ),
+                  child: Text(strings.cancel, style: text.caption.copyWith(color: tokens.danger)),
                 ),
               ],
             ),
@@ -416,73 +338,43 @@ class UpdatesSection extends ConsumerWidget {
               children: [
                 PressFeedback(
                   child: FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                      minimumSize: const Size(0, FrameSize.rowForm),
-                    ),
-                    onPressed: () =>
-                        _confirmAndInstall(context, ref, asset?.name),
-                    icon: const Icon(
-                      Icons.install_desktop_outlined,
-                      size: FrameSize.icon,
-                    ),
+                    style: FilledButton.styleFrom(minimumSize: const Size(0, FrameSize.rowForm)),
+                    onPressed: () => _confirmAndInstall(context, ref, asset?.name),
+                    icon: const Icon(Icons.install_desktop_outlined, size: FrameSize.icon),
                     label: Text(strings.installAndRestartBtn),
                   ),
                 ),
-                FrameStatusTag(
-                  label: strings.updatesReadyToInstall,
-                  tone: FrameStatusTone.success,
-                ),
+                FrameStatusTag(label: strings.updatesReadyToInstall, tone: FrameStatusTone.success),
               ],
             ),
           ] else if (isInstalling) ...[
             Row(
               children: [
-                FrameActivityIndicator(
-                  size: FrameSize.icon,
-                  strokeWidth: 2,
-                  color: tokens.accent,
-                ),
+                FrameActivityIndicator(size: FrameSize.icon, strokeWidth: 2, color: tokens.accent),
                 const SizedBox(width: FrameSpace.x3),
-                Text(
-                  strings.updatesLaunchingInstaller,
-                  style: text.body.copyWith(color: tokens.textPrimary),
-                ),
+                Text(strings.updatesLaunchingInstaller, style: text.body.copyWith(color: tokens.textPrimary)),
               ],
             ),
           ] else ...[
             if (asset != null)
               PressFeedback(
                 child: FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    minimumSize: const Size(0, FrameSize.rowForm),
-                  ),
+                  style: FilledButton.styleFrom(minimumSize: const Size(0, FrameSize.rowForm)),
                   onPressed: () {
-                    ref
-                        .read(updateControllerProvider.notifier)
-                        .downloadUpdate(assetOverride: asset);
+                    ref.read(updateControllerProvider.notifier).downloadUpdate(assetOverride: asset);
                   },
-                  icon: const Icon(
-                    Icons.download_outlined,
-                    size: FrameSize.icon,
-                  ),
+                  icon: const Icon(Icons.download_outlined, size: FrameSize.icon),
                   label: Text(strings.updatesDownloadBtn),
                 ),
               )
             else
               PressFeedback(
                 child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: const Size(0, FrameSize.rowForm),
-                  ),
+                  style: OutlinedButton.styleFrom(minimumSize: const Size(0, FrameSize.rowForm)),
                   onPressed: () {
-                    ref
-                        .read(updateControllerProvider.notifier)
-                        .openReleasePage();
+                    ref.read(updateControllerProvider.notifier).openReleasePage();
                   },
-                  icon: const Icon(
-                    Icons.open_in_browser_outlined,
-                    size: FrameSize.icon,
-                  ),
+                  icon: const Icon(Icons.open_in_browser_outlined, size: FrameSize.icon),
                   label: Text(strings.updatesDownloadManuallyBtn),
                 ),
               ),

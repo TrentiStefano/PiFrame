@@ -1,4 +1,5 @@
 import 'dart:ui';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,9 +15,7 @@ void main() {
   Widget wrapComposer({required SessionState state}) {
     return ProviderScope(
       overrides: [
-        sessionStateFamily('s_min_test').overrideWith(
-          (ref) => SessionStateNotifier('s_min_test', null)..state = state,
-        ),
+        sessionStateFamily('s_min_test').overrideWith((ref) => SessionStateNotifier('s_min_test', null)..state = state),
       ],
       child: MaterialApp(
         theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
@@ -70,7 +69,12 @@ void main() {
           child: MaterialApp(
             theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
             home: const Scaffold(
-              body: Column(children: [Expanded(child: SizedBox()), Composer(sessionId: 's_min_test')]),
+              body: Column(
+                children: [
+                  Expanded(child: SizedBox()),
+                  Composer(sessionId: 's_min_test'),
+                ],
+              ),
             ),
           ),
         ),
@@ -94,9 +98,7 @@ void main() {
           streamingTextBlocks: {0: 'Waiting for an answer...'},
         );
       final container = ProviderContainer(
-        overrides: [
-          sessionStateFamily('s_min_test').overrideWith((ref) => notifier),
-        ],
+        overrides: [sessionStateFamily('s_min_test').overrideWith((ref) => notifier)],
       );
       addTearDown(container.dispose);
 
@@ -104,9 +106,7 @@ void main() {
         UncontrolledProviderScope(
           container: container,
           child: MaterialApp(
-            theme: ThemeData.dark().copyWith(
-              extensions: const [FrameTokens.dark],
-            ),
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
             home: const Scaffold(
               body: Column(
                 children: [
@@ -159,49 +159,52 @@ void main() {
       expect(container.read(composerDraftProvider('s_min_test')), draft);
     });
 
-    testWidgets('shows glowing pointer effect and keeps chat input window minimized during hover < 5s, then expands at >= 5s', (tester) async {
-      final state = const SessionState(
-        sessionId: 's_min_test',
-        cwd: '/test',
-        agentStatus: AgentStatus.working,
-        streamingTextBlocks: {0: 'Generating answer...'},
-      );
+    testWidgets(
+      'shows glowing pointer effect and keeps chat input window minimized during hover < 5s, then expands at >= 5s',
+      (tester) async {
+        final state = const SessionState(
+          sessionId: 's_min_test',
+          cwd: '/test',
+          agentStatus: AgentStatus.working,
+          streamingTextBlocks: {0: 'Generating answer...'},
+        );
 
-      await tester.pumpWidget(wrapComposer(state: state));
-      await tester.pump(const Duration(milliseconds: 300));
+        await tester.pumpWidget(wrapComposer(state: state));
+        await tester.pump(const Duration(milliseconds: 300));
 
-      // Initially minimized
-      expect(find.byKey(const ValueKey('composer-minimized-bar')), findsOneWidget);
+        // Initially minimized
+        expect(find.byKey(const ValueKey('composer-minimized-bar')), findsOneWidget);
 
-      // Simulate mouse hover
-      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
-      await gesture.addPointer(location: Offset.zero);
-      addTearDown(gesture.removePointer);
-      await gesture.moveTo(tester.getCenter(find.byType(Composer)));
-      await tester.pump(const Duration(milliseconds: 300));
+        // Simulate mouse hover
+        final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+        await gesture.addPointer(location: Offset.zero);
+        addTearDown(gesture.removePointer);
+        await gesture.moveTo(tester.getCenter(find.byType(Composer)));
+        await tester.pump(const Duration(milliseconds: 300));
 
-      // At 300ms hover, it is STILL minimized (with glowing pointer effect)!
-      expect(find.byKey(const ValueKey('composer-minimized-bar')), findsOneWidget);
-      expect(find.byKey(const ValueKey('composer-input-area')), findsNothing);
+        // At 300ms hover, it is STILL minimized (with glowing pointer effect)!
+        expect(find.byKey(const ValueKey('composer-minimized-bar')), findsOneWidget);
+        expect(find.byKey(const ValueKey('composer-input-area')), findsNothing);
 
-      // After 5 seconds of keeping pointer over it, it expands
-      await tester.pump(const Duration(seconds: 5));
-      await tester.pump(const Duration(milliseconds: 350));
+        // After 5 seconds of keeping pointer over it, it expands
+        await tester.pump(const Duration(seconds: 5));
+        await tester.pump(const Duration(milliseconds: 350));
 
-      // Now maximized: full text field and steer/interrupt controls are visible
-      expect(find.byKey(const ValueKey('composer-input-area')), findsOneWidget);
-      expect(find.text('Steer'), findsOneWidget);
+        // Now maximized: full text field and steer/interrupt controls are visible
+        expect(find.byKey(const ValueKey('composer-input-area')), findsOneWidget);
+        expect(find.text('Steer'), findsOneWidget);
 
-      // Moving mouse away: during grace period (300ms) it stays open
-      await gesture.moveTo(const Offset(10, 10)); // outside composer
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(find.byKey(const ValueKey('composer-input-area')), findsOneWidget);
-      expect(find.byKey(const ValueKey('composer-minimized-bar')), findsNothing);
+        // Moving mouse away: during grace period (300ms) it stays open
+        await gesture.moveTo(const Offset(10, 10)); // outside composer
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(find.byKey(const ValueKey('composer-input-area')), findsOneWidget);
+        expect(find.byKey(const ValueKey('composer-minimized-bar')), findsNothing);
 
-      // After grace period (600ms + animation) expires, it minimizes back
-      await tester.pump(const Duration(milliseconds: 700));
-      expect(find.byKey(const ValueKey('composer-minimized-bar')), findsOneWidget);
-    });
+        // After grace period (600ms + animation) expires, it minimizes back
+        await tester.pump(const Duration(milliseconds: 700));
+        expect(find.byKey(const ValueKey('composer-minimized-bar')), findsOneWidget);
+      },
+    );
 
     testWidgets('expands chat input window immediately when user clicks on minimized bar', (tester) async {
       final state = const SessionState(
@@ -223,7 +226,9 @@ void main() {
       expect(find.byKey(const ValueKey('composer-input-area')), findsOneWidget);
     });
 
-    testWidgets('minimized chat interrupt button and text use signalDanger color matching maximized stop button', (tester) async {
+    testWidgets('minimized chat interrupt button and text use signalDanger color matching maximized stop button', (
+      tester,
+    ) async {
       final state = const SessionState(
         sessionId: 's_min_test',
         cwd: '/test',
@@ -251,20 +256,16 @@ void main() {
       expect(interruptText.style?.color, FrameTokens.dark.signalDanger);
     });
 
-    testWidgets('does not minimize if text has been inputted even if user clicks away while model is generating', (tester) async {
+    testWidgets('does not minimize if text has been inputted even if user clicks away while model is generating', (
+      tester,
+    ) async {
       // Start with settled session
       var sessionNotifier = SessionStateNotifier('s_min_test', null)
-        ..state = const SessionState(
-          sessionId: 's_min_test',
-          cwd: '/test',
-          agentStatus: AgentStatus.settled,
-        );
+        ..state = const SessionState(sessionId: 's_min_test', cwd: '/test', agentStatus: AgentStatus.settled);
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            sessionStateFamily('s_min_test').overrideWith((ref) => sessionNotifier),
-          ],
+          overrides: [sessionStateFamily('s_min_test').overrideWith((ref) => sessionNotifier)],
           child: MaterialApp(
             theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
             home: const Scaffold(
@@ -281,7 +282,10 @@ void main() {
       await tester.pumpAndSettle();
 
       // Enter some text into the composer
-      await tester.enterText(find.byKey(const ValueKey('composer-text-field')), 'I have written some instructions here');
+      await tester.enterText(
+        find.byKey(const ValueKey('composer-text-field')),
+        'I have written some instructions here',
+      );
       await tester.pumpAndSettle();
 
       // User unfocuses / clicks away (e.g. tap elsewhere)
@@ -305,17 +309,11 @@ void main() {
     testWidgets('does not minimize if the input box is focused', (tester) async {
       // Start with settled session
       var sessionNotifier = SessionStateNotifier('s_min_test', null)
-        ..state = const SessionState(
-          sessionId: 's_min_test',
-          cwd: '/test',
-          agentStatus: AgentStatus.settled,
-        );
+        ..state = const SessionState(sessionId: 's_min_test', cwd: '/test', agentStatus: AgentStatus.settled);
 
       await tester.pumpWidget(
         ProviderScope(
-          overrides: [
-            sessionStateFamily('s_min_test').overrideWith((ref) => sessionNotifier),
-          ],
+          overrides: [sessionStateFamily('s_min_test').overrideWith((ref) => sessionNotifier)],
           child: MaterialApp(
             theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
             home: const Scaffold(
@@ -363,12 +361,7 @@ void main() {
       );
 
       final sessionNotifier = SessionStateNotifier('s_sync', null)
-        ..state = SessionState(
-          sessionId: 's_sync',
-          cwd: '/test',
-          agentStatus: AgentStatus.settled,
-          entries: entries,
-        );
+        ..state = SessionState(sessionId: 's_sync', cwd: '/test', agentStatus: AgentStatus.settled, entries: entries);
 
       await tester.pumpWidget(
         ProviderScope(
@@ -429,4 +422,3 @@ void main() {
     });
   });
 }
-

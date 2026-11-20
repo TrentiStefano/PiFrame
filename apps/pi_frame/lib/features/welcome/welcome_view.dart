@@ -1,5 +1,4 @@
-import 'package:flutter/foundation.dart'
-    show TargetPlatform, defaultTargetPlatform;
+import 'package:flutter/foundation.dart' show TargetPlatform, defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -55,16 +54,12 @@ class WelcomeView extends ConsumerStatefulWidget {
   ConsumerState<WelcomeView> createState() => _WelcomeViewState();
 }
 
-class _WelcomeViewState extends ConsumerState<WelcomeView>
-    with SingleTickerProviderStateMixin {
+class _WelcomeViewState extends ConsumerState<WelcomeView> with SingleTickerProviderStateMixin {
   bool _creating = false;
 
   /// Drives the first-run entrance. Starts complete, so later launches show
   /// everything at once. It is rewound only on the first run.
-  late final AnimationController _intro = AnimationController(
-    vsync: this,
-    value: 1,
-  );
+  late final AnimationController _intro = AnimationController(vsync: this, value: 1);
   bool _introChecked = false;
   bool _introReduced = false;
 
@@ -79,9 +74,7 @@ class _WelcomeViewState extends ConsumerState<WelcomeView>
     if (!ref.read(appIntroFirstRunProvider)) return;
     _introReduced = FrameMotion.reduced(context);
     _intro
-      ..duration = _introReduced
-          ? FrameMotion.crossFade
-          : FrameMotion.firstRun + FrameMotion.stagger * 2
+      ..duration = _introReduced ? FrameMotion.crossFade : FrameMotion.firstRun + FrameMotion.stagger * 2
       ..value = 0
       ..forward();
   }
@@ -99,13 +92,8 @@ class _WelcomeViewState extends ConsumerState<WelcomeView>
     if (_intro.isCompleted) return child;
     final total = _intro.duration!.inMicroseconds;
     final reduced = _introReduced;
-    final begin = reduced
-        ? 0.0
-        : (FrameMotion.stagger * index).inMicroseconds / total;
-    final end = reduced
-        ? 1.0
-        : (FrameMotion.stagger * index + FrameMotion.firstRun).inMicroseconds /
-              total;
+    final begin = reduced ? 0.0 : (FrameMotion.stagger * index).inMicroseconds / total;
+    final end = reduced ? 1.0 : (FrameMotion.stagger * index + FrameMotion.firstRun).inMicroseconds / total;
     final curve = Interval(begin, end, curve: FrameMotion.enterCurve);
     return AnimatedBuilder(
       animation: _intro,
@@ -114,10 +102,7 @@ class _WelcomeViewState extends ConsumerState<WelcomeView>
         final t = curve.transform(_intro.value);
         return Opacity(
           opacity: t,
-          child: Transform.translate(
-            offset: Offset(0, reduced ? 0 : (1 - t) * _riseOffset),
-            child: content,
-          ),
+          child: Transform.translate(offset: Offset(0, reduced ? 0 : (1 - t) * _riseOffset), child: content),
         );
       },
     );
@@ -157,9 +142,7 @@ class _WelcomeViewState extends ConsumerState<WelcomeView>
         final compact = constraints.maxWidth < 640;
         final wide = constraints.maxWidth >= 960;
 
-        final sessions = resumableSessions(
-          ref.watch(sessionListProvider).value ?? const [],
-        );
+        final sessions = resumableSessions(ref.watch(sessionListProvider).value ?? const []);
         final recentSessions = sessions.take(_maxRecentSessions).toList();
 
         final startContent = Column(
@@ -187,10 +170,7 @@ class _WelcomeViewState extends ConsumerState<WelcomeView>
               1,
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: _contentMaxWidth),
-                child: Text(
-                  strings.welcomeDescription,
-                  style: text.bodyLarge.copyWith(color: tokens.textSecondary),
-                ),
+                child: Text(strings.welcomeDescription, style: text.bodyLarge.copyWith(color: tokens.textSecondary)),
               ),
             ),
             const SizedBox(height: FrameSpace.x6),
@@ -203,23 +183,15 @@ class _WelcomeViewState extends ConsumerState<WelcomeView>
                   PressFeedback(
                     child: FilledButton.icon(
                       key: const ValueKey('new-session-button'),
-                      onPressed: widget.connected && !_creating
-                          ? _create
-                          : null,
+                      onPressed: widget.connected && !_creating ? _create : null,
                       icon: const Icon(Icons.add_outlined, size: FrameSize.iconLg),
-                      label: Text(
-                        _creating
-                            ? strings.creatingSession
-                            : strings.newSessionAction,
-                      ),
+                      label: Text(_creating ? strings.creatingSession : strings.newSessionAction),
                     ),
                   ),
                   PressFeedback(
                     child: OutlinedButton.icon(
                       key: const ValueKey('browse-sessions-button'),
-                      onPressed: widget.narrow
-                          ? widget.onOpenSessionsDrawer
-                          : widget.onOpenCommandPalette,
+                      onPressed: widget.narrow ? widget.onOpenSessionsDrawer : widget.onOpenCommandPalette,
                       icon: const Icon(Icons.search_outlined, size: FrameSize.iconLg),
                       label: Text(strings.browseSessionsAction),
                     ),
@@ -229,10 +201,7 @@ class _WelcomeViewState extends ConsumerState<WelcomeView>
             ),
             if (_hasHardwareKeyboard) ...[
               const SizedBox(height: FrameSpace.x8),
-              Text(
-                strings.commandsShortcutHint,
-                style: text.caption.copyWith(color: tokens.textMuted),
-              ),
+              Text(strings.commandsShortcutHint, style: text.caption.copyWith(color: tokens.textMuted)),
             ],
           ],
         );
@@ -259,10 +228,7 @@ class _WelcomeViewState extends ConsumerState<WelcomeView>
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         startContent,
-                        if (recentSessions.isNotEmpty) ...[
-                          const SizedBox(height: FrameSpace.x8),
-                          recentContent,
-                        ],
+                        if (recentSessions.isNotEmpty) ...[const SizedBox(height: FrameSpace.x8), recentContent],
                       ],
                     ),
             ),
@@ -272,11 +238,7 @@ class _WelcomeViewState extends ConsumerState<WelcomeView>
     );
   }
 
-  Widget _buildRecentSessionsSection(
-    FrameTokens tokens,
-    FrameText text,
-    List<Map<String, dynamic>> sessions,
-  ) {
+  Widget _buildRecentSessionsSection(FrameTokens tokens, FrameText text, List<Map<String, dynamic>> sessions) {
     final sessionNames = ref.watch(sessionDisplayNamesProvider);
 
     // Group by repository. Groups keep the order of their most recent session.
@@ -296,10 +258,7 @@ class _WelcomeViewState extends ConsumerState<WelcomeView>
             children: [
               Icon(Icons.history_outlined, size: FrameSize.icon, color: tokens.accent),
               const SizedBox(width: FrameSpace.x2),
-              Text(
-                strings.recentSessionsHeader,
-                style: text.title.copyWith(color: tokens.textPrimary),
-              ),
+              Text(strings.recentSessionsHeader, style: text.title.copyWith(color: tokens.textPrimary)),
             ],
           ),
           const SizedBox(height: FrameSpace.x3),
@@ -311,14 +270,9 @@ class _WelcomeViewState extends ConsumerState<WelcomeView>
               children: [
                 for (final group in groups.entries) ...[
                   Padding(
-                    padding: const EdgeInsets.only(
-                      top: FrameSpace.x2,
-                      bottom: FrameSpace.x1,
-                    ),
+                    padding: const EdgeInsets.only(top: FrameSpace.x2, bottom: FrameSpace.x1),
                     child: Text(
-                      group.key.isEmpty
-                          ? strings.unknownFolderLabel
-                          : folderLabels[group.key] ?? group.key,
+                      group.key.isEmpty ? strings.unknownFolderLabel : folderLabels[group.key] ?? group.key,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: text.label.copyWith(color: tokens.textMuted),
@@ -326,19 +280,10 @@ class _WelcomeViewState extends ConsumerState<WelcomeView>
                   ),
                   for (final session in group.value)
                     FrameListRow(
-                      key: ValueKey(
-                        'quick-launch-session-${session['id'] ?? ''}',
-                      ),
-                      name:
-                          sessionNames[session['id'] ?? ''] ??
-                          (session['name'] ?? session['id'] ?? '').toString(),
-                      leading: Icon(
-                        Icons.chat_bubble_outlined,
-                        size: FrameSize.icon,
-                        color: tokens.textSecondary,
-                      ),
-                      onTap: () =>
-                          _openSession((session['id'] ?? '').toString()),
+                      key: ValueKey('quick-launch-session-${session['id'] ?? ''}'),
+                      name: sessionNames[session['id'] ?? ''] ?? (session['name'] ?? session['id'] ?? '').toString(),
+                      leading: Icon(Icons.chat_bubble_outlined, size: FrameSize.icon, color: tokens.textSecondary),
+                      onTap: () => _openSession((session['id'] ?? '').toString()),
                     ),
                 ],
               ],

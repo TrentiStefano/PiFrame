@@ -11,8 +11,7 @@ import 'system_metrics_model.dart';
 
 final isWebProvider = Provider<bool>((ref) => kIsWeb);
 
-final systemMetricsStaleDurationProvider =
-    Provider<Duration>((ref) => const Duration(seconds: 5));
+final systemMetricsStaleDurationProvider = Provider<Duration>((ref) => const Duration(seconds: 5));
 
 class SystemMetricsController extends StateNotifier<SystemMetricsData> {
   final Ref _ref;
@@ -29,23 +28,14 @@ class SystemMetricsController extends StateNotifier<SystemMetricsData> {
   }
 
   void _init() {
-    _ref.listen<NerdStatsSettings>(
-      nerdStatsSettingsProvider,
-      (prev, next) => evaluate(),
-    );
+    _ref.listen<NerdStatsSettings>(nerdStatsSettingsProvider, (prev, next) => evaluate());
 
-    _ref.listen<PcpClient?>(
-      pcpClientProvider,
-      (prev, next) {
-        _listenClientConnection(next);
-        evaluate();
-      },
-    );
+    _ref.listen<PcpClient?>(pcpClientProvider, (prev, next) {
+      _listenClientConnection(next);
+      evaluate();
+    });
 
-    _ref.listen<AsyncValue<DaemonConnectionState>>(
-      connectionStateProvider,
-      (prev, next) => evaluate(),
-    );
+    _ref.listen<AsyncValue<DaemonConnectionState>>(connectionStateProvider, (prev, next) => evaluate());
 
     _listenClientConnection(_ref.read(pcpClientProvider));
     evaluate();
@@ -62,9 +52,7 @@ class SystemMetricsController extends StateNotifier<SystemMetricsData> {
     final client = _ref.read(pcpClientProvider);
     _currentClient = client;
     final connectionAsync = _ref.read(connectionStateProvider);
-    final connectionState = connectionAsync.valueOrNull ??
-        client?.state ??
-        DaemonConnectionState.disconnected;
+    final connectionState = connectionAsync.valueOrNull ?? client?.state ?? DaemonConnectionState.disconnected;
 
     if (!settings.enabled) {
       if (_isSubscribed) {
@@ -106,10 +94,7 @@ class SystemMetricsController extends StateNotifier<SystemMetricsData> {
       }
       _cancelStaleTimer();
       _cancelEventSub();
-      state = const SystemMetricsData.empty(
-        hasCapability: false,
-        isStale: true,
-      );
+      state = const SystemMetricsData.empty(hasCapability: false, isStale: true);
       return;
     }
 
@@ -121,12 +106,14 @@ class SystemMetricsController extends StateNotifier<SystemMetricsData> {
   void _subscribe(PcpClient client) {
     _isSubscribed = true;
     _cancelEventSub();
-    _eventSub = client.events('@daemon').listen(
-      _handleEvent,
-      onError: (_) {
-        if (mounted) state = state.copyWith(isStale: true);
-      },
-    );
+    _eventSub = client
+        .events('@daemon')
+        .listen(
+          _handleEvent,
+          onError: (_) {
+            if (mounted) state = state.copyWith(isStale: true);
+          },
+        );
 
     client.subscribeSystemMetrics().catchError((err) {
       _isSubscribed = false;
@@ -186,7 +173,6 @@ class SystemMetricsController extends StateNotifier<SystemMetricsData> {
   }
 }
 
-final systemMetricsProvider =
-    StateNotifierProvider<SystemMetricsController, SystemMetricsData>((ref) {
+final systemMetricsProvider = StateNotifierProvider<SystemMetricsController, SystemMetricsData>((ref) {
   return SystemMetricsController(ref);
 });

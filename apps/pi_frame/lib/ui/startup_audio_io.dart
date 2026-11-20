@@ -4,16 +4,8 @@ import 'dart:io';
 import 'package:ffi/ffi.dart';
 import 'package:flutter/services.dart';
 
-typedef _PlaySoundNative = Int32 Function(
-  Pointer<Void> pszSound,
-  IntPtr hmod,
-  Uint32 fdwSound,
-);
-typedef _PlaySoundDart = int Function(
-  Pointer<Void> pszSound,
-  int hmod,
-  int fdwSound,
-);
+typedef _PlaySoundNative = Int32 Function(Pointer<Void> pszSound, IntPtr hmod, Uint32 fdwSound);
+typedef _PlaySoundDart = int Function(Pointer<Void> pszSound, int hmod, int fdwSound);
 
 const int _sndAsync = 0x0001;
 const int _sndMemory = 0x0004;
@@ -28,9 +20,7 @@ void playWavNative(Uint8List wavBytes) {
   if (Platform.isWindows) {
     try {
       final winmm = DynamicLibrary.open('winmm.dll');
-      final playSound = winmm.lookupFunction<_PlaySoundNative, _PlaySoundDart>(
-        'PlaySoundW',
-      );
+      final playSound = winmm.lookupFunction<_PlaySoundNative, _PlaySoundDart>('PlaySoundW');
 
       if (_activeSoundBuffer != null) {
         calloc.free(_activeSoundBuffer!);

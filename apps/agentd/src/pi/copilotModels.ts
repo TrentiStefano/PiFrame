@@ -39,11 +39,18 @@ function readAuthFile(): unknown {
 }
 
 function authFingerprint(refresh: string, access: string, expires: unknown): string {
-  return crypto.createHash('sha256').update(JSON.stringify([refresh, access, expires])).digest('hex');
+  return crypto
+    .createHash('sha256')
+    .update(JSON.stringify([refresh, access, expires]))
+    .digest('hex');
 }
 
 function trustedModelsUrl(token: string): { url: string; individual: boolean } {
-  const proxy = token.split(';').map((part) => part.trim()).find((part) => part.startsWith('proxy-ep='))?.slice('proxy-ep='.length);
+  const proxy = token
+    .split(';')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith('proxy-ep='))
+    ?.slice('proxy-ep='.length);
   if (!proxy || !/^proxy\.(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+githubcopilot\.com$/i.test(proxy)) {
     throw new Error('UNTRUSTED_ENDPOINT');
   }
@@ -93,13 +100,17 @@ function parseAllowedModelIds(raw: unknown, individual: boolean): Set<string> {
     const capabilities = isRecord(item.capabilities) ? item.capabilities : undefined;
     const supports = capabilities && isRecord(capabilities.supports) ? capabilities.supports : undefined;
     if (item.tools === false || supports?.tool_calls === false) return [];
-    return [{ id: item.id, picker: item.model_picker_enabled === true, state: isRecord(item.policy) ? item.policy.state : undefined }];
+    return [
+      {
+        id: item.id,
+        picker: item.model_picker_enabled === true,
+        state: isRecord(item.policy) ? item.policy.state : undefined
+      }
+    ];
   });
   // Models without a policy (for example included Codex models) need no opt-in.
   const regular = models.filter((model) => model.picker && (model.state === undefined || model.state === 'enabled'));
-  const selected = regular.length > 0 || !individual
-    ? regular
-    : models.filter((model) => model.state === 'enabled');
+  const selected = regular.length > 0 || !individual ? regular : models.filter((model) => model.state === 'enabled');
   return new Set(selected.map((model) => model.id));
 }
 
@@ -122,9 +133,18 @@ export function createCopilotEntitlementService(options: ServiceOptions = {}) {
         return failure('NO_CREDENTIALS', 'GitHub Copilot credentials are unavailable.');
       }
       const entry = isRecord(auth) && isRecord(auth['github-copilot']) ? auth['github-copilot'] : undefined;
-      if (!entry || entry.type !== 'oauth' || typeof entry.refresh !== 'string' || entry.refresh.length === 0 || entry.refresh.length > 8192 ||
-          typeof entry.access !== 'string' || entry.access.length === 0 || entry.access.length > 8192 ||
-          /[\r\n]/.test(entry.refresh) || /[\r\n]/.test(entry.access)) {
+      if (
+        !entry ||
+        entry.type !== 'oauth' ||
+        typeof entry.refresh !== 'string' ||
+        entry.refresh.length === 0 ||
+        entry.refresh.length > 8192 ||
+        typeof entry.access !== 'string' ||
+        entry.access.length === 0 ||
+        entry.access.length > 8192 ||
+        /[\r\n]/.test(entry.refresh) ||
+        /[\r\n]/.test(entry.access)
+      ) {
         return failure('NO_CREDENTIALS', 'GitHub Copilot credentials are unavailable.');
       }
 

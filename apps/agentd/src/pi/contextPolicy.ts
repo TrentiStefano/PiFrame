@@ -11,18 +11,25 @@ export interface ContextPolicy {
 export function validateContextLimit(value: unknown, modelMaximum: number): number | null {
   if (value === null) return null;
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) {
-    throw Object.assign(new Error('Il limite di contesto deve essere un numero intero positivo.'), { code: 'COMMAND_REJECTED' });
+    throw Object.assign(new Error('Il limite di contesto deve essere un numero intero positivo.'), {
+      code: 'COMMAND_REJECTED'
+    });
   }
   if (!Number.isSafeInteger(modelMaximum) || modelMaximum <= 0) {
     throw Object.assign(new Error('Dimensione massima del modello non disponibile.'), { code: 'COMMAND_REJECTED' });
   }
-  if (value > modelMaximum) throw Object.assign(new Error(`Il contesto massimo del modello è ${modelMaximum} token.`), { code: 'COMMAND_REJECTED' });
+  if (value > modelMaximum)
+    throw Object.assign(new Error(`Il contesto massimo del modello è ${modelMaximum} token.`), {
+      code: 'COMMAND_REJECTED'
+    });
   return value;
 }
 
 export function validateReservePercent(value: unknown): number {
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0 || value >= 100) {
-    throw Object.assign(new Error('Il margine di compattazione deve essere maggiore di 0 e minore di 100%.'), { code: 'COMMAND_REJECTED' });
+    throw Object.assign(new Error('Il margine di compattazione deve essere maggiore di 0 e minore di 100%.'), {
+      code: 'COMMAND_REJECTED'
+    });
   }
   return value;
 }
@@ -42,19 +49,25 @@ export function readContextPolicy(sessionId: string): ContextPolicy {
     const parsed = JSON.parse(fs.readFileSync(policyPath(sessionId), 'utf8'));
     return {
       contextWindowOverride: validateContextLimit(parsed.contextWindowOverride, Number.MAX_SAFE_INTEGER),
-      compactionReservePercent: validateReservePercent(parsed.compactionReservePercent),
+      compactionReservePercent: validateReservePercent(parsed.compactionReservePercent)
     };
-  } catch { return defaults; }
+  } catch {
+    return defaults;
+  }
 }
 
 export function writeContextPolicy(sessionId: string, policy: ContextPolicy): void {
   const file = policyPath(sessionId);
   fs.mkdirSync(path.dirname(file), { recursive: true });
   const temporary = `${file}.${process.pid}.tmp`;
-  fs.writeFileSync(temporary, JSON.stringify({
-    contextWindowOverride: policy.contextWindowOverride,
-    compactionReservePercent: policy.compactionReservePercent,
-  }), { mode: 0o600 });
+  fs.writeFileSync(
+    temporary,
+    JSON.stringify({
+      contextWindowOverride: policy.contextWindowOverride,
+      compactionReservePercent: policy.compactionReservePercent
+    }),
+    { mode: 0o600 }
+  );
   fs.renameSync(temporary, file);
 }
 

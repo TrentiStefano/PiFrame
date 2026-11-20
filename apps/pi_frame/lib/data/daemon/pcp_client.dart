@@ -8,13 +8,7 @@ import 'package:pi_frame_protocol/pi_frame_protocol.dart';
 import '../../app/app_version.dart';
 import '../agents/agents_config_model.dart';
 
-enum DaemonConnectionState {
-  disconnected,
-  connecting,
-  authenticating,
-  connected,
-  reconnecting,
-}
+enum DaemonConnectionState { disconnected, connecting, authenticating, connected, reconnecting }
 
 class PcpClient {
   final String host;
@@ -30,10 +24,8 @@ class PcpClient {
   StreamSubscription? _subscription;
   DaemonConnectionState _state = DaemonConnectionState.disconnected;
 
-  final _connectionStateController =
-      StreamController<DaemonConnectionState>.broadcast();
-  Stream<DaemonConnectionState> get connectionStateStream =>
-      _connectionStateController.stream;
+  final _connectionStateController = StreamController<DaemonConnectionState>.broadcast();
+  Stream<DaemonConnectionState> get connectionStateStream => _connectionStateController.stream;
   DaemonConnectionState get state => _state;
 
   // Session event streams
@@ -67,13 +59,7 @@ class PcpClient {
 
   bool hasCapability(String capability) => capabilities.contains(capability);
 
-  PcpClient({
-    this.host = '127.0.0.1',
-    required this.port,
-    required this.token,
-    this.isSecure = false,
-    this.rediscover,
-  });
+  PcpClient({this.host = '127.0.0.1', required this.port, required this.token, this.isSecure = false, this.rediscover});
 
   void connect() {
     if (_disposed) return;
@@ -81,17 +67,11 @@ class PcpClient {
 
     try {
       final scheme = isSecure ? 'wss' : 'ws';
-      final portSuffix = (isSecure && port == 443) || (!isSecure && port == 80)
-          ? ''
-          : ':$port';
+      final portSuffix = (isSecure && port == 443) || (!isSecure && port == 80) ? '' : ':$port';
       final uri = Uri.parse('$scheme://$host$portSuffix');
       _channel = WebSocketChannel.connect(uri);
 
-      _subscription = _channel!.stream.listen(
-        _onMessage,
-        onError: _onError,
-        onDone: _onDone,
-      );
+      _subscription = _channel!.stream.listen(_onMessage, onError: _onError, onDone: _onDone);
 
       _sendHello();
     } catch (e) {
@@ -109,11 +89,7 @@ class PcpClient {
       'type': 'connection.hello',
       'payload': {
         'token': token,
-        'client': {
-          'name': 'pi_frame_flutter',
-          'version': piFrameVersion,
-          'platform': defaultTargetPlatform.name,
-        },
+        'client': {'name': 'pi_frame_flutter', 'version': piFrameVersion, 'platform': defaultTargetPlatform.name},
         'encoding': 'json',
         'capabilities': ['replay.v1', 'ui.claim.v1', 'workspace.v1'],
       },
@@ -123,9 +99,7 @@ class PcpClient {
 
   void _onMessage(dynamic raw) {
     try {
-      final String text = raw is String
-          ? raw
-          : (raw is List<int> ? utf8.decode(raw) : raw.toString());
+      final String text = raw is String ? raw : (raw is List<int> ? utf8.decode(raw) : raw.toString());
       final map = jsonDecode(text) as Map<String, dynamic>;
       final kind = map['kind'] as String?;
 
@@ -176,11 +150,7 @@ class PcpClient {
             final code = payload['code']?.toString() ?? '';
             final details = payload['details'];
             completer.completeError(
-              PcpException(
-                payload['error']?.toString() ?? 'Command failed',
-                code: code,
-                details: details ?? const {},
-              ),
+              PcpException(payload['error']?.toString() ?? 'Command failed', code: code, details: details ?? const {}),
             );
           } else {
             completer.complete(payload);
@@ -222,9 +192,7 @@ class PcpClient {
         if (sessionId != '@daemon') {
           final lastSeq = _attachedSessions[sessionId];
           if (event.seq > 0) {
-            if (event.type != 'journal.gap' &&
-                lastSeq != null &&
-                event.seq <= lastSeq) {
+            if (event.type != 'journal.gap' && lastSeq != null && event.seq <= lastSeq) {
               return;
             }
             _attachedSessions[sessionId] = event.seq;
@@ -246,9 +214,7 @@ class PcpClient {
 
   void _onError(dynamic err) {
     if (kDebugMode) {
-      debugPrint(
-        'PCP WebSocket error: $err, closeCode=${_channel?.closeCode}, closeReason=${_channel?.closeReason}',
-      );
+      debugPrint('PCP WebSocket error: $err, closeCode=${_channel?.closeCode}, closeReason=${_channel?.closeReason}');
     }
     _cleanupChannel();
     _scheduleReconnect();
@@ -256,9 +222,7 @@ class PcpClient {
 
   void _onDone() {
     if (kDebugMode) {
-      debugPrint(
-        'PCP WebSocket closed. closeCode=${_channel?.closeCode}, closeReason=${_channel?.closeReason}',
-      );
+      debugPrint('PCP WebSocket closed. closeCode=${_channel?.closeCode}, closeReason=${_channel?.closeReason}');
     }
     _cleanupChannel();
     _scheduleReconnect();
@@ -277,34 +241,26 @@ class PcpClient {
     _setConnectionState(DaemonConnectionState.reconnecting);
 
     _reconnectTimer?.cancel();
-    _reconnectTimer = Timer(
-      Duration(seconds: _reconnectDelaySeconds),
-      () async {
-        _reconnectDelaySeconds = (_reconnectDelaySeconds * 2).clamp(1, 15);
-        try {
-          final endpoint = await rediscover?.call();
-          if (_disposed) return;
-          if (endpoint != null &&
-              (endpoint.port != port || endpoint.token != token)) {
-            // A new daemon cannot deduplicate uncertain commands from the old daemon.
-            for (final pending in _pendingCommands.values) {
-              pending.completeError(
-                StateError(
-                  'Daemon restarted. Check session state before retrying the command.',
-                ),
-              );
-            }
-            _pendingCommands.clear();
-            _inFlightCommands.clear();
-            port = endpoint.port;
-            token = endpoint.token;
+    _reconnectTimer = Timer(Duration(seconds: _reconnectDelaySeconds), () async {
+      _reconnectDelaySeconds = (_reconnectDelaySeconds * 2).clamp(1, 15);
+      try {
+        final endpoint = await rediscover?.call();
+        if (_disposed) return;
+        if (endpoint != null && (endpoint.port != port || endpoint.token != token)) {
+          // A new daemon cannot deduplicate uncertain commands from the old daemon.
+          for (final pending in _pendingCommands.values) {
+            pending.completeError(StateError('Daemon restarted. Check session state before retrying the command.'));
           }
-        } catch (_) {
-          /* A later reconnect will retry discovery. */
+          _pendingCommands.clear();
+          _inFlightCommands.clear();
+          port = endpoint.port;
+          token = endpoint.token;
         }
-        if (!_disposed) connect();
-      },
-    );
+      } catch (_) {
+        /* A later reconnect will retry discovery. */
+      }
+      if (!_disposed) connect();
+    });
   }
 
   void _setConnectionState(DaemonConnectionState newState) {
@@ -353,11 +309,7 @@ class PcpClient {
     );
   }
 
-  Future<Map<String, dynamic>> getHistory(
-    String sessionId, {
-    String? beforeId,
-    int limit = 50,
-  }) {
+  Future<Map<String, dynamic>> getHistory(String sessionId, {String? beforeId, int limit = 50}) {
     final cmd = PcpCommand(
       protocol: 1,
       id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
@@ -383,11 +335,7 @@ class PcpClient {
       sessionId: sessionId,
       commandId: newCommandId('prm'),
       type: 'agent.prompt',
-      payload: {
-        'text': text,
-        'streamingBehavior': ?streamingBehavior,
-        'images': ?images,
-      },
+      payload: {'text': text, 'streamingBehavior': ?streamingBehavior, 'images': ?images},
     );
     return sendCommand(cmd);
   }
@@ -431,10 +379,7 @@ class PcpClient {
     return sendCommand(cmd);
   }
 
-  Future<Map<String, dynamic>> setContextWindowOverride(
-    String sessionId,
-    int? limit,
-  ) {
+  Future<Map<String, dynamic>> setContextWindowOverride(String sessionId, int? limit) {
     final cmd = PcpCommand(
       protocol: 1,
       id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
@@ -447,10 +392,7 @@ class PcpClient {
     return sendCommand(cmd);
   }
 
-  Future<Map<String, dynamic>> setCompactionReservePercent(
-    String sessionId,
-    double percent,
-  ) {
+  Future<Map<String, dynamic>> setCompactionReservePercent(String sessionId, double percent) {
     final cmd = PcpCommand(
       protocol: 1,
       id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
@@ -463,11 +405,7 @@ class PcpClient {
     return sendCommand(cmd);
   }
 
-  Future<Map<String, dynamic>> setModel(
-    String sessionId,
-    String provider,
-    String modelId,
-  ) {
+  Future<Map<String, dynamic>> setModel(String sessionId, String provider, String modelId) {
     final cmd = PcpCommand(
       protocol: 1,
       id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
@@ -480,10 +418,7 @@ class PcpClient {
     return sendCommand(cmd);
   }
 
-  Future<Map<String, dynamic>> setThinkingLevel(
-    String sessionId,
-    String level,
-  ) {
+  Future<Map<String, dynamic>> setThinkingLevel(String sessionId, String level) {
     final cmd = PcpCommand(
       protocol: 1,
       id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
@@ -574,17 +509,16 @@ class PcpClient {
     return sendCommand(cmd);
   }
 
-  Future<Map<String, dynamic>> listPiPackages({bool checkUpdates = false}) =>
-      sendCommand(
-        PcpCommand(
-          protocol: 1,
-          id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
-          ts: DateTime.now().millisecondsSinceEpoch,
-          commandId: newCommandId('pkgl'),
-          type: 'pi.packages.list',
-          payload: checkUpdates ? const {'checkUpdates': true} : const {},
-        ),
-      );
+  Future<Map<String, dynamic>> listPiPackages({bool checkUpdates = false}) => sendCommand(
+    PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      commandId: newCommandId('pkgl'),
+      type: 'pi.packages.list',
+      payload: checkUpdates ? const {'checkUpdates': true} : const {},
+    ),
+  );
 
   Future<Map<String, dynamic>> updatePiPackage(String source) => sendCommand(
     PcpCommand(
@@ -608,45 +542,33 @@ class PcpClient {
     ),
   );
 
-  Future<Map<String, dynamic>> pinPiPackage(String source, String version) =>
-      sendCommand(
-        PcpCommand(
-          protocol: 1,
-          id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
-          ts: DateTime.now().millisecondsSinceEpoch,
-          commandId: newCommandId('pkgp'),
-          type: 'pi.packages.pin',
-          payload: {'source': source, 'version': version},
-        ),
-      );
+  Future<Map<String, dynamic>> pinPiPackage(String source, String version) => sendCommand(
+    PcpCommand(
+      protocol: 1,
+      id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
+      ts: DateTime.now().millisecondsSinceEpoch,
+      commandId: newCommandId('pkgp'),
+      type: 'pi.packages.pin',
+      payload: {'source': source, 'version': version},
+    ),
+  );
 
   Future<PiAgentsConfig> getAgentsConfig({String? cwd}) async {
-    final cmd = PcpCommand.piAgentsGet(
-      commandId: newCommandId('ag_get'),
-      cwd: cwd,
-    );
+    final cmd = PcpCommand.piAgentsGet(commandId: newCommandId('ag_get'), cwd: cwd);
     final res = await sendCommand(cmd);
     final map = (res['data'] as Map<String, dynamic>?) ?? res;
     return PiAgentsConfig.fromJson(map);
   }
 
   Future<PiAgentsConfig> updateAgentsConfig(List<Map> changes) async {
-    final typedChanges = changes
-        .map((c) => c.map((k, v) => MapEntry(k.toString(), v)))
-        .toList();
-    final cmd = PcpCommand.piAgentsUpdate(
-      commandId: newCommandId('ag_upd'),
-      changes: typedChanges,
-    );
+    final typedChanges = changes.map((c) => c.map((k, v) => MapEntry(k.toString(), v))).toList();
+    final cmd = PcpCommand.piAgentsUpdate(commandId: newCommandId('ag_upd'), changes: typedChanges);
     final res = await sendCommand(cmd);
     final map = (res['data'] as Map<String, dynamic>?) ?? res;
     return PiAgentsConfig.fromJson(map);
   }
 
-  Future<Map<String, dynamic>> claimUiRequest(
-    String sessionId,
-    String requestId,
-  ) {
+  Future<Map<String, dynamic>> claimUiRequest(String sessionId, String requestId) {
     final cmd = PcpCommand(
       protocol: 1,
       id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
@@ -673,12 +595,7 @@ class PcpClient {
       sessionId: sessionId,
       commandId: newCommandId('rsr'),
       type: 'ui.respond',
-      payload: {
-        'requestId': requestId,
-        'value': ?value,
-        'confirmed': ?confirmed,
-        'cancelled': ?cancelled,
-      },
+      payload: {'requestId': requestId, 'value': ?value, 'confirmed': ?confirmed, 'cancelled': ?cancelled},
     );
     return sendCommand(cmd);
   }
@@ -696,10 +613,7 @@ class PcpClient {
     return sendCommand(cmd);
   }
 
-  Future<Map<String, dynamic>> continueSession(
-    String sessionId, {
-    bool confirmed = false,
-  }) {
+  Future<Map<String, dynamic>> continueSession(String sessionId, {bool confirmed = false}) {
     final cmd = PcpCommand(
       protocol: 1,
       id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
@@ -717,8 +631,9 @@ class PcpClient {
 
   /// The session's subagents plus what the daemon knows of the worker they run
   /// in (`live`: `anyRunning`, `idleSince`, `workerAlive`, `workerGone`).
-  Future<({List<Map<String, dynamic>> subagents, Map<String, dynamic> live})>
-  getSubagentsWithLive(String sessionId) async {
+  Future<({List<Map<String, dynamic>> subagents, Map<String, dynamic> live})> getSubagentsWithLive(
+    String sessionId,
+  ) async {
     final cmd = PcpCommand(
       protocol: 1,
       id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
@@ -741,26 +656,15 @@ class PcpClient {
     );
   }
 
-  Future<Map<String, dynamic>> steerSubagent(
-    String sessionId,
-    String subagentId,
-    String message,
-  ) {
-    return sendPrompt(
-      sessionId,
-      'Steer subagent $subagentId: $message',
-      streamingBehavior: 'steer',
-    );
+  Future<Map<String, dynamic>> steerSubagent(String sessionId, String subagentId, String message) {
+    return sendPrompt(sessionId, 'Steer subagent $subagentId: $message', streamingBehavior: 'steer');
   }
 
   /// Stops a background subagent through pi-subagents' own stop (the one
   /// `/agents` uses), via PiFrame's bridge in the worker. Asking the main agent
   /// in chat could not work: it has no tool that stops an agent.
   /// Returns `{stopped: bool, reason?: String}`.
-  Future<Map<String, dynamic>> stopSubagent(
-    String sessionId,
-    String subagentId,
-  ) async {
+  Future<Map<String, dynamic>> stopSubagent(String sessionId, String subagentId) async {
     final cmd = PcpCommand(
       protocol: 1,
       id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
@@ -818,11 +722,7 @@ class PcpClient {
     return sendCommand(cmd);
   }
 
-  Future<Map<String, dynamic>> startRemoteTunnel({
-    String? tunnelProvider,
-    String? customCommand,
-    String? customUrl,
-  }) {
+  Future<Map<String, dynamic>> startRemoteTunnel({String? tunnelProvider, String? customCommand, String? customUrl}) {
     final payload = <String, dynamic>{};
     if (tunnelProvider != null) payload['tunnelProvider'] = tunnelProvider;
     if (customCommand != null) payload['customCommand'] = customCommand;
@@ -934,10 +834,7 @@ class PcpClient {
     return sendCommand(cmd);
   }
 
-  Future<Map<String, dynamic>> setRemoteDeviceMode({
-    required String deviceId,
-    required String mode,
-  }) {
+  Future<Map<String, dynamic>> setRemoteDeviceMode({required String deviceId, required String mode}) {
     final cmd = PcpCommand(
       protocol: 1,
       id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
@@ -969,26 +866,16 @@ class PcpClient {
   Future<Map<String, dynamic>> listWorkspaceFiles(String sessionId) =>
       _workspaceCommand(sessionId, 'workspace.listFiles', {});
 
-  Future<Map<String, dynamic>> readWorkspaceFile(
-    String sessionId,
-    String path,
-  ) => _workspaceCommand(sessionId, 'workspace.readFile', {'path': path});
+  Future<Map<String, dynamic>> readWorkspaceFile(String sessionId, String path) =>
+      _workspaceCommand(sessionId, 'workspace.readFile', {'path': path});
 
-  Future<Map<String, dynamic>> saveWorkspaceFile(
-    String sessionId,
-    Map<String, dynamic> payload,
-  ) => _workspaceCommand(sessionId, 'workspace.saveFile', payload);
+  Future<Map<String, dynamic>> saveWorkspaceFile(String sessionId, Map<String, dynamic> payload) =>
+      _workspaceCommand(sessionId, 'workspace.saveFile', payload);
 
-  Future<Map<String, dynamic>> workspaceGitAction(
-    String sessionId,
-    Map<String, dynamic> payload,
-  ) => _workspaceCommand(sessionId, 'workspace.gitAction', payload);
+  Future<Map<String, dynamic>> workspaceGitAction(String sessionId, Map<String, dynamic> payload) =>
+      _workspaceCommand(sessionId, 'workspace.gitAction', payload);
 
-  Future<Map<String, dynamic>> _workspaceCommand(
-    String sessionId,
-    String type,
-    Map<String, dynamic> payload,
-  ) {
+  Future<Map<String, dynamic>> _workspaceCommand(String sessionId, String type, Map<String, dynamic> payload) {
     final command = PcpCommand(
       protocol: 1,
       id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
@@ -1001,10 +888,7 @@ class PcpClient {
     return sendCommand(command);
   }
 
-  Future<Map<String, dynamic>> refreshWorkspace(
-    String sessionId, {
-    String? cwd,
-  }) {
+  Future<Map<String, dynamic>> refreshWorkspace(String sessionId, {String? cwd}) {
     final cmd = PcpCommand(
       protocol: 1,
       id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
@@ -1018,20 +902,13 @@ class PcpClient {
   }
 
   Future<WorkspaceListBranchesResult> listBranches(String sessionId) async {
-    final cmd = PcpCommand.workspaceListBranches(
-      commandId: newCommandId('wlb'),
-      sessionId: sessionId,
-    );
+    final cmd = PcpCommand.workspaceListBranches(commandId: newCommandId('wlb'), sessionId: sessionId);
     final response = await sendCommand(cmd);
     final data = (response['data'] as Map<String, dynamic>?) ?? response;
     return WorkspaceListBranchesResult.fromJson(data);
   }
 
-  Future<WorkspaceSwitchBranchResult> switchBranch(
-    String sessionId,
-    String branch, {
-    String onDirty = 'block',
-  }) async {
+  Future<WorkspaceSwitchBranchResult> switchBranch(String sessionId, String branch, {String onDirty = 'block'}) async {
     final cmd = PcpCommand.workspaceSwitchBranch(
       commandId: newCommandId('wsb'),
       sessionId: sessionId,
@@ -1043,10 +920,7 @@ class PcpClient {
     return WorkspaceSwitchBranchResult.fromJson(data);
   }
 
-  Future<Map<String, dynamic>> getWorkspaceDiff(
-    String sessionId, {
-    String? filePath,
-  }) {
+  Future<Map<String, dynamic>> getWorkspaceDiff(String sessionId, {String? filePath}) {
     final cmd = PcpCommand(
       protocol: 1,
       id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
@@ -1098,10 +972,7 @@ class PcpClient {
     return sendCommand(cmd);
   }
 
-  Future<Map<String, dynamic>> forkSession(
-    String sessionId, {
-    String? entryId,
-  }) {
+  Future<Map<String, dynamic>> forkSession(String sessionId, {String? entryId}) {
     final cmd = PcpCommand(
       protocol: 1,
       id: 'cmd_${DateTime.now().millisecondsSinceEpoch}',
@@ -1141,71 +1012,39 @@ class PcpClient {
   }
 
   Future<Map<String, dynamic>> subscribeSystemMetrics() {
-    return sendCommand(
-      PcpCommand.systemMetricsSubscribe(
-        commandId: newCommandId('cmd_metrics_sub'),
-      ),
-    );
+    return sendCommand(PcpCommand.systemMetricsSubscribe(commandId: newCommandId('cmd_metrics_sub')));
   }
 
   Future<Map<String, dynamic>> unsubscribeSystemMetrics() {
-    return sendCommand(
-      PcpCommand.systemMetricsUnsubscribe(
-        commandId: newCommandId('cmd_metrics_unsub'),
-      ),
-    );
+    return sendCommand(PcpCommand.systemMetricsUnsubscribe(commandId: newCommandId('cmd_metrics_unsub')));
   }
 
-  Future<Map<String, dynamic>> openSide(
-    String sessionId, {
-    String? question,
-  }) {
-    final cmd = PcpCommand.sideOpen(
-      commandId: newCommandId('side_open'),
-      sessionId: sessionId,
-      question: question,
-    );
+  Future<Map<String, dynamic>> openSide(String sessionId, {String? question}) {
+    final cmd = PcpCommand.sideOpen(commandId: newCommandId('side_open'), sessionId: sessionId, question: question);
     return sendCommand(cmd);
   }
 
-  Future<Map<String, dynamic>> sidePrompt(
-    String sideId,
-    String text,
-  ) {
-    final cmd = PcpCommand.sidePrompt(
-      commandId: newCommandId('side_prompt'),
-      sideId: sideId,
-      text: text,
-    );
+  Future<Map<String, dynamic>> sidePrompt(String sideId, String text) {
+    final cmd = PcpCommand.sidePrompt(commandId: newCommandId('side_prompt'), sideId: sideId, text: text);
     return sendCommand(cmd);
   }
 
   Future<Map<String, dynamic>> sideAbort(String sideId) {
-    final cmd = PcpCommand.sideAbort(
-      commandId: newCommandId('side_abort'),
-      sideId: sideId,
-    );
+    final cmd = PcpCommand.sideAbort(commandId: newCommandId('side_abort'), sideId: sideId);
     return sendCommand(cmd);
   }
 
   Future<Map<String, dynamic>> sideClose(String sideId) {
-    final cmd = PcpCommand.sideClose(
-      commandId: newCommandId('side_close'),
-      sideId: sideId,
-    );
+    final cmd = PcpCommand.sideClose(commandId: newCommandId('side_close'), sideId: sideId);
     return sendCommand(cmd);
   }
 
   Stream<PcpEvent> events(String sessionId) {
-    return _eventControllers
-        .putIfAbsent(sessionId, () => StreamController<PcpEvent>.broadcast())
-        .stream;
+    return _eventControllers.putIfAbsent(sessionId, () => StreamController<PcpEvent>.broadcast()).stream;
   }
 
   Stream<PcpSnapshot> snapshots(String sessionId) {
-    return _snapshotControllers
-        .putIfAbsent(sessionId, () => StreamController<PcpSnapshot>.broadcast())
-        .stream;
+    return _snapshotControllers.putIfAbsent(sessionId, () => StreamController<PcpSnapshot>.broadcast()).stream;
   }
 
   void dispose() {
@@ -1232,25 +1071,15 @@ class PcpException extends StateError implements Exception {
   final String code;
   final dynamic details;
 
-  PcpException(
-    super.message, {
-    this.code = '',
-    this.details = const {},
-  });
+  PcpException(super.message, {this.code = '', this.details = const {}});
 
-  Map<String, dynamic> get detailsMap =>
-      details is Map<String, dynamic>
-          ? details as Map<String, dynamic>
-          : (details is Map
-              ? Map<String, dynamic>.from(details as Map)
-              : const {});
+  Map<String, dynamic> get detailsMap => details is Map<String, dynamic>
+      ? details as Map<String, dynamic>
+      : (details is Map ? Map<String, dynamic>.from(details as Map) : const {});
 
   List<Map<String, dynamic>> get validationErrors {
     if (details is List) {
-      return (details as List)
-          .whereType<Map>()
-          .map((m) => m.map((k, v) => MapEntry(k.toString(), v)))
-          .toList();
+      return (details as List).whereType<Map>().map((m) => m.map((k, v) => MapEntry(k.toString(), v))).toList();
     }
     return const [];
   }
@@ -1346,11 +1175,7 @@ class WorkspaceSwitchBranchResult {
   final bool stashed;
   final String? stashMessage;
 
-  const WorkspaceSwitchBranchResult({
-    required this.currentBranch,
-    required this.stashed,
-    this.stashMessage,
-  });
+  const WorkspaceSwitchBranchResult({required this.currentBranch, required this.stashed, this.stashMessage});
 
   factory WorkspaceSwitchBranchResult.fromJson(Map<String, dynamic> json) {
     return WorkspaceSwitchBranchResult(

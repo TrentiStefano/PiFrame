@@ -24,11 +24,7 @@ class BottomAnchoredScrollController extends ScrollController {
   final double anchorTolerance;
 
   @override
-  ScrollPosition createScrollPosition(
-    ScrollPhysics physics,
-    ScrollContext context,
-    ScrollPosition? oldPosition,
-  ) {
+  ScrollPosition createScrollPosition(ScrollPhysics physics, ScrollContext context, ScrollPosition? oldPosition) {
     return _BottomAnchoredScrollPosition(
       physics: physics,
       context: context,
@@ -56,23 +52,14 @@ class _BottomAnchoredScrollPosition extends ScrollPositionWithSingleContext {
     final oldMax = hasContentDimensions ? this.maxScrollExtent : null;
     final isDragging = activity is DragScrollActivity;
     final isAtBottom =
-        !isDragging &&
-        oldMax != null &&
-        shouldAnchorToBottom() &&
-        (oldMax - pixels).abs() <= anchorTolerance;
+        !isDragging && oldMax != null && shouldAnchorToBottom() && (oldMax - pixels).abs() <= anchorTolerance;
 
-    final applied = super.applyContentDimensions(
-      minScrollExtent,
-      maxScrollExtent,
-    );
+    final applied = super.applyContentDimensions(minScrollExtent, maxScrollExtent);
 
     if (isAtBottom && maxScrollExtent != oldMax) {
       final delta = maxScrollExtent - oldMax;
       if (delta != 0) {
-        final newPixels = (pixels + delta).clamp(
-          minScrollExtent,
-          maxScrollExtent,
-        );
+        final newPixels = (pixels + delta).clamp(minScrollExtent, maxScrollExtent);
         final correction = newPixels - pixels;
         if (correction.abs() > 0.01) {
           correctBy(correction);

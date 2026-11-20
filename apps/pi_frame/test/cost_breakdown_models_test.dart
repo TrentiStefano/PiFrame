@@ -48,20 +48,13 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          sessionStateFamily(sessionId).overrideWith(
-            (ref) => SessionStateNotifier(sessionId, null)..state = sessionState,
-          ),
-          subagentsFamily(sessionId).overrideWith(
-            (ref) => _EmptySubagentsNotifier(ref, sessionId),
-          ),
+          sessionStateFamily(sessionId)
+              .overrideWith((ref) => SessionStateNotifier(sessionId, null)..state = sessionState),
+          subagentsFamily(sessionId).overrideWith((ref) => _EmptySubagentsNotifier(ref, sessionId)),
         ],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
-          home: const Scaffold(
-            body: TranscriptView(sessionId: sessionId),
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+          home: const Scaffold(body: TranscriptView(sessionId: sessionId)),
         ),
       ),
     );
@@ -107,7 +100,9 @@ void main() {
     expect(find.text('43.0M tokens'), findsOneWidget);
   });
 
-  testWidgets('Cost breakdown aggregates per-model costs from session entries when byModel is not in stats', (tester) async {
+  testWidgets('Cost breakdown aggregates per-model costs from session entries when byModel is not in stats', (
+    tester,
+  ) async {
     const sessionId = 'session_entries_cost';
 
     final sessionState = SessionState(
@@ -143,28 +138,19 @@ void main() {
           },
         ),
       ],
-      usage: const {
-        'cost': 0.040,
-      },
+      usage: const {'cost': 0.040},
     );
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          sessionStateFamily(sessionId).overrideWith(
-            (ref) => SessionStateNotifier(sessionId, null)..state = sessionState,
-          ),
-          subagentsFamily(sessionId).overrideWith(
-            (ref) => _EmptySubagentsNotifier(ref, sessionId),
-          ),
+          sessionStateFamily(sessionId)
+              .overrideWith((ref) => SessionStateNotifier(sessionId, null)..state = sessionState),
+          subagentsFamily(sessionId).overrideWith((ref) => _EmptySubagentsNotifier(ref, sessionId)),
         ],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
-          home: const Scaffold(
-            body: TranscriptView(sessionId: sessionId),
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+          home: const Scaffold(body: TranscriptView(sessionId: sessionId)),
         ),
       ),
     );

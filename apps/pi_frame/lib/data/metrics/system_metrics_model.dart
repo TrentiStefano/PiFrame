@@ -25,20 +25,13 @@ String formatResourcePercent(double? percent) {
   return '${percent.toStringAsFixed(1)}%';
 }
 
-String buildNerdStatsTooltip({
-  required bool isWeb,
-  required SystemMetricsData? metrics,
-  required int fps,
-}) {
+String buildNerdStatsTooltip({required bool isWeb, required SystemMetricsData? metrics, required int fps}) {
   if (isWeb) {
     return 'Render: $fps FPS';
   }
-  final isStaleOrUnavailable =
-      metrics == null || metrics.isStale || !metrics.hasCapability;
+  final isStaleOrUnavailable = metrics == null || metrics.isStale || !metrics.hasCapability;
 
-  final cpu = !isStaleOrUnavailable && metrics.cpuPercent != null
-      ? formatCpuPercent(metrics.cpuPercent)
-      : 'n/d';
+  final cpu = !isStaleOrUnavailable && metrics.cpuPercent != null ? formatCpuPercent(metrics.cpuPercent) : 'n/d';
 
   final ramUsed = !isStaleOrUnavailable && metrics.memoryUsedBytes != null
       ? formatBytes(metrics.memoryUsedBytes)
@@ -49,13 +42,9 @@ String buildNerdStatsTooltip({
   final ramPct = !isStaleOrUnavailable && metrics.memoryPercent != null
       ? formatResourcePercent(metrics.memoryPercent)
       : 'n/d';
-  final ram = (ramUsed == 'n/d' && ramTotal == 'n/d' && ramPct == 'n/d')
-      ? 'n/d'
-      : '$ramUsed / $ramTotal ($ramPct)';
+  final ram = (ramUsed == 'n/d' && ramTotal == 'n/d' && ramPct == 'n/d') ? 'n/d' : '$ramUsed / $ramTotal ($ramPct)';
 
-  final diskUsed = !isStaleOrUnavailable && metrics.diskUsedBytes != null
-      ? formatBytes(metrics.diskUsedBytes)
-      : 'n/d';
+  final diskUsed = !isStaleOrUnavailable && metrics.diskUsedBytes != null ? formatBytes(metrics.diskUsedBytes) : 'n/d';
   final diskTotal = !isStaleOrUnavailable && metrics.diskTotalBytes != null
       ? formatBytes(metrics.diskTotalBytes)
       : 'n/d';
@@ -69,17 +58,11 @@ String buildNerdStatsTooltip({
   final gpuPct = !isStaleOrUnavailable && metrics.gpuPercent != null
       ? formatResourcePercent(metrics.gpuPercent)
       : 'n/d';
-  final gpuVram = !isStaleOrUnavailable &&
-          (metrics.gpuMemoryUsedBytes != null ||
-              metrics.gpuMemoryTotalBytes != null)
+  final gpuVram = !isStaleOrUnavailable && (metrics.gpuMemoryUsedBytes != null || metrics.gpuMemoryTotalBytes != null)
       ? ' · VRAM: ${formatBytes(metrics.gpuMemoryUsedBytes)} / ${formatBytes(metrics.gpuMemoryTotalBytes)}'
       : '';
-  final gpuSource = !isStaleOrUnavailable && metrics.gpuSource != null
-      ? ' (source: ${metrics.gpuSource})'
-      : '';
-  final gpu = (gpuPct == 'n/d' && gpuVram.isEmpty && gpuSource.isEmpty)
-      ? 'n/d'
-      : '$gpuPct$gpuVram$gpuSource';
+  final gpuSource = !isStaleOrUnavailable && metrics.gpuSource != null ? ' (source: ${metrics.gpuSource})' : '';
+  final gpu = (gpuPct == 'n/d' && gpuVram.isEmpty && gpuSource.isEmpty) ? 'n/d' : '$gpuPct$gpuVram$gpuSource';
 
   return 'CPU: $cpu\nRAM: $ram\nDisk: $disk\nGPU: $gpu\nRender: $fps FPS';
 }
@@ -118,26 +101,21 @@ class SystemMetricsData {
     this.hasCapability = true,
   });
 
-  const SystemMetricsData.empty({
-    this.hasCapability = true,
-    this.isStale = false,
-  })  : sampledAt = null,
-        cpuPercent = null,
-        memoryUsedBytes = null,
-        memoryTotalBytes = null,
-        memoryPercent = null,
-        diskUsedBytes = null,
-        diskTotalBytes = null,
-        diskPercent = null,
-        gpuPercent = null,
-        gpuMemoryUsedBytes = null,
-        gpuMemoryTotalBytes = null,
-        gpuSource = null;
+  const SystemMetricsData.empty({this.hasCapability = true, this.isStale = false})
+    : sampledAt = null,
+      cpuPercent = null,
+      memoryUsedBytes = null,
+      memoryTotalBytes = null,
+      memoryPercent = null,
+      diskUsedBytes = null,
+      diskTotalBytes = null,
+      diskPercent = null,
+      gpuPercent = null,
+      gpuMemoryUsedBytes = null,
+      gpuMemoryTotalBytes = null,
+      gpuSource = null;
 
-  factory SystemMetricsData.fromMap(
-    Map<String, dynamic> map, {
-    bool hasCapability = true,
-  }) {
+  factory SystemMetricsData.fromMap(Map<String, dynamic> map, {bool hasCapability = true}) {
     final cpu = map['cpu'] as Map<String, dynamic>?;
     final mem = map['memory'] as Map<String, dynamic>?;
     final disk = map['disk'] as Map<String, dynamic>?;
@@ -161,14 +139,8 @@ class SystemMetricsData {
     );
   }
 
-  factory SystemMetricsData.fromEvent(
-    SystemMetricsEvent event, {
-    bool hasCapability = true,
-  }) {
-    return SystemMetricsData.fromMap(
-      event.payload,
-      hasCapability: hasCapability,
-    );
+  factory SystemMetricsData.fromEvent(SystemMetricsEvent event, {bool hasCapability = true}) {
+    return SystemMetricsData.fromMap(event.payload, hasCapability: hasCapability);
   }
 
   SystemMetricsData copyWith({
@@ -227,21 +199,21 @@ class SystemMetricsData {
 
   @override
   int get hashCode => Object.hash(
-        sampledAt,
-        cpuPercent,
-        memoryUsedBytes,
-        memoryTotalBytes,
-        memoryPercent,
-        diskUsedBytes,
-        diskTotalBytes,
-        diskPercent,
-        gpuPercent,
-        gpuMemoryUsedBytes,
-        gpuMemoryTotalBytes,
-        gpuSource,
-        isStale,
-        hasCapability,
-      );
+    sampledAt,
+    cpuPercent,
+    memoryUsedBytes,
+    memoryTotalBytes,
+    memoryPercent,
+    diskUsedBytes,
+    diskTotalBytes,
+    diskPercent,
+    gpuPercent,
+    gpuMemoryUsedBytes,
+    gpuMemoryTotalBytes,
+    gpuSource,
+    isStale,
+    hasCapability,
+  );
 
   @override
   String toString() =>

@@ -27,17 +27,8 @@ void main() {
     );
 
     final root = find.byKey(const ValueKey('empty'));
-    expect(
-      find.descendant(
-        of: root,
-        matching: find.byWidgetPredicate((w) => w is ButtonStyleButton),
-      ),
-      findsOneWidget,
-    );
-    expect(
-      find.descendant(of: root, matching: find.byType(IconButton)),
-      findsNothing,
-    );
+    expect(find.descendant(of: root, matching: find.byWidgetPredicate((w) => w is ButtonStyleButton)), findsOneWidget);
+    expect(find.descendant(of: root, matching: find.byType(IconButton)), findsNothing);
   });
 
   testWidgets('action runs its callback', (tester) async {
@@ -68,9 +59,7 @@ void main() {
         actionLabel: 'Azione',
       ),
     );
-    final button = tester.widget<FilledButton>(
-      find.byKey(const ValueKey('empty-action')),
-    );
+    final button = tester.widget<FilledButton>(find.byKey(const ValueKey('empty-action')));
     expect(button.onPressed, isNull);
   });
 

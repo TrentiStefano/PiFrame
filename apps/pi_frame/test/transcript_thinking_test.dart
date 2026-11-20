@@ -9,21 +9,14 @@ import 'package:pi_frame/features/transcript/transcript_view.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 void main() {
-  testWidgets('expanded thinking block remains expanded when new entries arrive', (
-    tester,
-  ) async {
+  testWidgets('expanded thinking block remains expanded when new entries arrive', (tester) async {
     final notifier = SessionStateNotifier('session_think', null)
       ..state = SessionState(
         sessionId: 'session_think',
         sessionName: 'Thinking Test',
         cwd: '/test/repo',
         entries: [
-          SessionEntry(
-            id: 'entry_user_1',
-            role: 'user',
-            text: 'Please think through this problem.',
-            timestamp: 1,
-          ),
+          SessionEntry(id: 'entry_user_1', role: 'user', text: 'Please think through this problem.', timestamp: 1),
           SessionEntry(
             id: 'entry_asst_1',
             role: 'assistant',
@@ -40,14 +33,11 @@ void main() {
           daemonEndpointProvider.overrideWith((ref) async => null),
           sessionStateFamily('session_think').overrideWith((ref) => notifier),
           stepGroupingSettingsProvider.overrideWith(
-            (ref) => StepGroupingSettingsNotifier()
-              ..setMode(StepGroupingMode.off),
+            (ref) => StepGroupingSettingsNotifier()..setMode(StepGroupingMode.off),
           ),
         ],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: const Scaffold(body: TranscriptView(sessionId: 'session_think')),
         ),
       ),
@@ -79,12 +69,7 @@ void main() {
     notifier.state = notifier.state.copyWith(
       entries: [
         ...notifier.state.entries,
-        SessionEntry(
-          id: 'entry_user_2',
-          role: 'user',
-          text: 'And what about the second part?',
-          timestamp: 3,
-        ),
+        SessionEntry(id: 'entry_user_2', role: 'user', text: 'And what about the second part?', timestamp: 3),
         SessionEntry(
           id: 'entry_asst_2',
           role: 'assistant',

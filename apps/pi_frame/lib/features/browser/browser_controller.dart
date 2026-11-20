@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
+
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_workspace.dart';
 import 'browser_models.dart';
@@ -24,8 +25,7 @@ final browserServiceProvider = Provider<WebBrowserService>((ref) {
   return WebBrowserService(client: ref.watch(browserClientProvider));
 });
 
-final webBrowserProvider =
-    StateNotifierProvider<WebBrowserNotifier, WebBrowserState>((ref) {
+final webBrowserProvider = StateNotifierProvider<WebBrowserNotifier, WebBrowserState>((ref) {
   return WebBrowserNotifier(ref);
 });
 
@@ -34,54 +34,24 @@ class WebBrowserNotifier extends StateNotifier<WebBrowserState> {
   int _tabCounter = 1;
 
   static const List<WebBookmark> defaultBookmarks = [
-    WebBookmark(
-      title: 'Google',
-      url: 'https://www.google.com',
-      icon: Icons.travel_explore_outlined,
-    ),
-    WebBookmark(
-      title: 'YouTube',
-      url: 'https://www.youtube.com',
-      icon: Icons.play_circle_outlined,
-    ),
-    WebBookmark(
-      title: 'GitHub',
-      url: 'https://github.com',
-      icon: Icons.code_outlined,
-    ),
-    WebBookmark(
-      title: 'pub.dev',
-      url: 'https://pub.dev',
-      icon: Icons.inventory_2_outlined,
-    ),
-    WebBookmark(
-      title: 'Stack Overflow',
-      url: 'https://stackoverflow.com',
-      icon: Icons.help_outlined,
-    ),
-    WebBookmark(
-      title: 'Flutter Docs',
-      url: 'https://docs.flutter.dev',
-      icon: Icons.flutter_dash_outlined,
-    ),
+    WebBookmark(title: 'Google', url: 'https://www.google.com', icon: Icons.travel_explore_outlined),
+    WebBookmark(title: 'YouTube', url: 'https://www.youtube.com', icon: Icons.play_circle_outlined),
+    WebBookmark(title: 'GitHub', url: 'https://github.com', icon: Icons.code_outlined),
+    WebBookmark(title: 'pub.dev', url: 'https://pub.dev', icon: Icons.inventory_2_outlined),
+    WebBookmark(title: 'Stack Overflow', url: 'https://stackoverflow.com', icon: Icons.help_outlined),
+    WebBookmark(title: 'Flutter Docs', url: 'https://docs.flutter.dev', icon: Icons.flutter_dash_outlined),
   ];
 
   WebBrowserNotifier(this._ref)
-      : super(
-          const WebBrowserState(
-            tabs: [
-              WebBrowserTab(
-                id: 'tab_1',
-                url: 'about:home',
-                title: 'Home',
-                history: ['about:home'],
-                historyIndex: 0,
-              ),
-            ],
-            activeTabId: 'tab_1',
-            bookmarks: defaultBookmarks,
-          ),
-        );
+    : super(
+        const WebBrowserState(
+          tabs: [
+            WebBrowserTab(id: 'tab_1', url: 'about:home', title: 'Home', history: ['about:home'], historyIndex: 0),
+          ],
+          activeTabId: 'tab_1',
+          bookmarks: defaultBookmarks,
+        ),
+      );
 
   WebBrowserService get _service => _ref.read(browserServiceProvider);
 
@@ -91,14 +61,9 @@ class WebBrowserNotifier extends StateNotifier<WebBrowserState> {
     if (tabIndex == -1) return 'about:home';
 
     final currentTab = state.tabs[tabIndex];
-    final normalized = _service.normalizeUrl(
-      input,
-      defaultEngine: state.searchEngine,
-    );
+    final normalized = _service.normalizeUrl(input, defaultEngine: state.searchEngine);
 
-    final newHistory = List<String>.from(
-      currentTab.history.take(currentTab.historyIndex + 1),
-    )..add(normalized);
+    final newHistory = List<String>.from(currentTab.history.take(currentTab.historyIndex + 1))..add(normalized);
 
     final strings = _ref.read(appStringsProvider);
     final loadingTab = currentTab.copyWith(
@@ -121,11 +86,7 @@ class WebBrowserNotifier extends StateNotifier<WebBrowserState> {
     }
 
     try {
-      final content = await _service.load(
-        normalized,
-        defaultEngine: state.searchEngine,
-        strings: strings,
-      );
+      final content = await _service.load(normalized, defaultEngine: state.searchEngine, strings: strings);
       final loadedTab = loadingTab.copyWith(
         url: content.url,
         title: content.title.isNotEmpty ? content.title : normalized,
@@ -144,12 +105,7 @@ class WebBrowserNotifier extends StateNotifier<WebBrowserState> {
     return normalized;
   }
 
-  void updateCurrentTab({
-    required String url,
-    String? title,
-    bool? isLoading,
-    String? errorMessage,
-  }) {
+  void updateCurrentTab({required String url, String? title, bool? isLoading, String? errorMessage}) {
     final tabIndex = state.tabs.indexWhere((t) => t.id == state.activeTabId);
     if (tabIndex == -1) return;
     final currentTab = state.tabs[tabIndex];
@@ -193,26 +149,13 @@ class WebBrowserNotifier extends StateNotifier<WebBrowserState> {
     await navigate('about:home', tabId: tabId);
   }
 
-  Future<void> _loadExistingHistory(
-    WebBrowserTab tab,
-    int index,
-    String url,
-  ) async {
-    final loadingTab = tab.copyWith(
-      url: url,
-      historyIndex: index,
-      isLoading: true,
-      clearError: true,
-    );
+  Future<void> _loadExistingHistory(WebBrowserTab tab, int index, String url) async {
+    final loadingTab = tab.copyWith(url: url, historyIndex: index, isLoading: true, clearError: true);
     _updateTab(loadingTab);
 
     try {
       final strings = _ref.read(appStringsProvider);
-      final content = await _service.load(
-        url,
-        defaultEngine: state.searchEngine,
-        strings: strings,
-      );
+      final content = await _service.load(url, defaultEngine: state.searchEngine, strings: strings);
       final loadedTab = loadingTab.copyWith(
         title: content.title.isNotEmpty ? content.title : url,
         isLoading: false,
@@ -231,17 +174,8 @@ class WebBrowserNotifier extends StateNotifier<WebBrowserState> {
   void newTab({String initialUrl = 'about:home', String initialTitle = 'Home'}) {
     _tabCounter++;
     final newId = 'tab_$_tabCounter';
-    final tab = WebBrowserTab(
-      id: newId,
-      url: initialUrl,
-      title: initialTitle,
-      history: [initialUrl],
-      historyIndex: 0,
-    );
-    state = state.copyWith(
-      tabs: [...state.tabs, tab],
-      activeTabId: newId,
-    );
+    final tab = WebBrowserTab(id: newId, url: initialUrl, title: initialTitle, history: [initialUrl], historyIndex: 0);
+    state = state.copyWith(tabs: [...state.tabs, tab], activeTabId: newId);
     if (initialUrl != 'about:home') {
       navigate(initialUrl, tabId: newId);
     }
@@ -267,10 +201,7 @@ class WebBrowserNotifier extends StateNotifier<WebBrowserState> {
     if (newActiveId == tabId) {
       newActiveId = newTabs.last.id;
     }
-    state = state.copyWith(
-      tabs: newTabs,
-      activeTabId: newActiveId,
-    );
+    state = state.copyWith(tabs: newTabs, activeTabId: newActiveId);
   }
 
   void switchTab(String tabId) {

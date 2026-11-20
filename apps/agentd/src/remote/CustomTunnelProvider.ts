@@ -1,11 +1,6 @@
 import * as child_process from 'node:child_process';
 import { validateCustomTunnelUrl } from '../config/config.js';
-import {
-  BaseTunnelProvider,
-  killProcessTree,
-  parseCommandLine,
-  type TunnelStartResult
-} from './TunnelProvider.js';
+import { BaseTunnelProvider, killProcessTree, parseCommandLine, type TunnelStartResult } from './TunnelProvider.js';
 
 export interface CustomTunnelOptions {
   url?: string;
@@ -36,9 +31,7 @@ export class CustomTunnelProvider extends BaseTunnelProvider {
     try {
       url = validateCustomTunnelUrl(this.options.url);
     } catch (err: any) {
-      const message = this.options.url
-        ? err.message
-        : 'Custom tunnel requires a public https URL';
+      const message = this.options.url ? err.message : 'Custom tunnel requires a public https URL';
       this.setState('error', { error: message });
       throw new Error(message);
     }

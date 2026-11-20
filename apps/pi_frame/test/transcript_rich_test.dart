@@ -11,9 +11,7 @@ import 'package:pi_frame/ui/code/diff_block.dart';
 void main() {
   Widget wrapWithTheme(Widget child) {
     return MaterialApp(
-      theme: ThemeData.dark().copyWith(
-        extensions: const [FrameTokens.dark],
-      ),
+      theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
       home: Scaffold(body: SingleChildScrollView(child: child)),
     );
   }
@@ -39,15 +37,10 @@ void main() {
     expect(find.textContaining('Dettaglio lungo del ragionamento'), findsOneWidget);
   });
 
-  testWidgets('ThinkingBlock disappears completely when thinking text is empty or whitespace even when streaming', (tester) async {
-    await tester.pumpWidget(
-      wrapWithTheme(
-        const ThinkingBlock(
-          thinkingText: '   \n  \t ',
-          isStreaming: true,
-        ),
-      ),
-    );
+  testWidgets('ThinkingBlock disappears completely when thinking text is empty or whitespace even when streaming', (
+    tester,
+  ) async {
+    await tester.pumpWidget(wrapWithTheme(const ThinkingBlock(thinkingText: '   \n  \t ', isStreaming: true)));
 
     expect(find.text('Ragionamento'), findsNothing);
     expect(find.byType(ThinkingBlock), findsOneWidget);
@@ -68,11 +61,7 @@ void main() {}
 ```
 ''';
 
-    await tester.pumpWidget(
-      wrapWithTheme(
-        const RichContent(text: markdown),
-      ),
-    );
+    await tester.pumpWidget(wrapWithTheme(const RichContent(text: markdown)));
 
     expect(find.text('Titolo Principale'), findsOneWidget);
     expect(find.byType(CodeBlock), findsOneWidget);
@@ -96,11 +85,7 @@ void main() {}
   testWidgets('RichContent marks file code mentions with file icon and CTRL+click tooltip', (tester) async {
     const textWithFile = 'Ho modificato il file `lib/main.dart` e creato `README.md`.';
 
-    await tester.pumpWidget(
-      wrapWithTheme(
-        const RichContent(text: textWithFile, cwd: '/dummy/project'),
-      ),
-    );
+    await tester.pumpWidget(wrapWithTheme(const RichContent(text: textWithFile, cwd: '/dummy/project')));
 
     expect(find.textContaining('lib/main.dart', findRichText: true), findsWidgets);
     expect(find.textContaining('README.md', findRichText: true), findsWidgets);
@@ -115,18 +100,13 @@ void main() {}
     expect(find.byTooltip('CTRL+clic per aprire in esplora file'), findsWidgets);
 
     // Verify SelectionContainer.disabled is present so that SelectionArea does not override mouse cursor
-    final disabledContainers = find.descendant(
-      of: find.byType(RichContent),
-      matching: find.byType(SelectionContainer),
-    );
+    final disabledContainers = find.descendant(of: find.byType(RichContent), matching: find.byType(SelectionContainer));
     expect(disabledContainers, findsWidgets);
 
     // Verify MouseRegion with click cursor exists for file chips
     final clickMouseRegions = find.descendant(
       of: find.byType(RichContent),
-      matching: find.byWidgetPredicate(
-        (w) => w is MouseRegion && w.cursor == SystemMouseCursors.click,
-      ),
+      matching: find.byWidgetPredicate((w) => w is MouseRegion && w.cursor == SystemMouseCursors.click),
     );
     expect(clickMouseRegions, findsWidgets);
   });
@@ -154,10 +134,7 @@ void main() {}
     expect(res5, r'\\wsl.localhost\Ubuntu\home\user\Repos\my_repo\lib\main.dart');
 
     // 6. Linux path without a WSL distro stays a Linux path (wslpath maps it)
-    expect(
-      resolvePathForOsExplorer('lib/main.dart', cwd: '/home/user/repo'),
-      '/home/user/repo/lib/main.dart',
-    );
+    expect(resolvePathForOsExplorer('lib/main.dart', cwd: '/home/user/repo'), '/home/user/repo/lib/main.dart');
 
     // 7. Windows cwd with relative path
     const winCwd = r'C:\Projects\my_repo';
@@ -167,23 +144,11 @@ void main() {}
 
   test('resolvePathForOsExplorer correctly resolves POSIX paths', () {
     const cwd = '/home/user/project';
-    expect(
-      resolvePathForOsExplorer('lib/main.dart', cwd: cwd),
-      '/home/user/project/lib/main.dart',
-    );
-    expect(
-      resolvePathForOsExplorer('lib/main.dart', cwd: '$cwd/'),
-      '/home/user/project/lib/main.dart',
-    );
+    expect(resolvePathForOsExplorer('lib/main.dart', cwd: cwd), '/home/user/project/lib/main.dart');
+    expect(resolvePathForOsExplorer('lib/main.dart', cwd: '$cwd/'), '/home/user/project/lib/main.dart');
     expect(resolvePathForOsExplorer('/etc/hosts', cwd: cwd), '/etc/hosts');
-    expect(
-      resolvePathForOsExplorer('file:///tmp/file.dart', cwd: cwd),
-      '/tmp/file.dart',
-    );
-    expect(
-      resolvePathForOsExplorer('lib/main.dart:42:10#L42-L50', cwd: cwd),
-      '/home/user/project/lib/main.dart',
-    );
+    expect(resolvePathForOsExplorer('file:///tmp/file.dart', cwd: cwd), '/tmp/file.dart');
+    expect(resolvePathForOsExplorer('lib/main.dart:42:10#L42-L50', cwd: cwd), '/home/user/project/lib/main.dart');
     expect(resolvePathForOsExplorer('lib/main.dart'), 'lib/main.dart');
   }, skip: Platform.isWindows);
 
@@ -192,12 +157,7 @@ void main() {}
         'Vedi apps/pi_frame/lib/main.dart per i dettagli oppure consulta [la guida](docs/guide.md).';
 
     await tester.pumpWidget(
-      wrapWithTheme(
-        const RichContent(
-          text: textWithVariousLinks,
-          cwd: r'\\wsl.localhost\Ubuntu\home\user\repo',
-        ),
-      ),
+      wrapWithTheme(const RichContent(text: textWithVariousLinks, cwd: r'\\wsl.localhost\Ubuntu\home\user\repo')),
     );
 
     expect(find.textContaining('apps/pi_frame/lib/main.dart', findRichText: true), findsWidgets);
@@ -223,19 +183,18 @@ void main() {}
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
-      const wide = '| Column one with a long name | Column two with a long name | Column three | Four |\n'
+      const wide =
+          '| Column one with a long name | Column two with a long name | Column three | Four |\n'
           '| --- | --- | --- | --- |\n'
           '| a very long cell value that keeps going | another long cell value here | x | y |';
       await tester.pumpWidget(wrapWithTheme(const RichContent(text: wide)));
 
       expect(find.byType(Table), findsOneWidget);
       expect(tester.takeException(), isNull);
-      final horizontal = tester.widgetList<SingleChildScrollView>(
-        find.byType(SingleChildScrollView),
-      ).where((s) => s.scrollDirection == Axis.horizontal);
+      final horizontal = tester
+          .widgetList<SingleChildScrollView>(find.byType(SingleChildScrollView))
+          .where((s) => s.scrollDirection == Axis.horizontal);
       expect(horizontal, isNotEmpty);
     });
   });
 }
-
-

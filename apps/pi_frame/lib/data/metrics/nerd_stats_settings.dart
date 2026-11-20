@@ -11,29 +11,21 @@ class NerdStatsSettings {
   const NerdStatsSettings({this.enabled = false});
 
   NerdStatsSettings copyWith({bool? enabled}) {
-    return NerdStatsSettings(
-      enabled: enabled ?? this.enabled,
-    );
+    return NerdStatsSettings(enabled: enabled ?? this.enabled);
   }
 
-  Map<String, dynamic> toJson() => {
-    'enabled': enabled,
-  };
+  Map<String, dynamic> toJson() => {'enabled': enabled};
 
   factory NerdStatsSettings.fromJson(Map<String, dynamic>? json) {
     if (json == null) return const NerdStatsSettings();
     final raw = json['enabled'];
-    return NerdStatsSettings(
-      enabled: raw is bool ? raw : false,
-    );
+    return NerdStatsSettings(enabled: raw is bool ? raw : false);
   }
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is NerdStatsSettings &&
-          runtimeType == other.runtimeType &&
-          enabled == other.enabled;
+      other is NerdStatsSettings && runtimeType == other.runtimeType && enabled == other.enabled;
 
   @override
   int get hashCode => enabled.hashCode;
@@ -45,9 +37,7 @@ class NerdStatsSettings {
 class NerdStatsSettingsNotifier extends StateNotifier<NerdStatsSettings> {
   final File? _customStorageFile;
 
-  NerdStatsSettingsNotifier({File? storageFile})
-      : _customStorageFile = storageFile,
-        super(const NerdStatsSettings()) {
+  NerdStatsSettingsNotifier({File? storageFile}) : _customStorageFile = storageFile, super(const NerdStatsSettings()) {
     _load();
   }
 
@@ -56,9 +46,7 @@ class NerdStatsSettingsNotifier extends StateNotifier<NerdStatsSettings> {
     if (kIsWeb || Platform.environment.containsKey('FLUTTER_TEST')) return null;
     try {
       final env = Platform.environment;
-      final home = Platform.isWindows
-          ? (env['USERPROFILE'] ?? 'C:\\Users\\Default')
-          : (env['HOME'] ?? '/tmp');
+      final home = Platform.isWindows ? (env['USERPROFILE'] ?? 'C:\\Users\\Default') : (env['HOME'] ?? '/tmp');
       final dir = Directory('$home/.piframe');
       if (!dir.existsSync()) {
         dir.createSync(recursive: true);
@@ -103,7 +91,6 @@ class NerdStatsSettingsNotifier extends StateNotifier<NerdStatsSettings> {
   }
 }
 
-final nerdStatsSettingsProvider =
-    StateNotifierProvider<NerdStatsSettingsNotifier, NerdStatsSettings>((ref) {
+final nerdStatsSettingsProvider = StateNotifierProvider<NerdStatsSettingsNotifier, NerdStatsSettings>((ref) {
   return NerdStatsSettingsNotifier();
 });

@@ -11,7 +11,13 @@ import { getPiFrameBaseDir, loadConfig, patchConfig } from '../config/config.js'
 import { WorkspaceService } from '../workspace/WorkspaceService.js';
 import { SessionIndex } from '../sessions/SessionIndex.js';
 import { applyContextPolicy, physicalModel } from '../pi/contextLimitExtension.js';
-import { DEFAULT_COMPACTION_RESERVE_PERCENT, readContextPolicy, validateContextLimit, validateReservePercent, writeContextPolicy } from '../pi/contextPolicy.js';
+import {
+  DEFAULT_COMPACTION_RESERVE_PERCENT,
+  readContextPolicy,
+  validateContextLimit,
+  validateReservePercent,
+  writeContextPolicy
+} from '../pi/contextPolicy.js';
 import { filterModelsByEnabledPatterns, readEnabledModelPatterns } from '../pi/modelScope.js';
 import { parsePiBuiltinCommand, PI_BUILTIN_SLASH_COMMANDS } from '../pi/builtinSlashCommands.js';
 import { getCopilotEntitlements } from '../pi/copilotModels.js';
@@ -22,13 +28,7 @@ import { SystemMetricsService } from '../metrics/SystemMetricsService.js';
 import { AgentsService } from '../pi/agents/AgentsService.js';
 import { StdioPiTransport } from '../pi/StdioPiTransport.js';
 import { SideConversationManager } from '../side/SideConversationManager.js';
-import type {
-  PcpCommand,
-  PcpAck,
-  PcpResult,
-  PcpError,
-  PiAvailableModel
-} from '@piframe/pcp-ts';
+import type { PcpCommand, PcpAck, PcpResult, PcpError, PiAvailableModel } from '@piframe/pcp-ts';
 
 function getOrCreateAuthDeviceId(): string {
   const directory = getPiFrameBaseDir();
@@ -54,7 +54,12 @@ function getOrCreateAuthDeviceId(): string {
 }
 
 const SHARED_READ_COMMANDS = new Set([
-  'workspace.refresh', 'workspace.listFiles', 'session.subagents', 'session.getStats', 'agent.getModels', 'agent.getCommands',
+  'workspace.refresh',
+  'workspace.listFiles',
+  'session.subagents',
+  'session.getStats',
+  'agent.getModels',
+  'agent.getCommands'
 ]);
 
 export class Dispatcher {
@@ -88,7 +93,7 @@ export class Dispatcher {
     this.agentsService =
       agentsService ??
       new AgentsService({
-        getAvailableModels: () => this.fetchAvailableModelsForAgents(),
+        getAvailableModels: () => this.fetchAvailableModelsForAgents()
       });
     this.sideManager =
       sideManager ??
@@ -155,12 +160,15 @@ export class Dispatcher {
     const session = this.registry.getSession(sessionId);
     if (!session) throw Object.assign(new Error(`Session ${sessionId} not found`), { code: 'SESSION_NOT_FOUND' });
     if (session.isStreaming || session.isCompacting) {
-      throw Object.assign(new Error('Attendi la fine della risposta prima di gestire l’autenticazione.'), { code: 'COMMAND_REJECTED' });
+      throw Object.assign(new Error('Attendi la fine della risposta prima di gestire l’autenticazione.'), {
+        code: 'COMMAND_REJECTED'
+      });
     }
     const worker = await this.registry.ensureWorkerForSession(sessionId);
-    const message = action === 'login'
-      ? `/piframe-auth-login ${JSON.stringify({ deviceId: getOrCreateAuthDeviceId() })}`
-      : '/piframe-auth-logout';
+    const message =
+      action === 'login'
+        ? `/piframe-auth-login ${JSON.stringify({ deviceId: getOrCreateAuthDeviceId() })}`
+        : '/piframe-auth-logout';
     await worker.send({ command: 'prompt', arguments: { message }, timeoutMs: 11 * 60 * 1000 });
   }
 
@@ -185,7 +193,7 @@ export class Dispatcher {
         try {
           tempWorker = new StdioPiTransport({
             executablePath: piPath,
-            capabilities: this.registry.getSupervisor().getCapabilities(),
+            capabilities: this.registry.getSupervisor().getCapabilities()
           });
           await tempWorker.start({ cwd: os.tmpdir(), args: ['--mode', 'rpc'] });
           const res = await tempWorker.send({ command: 'get_available_models', timeoutMs: 10000 });
@@ -212,15 +220,16 @@ export class Dispatcher {
 
     const entitlements = await getCopilotEntitlements().catch(() => ({
       diagnostic: { available: true, message: '' },
-      allowedModelIds: new Set<string>(),
+      allowedModelIds: new Set<string>()
     }));
 
     const filtered = filterModelsByEnabledPatterns(
-      rawModels.filter((model: Record<string, unknown>) =>
-        model.provider !== 'github-copilot' ||
-        (entitlements.diagnostic.available &&
-          typeof model.id === 'string' &&
-          entitlements.allowedModelIds.has(model.id))
+      rawModels.filter(
+        (model: Record<string, unknown>) =>
+          model.provider !== 'github-copilot' ||
+          (entitlements.diagnostic.available &&
+            typeof model.id === 'string' &&
+            entitlements.allowedModelIds.has(model.id))
       ),
       readEnabledModelPatterns()
     );
@@ -238,7 +247,7 @@ export class Dispatcher {
         name: m.name ?? m.id,
         contextWindow: typeof m.contextWindow === 'number' ? m.contextWindow : 0,
         reasoning: !!m.reasoning,
-        tiers,
+        tiers
       };
     });
 
@@ -255,7 +264,13 @@ export class Dispatcher {
       if (existing.state === 'executing') {
         this.sendAck(conn, commandId);
         existing.waiters.push((payload) => {
-          this.sendResult(conn, commandId, payload.state === 'completed' ? 'deduplicated' : payload.state, payload.data, payload.error);
+          this.sendResult(
+            conn,
+            commandId,
+            payload.state === 'completed' ? 'deduplicated' : payload.state,
+            payload.data,
+            payload.error
+          );
         });
         return;
       }
@@ -355,8 +370,11 @@ export class Dispatcher {
     } as PcpResult);
   }
 
-  private async requireWorkspaceSession(sessionId?: string): Promise<NonNullable<ReturnType<SessionRegistry['getSession']>>> {
-    if (!sessionId) throw Object.assign(new Error('sessionId is required for workspace commands.'), { code: 'SESSION_NOT_FOUND' });
+  private async requireWorkspaceSession(
+    sessionId?: string
+  ): Promise<NonNullable<ReturnType<SessionRegistry['getSession']>>> {
+    if (!sessionId)
+      throw Object.assign(new Error('sessionId is required for workspace commands.'), { code: 'SESSION_NOT_FOUND' });
     let session = this.registry.getSession(sessionId);
     if (!session) {
       try {
@@ -369,11 +387,20 @@ export class Dispatcher {
 
   private assertWorkspaceWritable(session: NonNullable<ReturnType<SessionRegistry['getSession']>>): void {
     if (session.readOnly) {
-      throw Object.assign(new Error('Repository writes are disabled for read-only sessions.'), { code: 'COMMAND_REJECTED' });
+      throw Object.assign(new Error('Repository writes are disabled for read-only sessions.'), {
+        code: 'COMMAND_REJECTED'
+      });
     }
     const activeTool = Array.from(session.activeTools.values()).some((tool: any) => tool.isRunning);
-    if (activeTool || session.isStreaming || session.isCompacting || ['working', 'retrying', 'compacting', 'awaiting_user'].includes(session.status)) {
-      throw Object.assign(new Error('Repository writes are disabled while the Pi worker is active.'), { code: 'COMMAND_REJECTED' });
+    if (
+      activeTool ||
+      session.isStreaming ||
+      session.isCompacting ||
+      ['working', 'retrying', 'compacting', 'awaiting_user'].includes(session.status)
+    ) {
+      throw Object.assign(new Error('Repository writes are disabled while the Pi worker is active.'), {
+        code: 'COMMAND_REJECTED'
+      });
     }
   }
 
@@ -546,7 +573,9 @@ export class Dispatcher {
 
       case 'remote.installCloudflared': {
         if (conn.isRemote) {
-          throw Object.assign(new Error('remote.installCloudflared is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+          throw Object.assign(new Error('remote.installCloudflared is only available locally'), {
+            code: 'REMOTE_FORBIDDEN'
+          });
         }
         if (!this.remoteManager) {
           throw Object.assign(new Error('Remote manager is not initialized'), { code: 'COMMAND_REJECTED' });
@@ -556,7 +585,9 @@ export class Dispatcher {
 
       case 'remote.installTailscale': {
         if (conn.isRemote) {
-          throw Object.assign(new Error('remote.installTailscale is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+          throw Object.assign(new Error('remote.installTailscale is only available locally'), {
+            code: 'REMOTE_FORBIDDEN'
+          });
         }
         if (!this.remoteManager) {
           throw Object.assign(new Error('Remote manager is not initialized'), { code: 'COMMAND_REJECTED' });
@@ -566,7 +597,9 @@ export class Dispatcher {
 
       case 'remote.setTailscaleHostname': {
         if (conn.isRemote) {
-          throw Object.assign(new Error('remote.setTailscaleHostname is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+          throw Object.assign(new Error('remote.setTailscaleHostname is only available locally'), {
+            code: 'REMOTE_FORBIDDEN'
+          });
         }
         if (!this.remoteManager) {
           throw Object.assign(new Error('Remote manager is not initialized'), { code: 'COMMAND_REJECTED' });
@@ -587,7 +620,9 @@ export class Dispatcher {
 
       case 'remote.generatePairing': {
         if (conn.isRemote) {
-          throw Object.assign(new Error('remote.generatePairing is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+          throw Object.assign(new Error('remote.generatePairing is only available locally'), {
+            code: 'REMOTE_FORBIDDEN'
+          });
         }
         if (!this.remoteManager) {
           throw Object.assign(new Error('Remote manager is not initialized'), { code: 'COMMAND_REJECTED' });
@@ -597,7 +632,9 @@ export class Dispatcher {
 
       case 'remote.setDeviceMode': {
         if (conn.isRemote) {
-          throw Object.assign(new Error('remote.setDeviceMode is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+          throw Object.assign(new Error('remote.setDeviceMode is only available locally'), {
+            code: 'REMOTE_FORBIDDEN'
+          });
         }
         if (!this.remoteManager) {
           throw Object.assign(new Error('Remote manager is not initialized'), { code: 'COMMAND_REJECTED' });
@@ -671,10 +708,7 @@ export class Dispatcher {
         if (conn.isRemote) {
           throw Object.assign(new Error('pi.packages is only available locally'), { code: 'REMOTE_FORBIDDEN' });
         }
-        return await this.piPackages.pin(
-          String(payload.source ?? ''),
-          String(payload.version ?? '')
-        );
+        return await this.piPackages.pin(String(payload.source ?? ''), String(payload.version ?? ''));
 
       // -----------------------------------------------------------------------
       // Pi Subagents Management (LOCAL ONLY)
@@ -747,20 +781,28 @@ export class Dispatcher {
       // -----------------------------------------------------------------------
       case 'system.metrics.subscribe': {
         if (conn.isRemote) {
-          throw Object.assign(new Error('system.metrics.subscribe is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+          throw Object.assign(new Error('system.metrics.subscribe is only available locally'), {
+            code: 'REMOTE_FORBIDDEN'
+          });
         }
         if (payload && Object.keys(payload).length > 0) {
-          throw Object.assign(new Error('system.metrics.subscribe payload must be empty'), { code: 'COMMAND_REJECTED' });
+          throw Object.assign(new Error('system.metrics.subscribe payload must be empty'), {
+            code: 'COMMAND_REJECTED'
+          });
         }
         return await this.metricsService.subscribe(conn);
       }
 
       case 'system.metrics.unsubscribe': {
         if (conn.isRemote) {
-          throw Object.assign(new Error('system.metrics.unsubscribe is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+          throw Object.assign(new Error('system.metrics.unsubscribe is only available locally'), {
+            code: 'REMOTE_FORBIDDEN'
+          });
         }
         if (payload && Object.keys(payload).length > 0) {
-          throw Object.assign(new Error('system.metrics.unsubscribe payload must be empty'), { code: 'COMMAND_REJECTED' });
+          throw Object.assign(new Error('system.metrics.unsubscribe payload must be empty'), {
+            code: 'COMMAND_REJECTED'
+          });
         }
         this.metricsService.unsubscribe(conn.id);
         return {};
@@ -812,10 +854,14 @@ export class Dispatcher {
       case 'session.open': {
         if (!sessionId) throw new Error('sessionId is required for session.open');
         const cwd = payload.cwd ? await this.validateSessionCwd(payload.cwd) : undefined;
-        const session = payload.continue === true
-          ? await this.registry.continueSession(sessionId, payload.confirmed === true)
-          : await this.registry.openSession(sessionId, cwd);
-        if (!session.readOnly && (session.status === 'worker_error' || !session.worker || !session.worker.health().alive)) {
+        const session =
+          payload.continue === true
+            ? await this.registry.continueSession(sessionId, payload.confirmed === true)
+            : await this.registry.openSession(sessionId, cwd);
+        if (
+          !session.readOnly &&
+          (session.status === 'worker_error' || !session.worker || !session.worker.health().alive)
+        ) {
           await this.registry.getSupervisor().reconcileAndRespawn(session);
         }
         return { session: session.getSessionMeta() };
@@ -833,7 +879,7 @@ export class Dispatcher {
         if (!sessionId) throw new Error('sessionId required for session.getStats');
         const worker = await this.registry.ensureWorkerForSession(sessionId);
         const res = await worker.send({ command: 'get_session_stats' });
-        const data = (res && res.data) ? { ...res.data } : {};
+        const data = res && res.data ? { ...res.data } : {};
         const session = this.registry.getSession(sessionId);
         const state = (await worker.send({ command: 'get_state' })).data;
         const usage = state?.model?.piframeContextUsage;
@@ -843,12 +889,15 @@ export class Dispatcher {
           data.contextUsage = {
             tokens,
             contextWindow: window,
-            percent: typeof tokens === 'number' ? tokens / window * 100 : null,
+            percent: typeof tokens === 'number' ? (tokens / window) * 100 : null
           };
         }
         const sessionFile = data.sessionFile || session?.sessionFile;
         if (sessionFile) {
-          const meta = this.sessionIndex.extractSessionMetadata(sessionFile, await this.sessionIndex.readSessionText(sessionFile));
+          const meta = this.sessionIndex.extractSessionMetadata(
+            sessionFile,
+            await this.sessionIndex.readSessionText(sessionFile)
+          );
           if (meta.usage && (meta.usage as any).byModel) {
             data.byModel = (meta.usage as any).byModel;
             data.models = (meta.usage as any).models;
@@ -1056,19 +1105,24 @@ export class Dispatcher {
         const session = this.registry.getSession(sessionId);
         if (!session) throw new Error('Session not found');
         if (session.readOnly) throw Object.assign(new Error('Sessione in sola lettura.'), { code: 'COMMAND_REJECTED' });
-        if (session.isStreaming || session.isCompacting) throw Object.assign(new Error('Attendi la fine del turno o della compattazione.'), { code: 'COMMAND_REJECTED' });
+        if (session.isStreaming || session.isCompacting)
+          throw Object.assign(new Error('Attendi la fine del turno o della compattazione.'), {
+            code: 'COMMAND_REJECTED'
+          });
         const worker = await this.registry.ensureWorkerForSession(sessionId);
         const previous = {
           contextWindowOverride: session.contextWindowOverride,
-          compactionReservePercent: session.compactionReservePercent,
+          compactionReservePercent: session.compactionReservePercent
         };
         const next = {
-          contextWindowOverride: cmd.type === 'agent.setContextWindowOverride'
-            ? validateContextLimit(payload.limit, session.model?.contextWindow)
-            : previous.contextWindowOverride,
-          compactionReservePercent: cmd.type === 'agent.setCompactionReservePercent'
-            ? validateReservePercent(payload.percent)
-            : previous.compactionReservePercent,
+          contextWindowOverride:
+            cmd.type === 'agent.setContextWindowOverride'
+              ? validateContextLimit(payload.limit, session.model?.contextWindow)
+              : previous.contextWindowOverride,
+          compactionReservePercent:
+            cmd.type === 'agent.setCompactionReservePercent'
+              ? validateReservePercent(payload.percent)
+              : previous.compactionReservePercent
         };
         try {
           const model = await applyContextPolicy(worker, next);
@@ -1076,7 +1130,11 @@ export class Dispatcher {
           Object.assign(session, next, { model });
         } catch (error) {
           // Never acknowledge an unapplied policy; restore the previous runtime limit.
-          try { await applyContextPolicy(worker, previous); } catch { await this.registry.closeWorker(sessionId); }
+          try {
+            await applyContextPolicy(worker, previous);
+          } catch {
+            await this.registry.closeWorker(sessionId);
+          }
           throw error;
         }
         return { success: true, ...next };
@@ -1132,10 +1190,15 @@ export class Dispatcher {
         if (!sessionId) throw new Error('sessionId required');
         const session = this.registry.getSession(sessionId);
         if (!session) throw new Error('Session not found');
-        if (session.isStreaming || session.isCompacting) throw new Error('Attendi la fine del turno o della compattazione.');
+        if (session.isStreaming || session.isCompacting)
+          throw new Error('Attendi la fine del turno o della compattazione.');
         if (payload.provider === 'github-copilot') {
           const entitlements = await getCopilotEntitlements();
-          if (!entitlements.diagnostic.available || typeof payload.modelId !== 'string' || !entitlements.allowedModelIds.has(payload.modelId)) {
+          if (
+            !entitlements.diagnostic.available ||
+            typeof payload.modelId !== 'string' ||
+            !entitlements.allowedModelIds.has(payload.modelId)
+          ) {
             throw new Error('GitHub Copilot model is not verified as available.');
           }
         }
@@ -1150,14 +1213,21 @@ export class Dispatcher {
           arguments: { provider: payload.provider, modelId: payload.modelId }
         });
         const selectedModel = physicalModel(res.data);
-        const modelChanged = previousModel?.provider !== selectedModel?.provider || previousModel?.id !== selectedModel?.id;
+        const modelChanged =
+          previousModel?.provider !== selectedModel?.provider || previousModel?.id !== selectedModel?.id;
         // A context limit is chosen for one model: a different model starts from its own full window.
         // Carrying it over left e.g. Opus capped at Haiku's 100k and compacting in a loop.
-        const nextPolicy = { ...previousPolicy, contextWindowOverride: modelChanged ? null : previousPolicy.contextWindowOverride };
+        const nextPolicy = {
+          ...previousPolicy,
+          contextWindowOverride: modelChanged ? null : previousPolicy.contextWindowOverride
+        };
         try {
           Object.assign(session, nextPolicy);
           let model = selectedModel;
-          if (previousPolicy.contextWindowOverride !== null || session.compactionReservePercent !== DEFAULT_COMPACTION_RESERVE_PERCENT) {
+          if (
+            previousPolicy.contextWindowOverride !== null ||
+            session.compactionReservePercent !== DEFAULT_COMPACTION_RESERVE_PERCENT
+          ) {
             model = await applyContextPolicy(worker, session);
           }
           if (nextPolicy.contextWindowOverride !== previousPolicy.contextWindowOverride) {
@@ -1173,7 +1243,10 @@ export class Dispatcher {
                 command: 'set_model',
                 arguments: { provider: previousModel.provider, modelId: previousModel.id }
               });
-              if (previousPolicy.contextWindowOverride !== null || previousPolicy.compactionReservePercent !== DEFAULT_COMPACTION_RESERVE_PERCENT) {
+              if (
+                previousPolicy.contextWindowOverride !== null ||
+                previousPolicy.compactionReservePercent !== DEFAULT_COMPACTION_RESERVE_PERCENT
+              ) {
                 await applyContextPolicy(worker, session);
               }
             } else {
@@ -1210,12 +1283,21 @@ export class Dispatcher {
           currentModel: session?.model,
           currentThinkingLevel: session?.thinkingLevel,
           copilotEntitlement: entitlements.diagnostic,
-          warning: !entitlements.diagnostic.available && models.some((model: Record<string, unknown>) => model.provider === 'github-copilot')
-            ? `Modelli GitHub Copilot nascosti: ${entitlements.diagnostic.message}`
-            : undefined,
-          models: filterModelsByEnabledPatterns(models.filter((model: Record<string, unknown>) =>
-            model.provider !== 'github-copilot' ||
-            (entitlements.diagnostic.available && typeof model.id === 'string' && entitlements.allowedModelIds.has(model.id))), readEnabledModelPatterns())
+          warning:
+            !entitlements.diagnostic.available &&
+            models.some((model: Record<string, unknown>) => model.provider === 'github-copilot')
+              ? `Modelli GitHub Copilot nascosti: ${entitlements.diagnostic.message}`
+              : undefined,
+          models: filterModelsByEnabledPatterns(
+            models.filter(
+              (model: Record<string, unknown>) =>
+                model.provider !== 'github-copilot' ||
+                (entitlements.diagnostic.available &&
+                  typeof model.id === 'string' &&
+                  entitlements.allowedModelIds.has(model.id))
+            ),
+            readEnabledModelPatterns()
+          )
         };
       }
 
@@ -1246,8 +1328,10 @@ export class Dispatcher {
         const builtinNames = new Set(PI_BUILTIN_SLASH_COMMANDS.map(({ name }) => name));
         const commands = [
           ...PI_BUILTIN_SLASH_COMMANDS,
-          ...extensionCommands.filter((command: { name?: string }) =>
-            !builtinNames.has(command.name ?? '') && !command.name?.startsWith('piframe-')),
+          ...extensionCommands.filter(
+            (command: { name?: string }) =>
+              !builtinNames.has(command.name ?? '') && !command.name?.startsWith('piframe-')
+          )
         ];
         return { ...res.data, commands };
       }
@@ -1261,7 +1345,9 @@ export class Dispatcher {
           throw err;
         }
         if (conn.isRemote && session.uiBroker.isLocalOnly(payload.requestId)) {
-          throw Object.assign(new Error('This UI request is available only in the local PiFrame app.'), { code: 'REMOTE_FORBIDDEN' });
+          throw Object.assign(new Error('This UI request is available only in the local PiFrame app.'), {
+            code: 'REMOTE_FORBIDDEN'
+          });
         }
         const claimRes = session.uiBroker.claimRequest(payload.requestId, conn.id);
         if (!claimRes.success) {
@@ -1282,7 +1368,9 @@ export class Dispatcher {
         }
 
         if (conn.isRemote && session.uiBroker.isLocalOnly(payload.requestId)) {
-          throw Object.assign(new Error('This UI request is available only in the local PiFrame app.'), { code: 'REMOTE_FORBIDDEN' });
+          throw Object.assign(new Error('This UI request is available only in the local PiFrame app.'), {
+            code: 'REMOTE_FORBIDDEN'
+          });
         }
         const resolveRes = session.uiBroker.resolveRequest(
           payload.requestId,
@@ -1334,7 +1422,13 @@ export class Dispatcher {
       case 'workspace.saveFile': {
         const session = await this.requireWorkspaceSession(sessionId);
         const assertCanWrite = () => this.assertWorkspaceWritable(session);
-        return this.workspaceService.saveFile(session.cwd, payload.path, payload.content, payload.revision, assertCanWrite);
+        return this.workspaceService.saveFile(
+          session.cwd,
+          payload.path,
+          payload.content,
+          payload.revision,
+          assertCanWrite
+        );
       }
 
       case 'workspace.gitAction': {
@@ -1358,19 +1452,16 @@ export class Dispatcher {
       case 'workspace.switchBranch': {
         const session = await this.requireWorkspaceSession(sessionId);
         const assertCanWrite = () => this.assertWorkspaceWritable(session);
-        return this.workspaceService.switchBranch(
-          session.cwd,
-          payload.branch,
-          payload.onDirty,
-          assertCanWrite
-        );
+        return this.workspaceService.switchBranch(session.cwd, payload.branch, payload.onDirty, assertCanWrite);
       }
 
       case 'session.rename': {
         if (!sessionId) throw new Error('sessionId required');
         let session = this.registry.getSession(sessionId);
         if (!session) {
-          try { session = await this.registry.openSession(sessionId); } catch (_) {}
+          try {
+            session = await this.registry.openSession(sessionId);
+          } catch (_) {}
         }
         if (!session) throw new Error(`Session ${sessionId} not found`);
         if (session.readOnly) throw new Error('External session is read-only. Duplicate it first.');

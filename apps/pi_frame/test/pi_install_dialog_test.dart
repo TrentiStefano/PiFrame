@@ -46,17 +46,11 @@ class FakePiInstallService implements PiInstallService {
 }
 
 void main() {
-  Widget buildTestableWidget({
-    required PiInstallService service,
-  }) {
+  Widget buildTestableWidget({required PiInstallService service}) {
     return ProviderScope(
-      overrides: [
-        piInstallServiceProvider.overrideWithValue(service),
-      ],
+      overrides: [piInstallServiceProvider.overrideWithValue(service)],
       child: MaterialApp(
-        theme: ThemeData.dark().copyWith(
-          extensions: const [FrameTokens.dark],
-        ),
+        theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
         home: Scaffold(
           body: Builder(
             builder: (context) => ElevatedButton(

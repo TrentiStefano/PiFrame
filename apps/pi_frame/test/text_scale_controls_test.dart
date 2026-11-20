@@ -10,12 +10,12 @@ Widget _app({required double textScale, required Widget child}) {
   return MaterialApp(
     theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
     builder: (context, page) => MediaQuery(
-      data: MediaQuery.of(context).copyWith(
-        textScaler: TextScaler.linear(textScale),
-      ),
+      data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(textScale)),
       child: page!,
     ),
-    home: Scaffold(body: Center(child: SizedBox(width: 320, child: child))),
+    home: Scaffold(
+      body: Center(child: SizedBox(width: 320, child: child)),
+    ),
   );
 }
 
@@ -26,11 +26,7 @@ void main() {
     await tester.pumpWidget(
       _app(
         textScale: 2.0,
-        child: FrameSearchField(
-          keyPrefix: 'test-search',
-          strings: strings,
-          hintText: 'Search',
-        ),
+        child: FrameSearchField(keyPrefix: 'test-search', strings: strings, hintText: 'Search'),
       ),
     );
     expect(tester.takeException(), isNull);
@@ -54,11 +50,7 @@ void main() {
     await tester.pumpWidget(
       _app(
         textScale: 2.0,
-        child: const FrameIconAction(
-          icon: Icons.refresh_outlined,
-          tooltip: 'Refresh',
-          onPressed: null,
-        ),
+        child: const FrameIconAction(icon: Icons.refresh_outlined, tooltip: 'Refresh', onPressed: null),
       ),
     );
     expect(tester.takeException(), isNull);
@@ -71,11 +63,7 @@ void main() {
     await tester.pumpWidget(
       _app(
         textScale: 1.0,
-        child: const FrameIconAction(
-          icon: Icons.refresh_outlined,
-          tooltip: 'Refresh',
-          onPressed: null,
-        ),
+        child: const FrameIconAction(icon: Icons.refresh_outlined, tooltip: 'Refresh', onPressed: null),
       ),
     );
     expect(frameControlScale(tester.element(find.byType(FrameIconAction))), 1.0);

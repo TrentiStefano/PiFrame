@@ -29,15 +29,11 @@ void main() {
       overrides: [
         daemonEndpointProvider.overrideWith((ref) async => null),
         activeSessionIdProvider.overrideWith((ref) => 'test-session'),
-        repositoryStateProvider('test-session').overrideWith(
-          (ref) => _FakeRepoController(),
-        ),
+        repositoryStateProvider('test-session').overrideWith((ref) => _FakeRepoController()),
         ...overrides,
       ],
       child: MaterialApp(
-        theme: ThemeData.dark().copyWith(
-          extensions: const [FrameTokens.dark],
-        ),
+        theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
         home: Scaffold(body: child),
       ),
     );
@@ -55,12 +51,7 @@ void main() {
         MaterialApp(
           theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: Scaffold(
-            body: FileMentionMenu(
-              files: files,
-              query: 'main',
-              selectedIndex: 0,
-              onSelect: (path) => selected = path,
-            ),
+            body: FileMentionMenu(files: files, query: 'main', selectedIndex: 0, onSelect: (path) => selected = path),
           ),
         ),
       );
@@ -120,9 +111,7 @@ void main() {
     });
 
     testWidgets('Typing @ in Composer activates file mention menu', (tester) async {
-      await tester.pumpWidget(
-        wrapWithTheme(const Composer(sessionId: 'test-session')),
-      );
+      await tester.pumpWidget(wrapWithTheme(const Composer(sessionId: 'test-session')));
       await tester.pumpAndSettle();
 
       // Enter text with @lib
@@ -158,10 +147,7 @@ void main() {
         ),
       );
 
-      final borderPaint = find.descendant(
-        of: find.byType(ShimmerBorder),
-        matching: find.byType(CustomPaint),
-      );
+      final borderPaint = find.descendant(of: find.byType(ShimmerBorder), matching: find.byType(CustomPaint));
 
       expect(borderPaint, findsNothing);
 
@@ -193,11 +179,7 @@ void main() {
 
     test('highlight tokenizes keywords, strings, and types', () {
       const tokens = FrameTokens.dark;
-      final span = SyntaxHighlighter.highlight(
-        'final x = "hello"; // comment\nclass User {}',
-        'dart',
-        tokens,
-      );
+      final span = SyntaxHighlighter.highlight('final x = "hello"; // comment\nclass User {}', 'dart', tokens);
 
       expect(span.children, isNotEmpty);
       final textContent = span.toPlainText();

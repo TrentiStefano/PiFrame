@@ -17,11 +17,7 @@ sealed class PcpEvent extends PcpEnvelope {
     required int seq,
     required super.type,
     required super.payload,
-  }) : super(
-          kind: 'event',
-          sessionId: sessionId,
-          seq: seq,
-        );
+  }) : super(kind: 'event', sessionId: sessionId, seq: seq);
 }
 
 // -----------------------------------------------------------------------------

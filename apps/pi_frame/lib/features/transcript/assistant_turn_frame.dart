@@ -65,9 +65,7 @@ class AssistantTurnFrame extends StatelessWidget {
     return Align(
       alignment: isCard ? Alignment.topLeft : Alignment.topCenter,
       child: ConstrainedBox(
-        constraints: BoxConstraints(
-          maxWidth: isCard ? 820 : kAssistantReadingMeasure,
-        ),
+        constraints: BoxConstraints(maxWidth: isCard ? 820 : kAssistantReadingMeasure),
         child: HoverRevealBuilder(
           builder: (context, revealed) {
             final content = Stack(
@@ -82,35 +80,22 @@ class AssistantTurnFrame extends StatelessWidget {
                         children: [
                           // Icon size 14 sits inside the 24 px meta line; it is not a
                           // control icon.
-                          Icon(
-                            Icons.smart_toy_outlined,
-                            size: FrameSize.icon,
-                            color: tokens.textSecondary,
-                          ),
+                          Icon(Icons.smart_toy_outlined, size: FrameSize.icon, color: tokens.textSecondary),
                           const SizedBox(width: FrameSpace.x1),
                           Flexible(
                             child: Text(
                               label,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: text.label.copyWith(
-                                color: tokens.textSecondary,
-                              ),
+                              style: text.label.copyWith(color: tokens.textSecondary),
                             ),
                           ),
                           const Spacer(),
-                          if (statusTag != null) ...[
-                            statusTag!,
-                            const SizedBox(width: FrameSpace.x2),
-                          ],
-                          if (elapsedChip != null) ...[
-                            elapsedChip!,
-                            const SizedBox(width: FrameSpace.x2),
-                          ],
+                          if (statusTag != null) ...[statusTag!, const SizedBox(width: FrameSpace.x2)],
+                          if (elapsedChip != null) ...[elapsedChip!, const SizedBox(width: FrameSpace.x2)],
                           // Keeps the copy action's 24 px slot in the row. The action
                           // itself is drawn over the slot, see the Positioned below.
-                          if (onCopy != null)
-                            const SizedBox(width: kAssistantMetaLineHeight),
+                          if (onCopy != null) const SizedBox(width: kAssistantMetaLineHeight),
                         ],
                       ),
                     ),
@@ -143,10 +128,7 @@ class AssistantTurnFrame extends StatelessWidget {
                           ),
                           iconSize: FrameSize.icon,
                           onPressed: onCopy,
-                          icon: Icon(
-                            Icons.copy_outlined,
-                            color: tokens.textMuted,
-                          ),
+                          icon: Icon(Icons.copy_outlined, color: tokens.textMuted),
                         ),
                       ),
                     ),
@@ -181,13 +163,7 @@ class AssistantMetaChip extends StatelessWidget {
   final String label;
   final Color? color;
 
-  const AssistantMetaChip({
-    super.key,
-    this.chipKey,
-    required this.icon,
-    required this.label,
-    this.color,
-  });
+  const AssistantMetaChip({super.key, this.chipKey, required this.icon, required this.label, this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -195,10 +171,7 @@ class AssistantMetaChip extends StatelessWidget {
     final tone = color ?? tokens.textMuted;
     return Container(
       key: chipKey,
-      padding: const EdgeInsets.symmetric(
-        horizontal: FrameSpace.x2 - 1,
-        vertical: FrameSpace.x1 / 2,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2 - 1, vertical: FrameSpace.x1 / 2),
       decoration: BoxDecoration(
         color: tokens.surfaceElevated,
         borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -211,11 +184,8 @@ class AssistantMetaChip extends StatelessWidget {
           const SizedBox(width: 3),
           Text(
             label,
-            style: FrameText.of(context).caption.copyWith(
-              color: tone,
-              fontFamily: tokens.monoFontFamily,
-              fontWeight: FontWeight.w600,
-            ),
+            style: FrameText.of(context).caption
+                .copyWith(color: tone, fontFamily: tokens.monoFontFamily, fontWeight: FontWeight.w600),
           ),
         ],
       ),

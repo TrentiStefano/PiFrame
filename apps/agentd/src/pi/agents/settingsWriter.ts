@@ -29,7 +29,7 @@ export function readSettingsFile(filePath: string): Record<string, any> {
   }
 
   // Strip UTF-8 BOM if present
-  if (content.charCodeAt(0) === 0xFEFF) {
+  if (content.charCodeAt(0) === 0xfeff) {
     content = content.slice(1);
   }
 
@@ -69,8 +69,7 @@ export async function renameWithRetry(
       return;
     } catch (err: any) {
       attempt++;
-      const isRetryable =
-        err?.code === 'EPERM' || err?.code === 'EBUSY' || err?.code === 'EACCES';
+      const isRetryable = err?.code === 'EPERM' || err?.code === 'EBUSY' || err?.code === 'EACCES';
       if (!isRetryable || attempt >= maxRetries) {
         throw err;
       }
@@ -125,7 +124,7 @@ export async function writeTextAtomicallyWithBackup(
     try {
       fs.writeFileSync(tempFile, text, {
         encoding: 'utf8',
-        mode,
+        mode
       });
 
       // Check lock ownership right before rename!
@@ -135,7 +134,7 @@ export async function writeTextAtomicallyWithBackup(
       await renameWithRetry(tempFile, filePath, {
         renameFn: options?.renameFn,
         maxRetries: options?.maxRetries,
-        backoffMs: options?.backoffMs,
+        backoffMs: options?.backoffMs
       });
     } finally {
       try {
@@ -175,18 +174,13 @@ export async function applyAgentSettingsChanges(
   const tintinwebPath = path.join(agentDir, 'subagents.json');
   const contextPath = path.join(piframeDir, 'subagent-context.json');
 
-  const touchesTintinweb = changes.some(
-    (c) => c.kind === 'subagentDefaults' && c.fallbackAgent !== undefined
-  );
-  const touchesContext = changes.some(
-    (c) => c.kind === 'agent' && c.contextLimit !== undefined
-  );
+  const touchesTintinweb = changes.some((c) => c.kind === 'subagentDefaults' && c.fallbackAgent !== undefined);
+  const touchesContext = changes.some((c) => c.kind === 'agent' && c.contextLimit !== undefined);
   const touchesSettings = changes.some(
     (c) =>
       c.kind === 'agent' ||
       c.kind === 'sessionDefaults' ||
-      (c.kind === 'subagentDefaults' &&
-        (c.model !== undefined || c.thinking !== undefined))
+      (c.kind === 'subagentDefaults' && (c.model !== undefined || c.thinking !== undefined))
   );
 
   // Pre-validate readability of all touched files (fail closed before modifying anything)
@@ -243,7 +237,7 @@ export async function applyAgentSettingsChanges(
         if (modified) {
           await writeJsonAtomicallyWithBackup(contextPath, contextConfig, {
             ...lockOptions,
-            lockHandle: lock,
+            lockHandle: lock
           });
           return true;
         }
@@ -275,9 +269,7 @@ export async function applyAgentSettingsChanges(
                 const currentOverrides = settings.subagents?.agentOverrides?.[name];
                 if (Array.isArray(currentOverrides?.subagentOnlyExtensions)) {
                   const ext = getExtensionPath();
-                  const filtered = currentOverrides.subagentOnlyExtensions.filter(
-                    (p: string) => p !== ext
-                  );
+                  const filtered = currentOverrides.subagentOnlyExtensions.filter((p: string) => p !== ext);
                   if (filtered.length !== currentOverrides.subagentOnlyExtensions.length) {
                     modified = true;
                     if (filtered.length === 0) {
@@ -293,9 +285,7 @@ export async function applyAgentSettingsChanges(
                 if (!settings.subagents.agentOverrides) settings.subagents.agentOverrides = {};
                 if (!settings.subagents.agentOverrides[name]) settings.subagents.agentOverrides[name] = {};
                 const current = settings.subagents.agentOverrides[name];
-                const exts = Array.isArray(current.subagentOnlyExtensions)
-                  ? current.subagentOnlyExtensions
-                  : [];
+                const exts = Array.isArray(current.subagentOnlyExtensions) ? current.subagentOnlyExtensions : [];
                 if (!exts.includes(ext)) {
                   current.subagentOnlyExtensions = [...exts, ext];
                   modified = true;
@@ -396,7 +386,7 @@ export async function applyAgentSettingsChanges(
         if (modified) {
           await writeJsonAtomicallyWithBackup(settingsPath, settings, {
             ...lockOptions,
-            lockHandle: lock,
+            lockHandle: lock
           });
           return true;
         }
@@ -434,7 +424,7 @@ export async function applyAgentSettingsChanges(
         if (modified) {
           await writeJsonAtomicallyWithBackup(tintinwebPath, tintinwebConfig, {
             ...lockOptions,
-            lockHandle: lock,
+            lockHandle: lock
           });
           return true;
         }
@@ -447,6 +437,6 @@ export async function applyAgentSettingsChanges(
   return {
     settingsWritten: settingsModified,
     subagentsWritten: tintinwebModified,
-    contextWritten: contextModified,
+    contextWritten: contextModified
   };
 }

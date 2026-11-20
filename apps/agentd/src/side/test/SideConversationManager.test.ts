@@ -9,11 +9,7 @@ import { ulid } from 'ulid';
 
 import { SideConversationManager } from '../SideConversationManager.js';
 import { SideTransport } from '../SideTransport.js';
-import {
-  renderConversationSnapshot,
-  renderMessageBlock,
-  SIDE_GUARDRAIL_PREAMBLE
-} from '../SideSnapshotRenderer.js';
+import { renderConversationSnapshot, renderMessageBlock, SIDE_GUARDRAIL_PREAMBLE } from '../SideSnapshotRenderer.js';
 import { SessionRegistry } from '../../sessions/SessionRegistry.js';
 import { Session } from '../../sessions/Session.js';
 import { ConnectionManager } from '../../server/wsServer.js';
@@ -406,9 +402,11 @@ test('spawn args include exact read-only flags and exclude bash/edit/write', asy
 
     // Verify required flags
     assert.deepEqual(args.slice(0, 8), [
-      '--mode', 'rpc',
+      '--mode',
+      'rpc',
       '--no-session',
-      '--tools', 'read,grep,find,ls',
+      '--tools',
+      'read,grep,find,ls',
       '--no-mcp',
       '--no-extensions',
       '--no-skills'
@@ -546,9 +544,7 @@ test('Isolation: main session journal receives NO side events', async () => {
     );
 
     // Verify side events were delivered to connection on streamId, not main session
-    const sideEvents = ctx.ws.sentMessages
-      .map((m) => JSON.parse(m))
-      .filter((m) => m.sessionId === streamId);
+    const sideEvents = ctx.ws.sentMessages.map((m) => JSON.parse(m)).filter((m) => m.sessionId === streamId);
 
     assert.ok(sideEvents.length > 0);
     assert.ok(sideEvents.some((e) => e.type === 'side.opened'));
@@ -612,9 +608,7 @@ test('Lifecycle: idle timeout closes side thread with reason idle', async () => 
 
     assert.equal(sideMgr.getSide(sideId), undefined, 'Thread should be closed after idle timeout');
 
-    const closedEvent = ctx.ws.sentMessages
-      .map((m) => JSON.parse(m))
-      .find((m) => m.type === 'side.closed');
+    const closedEvent = ctx.ws.sentMessages.map((m) => JSON.parse(m)).find((m) => m.type === 'side.closed');
 
     assert.ok(closedEvent);
     assert.equal(closedEvent.payload.reason, 'idle');
@@ -643,9 +637,7 @@ test('Lifecycle: parent close triggers side close with reason parentClosed', asy
 
     assert.equal(ctx.sideManager.getSide(sideId), undefined);
 
-    const closedEvent = ctx.ws.sentMessages
-      .map((m) => JSON.parse(m))
-      .find((m) => m.type === 'side.closed');
+    const closedEvent = ctx.ws.sentMessages.map((m) => JSON.parse(m)).find((m) => m.type === 'side.closed');
 
     assert.ok(closedEvent);
     assert.equal(closedEvent.payload.reason, 'parentClosed');
@@ -807,7 +799,7 @@ test('Dispatcher: remote view mode forbidden for open/prompt, allowed for abort/
     remoteControlConn.deviceId = 'dev_ctrl_01';
     remoteControlConn.state = 'ready';
     ctx.connManager.add(remoteControlConn);
-    mockAuthManager.getDevice = (id: string) => ({ id, mode: 'control' } as any);
+    mockAuthManager.getDevice = (id: string) => ({ id, mode: 'control' }) as any;
 
     const ctrlOpenRes = await send(remoteControlConn, remoteCtrlWs, 'side.open', { sessionId: parentSession.id });
     assert.equal(ctrlOpenRes.result?.state, 'completed');
@@ -1256,7 +1248,11 @@ test('SideConversationManager: session.attach yields exactly one replay of buffe
     // Verify subsequent handleAttach with same commandId is deduped (no extra messages)
     const msgCountBefore = ws2.sentMessages.length;
     await ctx.dispatcher.getSideManager().handleAttach(streamId, conn2, null, attachCommandId);
-    assert.equal(ws2.sentMessages.length, msgCountBefore, 'Subsequent handleAttach with same commandId must be deduped');
+    assert.equal(
+      ws2.sentMessages.length,
+      msgCountBefore,
+      'Subsequent handleAttach with same commandId must be deduped'
+    );
 
     // 2. Also verify resume attach with lastSeq
     const ws3 = new MockWebSocket();
@@ -1432,4 +1428,3 @@ test('SideConversationManager: connectionManager onClose automatically triggers 
     ctx.cleanup();
   }
 });
-

@@ -39,7 +39,9 @@ async function main() {
 
   // 3. Discover Pi installation and capabilities
   const piInstall = await discoverPi(config.piPath);
-  console.log(`[agentd] Pi discovery result: found=${piInstall.found}, version=${piInstall.version || 'none'}, supported=${piInstall.supported}`);
+  console.log(
+    `[agentd] Pi discovery result: found=${piInstall.found}, version=${piInstall.version || 'none'}, supported=${piInstall.supported}`
+  );
   if (piInstall.path) {
     console.log(`[agentd] Using Pi executable: ${piInstall.path}`);
   }

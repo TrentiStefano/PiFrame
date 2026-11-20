@@ -24,8 +24,7 @@ class HarnessInspector {
   static List<Element> findMatches(Element root, {String? key, String? text}) {
     final matches = <Element>[];
     void visit(Element element) {
-      if (_isOnstage(element) &&
-          _matches(element.widget, key: key, text: text)) {
+      if (_isOnstage(element) && _matches(element.widget, key: key, text: text)) {
         matches.add(element);
       }
       element.visitChildElements(visit);
@@ -35,12 +34,7 @@ class HarnessInspector {
     return matches;
   }
 
-  static Element? findTarget(
-    Element root, {
-    String? key,
-    String? text,
-    int index = 0,
-  }) {
+  static Element? findTarget(Element root, {String? key, String? text, int index = 0}) {
     if (index < 0) return null;
     final matches = findMatches(root, key: key, text: text);
     return index < matches.length ? matches[index] : null;
@@ -52,12 +46,7 @@ class HarnessInspector {
     String? filter,
     int maxEntries = 500,
   }) =>
-      serializeTreeResult(
-            root,
-            maxDepth: maxDepth,
-            filter: filter,
-            maxEntries: maxEntries,
-          )['widgets']
+      serializeTreeResult(root, maxDepth: maxDepth, filter: filter, maxEntries: maxEntries)['widgets']
           as List<Map<String, Object?>>;
 
   static Map<String, Object?> serializeTreeResult(
@@ -81,20 +70,15 @@ class HarnessInspector {
         final text = _treeText(widget, element);
         final isButton = _isButton(widget);
         if (key != null || text != null || isButton || widget is TextField) {
-          final searchable = '${widget.runtimeType} ${key ?? ''} ${text ?? ''}'
-              .toLowerCase();
-          if (normalizedFilter == null ||
-              searchable.contains(normalizedFilter)) {
+          final searchable = '${widget.runtimeType} ${key ?? ''} ${text ?? ''}'.toLowerCase();
+          if (normalizedFilter == null || searchable.contains(normalizedFilter)) {
             final renderObject = element.findRenderObject();
-            final rect = renderObject is RenderBox
-                ? _globalRect(renderObject)
-                : null;
+            final rect = renderObject is RenderBox ? _globalRect(renderObject) : null;
             entries.add({
               'type': widget.runtimeType.toString(),
               ...?(key == null ? null : <String, Object?>{'key': key}),
               if (text != null && text.isNotEmpty) 'text': text,
-              if (rect case final rect?)
-                'rect': [rect.left, rect.top, rect.width, rect.height],
+              if (rect case final rect?) 'rect': [rect.left, rect.top, rect.width, rect.height],
               'covered': isCovered(element),
             });
           }
@@ -125,8 +109,7 @@ class HarnessInspector {
     final renderObject = element.findRenderObject();
     if (renderObject == null) return true;
     if (!renderObject.attached) return false;
-    if (renderObject is RenderBox &&
-        (!renderObject.hasSize || renderObject.size.isEmpty)) {
+    if (renderObject is RenderBox && (!renderObject.hasSize || renderObject.size.isEmpty)) {
       return false;
     }
     return true;
@@ -136,16 +119,12 @@ class HarnessInspector {
     final keyMatches =
         key != null &&
         widget.key != null &&
-        (widget.key.toString() == key ||
-            (widget.key is ValueKey &&
-                (widget.key as ValueKey).value.toString() == key));
+        (widget.key.toString() == key || (widget.key is ValueKey && (widget.key as ValueKey).value.toString() == key));
     if (keyMatches) return true;
     if (text == null) return false;
     if (widget is Text && _textWidgetContent(widget) == text) return true;
     if (widget is RichText && widget.text.toPlainText() == text) return true;
-    if (widget is TextField &&
-        (widget.decoration?.labelText == text ||
-            widget.decoration?.hintText == text)) {
+    if (widget is TextField && (widget.decoration?.labelText == text || widget.decoration?.hintText == text)) {
       return true;
     }
     if (widget is Tooltip && _textWidgetContent(widget) == text) return true;
@@ -204,8 +183,7 @@ class HarnessInspector {
     return labels.isEmpty ? null : labels.join(' ');
   }
 
-  static bool _isButton(Widget widget) =>
-      widget is ButtonStyleButton || widget is IconButton || widget is InkWell;
+  static bool _isButton(Widget widget) => widget is ButtonStyleButton || widget is IconButton || widget is InkWell;
 
   static Rect? _globalRect(RenderBox box) {
     if (!box.attached || !box.hasSize) return null;
@@ -215,14 +193,10 @@ class HarnessInspector {
 
   static bool isCovered(Element element) {
     final renderObject = element.findRenderObject();
-    if (renderObject is! RenderBox ||
-        !renderObject.attached ||
-        !renderObject.hasSize) {
+    if (renderObject is! RenderBox || !renderObject.attached || !renderObject.hasSize) {
       return false;
     }
-    final center = renderObject.localToGlobal(
-      renderObject.size.center(Offset.zero),
-    );
+    final center = renderObject.localToGlobal(renderObject.size.center(Offset.zero));
     final views = WidgetsBinding.instance.platformDispatcher.views;
     if (views.isEmpty) return false;
     final hitTest = HitTestResult();
@@ -255,11 +229,7 @@ class HarnessInspector {
         );
         await Future<void>.delayed(_harnessLongPressHold);
         GestureBinding.instance.handlePointerEvent(
-          PointerUpEvent(
-            pointer: pointer,
-            position: position,
-            kind: PointerDeviceKind.touch,
-          ),
+          PointerUpEvent(pointer: pointer, position: position, kind: PointerDeviceKind.touch),
         );
       case HarnessPointerAction.rightClick:
         GestureBinding.instance.handlePointerEvent(
@@ -271,11 +241,7 @@ class HarnessInspector {
           ),
         );
         GestureBinding.instance.handlePointerEvent(
-          PointerUpEvent(
-            pointer: pointer,
-            position: position,
-            kind: PointerDeviceKind.mouse,
-          ),
+          PointerUpEvent(pointer: pointer, position: position, kind: PointerDeviceKind.mouse),
         );
       case HarnessPointerAction.drag:
         GestureBinding.instance.handlePointerEvent(
@@ -288,8 +254,7 @@ class HarnessInspector {
         );
         var previous = position;
         for (var step = 1; step <= 5; step++) {
-          final next =
-              position + Offset(delta.dx * step / 5, delta.dy * step / 5);
+          final next = position + Offset(delta.dx * step / 5, delta.dy * step / 5);
           GestureBinding.instance.handlePointerEvent(
             PointerMoveEvent(
               pointer: pointer,
@@ -302,28 +267,15 @@ class HarnessInspector {
           previous = next;
         }
         GestureBinding.instance.handlePointerEvent(
-          PointerUpEvent(
-            pointer: pointer,
-            position: previous,
-            kind: PointerDeviceKind.mouse,
-          ),
+          PointerUpEvent(pointer: pointer, position: previous, kind: PointerDeviceKind.mouse),
         );
       case HarnessPointerAction.hover:
         GestureBinding.instance.handlePointerEvent(
-          PointerHoverEvent(
-            pointer: pointer,
-            position: position,
-            kind: PointerDeviceKind.mouse,
-          ),
+          PointerHoverEvent(pointer: pointer, position: position, kind: PointerDeviceKind.mouse),
         );
       case HarnessPointerAction.scroll:
         GestureBinding.instance.handlePointerEvent(
-          PointerScrollEvent(
-            device: pointer,
-            position: position,
-            scrollDelta: delta,
-            kind: PointerDeviceKind.mouse,
-          ),
+          PointerScrollEvent(device: pointer, position: position, scrollDelta: delta, kind: PointerDeviceKind.mouse),
         );
     }
   }
@@ -388,17 +340,11 @@ void registerHarnessExtensions(GlobalKey rootBoundaryKey) {
       await WidgetsBinding.instance.endOfFrame;
       final boundary = rootBoundaryKey.currentContext?.findRenderObject();
       if (boundary is! RenderRepaintBoundary || !boundary.hasSize) {
-        return _result({
-          'ok': false,
-          'error': 'Root render boundary is not ready',
-        });
+        return _result({'ok': false, 'error': 'Root render boundary is not ready'});
       }
       final pixelRatio = double.tryParse(params['pixelRatio'] ?? '') ?? 1.0;
       if (!pixelRatio.isFinite || pixelRatio <= 0) {
-        return _result({
-          'ok': false,
-          'error': 'pixelRatio must be a positive number',
-        });
+        return _result({'ok': false, 'error': 'pixelRatio must be a positive number'});
       }
       final image = await boundary.toImage(pixelRatio: pixelRatio);
       try {
@@ -406,26 +352,13 @@ void registerHarnessExtensions(GlobalKey rootBoundaryKey) {
         if (data == null) {
           return _result({'ok': false, 'error': 'PNG encoding failed'});
         }
-        final bytes = data.buffer.asUint8List(
-          data.offsetInBytes,
-          data.lengthInBytes,
-        );
+        final bytes = data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes);
         final path = params['path'];
         if (path != null && path.isNotEmpty) {
           await File(path).writeAsBytes(bytes, flush: true);
-          return _result({
-            'ok': true,
-            'path': path,
-            'width': image.width,
-            'height': image.height,
-          });
+          return _result({'ok': true, 'path': path, 'width': image.width, 'height': image.height});
         }
-        return _result({
-          'ok': true,
-          'width': image.width,
-          'height': image.height,
-          'pngBase64': base64Encode(bytes),
-        });
+        return _result({'ok': true, 'width': image.width, 'height': image.height, 'pngBase64': base64Encode(bytes)});
       } finally {
         image.dispose();
       }
@@ -461,14 +394,9 @@ void registerHarnessExtensions(GlobalKey rootBoundaryKey) {
 
   developer.registerExtension('ext.piframe.media', (method, params) async {
     if (!isHarnessMode) {
-      return _result({
-        'ok': false,
-        'error': 'Media overrides require harness mode',
-      });
+      return _result({'ok': false, 'error': 'Media overrides require harness mode'});
     }
-    final textScale = params['textScale'] == null
-        ? null
-        : double.tryParse(params['textScale']!);
+    final textScale = params['textScale'] == null ? null : double.tryParse(params['textScale']!);
     final reduceMotion = params['reduceMotion'] == null
         ? null
         : switch (params['reduceMotion']) {
@@ -483,26 +411,14 @@ void registerHarnessExtensions(GlobalKey rootBoundaryKey) {
       null => null,
       _ => null,
     };
-    if (params['textScale'] != null &&
-        (textScale == null || !textScale.isFinite || textScale <= 0)) {
-      return _result({
-        'ok': false,
-        'error': 'textScale must be a positive number',
-      });
+    if (params['textScale'] != null && (textScale == null || !textScale.isFinite || textScale <= 0)) {
+      return _result({'ok': false, 'error': 'textScale must be a positive number'});
     }
-    if (params['reduceMotion'] != null &&
-        reduceMotion == null &&
-        !followSystemMotion) {
-      return _result({
-        'ok': false,
-        'error': 'reduceMotion must be on, off or system',
-      });
+    if (params['reduceMotion'] != null && reduceMotion == null && !followSystemMotion) {
+      return _result({'ok': false, 'error': 'reduceMotion must be on, off or system'});
     }
     if (params['brightness'] != null && brightness == null) {
-      return _result({
-        'ok': false,
-        'error': 'brightness must be light or dark',
-      });
+      return _result({'ok': false, 'error': 'brightness must be light or dark'});
     }
     setHarnessMediaOverrides(
       textScale: textScale,
@@ -511,10 +427,7 @@ void registerHarnessExtensions(GlobalKey rootBoundaryKey) {
       followSystemMotion: followSystemMotion,
       reset: _isTrue(params['reset']),
     );
-    return _result({
-      'ok': true,
-      'media': _mediaState(WidgetsBinding.instance.rootElement),
-    });
+    return _result({'ok': true, 'media': _mediaState(WidgetsBinding.instance.rootElement)});
   });
 
   developer.registerExtension('ext.piframe.enterText', (method, params) async {
@@ -528,21 +441,12 @@ void registerHarnessExtensions(GlobalKey rootBoundaryKey) {
       }
       final element = selector == null
           ? null
-          : HarnessInspector.findTarget(
-              root,
-              key: selector.key,
-              text: selector.text,
-              index: selector.index,
-            );
-      final editableState =
-          _editableState(element) ??
-          (selector == null ? _focusedEditableState(root) : null);
+          : HarnessInspector.findTarget(root, key: selector.key, text: selector.text, index: selector.index);
+      final editableState = _editableState(element) ?? (selector == null ? _focusedEditableState(root) : null);
       if (editableState == null) {
         return _result({
           'ok': false,
-          'error': selector == null
-              ? 'No focused editable text field'
-              : 'Editable target not found',
+          'error': selector == null ? 'No focused editable text field' : 'Editable target not found',
         });
       }
       editableState.userUpdateTextEditingValue(
@@ -570,28 +474,16 @@ void registerHarnessExtensions(GlobalKey rootBoundaryKey) {
       }
       final modifiers = <(PhysicalKeyboardKey, LogicalKeyboardKey)>[];
       if (_isTrue(params['ctrl'])) {
-        modifiers.add((
-          PhysicalKeyboardKey.controlLeft,
-          LogicalKeyboardKey.controlLeft,
-        ));
+        modifiers.add((PhysicalKeyboardKey.controlLeft, LogicalKeyboardKey.controlLeft));
       }
       if (_isTrue(params['shift'])) {
-        modifiers.add((
-          PhysicalKeyboardKey.shiftLeft,
-          LogicalKeyboardKey.shiftLeft,
-        ));
+        modifiers.add((PhysicalKeyboardKey.shiftLeft, LogicalKeyboardKey.shiftLeft));
       }
       if (_isTrue(params['alt'])) {
-        modifiers.add((
-          PhysicalKeyboardKey.altLeft,
-          LogicalKeyboardKey.altLeft,
-        ));
+        modifiers.add((PhysicalKeyboardKey.altLeft, LogicalKeyboardKey.altLeft));
       }
       if (_isTrue(params['meta'])) {
-        modifiers.add((
-          PhysicalKeyboardKey.metaLeft,
-          LogicalKeyboardKey.metaLeft,
-        ));
+        modifiers.add((PhysicalKeyboardKey.metaLeft, LogicalKeyboardKey.metaLeft));
       }
       final pressedModifiers = <(PhysicalKeyboardKey, LogicalKeyboardKey)>[];
       try {
@@ -616,23 +508,11 @@ void registerHarnessExtensions(GlobalKey rootBoundaryKey) {
     try {
       final width = double.tryParse(params['width'] ?? '');
       final height = double.tryParse(params['height'] ?? '');
-      if (width == null ||
-          height == null ||
-          !width.isFinite ||
-          !height.isFinite ||
-          width <= 0 ||
-          height <= 0) {
-        return _result({
-          'ok': false,
-          'error': 'width and height must be positive numbers',
-        });
+      if (width == null || height == null || !width.isFinite || !height.isFinite || width <= 0 || height <= 0) {
+        return _result({'ok': false, 'error': 'width and height must be positive numbers'});
       }
       final content = await setHarnessContentSize(Size(width, height));
-      return _result({
-        'ok': true,
-        'width': content.width,
-        'height': content.height,
-      });
+      return _result({'ok': true, 'width': content.width, 'height': content.height});
     } catch (error) {
       return _result({'ok': false, 'error': '$error'});
     }
@@ -681,8 +561,7 @@ void registerHarnessExtensions(GlobalKey rootBoundaryKey) {
             ? null
             : {
                 'type': focusedWidget.runtimeType.toString(),
-                if (focusedWidget.key != null)
-                  'key': focusedWidget.key.toString(),
+                if (focusedWidget.key != null) 'key': focusedWidget.key.toString(),
               },
       });
     } catch (error) {
@@ -706,10 +585,7 @@ Future<developer.ServiceExtensionResponse> _dispatchPointer(
       final x = double.tryParse(params['x'] ?? '');
       final y = double.tryParse(params['y'] ?? '');
       if (x == null || y == null || !x.isFinite || !y.isFinite) {
-        return _result({
-          'ok': false,
-          'error': 'tapAt requires numeric x and y',
-        });
+        return _result({'ok': false, 'error': 'tapAt requires numeric x and y'});
       }
       position = Offset(x, y);
     } else {
@@ -717,24 +593,15 @@ Future<developer.ServiceExtensionResponse> _dispatchPointer(
       if (selector == null) {
         return _result({'ok': false, 'error': 'Pass key or text'});
       }
-      element = HarnessInspector.findTarget(
-        root,
-        key: selector.key,
-        text: selector.text,
-        index: selector.index,
-      );
+      element = HarnessInspector.findTarget(root, key: selector.key, text: selector.text, index: selector.index);
       if (element == null) {
         return _result({'ok': false, 'error': 'Target not found'});
       }
       final renderObject = element.findRenderObject();
-      if (renderObject is! RenderBox ||
-          !renderObject.attached ||
-          !renderObject.hasSize) {
+      if (renderObject is! RenderBox || !renderObject.attached || !renderObject.hasSize) {
         return _result({'ok': false, 'error': 'Target has no visible bounds'});
       }
-      position = renderObject.localToGlobal(
-        renderObject.size.center(Offset.zero),
-      );
+      position = renderObject.localToGlobal(renderObject.size.center(Offset.zero));
     }
     final covered = element != null && HarnessInspector.isCovered(element);
     var delta = Offset.zero;
@@ -742,18 +609,11 @@ Future<developer.ServiceExtensionResponse> _dispatchPointer(
       final dx = double.tryParse(params['dx'] ?? '');
       final dy = double.tryParse(params['dy'] ?? '');
       if (dx == null || dy == null || !dx.isFinite || !dy.isFinite) {
-        return _result({
-          'ok': false,
-          'error': '${kind.name} requires numeric dx and dy',
-        });
+        return _result({'ok': false, 'error': '${kind.name} requires numeric dx and dy'});
       }
       delta = Offset(dx, dy);
     }
-    await HarnessInspector.dispatchPointer(
-      position,
-      kind: HarnessPointerAction.values.byName(kind.name),
-      delta: delta,
-    );
+    await HarnessInspector.dispatchPointer(position, kind: HarnessPointerAction.values.byName(kind.name), delta: delta);
     return _result({'ok': true, 'covered': covered});
   } catch (error) {
     return _result({'ok': false, 'error': '$error'});
@@ -762,19 +622,10 @@ Future<developer.ServiceExtensionResponse> _dispatchPointer(
 
 void _sendTouchTap(int pointer, Offset position) {
   GestureBinding.instance.handlePointerEvent(
-    PointerDownEvent(
-      pointer: pointer,
-      position: position,
-      kind: PointerDeviceKind.touch,
-      buttons: kPrimaryButton,
-    ),
+    PointerDownEvent(pointer: pointer, position: position, kind: PointerDeviceKind.touch, buttons: kPrimaryButton),
   );
   GestureBinding.instance.handlePointerEvent(
-    PointerUpEvent(
-      pointer: pointer,
-      position: position,
-      kind: PointerDeviceKind.touch,
-    ),
+    PointerUpEvent(pointer: pointer, position: position, kind: PointerDeviceKind.touch),
   );
 }
 
@@ -826,12 +677,7 @@ _HarnessSelector? _selector(Map<String, String> params) {
 
 bool _isTrue(String? value) => value == 'true' || value == '1';
 
-void _sendKeyData(
-  PhysicalKeyboardKey physical,
-  LogicalKeyboardKey logical,
-  ui.KeyEventType type, {
-  String? character,
-}) {
+void _sendKeyData(PhysicalKeyboardKey physical, LogicalKeyboardKey logical, ui.KeyEventType type, {String? character}) {
   // The key data manager is the same framework path used by native platform events.
   // ignore: deprecated_member_use
   ServicesBinding.instance.keyEventManager.handleKeyData(
@@ -855,36 +701,16 @@ void _sendKeyData(
     'esc': (PhysicalKeyboardKey.escape, LogicalKeyboardKey.escape, null),
     'tab': (PhysicalKeyboardKey.tab, LogicalKeyboardKey.tab, null),
     'space': (PhysicalKeyboardKey.space, LogicalKeyboardKey.space, ' '),
-    'backspace': (
-      PhysicalKeyboardKey.backspace,
-      LogicalKeyboardKey.backspace,
-      null,
-    ),
+    'backspace': (PhysicalKeyboardKey.backspace, LogicalKeyboardKey.backspace, null),
     'delete': (PhysicalKeyboardKey.delete, LogicalKeyboardKey.delete, null),
     'arrowup': (PhysicalKeyboardKey.arrowUp, LogicalKeyboardKey.arrowUp, null),
-    'arrowdown': (
-      PhysicalKeyboardKey.arrowDown,
-      LogicalKeyboardKey.arrowDown,
-      null,
-    ),
-    'arrowleft': (
-      PhysicalKeyboardKey.arrowLeft,
-      LogicalKeyboardKey.arrowLeft,
-      null,
-    ),
-    'arrowright': (
-      PhysicalKeyboardKey.arrowRight,
-      LogicalKeyboardKey.arrowRight,
-      null,
-    ),
+    'arrowdown': (PhysicalKeyboardKey.arrowDown, LogicalKeyboardKey.arrowDown, null),
+    'arrowleft': (PhysicalKeyboardKey.arrowLeft, LogicalKeyboardKey.arrowLeft, null),
+    'arrowright': (PhysicalKeyboardKey.arrowRight, LogicalKeyboardKey.arrowRight, null),
     'home': (PhysicalKeyboardKey.home, LogicalKeyboardKey.home, null),
     'end': (PhysicalKeyboardKey.end, LogicalKeyboardKey.end, null),
     'pageup': (PhysicalKeyboardKey.pageUp, LogicalKeyboardKey.pageUp, null),
-    'pagedown': (
-      PhysicalKeyboardKey.pageDown,
-      LogicalKeyboardKey.pageDown,
-      null,
-    ),
+    'pagedown': (PhysicalKeyboardKey.pageDown, LogicalKeyboardKey.pageDown, null),
   };
   return keys[normalized];
 }
@@ -892,27 +718,9 @@ void _sendKeyData(
 developer.ServiceExtensionResponse _result(Map<String, Object?> value) =>
     developer.ServiceExtensionResponse.result(jsonEncode(value));
 
-enum HarnessPointerAction {
-  tap,
-  tapAt,
-  rightClick,
-  doubleTap,
-  drag,
-  longPress,
-  hover,
-  scroll,
-}
+enum HarnessPointerAction { tap, tapAt, rightClick, doubleTap, drag, longPress, hover, scroll }
 
-enum _PointerAction {
-  tap,
-  tapAt,
-  rightClick,
-  doubleTap,
-  drag,
-  longPress,
-  hover,
-  scroll,
-}
+enum _PointerAction { tap, tapAt, rightClick, doubleTap, drag, longPress, hover, scroll }
 
 class _HarnessSelector {
   const _HarnessSelector({this.key, this.text, required this.index});

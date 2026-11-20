@@ -38,16 +38,13 @@ Future<void> _recordFrames(
   for (var i = 0; i < frameCount; i++) {
     await tester.pump(step);
     await tester.runAsync(() async {
-      final boundary =
-          boundaryKey.currentContext?.findRenderObject()
-              as RenderRepaintBoundary?;
+      final boundary = boundaryKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
       if (boundary == null) return;
       final image = await boundary.toImage(pixelRatio: 1.0);
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       if (byteData != null) {
         final pad = _frameCounter.toString().padLeft(5, '0');
-        File('${outDir.path}/frame_$pad.png')
-            .writeAsBytesSync(byteData.buffer.asUint8List());
+        File('${outDir.path}/frame_$pad.png').writeAsBytesSync(byteData.buffer.asUint8List());
         _frameCounter++;
       }
       image.dispose();
@@ -65,24 +62,14 @@ class _VisualWorkspaceClient extends PcpClient {
       'truncated': false,
       'files': [
         {'path': 'apps/pi_frame/lib/app/app_shell.dart', 'sizeBytes': 4800},
-        {
-          'path':
-              'apps/pi_frame/lib/features/workspace/repository_workspace.dart',
-          'sizeBytes': 7200,
-        },
-        {
-          'path': 'apps/pi_frame/lib/ui/code/code_editor_controller.dart',
-          'sizeBytes': 3600,
-        },
+        {'path': 'apps/pi_frame/lib/features/workspace/repository_workspace.dart', 'sizeBytes': 7200},
+        {'path': 'apps/pi_frame/lib/ui/code/code_editor_controller.dart', 'sizeBytes': 3600},
       ],
     },
   };
 
   @override
-  Future<Map<String, dynamic>> readWorkspaceFile(
-    String sessionId,
-    String path,
-  ) async => {
+  Future<Map<String, dynamic>> readWorkspaceFile(String sessionId, String path) async => {
     'data': {
       'rootPath': 'C:/Projects/pi-frame',
       'path': path,
@@ -111,10 +98,7 @@ class AppShell extends StatelessWidget {
   };
 
   @override
-  Future<Map<String, dynamic>> refreshWorkspace(
-    String sessionId, {
-    String? cwd,
-  }) async => {
+  Future<Map<String, dynamic>> refreshWorkspace(String sessionId, {String? cwd}) async => {
     'data': {
       'isRepository': true,
       'rootPath': 'C:/Projects/pi-frame',
@@ -141,10 +125,7 @@ class AppShell extends StatelessWidget {
   };
 
   @override
-  Future<Map<String, dynamic>> getWorkspaceDiff(
-    String sessionId, {
-    String? filePath,
-  }) async => {
+  Future<Map<String, dynamic>> getWorkspaceDiff(String sessionId, {String? filePath}) async => {
     'data': {
       'filePath': filePath ?? 'apps/pi_frame/lib/app/app_shell.dart',
       'diff': '''--- a/apps/pi_frame/lib/ui/precision.dart
@@ -162,16 +143,14 @@ class AppShell extends StatelessWidget {
   };
 
   @override
-  Future<Map<String, dynamic>> saveWorkspaceFile(
-    String sessionId,
-    Map<String, dynamic> payload,
-  ) async => {'data': {'path': payload['path'], 'revision': List.filled(64, 'b').join()}};
+  Future<Map<String, dynamic>> saveWorkspaceFile(String sessionId, Map<String, dynamic> payload) async => {
+    'data': {'path': payload['path'], 'revision': List.filled(64, 'b').join()},
+  };
 
   @override
-  Future<Map<String, dynamic>> workspaceGitAction(
-    String sessionId,
-    Map<String, dynamic> payload,
-  ) async => {'data': {'status': <String, dynamic>{}}};
+  Future<Map<String, dynamic>> workspaceGitAction(String sessionId, Map<String, dynamic> payload) async => {
+    'data': {'status': <String, dynamic>{}},
+  };
 
   @override
   Future<Map<String, dynamic>> clearQueue(String sessionId) async => {'ok': true};
@@ -190,22 +169,18 @@ void main() {
 
   setUpAll(() async {
     for (final font in ['SchibstedGrotesk', 'SourceCodePro']) {
-      final loader = FontLoader(font)
-        ..addFont(rootBundle.load('assets/fonts/$font.ttf'));
+      final loader = FontLoader(font)..addFont(rootBundle.load('assets/fonts/$font.ttf'));
       await loader.load();
     }
     final heading = FontLoader('BarlowCondensed')
       ..addFont(rootBundle.load('assets/fonts/BarlowCondensed-SemiBold.ttf'))
       ..addFont(rootBundle.load('assets/fonts/BarlowCondensed-Bold.ttf'));
     await heading.load();
-    final icons = FontLoader('MaterialIcons')
-      ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
+    final icons = FontLoader('MaterialIcons')..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
     await icons.load();
   });
 
-  testWidgets('Record live running Flutter application frames', (
-    tester,
-  ) async {
+  testWidgets('Record live running Flutter application frames', (tester) async {
     const size = Size(1600, 1000);
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -242,7 +217,8 @@ void main() {
           id: 'u1',
           role: 'user',
           timestamp: 1,
-          text: 'Voglio visualizzare i file del repository con syntax highlighting e una barra di ricerca Ctrl+F rapida.',
+          text:
+              'Voglio visualizzare i file del repository con syntax highlighting e una barra di ricerca Ctrl+F rapida.',
         ),
         SessionEntry(
           id: 'a1',
@@ -263,8 +239,7 @@ void main() {
       ],
     );
 
-    final sessionNotifier = SessionStateNotifier('demo-live-session', client)
-      ..state = currentSession;
+    final sessionNotifier = SessionStateNotifier('demo-live-session', client)..state = currentSession;
 
     await tester.pumpWidget(
       ProviderScope(
@@ -272,9 +247,7 @@ void main() {
           themeRepositoryProvider.overrideWithValue(repo),
           daemonEndpointProvider.overrideWith((ref) async => null),
           pcpClientProvider.overrideWithValue(client),
-          connectionStateProvider.overrideWith(
-            (ref) => Stream.value(DaemonConnectionState.connected),
-          ),
+          connectionStateProvider.overrideWith((ref) => Stream.value(DaemonConnectionState.connected)),
           sessionListProvider.overrideWith(
             (ref) async => [
               {
@@ -286,23 +259,15 @@ void main() {
               },
             ],
           ),
-          activeSessionIdProvider.overrideWith(
-            (ref) => currentSession.sessionId,
-          ),
-          sessionStateFamily(currentSession.sessionId).overrideWith(
-            (ref) => sessionNotifier,
-          ),
+          activeSessionIdProvider.overrideWith((ref) => currentSession.sessionId),
+          sessionStateFamily(currentSession.sessionId).overrideWith((ref) => sessionNotifier),
         ],
         child: RepaintBoundary(
           key: boundaryKey,
           child: Consumer(
             builder: (context, ref, child) {
               final themeData = ref.watch(currentThemeDataProvider);
-              return MaterialApp(
-                debugShowCheckedModeBanner: false,
-                theme: themeData,
-                home: const AppShell(),
-              );
+              return MaterialApp(debugShowCheckedModeBanner: false, theme: themeData, home: const AppShell());
             },
           ),
         ),

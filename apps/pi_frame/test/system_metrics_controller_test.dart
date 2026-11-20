@@ -12,17 +12,15 @@ class _FakeMetricsPcpClient extends PcpClient {
   _FakeMetricsPcpClient({
     List<String> capabilities = const ['system.metrics.v1'],
     DaemonConnectionState initialState = DaemonConnectionState.connected,
-  })  : _caps = capabilities,
-        _currentState = initialState,
-        super(port: 1, token: 'test');
+  }) : _caps = capabilities,
+       _currentState = initialState,
+       super(port: 1, token: 'test');
 
   List<String> _caps;
   DaemonConnectionState _currentState;
   final List<PcpCommand> sentCommands = [];
-  final StreamController<PcpEvent> daemonEvents =
-      StreamController<PcpEvent>.broadcast();
-  final StreamController<DaemonConnectionState> connStream =
-      StreamController<DaemonConnectionState>.broadcast();
+  final StreamController<PcpEvent> daemonEvents = StreamController<PcpEvent>.broadcast();
+  final StreamController<DaemonConnectionState> connStream = StreamController<DaemonConnectionState>.broadcast();
 
   @override
   DaemonConnectionState get state => _currentState;
@@ -77,8 +75,7 @@ void main() {
         overrides: [
           pcpClientProvider.overrideWithValue(client),
           isWebProvider.overrideWithValue(false),
-          systemMetricsStaleDurationProvider
-              .overrideWithValue(const Duration(milliseconds: 100)),
+          systemMetricsStaleDurationProvider.overrideWithValue(const Duration(milliseconds: 100)),
         ],
       );
     });
@@ -101,10 +98,7 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       expect(client.sentCommands.length, 1);
-      expect(
-        client.sentCommands.first.type,
-        'system.metrics.subscribe',
-      );
+      expect(client.sentCommands.first.type, 'system.metrics.subscribe');
 
       // Re-triggering evaluate while ON should not send another subscribe
       container.read(systemMetricsProvider.notifier).evaluate();
@@ -122,10 +116,7 @@ void main() {
       await Future<void>.delayed(Duration.zero);
 
       expect(client.sentCommands.length, 2);
-      expect(
-        client.sentCommands.last.type,
-        'system.metrics.unsubscribe',
-      );
+      expect(client.sentCommands.last.type, 'system.metrics.unsubscribe');
 
       final state = container.read(systemMetricsProvider);
       expect(state.cpuPercent, isNull);
@@ -150,14 +141,10 @@ void main() {
 
       // Should have re-subscribed
       expect(client.sentCommands.length, 2);
-      expect(
-        client.sentCommands.last.type,
-        'system.metrics.subscribe',
-      );
+      expect(client.sentCommands.last.type, 'system.metrics.subscribe');
     });
 
-    test('capability missing -> no subscribe sent and marked no capability',
-        () async {
+    test('capability missing -> no subscribe sent and marked no capability', () async {
       client.setCapabilities(['replay.v1']); // Missing system.metrics.v1
       container.read(systemMetricsProvider);
       container.read(nerdStatsSettingsProvider.notifier).setEnabled(true);
@@ -183,16 +170,8 @@ void main() {
         payload: {
           'sampledAt': 1726640001000,
           'cpu': {'percent': 12.3},
-          'memory': {
-            'usedBytes': 8589934592,
-            'totalBytes': 17179869184,
-            'percent': 50.0,
-          },
-          'disk': {
-            'usedBytes': 256000000000,
-            'totalBytes': 512000000000,
-            'percent': 50.0,
-          },
+          'memory': {'usedBytes': 8589934592, 'totalBytes': 17179869184, 'percent': 50.0},
+          'disk': {'usedBytes': 256000000000, 'totalBytes': 512000000000, 'percent': 50.0},
           'gpu': {
             'percent': 35.5,
             'memoryUsedBytes': 4294967296,
@@ -215,8 +194,7 @@ void main() {
       expect(state.isStale, isFalse);
     });
 
-    test('stale -> marked stale if no sample arrives within duration',
-        () async {
+    test('stale -> marked stale if no sample arrives within duration', () async {
       container.read(systemMetricsProvider);
       container.read(nerdStatsSettingsProvider.notifier).setEnabled(true);
       await Future<void>.delayed(Duration.zero);
@@ -244,10 +222,7 @@ void main() {
 
     test('web mode -> never subscribes even when setting ON', () async {
       final webContainer = ProviderContainer(
-        overrides: [
-          pcpClientProvider.overrideWithValue(client),
-          isWebProvider.overrideWithValue(true),
-        ],
+        overrides: [pcpClientProvider.overrideWithValue(client), isWebProvider.overrideWithValue(true)],
       );
       addTearDown(webContainer.dispose);
 

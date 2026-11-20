@@ -81,8 +81,7 @@ class StartupAudio {
       // High-impact initial transient impulse with rapid exponential decay
       final envelope = exp(-t * 90.0);
       final noise = (random.nextDouble() * 2.0 - 1.0) * 0.45;
-      final woodResonance =
-          sin(2 * pi * 880 * t) * 0.35 + sin(2 * pi * 1420 * t) * 0.2;
+      final woodResonance = sin(2 * pi * 880 * t) * 0.35 + sin(2 * pi * 1420 * t) * 0.2;
       final value = (noise + woodResonance) * envelope;
       samples[i] = (value.clamp(-1.0, 1.0) * 32767).round();
     }

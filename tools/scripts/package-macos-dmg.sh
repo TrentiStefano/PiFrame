@@ -147,6 +147,8 @@ if [[ "$needs_build" -eq 1 ]]; then
   echo "1. Building protocol and agentd bundle..."
   pnpm --filter @piframe/pcp-ts run build
   pnpm --filter @piframe/agentd run build:bundle
+  # The in-app changelog is generated from CHANGELOG.md, not committed.
+  node tools/scripts/sync-changelog.mjs
 
   echo "2. Building Flutter web app (for remote daemon access)..."
   (cd apps/pi_frame && flutter build web --release --no-web-resources-cdn --pwa-strategy=none --dart-define="PI_FRAME_VERSION=${version}")

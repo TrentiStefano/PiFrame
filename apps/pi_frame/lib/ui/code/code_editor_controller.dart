@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
+
 import 'syntax_highlighter.dart';
 
 class CodeEditorController extends TextEditingController {
@@ -11,23 +12,15 @@ class CodeEditorController extends TextEditingController {
   bool caseSensitive = false;
   int currentMatchIndex = 0;
 
-  CodeEditorController({
-    super.text,
-    this.filePath,
-    required this.tokens,
-  });
+  CodeEditorController({super.text, this.filePath, required this.tokens});
 
   /// 1-based first and last line covered by [selection] in [text]. A selection
   /// that ends right after a newline does not count that newline's line.
-  static ({int start, int end}) selectedLineRange(
-    String text,
-    TextSelection selection,
-  ) {
+  static ({int start, int end}) selectedLineRange(String text, TextSelection selection) {
     final from = math.min(selection.start, selection.end);
     final to = math.max(selection.start, selection.end);
     final startLine = '\n'.allMatches(text.substring(0, from)).length + 1;
-    final endLine =
-        '\n'.allMatches(text.substring(0, math.max(from, to - 1))).length + 1;
+    final endLine = '\n'.allMatches(text.substring(0, math.max(from, to - 1))).length + 1;
     return (start: startLine, end: endLine);
   }
 
@@ -48,19 +41,14 @@ class CodeEditorController extends TextEditingController {
   }
 
   @override
-  TextSpan buildTextSpan({
-    required BuildContext context,
-    TextStyle? style,
-    required bool withComposing,
-  }) {
+  TextSpan buildTextSpan({required BuildContext context, TextStyle? style, required bool withComposing}) {
     if (text.isEmpty) return const TextSpan();
 
     // Source mode: mono body, never link-styled.
-    final baseStyle =
-        (style ?? FrameText.of(context).monoBody).copyWith(
-          color: tokens.textPrimary,
-          decoration: TextDecoration.none,
-        );
+    final baseStyle = (style ?? FrameText.of(context).monoBody).copyWith(
+      color: tokens.textPrimary,
+      decoration: TextDecoration.none,
+    );
 
     final lang = SyntaxHighlighter.inferLanguage(filePath);
     final isCode = lang != 'text' && lang.isNotEmpty;
@@ -82,12 +70,7 @@ class CodeEditorController extends TextEditingController {
 
       // Base line spans from syntax highlighter if code, else plain text
       final lineSpans = isCode
-          ? SyntaxHighlighter.highlightLine(
-              line,
-              lang,
-              tokens,
-              defaultColor: baseStyle.color,
-            )
+          ? SyntaxHighlighter.highlightLine(line, lang, tokens, defaultColor: baseStyle.color)
           : [TextSpan(text: line, style: baseStyle)];
 
       if (matches.isEmpty) {
@@ -101,11 +84,7 @@ class CodeEditorController extends TextEditingController {
             final relStart = (m.start - lineStart).clamp(0, line.length);
             final relEnd = (m.end - lineStart).clamp(0, line.length);
             if (relStart < relEnd) {
-              intersectingMatches.add((
-                start: relStart,
-                end: relEnd,
-                isCurrent: mIdx == currentMatchIndex,
-              ));
+              intersectingMatches.add((start: relStart, end: relEnd, isCurrent: mIdx == currentMatchIndex));
             }
           }
         }
@@ -113,12 +92,7 @@ class CodeEditorController extends TextEditingController {
         if (intersectingMatches.isEmpty) {
           allSpans.addAll(lineSpans);
         } else {
-          allSpans.addAll(_applySearchHighlightsToLine(
-            line,
-            lineSpans,
-            intersectingMatches,
-            baseStyle,
-          ));
+          allSpans.addAll(_applySearchHighlightsToLine(line, lineSpans, intersectingMatches, baseStyle));
         }
       }
 
@@ -157,32 +131,18 @@ class CodeEditorController extends TextEditingController {
     for (final m in lineMatches) {
       // Span before match
       if (m.start > currentOffset) {
-        result.addAll(_reconstructSpans(
-          line,
-          currentOffset,
-          m.start,
-          charStyles,
-          baseStyle,
-        ));
+        result.addAll(_reconstructSpans(line, currentOffset, m.start, charStyles, baseStyle));
       }
 
       // Matched segment
       final matchText = line.substring(m.start, m.end);
-      final matchHighlightBg = m.isCurrent
-          ? tokens.accent
-          : tokens.accent.withValues(alpha: 0.25);
-      final matchTextColor = m.isCurrent
-          ? tokens.background
-          : tokens.textPrimary;
+      final matchHighlightBg = m.isCurrent ? tokens.accent : tokens.accent.withValues(alpha: 0.25);
+      final matchTextColor = m.isCurrent ? tokens.background : tokens.textPrimary;
 
       result.add(
         TextSpan(
           text: matchText,
-          style: TextStyle(
-            backgroundColor: matchHighlightBg,
-            color: matchTextColor,
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(backgroundColor: matchHighlightBg, color: matchTextColor, fontWeight: FontWeight.bold),
         ),
       );
 
@@ -191,13 +151,7 @@ class CodeEditorController extends TextEditingController {
 
     // Remainder of line after last match
     if (currentOffset < line.length) {
-      result.addAll(_reconstructSpans(
-        line,
-        currentOffset,
-        line.length,
-        charStyles,
-        baseStyle,
-      ));
+      result.addAll(_reconstructSpans(line, currentOffset, line.length, charStyles, baseStyle));
     }
 
     return result;
@@ -217,19 +171,13 @@ class CodeEditorController extends TextEditingController {
 
     for (var i = start + 1; i < end; i++) {
       if (charStyles[i] != currentStyle) {
-        spans.add(TextSpan(
-          text: line.substring(segStart, i),
-          style: currentStyle ?? baseStyle,
-        ));
+        spans.add(TextSpan(text: line.substring(segStart, i), style: currentStyle ?? baseStyle));
         segStart = i;
         currentStyle = charStyles[i];
       }
     }
 
-    spans.add(TextSpan(
-      text: line.substring(segStart, end),
-      style: currentStyle ?? baseStyle,
-    ));
+    spans.add(TextSpan(text: line.substring(segStart, end), style: currentStyle ?? baseStyle));
 
     return spans;
   }

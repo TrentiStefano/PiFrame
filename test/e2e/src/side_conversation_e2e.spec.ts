@@ -157,11 +157,7 @@ test('E2E: Side Conversation - Open, stream reply, isolate main, close with fake
       })
     );
 
-    await waitFor(
-      (m) => m.kind === 'snapshot' && m.sessionId === mainSessionId,
-      3000,
-      'snapshot for main session'
-    );
+    await waitFor((m) => m.kind === 'snapshot' && m.sessionId === mainSessionId, 3000, 'snapshot for main session');
 
     // 4. Send prompt to main session
     client.send(
@@ -372,9 +368,7 @@ test('E2E: Side Conversation - Open, stream reply, isolate main, close with fake
     );
     assert.equal(sideAcks.length, 1, 'Side attach must emit exactly one snapshot ack frame');
 
-    const replayedSideEvents = client2Messages.filter(
-      (m) => m.kind === 'event' && m.sessionId === streamId
-    );
+    const replayedSideEvents = client2Messages.filter((m) => m.kind === 'event' && m.sessionId === streamId);
     assert.ok(replayedSideEvents.length > 0, 'Side attach must replay buffered events');
     const sideSeqs = replayedSideEvents.map((m) => m.seq);
     assert.equal(
@@ -427,7 +421,9 @@ test('E2E: Side Conversation - Open, stream reply, isolate main, close with fake
     try {
       client.close();
       if (client2) {
-        try { (client2 as any).close(); } catch {}
+        try {
+          (client2 as any).close();
+        } catch {}
       }
       manager.closeAll(1000, 'Test finished');
       await registry.closeAll(1000);

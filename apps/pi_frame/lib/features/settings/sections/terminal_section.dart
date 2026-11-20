@@ -17,11 +17,7 @@ import '../../../ui/precision.dart';
 /// Each choice group is one [FrameSection]; the radio rows sit in a
 /// transparent [Material] so their ink is not hidden by a background.
 class TerminalSection extends ConsumerWidget {
-  const TerminalSection({
-    super.key,
-    required this.tokens,
-    required this.strings,
-  });
+  const TerminalSection({super.key, required this.tokens, required this.strings});
 
   final FrameTokens tokens;
   final AppStrings strings;
@@ -32,10 +28,7 @@ class TerminalSection extends ConsumerWidget {
     final termSettings = ref.watch(terminalSettingsProvider);
     final notifier = ref.read(terminalSettingsProvider.notifier);
     final nativeEnabled = termSettings.mode == TerminalMode.native;
-    final rowTitleStyle = text.body.copyWith(
-      color: tokens.textPrimary,
-      fontWeight: FontWeight.w600,
-    );
+    final rowTitleStyle = text.body.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.w600);
     final rowSubtitleStyle = text.caption.copyWith(color: tokens.textMuted);
     final rowStyle = text.body.copyWith(color: tokens.textPrimary);
 
@@ -58,28 +51,16 @@ class TerminalSection extends ConsumerWidget {
                     value: TerminalMode.integrated,
                     activeColor: tokens.accent,
                     contentPadding: EdgeInsets.zero,
-                    title: Text(
-                      strings.terminalIntegratedTitle,
-                      style: rowTitleStyle,
-                    ),
-                    subtitle: Text(
-                      strings.terminalIntegratedSubtitle,
-                      style: rowSubtitleStyle,
-                    ),
+                    title: Text(strings.terminalIntegratedTitle, style: rowTitleStyle),
+                    subtitle: Text(strings.terminalIntegratedSubtitle, style: rowSubtitleStyle),
                   ),
                   Divider(color: tokens.border, height: 1),
                   RadioListTile<TerminalMode>(
                     value: TerminalMode.native,
                     activeColor: tokens.accent,
                     contentPadding: EdgeInsets.zero,
-                    title: Text(
-                      strings.terminalNativeTitle,
-                      style: rowTitleStyle,
-                    ),
-                    subtitle: Text(
-                      strings.terminalNativeSubtitle,
-                      style: rowSubtitleStyle,
-                    ),
+                    title: Text(strings.terminalNativeTitle, style: rowTitleStyle),
+                    subtitle: Text(strings.terminalNativeSubtitle, style: rowSubtitleStyle),
                   ),
                 ],
               ),
@@ -111,10 +92,7 @@ class TerminalSection extends ConsumerWidget {
                         value: NativeTerminalApp.systemDefault,
                         activeColor: tokens.accent,
                         contentPadding: EdgeInsets.zero,
-                        title: Text(
-                          strings.terminalNativeAppDefault(isWindowsOs),
-                          style: rowStyle,
-                        ),
+                        title: Text(strings.terminalNativeAppDefault(isWindowsOs), style: rowStyle),
                       ),
                       if (isWindowsOs) ...[
                         Divider(color: tokens.border, height: 1),
@@ -122,10 +100,7 @@ class TerminalSection extends ConsumerWidget {
                           value: NativeTerminalApp.powershell,
                           activeColor: tokens.accent,
                           contentPadding: EdgeInsets.zero,
-                          title: Text(
-                            strings.terminalPowershell,
-                            style: rowStyle,
-                          ),
+                          title: Text(strings.terminalPowershell, style: rowStyle),
                         ),
                         Divider(color: tokens.border, height: 1),
                         RadioListTile<NativeTerminalApp>(
@@ -148,64 +123,39 @@ class TerminalSection extends ConsumerWidget {
                         activeColor: tokens.accent,
                         contentPadding: EdgeInsets.zero,
                         title: Text(strings.terminalCustomApp, style: rowStyle),
-                        subtitle:
-                            termSettings.nativeApp == NativeTerminalApp.custom
+                        subtitle: termSettings.nativeApp == NativeTerminalApp.custom
                             ? Padding(
-                                padding: const EdgeInsets.only(
-                                  top: FrameSpace.x2,
-                                ),
+                                padding: const EdgeInsets.only(top: FrameSpace.x2),
                                 child: Row(
                                   children: [
                                     Expanded(
                                       child: TextField(
-                                        controller:
-                                            TextEditingController(
-                                                text: termSettings.customPath,
-                                              )
-                                              ..selection =
-                                                  TextSelection.collapsed(
-                                                    offset: termSettings
-                                                        .customPath
-                                                        .length,
-                                                  ),
-                                        style: text.mono.copyWith(
-                                          color: tokens.textPrimary,
-                                        ),
+                                        controller: TextEditingController(text: termSettings.customPath)
+                                          ..selection = TextSelection.collapsed(offset: termSettings.customPath.length),
+                                        style: text.mono.copyWith(color: tokens.textPrimary),
                                         decoration: InputDecoration(
                                           hintText: isWindowsOs
                                               ? 'C:\\Percorso\\A\\terminal.exe'
                                               : '/usr/bin/alacritty',
                                           isDense: true,
                                           border: OutlineInputBorder(
-                                            borderRadius: BorderRadius.circular(
-                                              tokens.radiusSm,
-                                            ),
+                                            borderRadius: BorderRadius.circular(tokens.radiusSm),
                                           ),
                                         ),
-                                        onSubmitted: (val) =>
-                                            notifier.setCustomPath(val.trim()),
+                                        onSubmitted: (val) => notifier.setCustomPath(val.trim()),
                                       ),
                                     ),
                                     const SizedBox(width: FrameSpace.x2),
                                     PressFeedback(
                                       child: OutlinedButton.icon(
-                                        icon: const Icon(
-                                          Icons.folder_open_outlined,
-                                          size: FrameSize.icon,
-                                        ),
+                                        icon: const Icon(Icons.folder_open_outlined, size: FrameSize.icon),
                                         label: Text(strings.terminalBrowseBtn),
                                         onPressed: () async {
                                           final file = await openFile(
                                             acceptedTypeGroups: [
                                               XTypeGroup(
-                                                label: strings
-                                                    .terminalExecutableFilterLabel,
-                                                extensions: const [
-                                                  'exe',
-                                                  'bat',
-                                                  'cmd',
-                                                  'sh',
-                                                ],
+                                                label: strings.terminalExecutableFilterLabel,
+                                                extensions: const ['exe', 'bat', 'cmd', 'sh'],
                                               ),
                                             ],
                                           );
@@ -238,10 +188,7 @@ class TerminalSection extends ConsumerWidget {
                 foregroundColor: tokens.surface,
                 minimumSize: const Size(0, FrameSize.rowForm),
               ),
-              icon: const Icon(
-                Icons.open_in_new_outlined,
-                size: FrameSize.icon,
-              ),
+              icon: const Icon(Icons.open_in_new_outlined, size: FrameSize.icon),
               label: Text(strings.terminalTestBtn),
               onPressed: () async {
                 final launched = await launchNativeTerminal(
@@ -252,9 +199,7 @@ class TerminalSection extends ConsumerWidget {
                 if (context.mounted) {
                   FrameSnackBar.show(
                     context,
-                    message: launched
-                        ? strings.terminalTestSuccess
-                        : strings.terminalTestFailed,
+                    message: launched ? strings.terminalTestSuccess : strings.terminalTestFailed,
                     isError: !launched,
                   );
                 }

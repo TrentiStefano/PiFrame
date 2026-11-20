@@ -7,6 +7,7 @@
   "description": "Cross-component end-to-end integration tests",
   "scripts": {
     "build": "tsc",
+    "lint": "tsc --noEmit",
     "test": "node --test dist/**/*.spec.js"
   },
   "dependencies": {

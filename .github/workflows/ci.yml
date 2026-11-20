@@ -1,8 +1,19 @@
 name: CI
 
+# The run steps below are the `ci` tier of the shared step list (tools/guardrails/src/steps.mjs), the same steps
+# `pnpm run verify` runs locally. Change the step list first; a parity test fails when this file drifts from it.
+
 on:
   push:
     branches: [ main ]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   node:
@@ -20,23 +31,44 @@ jobs:
           node-version: 22
           cache: 'pnpm'
 
-      - name: Install dependencies
+      - name: Install dependencies (frozen lockfile)
         run: pnpm install --frozen-lockfile
+
+      - name: TypeScript formatting (Prettier)
+        run: node tools/scripts/format.mjs --check ts
+
+      - name: Escape-hatch audit (baseline ratchet)
+        run: node tools/scripts/audit-escape-hatches.mjs
 
       - name: Verify Pi target recon
         run: node tools/recon/verify.ts
 
-      - name: Run Schema validation
+      - name: PCP schema validation
         run: pnpm --filter @piframe/pcp-spec run test
 
       - name: Build TypeScript packages
         run: pnpm -r run build
 
-      - name: Run tests
+      - name: TypeScript lint (tsc --noEmit)
+        run: pnpm -r run lint
+
+      - name: Codegen parity (schema, TypeScript, Dart)
+        run: node tools/codegen/generate.js
+
+      - name: Node tests (all packages)
         run: pnpm -r run test
 
-      - name: Check third-party notices
+      - name: Third-party notices up to date
         run: pnpm run check:notices
+
+      - name: Daemon bundle contents
+        run: pnpm run check:agentd-bundle
+
+      - name: Daemon bundle smoke test
+        run: pnpm run smoke:agentd-bundle
+
+      - name: Windows release-name tests
+        run: node --test tools/scripts/test-windows-release-name.test.mjs
 
   flutter:
     name: Flutter (Analyze & Test)
@@ -49,11 +81,17 @@ jobs:
           flutter-version: '3.47.2'
           channel: 'stable'
 
-      - name: Setup Flutter dependencies
+      - name: Flutter dependencies
         run: node tools/scripts/setup-flutter.js
 
-      - name: Analyze Flutter code
+      - name: Version metadata and in-app changelog synchronized
+        run: node tools/scripts/check-version-sync.mjs
+
+      - name: Dart formatting (dart format)
+        run: node tools/scripts/format.mjs --check dart
+
+      - name: Flutter analyze (all projects)
         run: node tools/scripts/lint-flutter.js
 
-      - name: Run Flutter unit tests
+      - name: Flutter tests (all projects)
         run: node tools/scripts/test-flutter.js

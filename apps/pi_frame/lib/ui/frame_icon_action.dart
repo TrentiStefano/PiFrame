@@ -58,9 +58,7 @@ class FrameIconAction extends StatelessWidget {
             fixedSize: Size.square(target),
             minimumSize: Size.square(target),
             padding: EdgeInsets.zero,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(tokens.radiusSm),
-            ),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm)),
             // Keep the 28 px target: the default padded tap target would
             // enlarge it to 48 px.
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
