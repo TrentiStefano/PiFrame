@@ -5,7 +5,9 @@ import 'package:window_manager/window_manager.dart';
 
 import '../../app/harness_mode.dart';
 import '../platform/widget_test_binding.dart';
-import 'windows_taskbar.dart';
+// The real taskbar calls Win32 through dart:ffi, which the web build lacks.
+import 'windows_taskbar_stub.dart'
+    if (dart.library.ffi) 'windows_taskbar.dart';
 
 enum DesktopIndicatorStatus {
   idle,
