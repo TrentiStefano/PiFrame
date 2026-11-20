@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 
 const read = (path) => readFile(path, 'utf8');
 const manifest = JSON.parse(await read('.release-please-manifest.json'));
@@ -34,4 +35,15 @@ assert.equal(agentPackage.version, version, 'agentd package.json version is out 
 assert.equal(pubspecVersion, version, 'Flutter pubspec version is out of sync');
 assert.equal(daemonVersion, version, 'daemon source version is out of sync');
 assert.equal(appVersion, version, 'Flutter app fallback version is out of sync');
+
+if (existsSync('CHANGELOG.md')) {
+  const rootChangelog = await read('CHANGELOG.md');
+  const assetChangelogPath = 'apps/pi_frame/assets/CHANGELOG.md';
+  const currentAsset = existsSync(assetChangelogPath) ? await read(assetChangelogPath) : null;
+  if (currentAsset !== rootChangelog) {
+    await writeFile(assetChangelogPath, rootChangelog, 'utf8');
+    console.log('Synchronized CHANGELOG.md to apps/pi_frame/assets/CHANGELOG.md');
+  }
+}
+
 console.log(`Version metadata is synchronized at ${version}`);

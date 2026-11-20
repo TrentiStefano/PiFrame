@@ -14,6 +14,8 @@ import '../../app/app_version.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_settings.dart';
 import '../../data/update/update_providers.dart';
+import '../../data/changelog/changelog_service.dart';
+import '../changelog/changelog_dialog.dart';
 import '../../domain/update/update_models.dart';
 import 'sections/settings_common.dart';
 import '../../ui/precision.dart';
@@ -158,6 +160,26 @@ class UpdatesSection extends ConsumerWidget {
                   tone: FrameStatusTone.success,
                 ),
               checkButton,
+              PressFeedback(
+                child: OutlinedButton.icon(
+                  key: const ValueKey('view_changelog_button'),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(0, FrameSize.rowForm),
+                  ),
+                  icon: const Icon(Icons.article_outlined, size: FrameSize.icon),
+                  label: Text(strings.viewChangelog),
+                  onPressed: () async {
+                    final service = ref.read(changelogServiceProvider);
+                    final release = await service.loadRelease(version: currentVer);
+                    if (context.mounted && release != null) {
+                      await showChangelogDialog(
+                        context: context,
+                        release: release,
+                      );
+                    }
+                  },
+                ),
+              ),
             ],
           ),
         ),

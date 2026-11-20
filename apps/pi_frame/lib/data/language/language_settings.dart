@@ -245,6 +245,23 @@ class AppStrings {
       isItalian ? 'Dettagli / Aggiorna' : 'Details / Update';
   String get updateNoticeDismiss => isItalian ? 'Ignora' : 'Dismiss';
 
+  // Changelog Popup
+  String changelogTitle(String version) =>
+      isItalian ? 'Novità in PiFrame v$version' : 'What\'s new in PiFrame v$version';
+  String get changelogSubtitle => isItalian
+      ? 'Ecco le principali novità e correzioni introdotte in questa versione:'
+      : 'Here are the key features and fixes introduced in this release:';
+  String get changelogFeaturesTitle =>
+      isItalian ? 'Nuove Funzionalità' : 'New Features';
+  String get changelogFixesTitle =>
+      isItalian ? 'Correzioni di Bug' : 'Bug Fixes';
+  String get changelogNoChanges => isItalian
+      ? 'Miglioramenti generali delle prestazioni e della stabilità.'
+      : 'General performance and stability improvements.';
+  String get changelogGotIt => isItalian ? 'Ho capito' : 'Got it';
+  String get viewChangelog =>
+      isItalian ? 'Note di rilascio' : 'Release notes';
+
   // Composer settings & shortcuts
   String get composerSectionTitle => 'Composer';
   String get sendWithEnterTitle =>

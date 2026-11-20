@@ -555,3 +555,11 @@ When an agent is operating in any monitored or active session:
 - **macOS**: the dock tile displays an active progress indicator and `⋯` badge while the agent is working, and displays an unread notification badge dot (`•`) when an answer finishes while the app is in the background.
 - **Linux & Window Title**: the window title reflects the state with `● PiFrame` during execution and `• PiFrame` when unread.
 - Focusing or opening PiFrame immediately clears the unread indicator and dock badge back to normal (`idle`).
+
+## 31. Post-update changelog popup
+
+When PiFrame is updated to a new release, the first time the app is opened after the update, a modal dialog automatically appears showing the release highlights:
+- **Filtered changelog:** displays only new user-facing features (`feat`) and bug fixes (`fix`), omitting internal chores, documentation, and CI/test commits.
+- **Scope badges:** highlights the affected area (e.g. `settings`, `chat`, `git`, `workspace`, `agentd`) and cleans commit links.
+- **Per-release persistence:** remembers the last seen version in `~/.piframe/changelog_state.json` so the popup appears only once per release and never on brand new installs.
+- **On-demand review:** you can also review the current release notes at any time from **Settings → Updates → Release notes** (`Note di rilascio`).

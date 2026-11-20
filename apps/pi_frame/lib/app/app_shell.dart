@@ -53,6 +53,7 @@ import '../data/metrics/system_metrics_controller.dart';
 import '../features/metrics/nerd_stats_bar.dart';
 import '../features/updates/startup_update_banner.dart';
 import '../features/updates/startup_updates_watcher.dart';
+import '../features/changelog/startup_changelog_watcher.dart';
 import '../data/window/window_state_service.dart';
 import '../data/layout/layout_store.dart';
 
@@ -938,6 +939,7 @@ class _AppShellState extends ConsumerState<AppShell>
               const SessionNotificationWatcher(),
               const UpdatesPeriodicWatcher(),
               const StartupUpdatesWatcher(),
+              const StartupChangelogWatcher(),
               SafeArea(
                 // Rounded-corner phones: the web view reports no safe area, so leave the same margin
                 // below as at the sides; the panel's corners then follow the display curve.

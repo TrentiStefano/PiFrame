@@ -465,9 +465,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                         child: Text(
                           name,
                           overflow: TextOverflow.ellipsis,
-                          style: text.body.copyWith(
-                            color: tokens.textPrimary,
-                          ),
+                          style: text.body.copyWith(color: tokens.textPrimary),
                         ),
                       );
                     }).toList();
