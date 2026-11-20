@@ -1328,12 +1328,6 @@ class _AppShellState extends ConsumerState<AppShell>
       key: ValueKey('agent_activity_$sessionId'),
       sessionId: sessionId,
       onOpened: () {
-        if (mounted &&
-            _paneVisibility[WorkspacePane.git] == true &&
-            !_collapsedPanes.contains(WorkspacePane.git) &&
-            !ref.read(isReviewingChangesProvider)) {
-          _collapsePane(WorkspacePane.git);
-        }
         // Half-width windows: if the panel still has to float over the chat,
         // fold the Repository pane to its strip once so the panel can dock
         // beside the chat. Only on opening, so expanding it again sticks.

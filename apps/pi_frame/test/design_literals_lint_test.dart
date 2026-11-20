@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:flutter_test/flutter_test.dart';
 
 /// Ratchet for design literals (DESIGN.md §07, plan task 2.5).
@@ -75,10 +76,9 @@ void main() {
         .where((f) => f.path.endsWith('.dart'));
 
     for (final file in dartFiles) {
-      final rel = file.path.replaceAll('\\', '/').replaceFirst(
-        RegExp(r'^.*?lib/'),
-        'lib/',
-      );
+      final rel = file.path
+          .replaceAll('\\', '/')
+          .replaceFirst(RegExp(r'^.*?lib/'), 'lib/');
       if (_allowList.contains(rel)) continue;
 
       final lines = file.readAsLinesSync();
@@ -122,7 +122,9 @@ void main() {
       }
     }
 
-    final report = StringBuffer('\nDesign literal counts (count / baseline):\n');
+    final report = StringBuffer(
+      '\nDesign literal counts (count / baseline):\n',
+    );
     for (final entry in _baselines.entries) {
       report.writeln(
         '  ${entry.key.padRight(34)} ${hits[entry.key]!.length} / ${entry.value}',

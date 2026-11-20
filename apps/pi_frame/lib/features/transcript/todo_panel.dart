@@ -584,8 +584,9 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                                   onSubmitted: (_) => _submitNewTask(),
                                   style: TextStyle(
                                     color: tokens.textPrimary,
-                                    fontSize:
-                                        FrameText.of(context).label.fontSize,
+                                    fontSize: FrameText.of(context)
+                                        .label
+                                        .fontSize,
                                   ),
                                   decoration: InputDecoration(
                                     isDense: true,
@@ -672,8 +673,9 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                                   strings.todoAddTaskTooltip,
                                   style: TextStyle(
                                     color: tokens.textSecondary,
-                                    fontSize:
-                                        FrameText.of(context).label.fontSize,
+                                    fontSize: FrameText.of(context)
+                                        .label
+                                        .fontSize,
                                     fontWeight: FontWeight.w500,
                                   ),
                                 ),

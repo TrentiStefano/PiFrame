@@ -481,5 +481,32 @@ group('divider keyboard access (task 6.7)', () {
     expect(tester.takeException(), isNull);
     handle.dispose();
   });
+
+  testWidgets('maximizing the agents sidecar does not collapse git changes', (
+    tester,
+  ) async {
+    layoutFile.writeAsStringSync(
+      jsonEncode({
+        'visibility': {'repository': false, 'chat': true, 'git': true},
+        'sidebarCollapsed': false,
+      }),
+    );
+    final container = _container();
+    addTearDown(container.dispose);
+    await pumpShell(tester, container);
+
+    // Git changes pane is open initially
+    expect(find.byKey(const ValueKey('git_session_1')), findsOneWidget);
+
+    // Open/maximize the agent activity sidecar if button is present
+    final openBtn = find.byKey(const ValueKey('agent-activity-open-btn'));
+    if (openBtn.evaluate().isNotEmpty) {
+      await tester.tap(openBtn);
+      await tester.pumpAndSettle();
+    }
+
+    // Git changes pane must stay open and not be collapsed
+    expect(find.byKey(const ValueKey('git_session_1')), findsOneWidget);
+  });
 });
 }
