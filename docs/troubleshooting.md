@@ -4,6 +4,25 @@ This document collects diagnoses, root causes and fixes for known problems in th
 
 ---
 
+## Release: every installer build fails at "Build Flutter web app"
+
+**Symptom:** the Release workflow failed in all four installer jobs (Windows, macOS arm64 and x64, Linux) at the step *Build Flutter web app (remote access)*, with `Error: Dart library 'dart:ffi' is not available on this platform.`
+
+**Cause:** the Windows taskbar progress added in `windows_taskbar.dart` calls Win32 through `dart:ffi` and `package:ffi`, and `desktop_notification_service.dart` imported it unconditionally. The web build of the remote-access app compiles `main.dart` and everything it reaches, and the web has no `dart:ffi`. Pull-request verification runs the web build only with `pnpm run verify -- --release`, so it did not catch it.
+
+**Fix:** `desktop_notification_service.dart` imports `windows_taskbar_stub.dart if (dart.library.ffi) 'windows_taskbar.dart'`. The stub has the same API and does nothing; native builds keep the real taskbar. Any code that uses `dart:ffi` must be reached from `main.dart` only through such a conditional import.
+
+Check from source:
+
+```bash
+cd apps/pi_frame
+flutter build web --release --no-web-resources-cdn --pwa-strategy=none
+```
+
+Before merging anything that touches native code, run `pnpm run verify -- --release`.
+
+---
+
 ## Git Changes tab unexpectedly collapses when toggling the Agents/Tasks sidecar
 
 **Symptom:** with the Git Changes companion pane or tab open, minimizing and then maximizing or reopening the Agents or Tasks sidecar pane caused the Git Changes tab to automatically collapse to its strip.
