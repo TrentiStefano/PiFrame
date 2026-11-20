@@ -11,11 +11,9 @@
  * Locally (no GitHub access, no labels: prints the verdict and the comment it would post):
  *   node tools/scripts/guardrails-approval.mjs --base origin/main --head HEAD
  *
- * Staleness: commit dates are written by whoever commits, so they are never used. The latest push time is a time
- * GitHub records: the creation time of this run when it was triggered by a push (opened, synchronize, reopened),
- * otherwise the creation time of the newest `ci.yml` pull-request run for the head commit (ci.yml runs on exactly
- * those events). When neither is known, any label counts as stale. A stale label is also removed, so approving
- * again is one click.
+ * Staleness: this script reads the times GitHub recorded (this run's creation time and the head commit's `ci.yml`
+ * pull-request runs) and `approvalStatus` picks the latest push from them. A stale label is also removed, so
+ * approving again is one click.
  */
 import { spawnSync } from 'node:child_process';
 import * as path from 'node:path';
@@ -23,8 +21,6 @@ import { fileURLToPath } from 'node:url';
 import { approvalStatus, APPROVAL_LABEL, APPROVAL_MARKER, BASELINE_PATH } from '../guardrails/src/index.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const PUSH_ACTIONS = new Set(['opened', 'synchronize', 'reopened']);
-const NOT_NEEDED_ANY_MORE = `${APPROVAL_MARKER}\n**Guardrail approval: not needed.** Nothing in this pull request loosens a guardrail any more.`;
 
 function git(...args) {
   const result = spawnSync('git', args, { cwd: REPO, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
@@ -81,29 +77,54 @@ const paged = async (route) => {
   }
 };
 
+/** Reads a GitHub value that only sharpens the verdict; on failure warns and returns the fallback. */
+const tryRead = async (what, read, fallback) => {
+  try {
+    return await read();
+  } catch (err) {
+    console.warn(`! could not read ${what} (${err.message}).`);
+    return fallback;
+  }
+};
+
 let labelEvents = [];
-let latestPushAt = null;
+let runCreatedAt;
+let ciRunTimes = [];
+let mine;
 const repo = `/repos/${env.GITHUB_REPOSITORY}`;
 if (ci) {
   const events = await paged(`${repo}/issues/${env.PR_NUMBER}/events`);
   labelEvents = events
     .filter((e) => (e.event === 'labeled' || e.event === 'unlabeled') && e.label?.name)
     .map((e) => ({ action: e.event, label: e.label.name, at: e.created_at, actor: e.actor?.login }));
-
-  const times = [];
-  if (PUSH_ACTIONS.has(env.EVENT_ACTION)) {
-    times.push((await api('GET', `${repo}/actions/runs/${env.GITHUB_RUN_ID}`)).created_at);
-  }
-  try {
-    const runs = await paged(`${repo}/actions/workflows/ci.yml/runs?event=pull_request&head_sha=${env.HEAD_SHA}`);
-    times.push(...runs.map((r) => r.created_at));
-  } catch (err) {
-    console.warn(`! could not list ci.yml runs (${err.message}); using this run's time only.`);
-  }
-  latestPushAt = times.filter(Boolean).sort().at(-1) ?? null;
+  runCreatedAt = await tryRead(
+    "this run's creation time",
+    async () => (await api('GET', `${repo}/actions/runs/${env.GITHUB_RUN_ID}`)).created_at,
+    undefined
+  );
+  ciRunTimes = await tryRead(
+    'the ci.yml runs',
+    async () =>
+      (await paged(`${repo}/actions/workflows/ci.yml/runs?event=pull_request&head_sha=${env.HEAD_SHA}`)).map(
+        (r) => r.created_at
+      ),
+    []
+  );
+  const comments = await tryRead('the PR comments', () => paged(`${repo}/issues/${env.PR_NUMBER}/comments`), []);
+  mine = comments.find((comment) => comment.user?.type === 'Bot' && comment.body?.startsWith(APPROVAL_MARKER));
 }
 
-const result = approvalStatus({ baseBaseline, headBaseline, changedPaths, labelEvents, latestPushAt });
+const result = approvalStatus({
+  baseBaseline,
+  headBaseline,
+  changedPaths,
+  labelEvents,
+  eventAction: env.EVENT_ACTION,
+  runCreatedAt,
+  ciRunTimes,
+  previousComment: mine?.body ?? null
+});
+const { latestPushAt } = result;
 console.log(`Guardrail approval: ${result.status}${result.stale ? ' (stale label)' : ''}`);
 console.log(
   `  compared ${headRev} with merge base ${mergeBase.slice(0, 12)}; latest push: ${latestPushAt ?? 'unknown'}`
@@ -114,9 +135,7 @@ if (result.comment) console.log(`\n${result.comment}\n`);
 if (ci) {
   // A fork PR's token is read-only: the verdict (this job's exit code) still holds, only the comment is skipped.
   try {
-    const comments = await paged(`${repo}/issues/${env.PR_NUMBER}/comments`);
-    const mine = comments.find((c) => c.user?.type === 'Bot' && c.body?.startsWith(APPROVAL_MARKER));
-    const body = result.comment ?? (mine ? NOT_NEEDED_ANY_MORE : null);
+    const body = result.comment;
     if (body && mine && mine.body !== body) await api('PATCH', `${repo}/issues/comments/${mine.id}`, { body });
     if (body && !mine) await api('POST', `${repo}/issues/${env.PR_NUMBER}/comments`, { body });
     if (result.stale && latestPushAt) {

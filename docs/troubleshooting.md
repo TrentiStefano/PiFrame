@@ -1270,4 +1270,4 @@ The popup reads `apps/pi_frame/assets/CHANGELOG.md`, which used to be a committe
 
 ### Fix
 
-The in-app copy is now generated and not committed (it is in `.gitignore`). `pnpm run setup`, `pnpm run run:app` / `run:app:dev`, the packaging scripts and the release workflow generate it from the root changelog before Flutter runs or builds. The version check only checks it: if it fails, run `node tools/scripts/sync-changelog.mjs` (or `pnpm run setup`) and run the check again. Update PiFrame to see every release in the popup.
+The in-app copy is now generated and not committed (it is in `.gitignore`). `pnpm run setup`, `pnpm run run:app` / `run:app:dev`, the Flutter test scripts, the packaging scripts and the release workflow generate it from the root changelog before Flutter runs, tests or builds. The version check only checks it: if it fails, run `pnpm run sync:changelog` (or `pnpm run setup`) and run the check again. Update PiFrame to see every release in the popup.

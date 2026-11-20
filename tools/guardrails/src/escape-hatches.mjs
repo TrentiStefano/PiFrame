@@ -6,6 +6,8 @@
  *
  * Pure: no I/O. tools/scripts/audit-escape-hatches.mjs reads the tracked files and the baseline and calls it.
  */
+import { APPROVAL_LABEL } from './approval.mjs';
+import { DART_FILE, SCRIPT_FILE, SOURCE_FILE, TEST_FILE_NAME, toPosix } from './paths.mjs';
 
 export const BASELINE_PATH = 'tools/guardrails/escape-hatch-baseline.json';
 
@@ -22,8 +24,6 @@ const PACKAGES = [
 ];
 
 const KINDS = ['lib', 'test'];
-const DART = /\.dart$/;
-const SCRIPT = /\.(ts|tsx|mts|cts|js|jsx|mjs|cjs)$/;
 
 const TYPE_FIX =
   'Fix the type error instead of hiding it: give the value its real type, narrow it with a type guard, or correct ' +
@@ -38,25 +38,25 @@ const ANALYZER_FIX =
 
 /** In baseline order. `files` is the language the pattern applies to. */
 const PATTERNS = [
-  { name: '// ignore:', files: DART, regex: /\/\/\s*ignore:/g, fix: ANALYZER_FIX },
-  { name: '// ignore_for_file:', files: DART, regex: /\/\/\s*ignore_for_file:/g, fix: ANALYZER_FIX },
-  { name: '@ts-ignore', files: SCRIPT, regex: /@ts-ignore\b/g, fix: TYPE_FIX },
-  { name: '@ts-expect-error', files: SCRIPT, regex: /@ts-expect-error\b/g, fix: TYPE_FIX },
-  { name: '@ts-nocheck', files: SCRIPT, regex: /@ts-nocheck\b/g, fix: TYPE_FIX },
+  { name: '// ignore:', files: DART_FILE, regex: /\/\/\s*ignore:/g, fix: ANALYZER_FIX },
+  { name: '// ignore_for_file:', files: DART_FILE, regex: /\/\/\s*ignore_for_file:/g, fix: ANALYZER_FIX },
+  { name: '@ts-ignore', files: SCRIPT_FILE, regex: /@ts-ignore\b/g, fix: TYPE_FIX },
+  { name: '@ts-expect-error', files: SCRIPT_FILE, regex: /@ts-expect-error\b/g, fix: TYPE_FIX },
+  { name: '@ts-nocheck', files: SCRIPT_FILE, regex: /@ts-nocheck\b/g, fix: TYPE_FIX },
   {
     name: 'eslint-disable',
-    files: SCRIPT,
+    files: SCRIPT_FILE,
     regex: /eslint-disable/g,
     fix: 'ESLint is not installed in this repository, so the comment disables nothing: delete it, and fix the code the rule would flag.'
   },
   // `any` in a type position only: followed by punctuation that can follow a type, `as`, or the end of the line, so
   // prose such as "two ways: any call" or "as any other" in a comment does not count.
-  { name: 'as any', files: SCRIPT, regex: /\bas\s+any\b(?=\s*(?:[;,)\]}=|&>{[/]|as\b|$))/g, fix: ANY_FIX },
-  { name: ': any', files: SCRIPT, regex: /:\s*any\b(?=\s*(?:[;,)\]}=|&>{[/]|as\b|$))/g, fix: ANY_FIX },
-  { name: 'as unknown as', files: SCRIPT, regex: /\bas\s+unknown\s+as\b/g, fix: ANY_FIX },
+  { name: 'as any', files: SCRIPT_FILE, regex: /\bas\s+any\b(?=\s*(?:[;,)\]}=|&>{[/]|as\b|$))/g, fix: ANY_FIX },
+  { name: ': any', files: SCRIPT_FILE, regex: /:\s*any\b(?=\s*(?:[;,)\]}=|&>{[/]|as\b|$))/g, fix: ANY_FIX },
+  { name: 'as unknown as', files: SCRIPT_FILE, regex: /\bas\s+unknown\s+as\b/g, fix: ANY_FIX },
   {
     name: '// coverage:ignore',
-    files: /\.(dart|ts|tsx|mts|cts|js|jsx|mjs|cjs)$/,
+    files: SOURCE_FILE,
     regex: /coverage:ignore/g,
     fix: 'Write a test that covers the code instead of excluding it from coverage; delete code no test can reach.'
   }
@@ -65,7 +65,6 @@ const PATTERNS = [
 /** Build output, dependencies and caches: never audited. */
 const EXCLUDED_DIRS = new Set(['node_modules', 'dist', 'build', 'out', 'coverage', '.dart_tool', '.pub-cache']);
 const TEST_DIRS = new Set(['test', 'tests', '__tests__']);
-const TEST_NAME = /(_test\.dart|\.(test|spec)\.(ts|tsx|mts|cts|js|jsx|mjs|cjs))$/;
 /** This module and its tests spell out every pattern, so they are not counted. */
 const SELF = new Set(['tools/guardrails/src/escape-hatches.mjs', 'tools/guardrails/test/escape-hatches.test.mjs']);
 
@@ -102,14 +101,14 @@ export function auditEscapeHatches({ files, baseline, changedPaths = [] }) {
   }
 
   for (const { path: rawPath, contents } of files) {
-    const path = rawPath.replaceAll('\\', '/');
+    const path = toPosix(rawPath);
     const entry = PACKAGES.find(([, dir]) => path.startsWith(dir));
     if (!entry || SELF.has(path)) continue;
     const [pkg, dir] = entry;
     const segments = path.slice(dir.length).split('/');
     const name = segments.pop();
     if (segments.some((s) => EXCLUDED_DIRS.has(s))) continue;
-    const kind = segments.some((s) => TEST_DIRS.has(s)) || TEST_NAME.test(name) ? 'test' : 'lib';
+    const kind = segments.some((s) => TEST_DIRS.has(s)) || TEST_FILE_NAME.test(name) ? 'test' : 'lib';
     const patterns = PATTERNS.filter((p) => p.files.test(name));
     if (patterns.length === 0) continue;
     const lines = contents.split(/\r?\n/);
@@ -125,7 +124,7 @@ export function auditEscapeHatches({ files, baseline, changedPaths = [] }) {
     }
   }
 
-  const changed = new Set(changedPaths.map((p) => p.replaceAll('\\', '/')));
+  const changed = new Set(changedPaths.map(toPosix));
   /** @type {Mismatch[]} */
   const mismatches = [];
   for (const [pkg] of PACKAGES) {
@@ -173,7 +172,7 @@ function increaseMessage(where, expected, actual, pattern, kindHits, changed) {
     `${where}: ${expected} → ${actual} (+${actual - expected}). A new escape hatch silences a check.\n` +
     `  Occurrences (files changed since the baseline was last updated first):\n${list.join('\n')}\n` +
     `  Fix the root cause: ${pattern.fix}\n` +
-    `  Do not raise the baseline to make this pass: an increase needs a human's decision (the \`human-approved\` ` +
+    `  Do not raise the baseline to make this pass: an increase needs a human's decision (the \`${APPROVAL_LABEL}\` ` +
     `label on the pull request).`
   );
 }

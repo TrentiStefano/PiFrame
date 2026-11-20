@@ -10,10 +10,9 @@ import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { auditEscapeHatches, BASELINE_PATH } from '../guardrails/src/index.mjs';
+import { auditEscapeHatches, BASELINE_PATH, SOURCE_FILE } from '../guardrails/src/index.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-const SOURCE = /\.(dart|ts|tsx|mts|cts|js|jsx|mjs|cjs)$/;
 
 function git(...args) {
   const result = spawnSync('git', args, { cwd: REPO, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
@@ -31,7 +30,7 @@ if (!listed) {
   process.exit(1);
 }
 const files = [...new Set(listed)]
-  .filter((p) => SOURCE.test(p) && fs.existsSync(path.join(REPO, p)))
+  .filter((p) => SOURCE_FILE.test(p) && fs.existsSync(path.join(REPO, p)))
   .map((p) => ({ path: p, contents: fs.readFileSync(path.join(REPO, p), 'utf8') }));
 
 // Files changed since the baseline was last committed (working tree and untracked files included): the counts

@@ -1,12 +1,13 @@
 /**
  * The in-app changelog (apps/pi_frame/assets/CHANGELOG.md) is a generated, untracked copy of the root CHANGELOG.md.
- * Flutter setup writes it (`write` mode); the version check in verify and CI only checks it (`check` mode).
+ * Flutter setup and every Flutter test path write it (`write` mode); the version check (`pnpm run check:version`)
+ * only checks it (`check` mode), which catches a stale copy left on disk in a local checkout.
  *
  * Pure: no I/O. The caller reads both files and, for a `write` result, writes `content` to the asset.
  */
 
 export const CHANGELOG_ASSET = 'apps/pi_frame/assets/CHANGELOG.md';
-export const CHANGELOG_FIX_COMMAND = 'node tools/scripts/sync-changelog.mjs';
+export const CHANGELOG_FIX_COMMAND = 'pnpm run sync:changelog';
 
 /**
  * @typedef {object} ChangelogSyncInput

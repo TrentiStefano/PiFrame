@@ -23,7 +23,7 @@
     "check:notices": "node tools/scripts/generate-third-party-notices.mjs --check",
     "smoke:agentd-bundle": "node tools/scripts/smoke-agentd-bundle.mjs",
     "run:daemon": "pnpm --filter @piframe/agentd build && pnpm --filter @piframe/agentd run dev",
-    "run:app": "pnpm run build:agentd && node tools/scripts/sync-changelog.mjs && cd apps/pi_frame && flutter run",
+    "run:app": "pnpm run build:agentd && pnpm run sync:changelog && cd apps/pi_frame && flutter run",
     "run:app:dev": "node tools/scripts/run-dev-app.mjs",
     "harness": "node tools/harness/pf-harness.mjs",
     "build:all": "pnpm -r run build && pnpm run build:agentd",

@@ -6,7 +6,7 @@
  * create|edit|delete`. It is a speed bump, not a security boundary.
  */
 
-const LABEL = 'human-approved';
+import { APPROVAL_LABEL } from './approval.mjs';
 
 // A word `gh` (or `gh.exe`, possibly behind a path), not part of a longer word such as `github` or `gh-pages`.
 const GH_WORD = /(?<![\w.-])gh(?:\.exe)?(?![\w.-])/gi;
@@ -55,26 +55,26 @@ function ghInvocations(command) {
 // Quotes, escapes and concatenation that shells drop before the label reaches gh (`human-"approved"`).
 const normalize = (text) => text.replace(/["'`^\\+\s]/g, '').toLowerCase();
 
-const LABEL_WRITE = /^\s+label\s+(create|edit|delete)\b/i;
+const GH_LABEL_SUBCOMMAND = /^\s+label\s+(create|edit|delete)\b/i;
 
 export function guardCommand(command) {
   const invocations = ghInvocations(command);
-  if (invocations.length > 0 && normalize(command.slice(invocations[0])).includes(LABEL)) {
+  if (invocations.length > 0 && normalize(command.slice(invocations[0])).includes(APPROVAL_LABEL)) {
     return {
       decision: 'block',
       reason:
-        `Blocked: agents may not apply the ${LABEL} label; only the human approves, in the GitHub UI. ` +
+        `Blocked: agents may not apply the ${APPROVAL_LABEL} label; only the human approves, in the GitHub UI. ` +
         `If the command only mentions the label in prose (an issue or PR body or comment), write the text to a ` +
         `file and pass it with --body-file instead.`
     };
   }
-  const labelWrite = invocations
-    .map((offset) => command.slice(offset).replace(/["'`]/g, '').match(LABEL_WRITE))
+  const labelSubcommand = invocations
+    .map((offset) => command.slice(offset).replace(/["'`]/g, '').match(GH_LABEL_SUBCOMMAND))
     .find(Boolean);
-  if (labelWrite) {
+  if (labelSubcommand) {
     return {
       decision: 'block',
-      reason: `Blocked: agents may not ${labelWrite[1].toLowerCase()} labels; ask the human to change labels in GitHub.`
+      reason: `Blocked: agents may not ${labelSubcommand[1].toLowerCase()} labels; ask the human to change labels in GitHub.`
     };
   }
   return { decision: 'allow' };

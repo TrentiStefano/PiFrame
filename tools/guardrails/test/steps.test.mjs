@@ -92,9 +92,13 @@ test('check is the inner loop: escape-hatch audit, build (for the workspace type
     'node tools/scripts/audit-escape-hatches.mjs',
     'pnpm -r run build',
     'pnpm -r run lint',
+    // The app's pubspec lists the untracked in-app changelog: analyze and the Flutter tests both need it.
+    'node tools/scripts/sync-changelog.mjs',
     'node tools/scripts/lint-flutter.js'
   ]);
 });
+
+const ANALYSIS_STEPS = 5;
 
 test('check never installs, creates a worktree or merges', () => {
   const steps = check(['apps/pi_frame/test/a_test.dart', 'tools/guardrails/test/steps.test.mjs']);
@@ -110,15 +114,32 @@ test('check runs a Dart test file with flutter test inside its project, after an
     'apps/pi_frame/test/widgets/bento_test.dart',
     'packages\\pi_frame_theme\\test\\theme_test.dart'
   ]);
-  assert.deepEqual(withCwd(steps).slice(4), [
+  assert.deepEqual(withCwd(steps).slice(ANALYSIS_STEPS), [
     { command: 'flutter test test/widgets/bento_test.dart', cwd: 'apps/pi_frame' },
     { command: 'flutter test test/theme_test.dart', cwd: 'packages/pi_frame_theme' }
   ]);
 });
 
+test('check runs a TypeScript test from its compiled output, after the build step', () => {
+  const steps = check([
+    'apps/agentd/src/pi/test/jsonlFramer.test.ts',
+    'packages/pcp-ts/src/test/index.test.ts',
+    'tools/fake-pi/src/test/a.test.mts'
+  ]);
+  assert.deepEqual(withCwd(steps).slice(ANALYSIS_STEPS), [
+    { command: 'node --test apps/agentd/dist/pi/test/jsonlFramer.test.js', cwd: undefined },
+    { command: 'node --test packages/pcp-ts/dist/test/index.test.js', cwd: undefined },
+    { command: 'node --test tools/fake-pi/dist/test/a.test.mjs', cwd: undefined }
+  ]);
+});
+
+test('check refuses a TypeScript test outside a src folder, naming the compiled path convention', () => {
+  assert.throws(() => check(['apps/agentd/test/a.test.ts']), /apps\/agentd\/test\/a\.test\.ts.*src\/.*dist\//s);
+});
+
 test('check runs a Node test file with node --test from the repository root', () => {
   const steps = check(['tools/guardrails/test/steps.test.mjs', 'tools/scripts/x.test.js', 'tools/a/b.test.cjs']);
-  assert.deepEqual(withCwd(steps).slice(4), [
+  assert.deepEqual(withCwd(steps).slice(ANALYSIS_STEPS), [
     { command: 'node --test tools/guardrails/test/steps.test.mjs', cwd: undefined },
     { command: 'node --test tools/scripts/x.test.js', cwd: undefined },
     { command: 'node --test tools/a/b.test.cjs', cwd: undefined }
@@ -126,7 +147,7 @@ test('check runs a Node test file with node --test from the repository root', ()
 });
 
 test('check refuses a path it cannot route, naming the supported kinds', () => {
-  for (const file of ['README.md', 'lib/main.dart', 'somewhere/else/x_test.dart', 'apps/agentd/src/a.test.ts']) {
+  for (const file of ['README.md', 'lib/main.dart', 'somewhere/else/x_test.dart', 'apps/agentd/a.test.ts']) {
     assert.throws(
       () => check([file]),
       (err) => {

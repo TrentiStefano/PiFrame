@@ -1,9 +1,9 @@
 name: Guardrail approval
 
-# Fails while a pull request loosens a guardrail (raises an escape-hatch baseline number, or changes analyzer,
-# TypeScript, formatter or linter configs, guardrail tooling, workflows or the agent guards) without a current
-# `human-approved` label, and keeps one PR comment listing what needs approval. Adding the label re-runs it; a push
-# after the label makes the approval stale. Logic: tools/guardrails/src/approval.mjs; adapter:
+# Fails while a pull request changes a guardrail (raises an escape-hatch baseline number, or changes analyzer,
+# TypeScript, formatter or linter configs, guardrail tooling, gate scripts, package manifests, workflows or the agent
+# guards) without a current `human-approved` label, and keeps one PR comment listing what needs approval. Adding
+# the label re-runs it; a push after the label makes the approval stale. Logic: tools/guardrails/src/approval.mjs; adapter:
 # tools/scripts/guardrails-approval.mjs. See docs/pr-verification.md#guardrail-approval.
 #
 # Kept out of ci.yml on purpose: ci.yml's jobs must equal the shared step list's `ci` tier (parity test).

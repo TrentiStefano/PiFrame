@@ -30,23 +30,27 @@ Options (they work for both commands; with `pnpm` they go after `--`):
 1. the escape-hatch audit (see [below](#escape-hatch-ratchet))
 2. `pnpm -r run build` (agentd and the e2e tests type-check against the other packages' built `.d.ts`; a fresh or stale `dist/` would give false errors)
 3. `pnpm -r run lint` (`tsc --noEmit` for every TypeScript package)
-4. `flutter analyze` on `pi_frame_protocol`, `pi_frame_theme` and `pi_frame`
-5. each test file passed as an argument, routed by its path:
+4. `node tools/scripts/sync-changelog.mjs` (what `pnpm run sync:changelog` runs): generates the in-app changelog, which the app's `pubspec.yaml` lists, so `flutter analyze` and the Flutter tests find it
+5. `flutter analyze` on `pi_frame_protocol`, `pi_frame_theme` and `pi_frame`
+6. each test file passed as an argument, routed by its path:
    - `*_test.dart` inside one of the Flutter projects → `flutter test <path>` in that project
-   - `*.test.mjs`, `*.test.cjs`, `*.test.js` → `node --test <path>` from the repository root. TypeScript tests run from their build output (for example `apps/agentd/dist/pi/test/jsonlFramer.test.js`), which step 2 refreshes.
+   - `*.test.mjs`, `*.test.cjs`, `*.test.js` → `node --test <path>` from the repository root
+   - `<package>/src/**/*.test.ts` (also `.mts`, `.cts`, `.tsx`) → `node --test` on its compiled copy `<package>/dist/**/*.test.js` (`.mjs`, `.cjs`), which step 2 refreshes: `apps/agentd/src/pi/test/jsonlFramer.test.ts` runs `apps/agentd/dist/pi/test/jsonlFramer.test.js`. A TypeScript test outside a `src/` folder fails; pass its compiled file instead.
 
 Any other path fails before anything runs, with a message naming the supported kinds. Paths may be relative to the folder you run the command from.
 
 ```text
 # (each step's own output omitted)
-$ pnpm run check -- apps/pi_frame/test/agents_config_model_test.dart tools/guardrails/test/steps.test.mjs
-[1/6] Escape-hatch audit (baseline ratchet) ... ok (0.4s)
-[2/6] Build TypeScript packages ... ok (9.5s)
-[3/6] TypeScript lint (tsc --noEmit) ... ok (6.6s)
-[4/6] Flutter analyze (all projects) ... ok (39.9s)
-[5/6] Flutter test apps/pi_frame/test/agents_config_model_test.dart ... ok (17.7s)
-[6/6] Node test tools/guardrails/test/steps.test.mjs ... ok (0.5s)
-✔ check: all 6 steps passed in 74.6s.
+$ pnpm run check -- apps/pi_frame/test/changelog_test.dart apps/agentd/src/pi/test/PiEventAdapter.test.ts tools/guardrails/test/steps.test.mjs
+[1/8] Escape-hatch audit (baseline ratchet) ... ok (1.8s)
+[2/8] Build TypeScript packages ... ok (9.4s)
+[3/8] TypeScript lint (tsc --noEmit) ... ok (4.8s)
+[4/8] Generate the in-app changelog ... ok (0.1s)
+[5/8] Flutter analyze (all projects) ... ok (30.4s)
+[6/8] Flutter test apps/pi_frame/test/changelog_test.dart ... ok (11.4s)
+[7/8] Node test apps/agentd/dist/pi/test/PiEventAdapter.test.js (compiled from apps/agentd/src/pi/test/PiEventAdapter.test.ts) ... ok (0.2s)
+[8/8] Node test tools/guardrails/test/steps.test.mjs ... ok (0.3s)
+✔ check: all 8 steps passed in 58.4s.
 ```
 
 The `check` tier is local only: `ci.yml` follows the `ci` tier, so adding a step to `check` does not change the workflow. `check` passing does not mean "ready for a PR"; only `verify` does.
@@ -72,7 +76,7 @@ The steps come from one shared step list, `tools/guardrails/src/steps.mjs`. `ver
 13. Flutter dependencies (`tools/scripts/setup-flutter.js`; it also generates the in-app changelog)
 14. `node tools/scripts/check-version-sync.mjs` (synchronized versions, and the in-app changelog in check mode)
 15. Dart formatting (`dart format --set-exit-if-changed`)
-16. `flutter analyze` and `flutter test` on `pi_frame_protocol`, `pi_frame_theme` and `pi_frame`
+16. `flutter analyze` and `flutter test` (which first regenerates the in-app changelog) on `pi_frame_protocol`, `pi_frame_theme` and `pi_frame`
 17. with `--release`: `flutter build web` and `flutter build <desktop>`
 18. with `--e2e`: emulated-iPhone test
 
@@ -84,7 +88,7 @@ The one-time reformat commit is listed in `.git-blame-ignore-revs`: GitHub skips
 
 ## In-app changelog
 
-`apps/pi_frame/assets/CHANGELOG.md` (the post-update popup) is a generated copy of the root `CHANGELOG.md` and is not committed. `node tools/scripts/sync-changelog.mjs` (`pnpm run sync:changelog`) writes it; `pnpm run setup`, `run:app`, `run:app:dev`, the packaging scripts and the release workflow run it before Flutter. Step 13 only checks it: a missing or stale copy fails with the command that fixes it, and nothing is written. If the version check fails after you pulled a new release, run that command (or `pnpm run setup`). The decision logic is `syncChangelog` in `tools/guardrails`.
+`apps/pi_frame/assets/CHANGELOG.md` (the post-update popup) is a generated copy of the root `CHANGELOG.md` and is not committed. `pnpm run sync:changelog` (`node tools/scripts/sync-changelog.mjs`) writes it; `pnpm run setup`, `run:app`, `run:app:dev`, every Flutter test path (`tools/scripts/test-flutter.js`, `pnpm run check -- <file>_test.dart`), the packaging scripts and the release workflow run it before Flutter. The version check (`pnpm run check:version`, step 14) only checks it: a missing or stale copy fails with the command that fixes it, and nothing is written. That check is for your local checkout, where a copy generated before you pulled a new release can be left on disk. In `verify` and CI the worktree is fresh and step 13 has just generated the copy, so there it cannot be stale. If `pnpm run check:version` fails on it, run `pnpm run sync:changelog` (or `pnpm run setup`). The decision logic is `syncChangelog` in `tools/guardrails`.
 
 The full output is in `.git/verify-ci/last.log`. If a step fails, the script prints the last lines and stops: with `pnpm run pr`, nothing is pushed and no PR is opened.
 
@@ -141,10 +145,10 @@ The logic is `auditEscapeHatches` in `tools/guardrails/src/escape-hatches.mjs` (
 
 ## Guardrail approval
 
-`.github/workflows/guardrails-approval.yml` runs on every pull-request event (`opened`, `synchronize`, `reopened`, `labeled`, `unlabeled`). It is a separate workflow, not a `ci.yml` job, because `ci.yml`'s jobs must equal the step list's `ci` tier. It fails while the PR loosens a guardrail without a current `human-approved` label:
+`.github/workflows/guardrails-approval.yml` runs on every pull-request event (`opened`, `synchronize`, `reopened`, `labeled`, `unlabeled`). It is a separate workflow, not a `ci.yml` job, because `ci.yml`'s jobs must equal the step list's `ci` tier. It fails while the PR changes a guardrail without a current `human-approved` label:
 
 - **A raised baseline number**: any count in `tools/guardrails/escape-hatch-baseline.json` that is higher on the PR head than at its merge base. Lowering is free.
-- **A guarded path changed**, in either direction: every `analysis_options.yaml`, `tsconfig*.json`, `.prettierrc.json` and `.prettierignore`, any ESLint config (`.eslintrc*`, `.eslintignore`, `eslint.config.*`), `tools/guardrails/**` (except the baseline file, see above), `tools/scripts/format.mjs`, `tools/scripts/flutter-projects.json`, `tools/scripts/audit-escape-hatches.mjs`, `tools/scripts/guardrails-approval.mjs`, `.github/workflows/**`, and the agent guards: `.claude/settings.json`, `.claude/hooks/**`, `.pi/extensions/**`, `.codex/rules/**`.
+- **A guarded path changed**, in either direction: every `analysis_options.yaml`, `tsconfig*.json`, `.prettierrc.json` and `.prettierignore`, any ESLint config (`.eslintrc*`, `.eslintignore`, `eslint.config.*`), `tools/guardrails/**` (except the baseline file, see above), `tools/codegen/**`, **every script a gate step runs** (derived from the step list, all tiers: for example `tools/scripts/format.mjs`, `audit-escape-hatches.mjs`, `lint-flutter.js`, `test-flutter.js`, `setup-flutter.js`, `check-version-sync.mjs`, `sync-changelog.mjs`, `tools/recon/verify.ts`, `tools/remote-e2e/remote-iphone-e2e.mjs`), the gate runners `tools/scripts/verify-ci.mjs` and `tools/scripts/check.mjs`, `tools/scripts/flutter-projects.json`, `tools/scripts/guardrails-approval.mjs`, every `package.json` (the root one and each workspace package's: the `build`, `lint` and `test` scripts and the Prettier pin live there) and `pnpm-workspace.yaml`, `.github/workflows/**`, and the agent guards: `.claude/settings.json`, `.claude/hooks/**`, `.pi/extensions/**`, `.codex/rules/**`.
 
 When approval is needed, the job posts **one** comment (found again by a hidden `<!-- guardrails-approval -->` marker and edited, never duplicated) listing each reason, for example ``agentd lib `as any` 44 → 45`` or ``CI workflow changed: `.github/workflows/ci.yml` ``. To approve, review the PR and add the label in the GitHub UI: the `labeled` event re-runs the job, which turns green and updates the comment; no push is needed. A PR that needs nothing passes silently, without a comment (if an earlier commit needed approval and no longer does, the existing comment says so).
 

@@ -4,7 +4,7 @@ import { syncChangelog } from '../src/index.mjs';
 
 const ROOT = '# Changelog\n\n## [1.5.1](https://example.test) (2026-11-01)\n\n* fix a thing\n';
 const STALE = '# Changelog\n\n## [1.4.0](https://example.test) (2026-09-01)\n\n* older\n';
-const FIX = 'node tools/scripts/sync-changelog.mjs';
+const FIX = 'pnpm run sync:changelog';
 
 test('check mode fails on a missing asset and names the command that generates it', () => {
   const result = syncChangelog({ root: ROOT, asset: null, mode: 'check' });
