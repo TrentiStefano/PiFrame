@@ -1,0 +1,4 @@
+# Prettier also skips everything in .gitignore (node_modules, dist, build).
+
+# Verbatim copies of the upstream pi package's types and docs, kept for comparison: never reformat them.
+tools/recon/reference/
