@@ -12,6 +12,7 @@
 /** @type {Step[]} */
 const GATE = [
   { job: 'node', name: 'Install dependencies (frozen lockfile)', command: ['pnpm', 'install', '--frozen-lockfile'] },
+  { job: 'node', name: 'TypeScript formatting (Prettier)', command: ['node', 'tools/scripts/format.mjs', '--check', 'ts'] },
   { job: 'node', name: 'Verify Pi target recon', command: ['node', 'tools/recon/verify.ts'] },
   { job: 'node', name: 'PCP schema validation', command: ['pnpm', '--filter', '@piframe/pcp-spec', 'run', 'test'] },
   { job: 'node', name: 'Build TypeScript packages', command: ['pnpm', '-r', 'run', 'build'] },
@@ -28,6 +29,7 @@ const GATE = [
     command: ['node', '--test', 'tools/scripts/test-windows-release-name.test.mjs']
   },
   { job: 'flutter', name: 'Flutter dependencies', command: ['node', 'tools/scripts/setup-flutter.js'] },
+  { job: 'flutter', name: 'Dart formatting (dart format)', command: ['node', 'tools/scripts/format.mjs', '--check', 'dart'] },
   { job: 'flutter', name: 'Flutter analyze (all projects)', command: ['node', 'tools/scripts/lint-flutter.js'] },
   { job: 'flutter', name: 'Flutter tests (all projects)', command: ['node', 'tools/scripts/test-flutter.js'] }
 ];

@@ -34,6 +34,9 @@ jobs:
       - name: Install dependencies (frozen lockfile)
         run: pnpm install --frozen-lockfile
 
+      - name: TypeScript formatting (Prettier)
+        run: node tools/scripts/format.mjs --check ts
+
       - name: Verify Pi target recon
         run: node tools/recon/verify.ts
 
@@ -80,6 +83,9 @@ jobs:
 
       - name: Flutter dependencies
         run: node tools/scripts/setup-flutter.js
+
+      - name: Dart formatting (dart format)
+        run: node tools/scripts/format.mjs --check dart
 
       - name: Flutter analyze (all projects)
         run: node tools/scripts/lint-flutter.js

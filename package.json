@@ -7,6 +7,8 @@
     "setup": "pnpm install && node tools/scripts/setup-flutter.js",
     "codegen": "node tools/codegen/generate.js",
     "lint": "pnpm -r --stream run lint && node tools/scripts/lint-flutter.js",
+    "format": "node tools/scripts/format.mjs",
+    "format:check": "node tools/scripts/format.mjs --check",
     "test": "pnpm -r --stream run test && node tools/scripts/test-flutter.js",
     "test:e2e": "pnpm --filter @piframe/e2e run test",
     "smoke:real-pi": "pnpm --filter @piframe/agentd build && node tools/scripts/smoke-real-pi.mjs",
@@ -28,6 +30,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "prettier": "3.9.10",
     "typescript": "^5.6.0"
   }
 }

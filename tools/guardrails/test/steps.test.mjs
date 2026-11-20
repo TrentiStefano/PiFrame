@@ -7,6 +7,7 @@ const commandLines = (steps) => steps.map((s) => s.command.join(' '));
 test('verify runs the full gate in order, including codegen parity and an explicit TS lint after the build', () => {
   assert.deepEqual(commandLines(stepList('verify')), [
     'pnpm install --frozen-lockfile',
+    'node tools/scripts/format.mjs --check ts',
     'node tools/recon/verify.ts',
     'pnpm --filter @piframe/pcp-spec run test',
     'pnpm -r run build',
@@ -19,6 +20,7 @@ test('verify runs the full gate in order, including codegen parity and an explic
     'pnpm run smoke:agentd-bundle',
     'node --test tools/scripts/test-windows-release-name.test.mjs',
     'node tools/scripts/setup-flutter.js',
+    'node tools/scripts/format.mjs --check dart',
     'node tools/scripts/lint-flutter.js',
     'node tools/scripts/test-flutter.js'
   ]);
@@ -62,6 +64,7 @@ test('ci runs exactly the verify gate, split into the node and flutter jobs', ()
   const byJob = (job) => commandLines(ci.filter((s) => s.job === job));
   assert.deepEqual(byJob('flutter'), [
     'node tools/scripts/setup-flutter.js',
+    'node tools/scripts/format.mjs --check dart',
     'node tools/scripts/lint-flutter.js',
     'node tools/scripts/test-flutter.js'
   ]);
