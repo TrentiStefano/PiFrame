@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.5.1](https://github.com/TrentiStefano/PiFrame/compare/v1.5.0...v1.5.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **web:** keep dart:ffi out of the web build so release installers build ([fe66104](https://github.com/TrentiStefano/PiFrame/commit/fe6610480344184277e133c2df2bcffccafdbde7))
+* **web:** keep dart:ffi out of the web build so release installers build ([02f556c](https://github.com/TrentiStefano/PiFrame/commit/02f556cc39e7f132c595421b7185267f424d602d))
+
 ## [1.5.0](https://github.com/TrentiStefano/PiFrame/compare/v1.4.1...v1.5.0) (2026-11-20)
 
 
