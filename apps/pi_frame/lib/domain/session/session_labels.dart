@@ -33,7 +33,7 @@ Map<String, String> folderDisplayNames(Iterable<String> folders) {
       final parts = entry.value;
       final depth = depths[entry.key]!;
       final label = parts.isEmpty
-          ? (entry.key.trim().isEmpty ? 'Sessioni' : entry.key)
+          ? (entry.key.trim().isEmpty ? 'Sessions' : entry.key)
           : parts.skip((parts.length - depth).clamp(0, parts.length)).join(' / ');
       labels[entry.key] = label;
       collisions.putIfAbsent(_nameKey(label), () => []).add(entry.key);

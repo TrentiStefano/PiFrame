@@ -87,7 +87,7 @@ class _DesktopCaptionButtonsState extends State<DesktopCaptionButtons> with Wind
         },
       );
     }
-    return _buildButtons(context, tokens, const AppStrings(AppLanguage.it));
+    return _buildButtons(context, tokens, const AppStrings(AppLanguage.defaultLanguage));
   }
 
   Widget _buildButtons(BuildContext context, FrameTokens tokens, AppStrings strings) {

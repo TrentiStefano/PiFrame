@@ -64,7 +64,7 @@ class RepositoryController extends StateNotifier<RepositoryState> {
   Future<void> loadFiles() async {
     final client = _readClient();
     if (client == null) {
-      state = RepositoryState(error: _readStrings?.call().daemonNotConnectedCapital ?? 'Daemon non connesso');
+      state = RepositoryState(error: _readStrings?.call().daemonNotConnectedCapital ?? 'Daemon not connected');
       return;
     }
     state = RepositoryState(
@@ -173,7 +173,7 @@ class RepositoryController extends StateNotifier<RepositoryState> {
     final client = _readClient();
     final buffer = state.buffers[path];
     if (client == null || buffer == null) {
-      throw StateError('File non disponibile');
+      throw StateError('File not available');
     }
     final content = buffer.content;
     final result = await client.saveWorkspaceFile(sessionId, {
@@ -210,7 +210,7 @@ class RepositoryController extends StateNotifier<RepositoryState> {
 
   Future<({String content, String revision})> currentDisk(String path) async {
     final client = _readClient();
-    if (client == null) throw StateError('Daemon non connesso');
+    if (client == null) throw StateError('Daemon not connected');
     final result = await client.readWorkspaceFile(sessionId, path);
     final data = (result['data'] as Map<String, dynamic>?) ?? result;
     return (content: data['content'] as String, revision: data['revision'].toString());

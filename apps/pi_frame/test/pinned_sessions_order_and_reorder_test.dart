@@ -128,7 +128,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Pinned header exists
-      expect(find.text('FISSATE (3)'), findsOneWidget);
+      expect(find.text('PINNED (3)'), findsOneWidget);
 
       // Verify that pinned session tiles appear in the pinned list order (sess_1, then sess_2, then sess_3)
       final sessionOneFinder = find.byKey(const ValueKey('pinned_session_sess_1'));

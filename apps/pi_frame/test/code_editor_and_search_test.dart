@@ -102,17 +102,17 @@ void main() {
     await tester.pumpAndSettle();
 
     // "message" appears twice in readWorkspaceFile content
-    expect(find.text('1 di 2'), findsOneWidget);
+    expect(find.text('1 of 2'), findsOneWidget);
 
     // Tap next match
     await tester.tap(find.byKey(const ValueKey('repository-file-search-next')));
     await tester.pumpAndSettle();
-    expect(find.text('2 di 2'), findsOneWidget);
+    expect(find.text('2 of 2'), findsOneWidget);
 
     // Tap prev match
     await tester.tap(find.byKey(const ValueKey('repository-file-search-prev')));
     await tester.pumpAndSettle();
-    expect(find.text('1 di 2'), findsOneWidget);
+    expect(find.text('1 of 2'), findsOneWidget);
 
     // Close search
     await tester.tap(find.byKey(const ValueKey('repository-file-search-close')));

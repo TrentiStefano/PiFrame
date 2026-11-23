@@ -334,7 +334,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Provenance is an icon; its tooltip carries the origin text.
-    expect(find.byTooltip('Tool Pi + salvataggio PiFrame'), findsOneWidget);
+    expect(find.byTooltip('Pi tool + PiFrame save'), findsOneWidget);
     // Name first in its own text; the directory is on the same line.
     expect(find.text('main.dart'), findsOneWidget);
     expect(find.text('lib'), findsOneWidget);
@@ -349,19 +349,19 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('git-list')), findsOneWidget);
 
-    await _hoverAndTap(tester, find.byTooltip('Metti in stage lib/main.dart'));
+    await _hoverAndTap(tester, find.byTooltip('Stage lib/main.dart'));
     await tester.pumpAndSettle();
     expect(client.gitActions.last['action'], 'stage');
 
-    expect(find.byTooltip('Metti in stage notes.txt'), findsOneWidget);
-    await _hoverAndTap(tester, find.byTooltip('Metti in stage notes.txt'));
+    expect(find.byTooltip('Stage notes.txt'), findsOneWidget);
+    await _hoverAndTap(tester, find.byTooltip('Stage notes.txt'));
     await tester.pumpAndSettle();
     expect(client.gitActions.last['action'], 'stage');
     expect(client.gitActions.last['paths'], ['notes.txt']);
 
-    await _hoverAndTap(tester, find.byTooltip('Scarta modifiche a lib/main.dart'));
-    expect(find.text('Scartare le modifiche a questo file?'), findsOneWidget);
-    await tester.tap(find.text('Scarta modifiche'));
+    await _hoverAndTap(tester, find.byTooltip('Discard changes to lib/main.dart'));
+    expect(find.text('Discard changes to this file?'), findsOneWidget);
+    await tester.tap(find.text('Discard changes'));
     await tester.pumpAndSettle();
     expect(client.gitActions.last['action'], 'discard');
   });
@@ -462,8 +462,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('git-diff-window-btn')));
     await tester.pumpAndSettle();
     expect(find.byType(Dialog), findsOneWidget);
-    expect(find.text('Chiudi'), findsOneWidget);
-    await tester.tap(find.text('Chiudi'));
+    expect(find.text('Close'), findsOneWidget);
+    await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
     expect(find.byType(Dialog), findsNothing);
     expect(find.byKey(const ValueKey('git-diff-position')), findsOneWidget);
@@ -489,18 +489,15 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await _hoverAndTap(tester, find.byTooltip('Scarta modifiche a lib/main.dart'));
+    await _hoverAndTap(tester, find.byTooltip('Discard changes to lib/main.dart'));
 
-    expect(find.text('Scartare le modifiche a questo file?'), findsOneWidget);
+    expect(find.text('Discard changes to this file?'), findsOneWidget);
     expect(
-      find.text(
-        'Le modifiche in stage e non in stage di questo file verranno rimosse. '
-        'L’operazione non può essere annullata.',
-      ),
+      find.text('The staged and unstaged changes to this file will be removed. This cannot be undone.'),
       findsOneWidget,
     );
-    expect(find.widgetWithText(TextButton, 'Annulla'), findsOneWidget);
-    final confirm = find.widgetWithText(FilledButton, 'Scarta modifiche');
+    expect(find.widgetWithText(TextButton, 'Cancel'), findsOneWidget);
+    final confirm = find.widgetWithText(FilledButton, 'Discard changes');
     expect(confirm, findsOneWidget);
     expect(
       tester.widget<FilledButton>(confirm).style?.backgroundColor?.resolve(<WidgetState>{}),
@@ -513,7 +510,7 @@ void main() {
 
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pumpAndSettle();
-    expect(find.text('Scartare le modifiche a questo file?'), findsNothing);
+    expect(find.text('Discard changes to this file?'), findsNothing);
     expect(client.gitActions.where((action) => action['action'] == 'discard'), isEmpty);
   });
 
@@ -539,16 +536,16 @@ void main() {
     );
     await tester.pumpAndSettle();
     // CHANGES (200 files) opens by default; STAGED is opened here.
-    await tester.tap(find.text('MODIFICHE IN STAGE'));
+    await tester.tap(find.text('STAGED CHANGES'));
     await tester.pumpAndSettle();
 
-    final summaryFinder = find.text('201 file');
+    final summaryFinder = find.text('201 files');
     final listFinder = find.descendant(of: find.byType(GitChangesPane), matching: find.byType(ListView));
     expect(summaryFinder, findsOneWidget);
     expect(listFinder, findsOneWidget);
     expect(find.ancestor(of: listFinder, matching: find.byType(ClipRect)), findsOneWidget);
 
-    final headers = [find.text('MODIFICHE IN STAGE'), find.text('MODIFICHE')];
+    final headers = [find.text('STAGED CHANGES'), find.text('CHANGES')];
     // Scroll the list down in steps, then back to the top. Whatever part of a
     // group header is still visible inside the list must sit below the
     // summary line.
@@ -599,7 +596,7 @@ void main() {
       expect(client.gitActions.last['paths'], isEmpty);
       // A successful remote action ends in a visible confirmation.
       // The app starts in Italian ("Fetch completato.").
-      expect(find.textContaining('completato.'), findsWidgets);
+      expect(find.textContaining('completed.'), findsWidgets);
     }
     expect(client.gitActions, hasLength(4));
   });
@@ -676,8 +673,8 @@ void main() {
 
     await tester.sendKeyEvent(LogicalKeyboardKey.delete);
     await tester.pumpAndSettle();
-    expect(find.text('Scartare le modifiche a questo file?'), findsOneWidget);
-    await tester.tap(find.widgetWithText(TextButton, 'Annulla'));
+    expect(find.text('Discard changes to this file?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
     await tester.pumpAndSettle();
 
     // Up one row reaches the CHANGES header; Enter collapses it.
@@ -723,7 +720,7 @@ void main() {
 
     final workingY = await pumpWith(AgentStatus.working);
     expect(find.byKey(const ValueKey('git-writes-disabled')), findsOneWidget);
-    expect(find.text('Scritture disabilitate mentre Pi sta lavorando.'), findsOneWidget);
+    expect(find.text('Writes disabled while Pi is working.'), findsOneWidget);
     expect(workingY, idleY);
   });
 
@@ -861,7 +858,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(client.commitMessages, ['Fix the diff pane']);
     // The success snackbar carries the short hash of the new HEAD.
-    expect(find.text('Commit a1b2c3d creato.'), findsOneWidget);
+    expect(find.text('Commit a1b2c3d created.'), findsOneWidget);
     expect(tester.widget<TextField>(subjectField).controller!.text, isEmpty);
   });
 
@@ -869,7 +866,7 @@ void main() {
     final client = _StagedCommitClient();
     await pumpCommitPane(tester, client);
 
-    await tester.tap(find.text('Aggiungi descrizione'));
+    await tester.tap(find.text('Add description'));
     await tester.pumpAndSettle();
     await tester.tap(subjectField);
     await tester.enterText(subjectField, 'Add commit form');
@@ -979,8 +976,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('git-empty')), findsOneWidget);
-    expect(find.text('Nessuna modifica'), findsOneWidget);
-    expect(find.text('Il ramo main non ha modifiche da rivedere.'), findsOneWidget);
+    expect(find.text('No changes'), findsOneWidget);
+    expect(find.text('Branch main has no changes to review.'), findsOneWidget);
     final refreshCalls = client.refreshCalls;
     await tester.tap(find.byKey(const ValueKey('git-empty-action')));
     await tester.pumpAndSettle();
@@ -1008,7 +1005,7 @@ void main() {
     await tester.pump();
 
     expect(find.byKey(const ValueKey('git-loading')), findsOneWidget);
-    expect(find.text('Lettura stato Git…'), findsOneWidget);
+    expect(find.text('Reading Git status…'), findsOneWidget);
     expect(find.byType(CircularProgressIndicator), findsNothing);
 
     client.release();
@@ -1073,9 +1070,9 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Allega file, link o immagine'));
+    await tester.tap(find.byTooltip('Attach file, link, or image'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('File dal repository'));
+    await tester.tap(find.text('File from repository'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('lib/main.dart'));
     await tester.pumpAndSettle();
@@ -1129,7 +1126,7 @@ void main() {
         // The menu entry names the file and the selected line range (plan
         // 9.1). The label uses the file name so it fits the toolbar; the chat
         // draft below still gets the full path.
-        .singleWhere((item) => item.label == 'Aggiungi alla chat (main.dart:L1)')
+        .singleWhere((item) => item.label == 'Add to chat (main.dart:L1)')
         .onPressed!
         .call();
 
@@ -1173,8 +1170,8 @@ void main() {
 
     await tester.tap(find.text('Switch session'));
     await tester.pumpAndSettle();
-    expect(find.text('Modifiche non salvate'), findsOneWidget);
-    await tester.tap(find.text('Annulla'));
+    expect(find.text('Unsaved changes'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
 
     expect(container.read(activeSessionIdProvider), 'session-a');
@@ -1207,7 +1204,7 @@ void main() {
 
       // Initially no file is selected: editor field does NOT exist! No wasted space!
       expect(find.byKey(const ValueKey('repository-editor-session-a')), findsNothing);
-      expect(find.text('Seleziona un file'), findsNothing);
+      expect(find.text('Select a file'), findsNothing);
 
       // Hierarchical folder 'lib' is present in tree; starts collapsed by default
       expect(find.text('lib'), findsOneWidget);
@@ -1236,10 +1233,10 @@ void main() {
 
       // Now editor is opened
       expect(find.byKey(const ValueKey('repository-editor-session-a')), findsOneWidget);
-      expect(find.byTooltip('Chiudi file'), findsOneWidget);
+      expect(find.byTooltip('Close file'), findsOneWidget);
 
       // Click close button to close the editor
-      await tester.tap(find.byTooltip('Chiudi file'));
+      await tester.tap(find.byTooltip('Close file'));
       await tester.pumpAndSettle();
 
       // Returns to full-width tree view, editor is gone

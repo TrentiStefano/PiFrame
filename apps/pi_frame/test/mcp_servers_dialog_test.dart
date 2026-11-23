@@ -45,13 +45,13 @@ void main() {
       await tester.pump();
 
       // Check title and servers
-      expect(find.text('Server MCP Disponibili'), findsOneWidget);
+      expect(find.text('Available MCP Servers'), findsOneWidget);
       expect(find.text('dart'), findsOneWidget);
       expect(find.text('git'), findsOneWidget);
-      expect(find.text('Connesso'), findsOneWidget);
-      expect(find.text('Disabilitato'), findsOneWidget);
-      expect(find.text('Progetto'), findsOneWidget);
-      expect(find.text('1 su 2 server attivi'), findsOneWidget);
+      expect(find.text('Connected'), findsOneWidget);
+      expect(find.text('Disabled'), findsOneWidget);
+      expect(find.text('Project'), findsOneWidget);
+      expect(find.text('1 of 2 servers active'), findsOneWidget);
 
       // Checkboxes exist for each server
       expect(find.byKey(const ValueKey('mcp-checkbox-dart')), findsOneWidget);
@@ -64,8 +64,8 @@ void main() {
       expect(gitCheckbox.value, isFalse);
 
       // Tap on tools chip for dart
-      expect(find.text('2 tool'), findsOneWidget);
-      await tester.tap(find.text('2 tool'));
+      expect(find.text('2 tools'), findsOneWidget);
+      await tester.tap(find.text('2 tools'));
       await tester.pump();
 
       expect(find.text('run_tests'), findsOneWidget);

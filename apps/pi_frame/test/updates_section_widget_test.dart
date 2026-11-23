@@ -56,14 +56,14 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Aggiornamenti PiFrame'), findsOneWidget);
-    expect(find.textContaining('Versione installata:'), findsOneWidget);
+    expect(find.text('PiFrame Updates'), findsOneWidget);
+    expect(find.textContaining('Installed version:'), findsOneWidget);
     expect(find.byKey(const ValueKey('check_for_updates_button')), findsOneWidget);
 
     // Initial opt-in state: unchecked by default
     final checkbox = tester.widget<Switch>(find.byType(Switch));
     expect(checkbox.value, isFalse);
-    expect(find.text('Frequenza di controllo:'), findsNothing);
+    expect(find.text('Check frequency:'), findsNothing);
   });
 
   testWidgets('opt-in checkbox toggles and reveals frequency dropdown', (tester) async {
@@ -86,17 +86,17 @@ void main() {
     await tester.pumpAndSettle();
 
     // Now frequency dropdown should be visible
-    expect(find.text('Frequenza di controllo:'), findsOneWidget);
-    expect(find.text('Ogni settimana (consigliato)'), findsOneWidget);
+    expect(find.text('Check frequency:'), findsOneWidget);
+    expect(find.text('Every week (recommended)'), findsOneWidget);
 
-    // Tap dropdown and change to 'Ogni giorno'
-    await tester.tap(find.text('Ogni settimana (consigliato)'));
+    // Tap dropdown and change to 'Every day'
+    await tester.tap(find.text('Every week (recommended)'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Ogni giorno').last);
+    await tester.tap(find.text('Every day').last);
     await tester.pumpAndSettle();
 
-    expect(find.text('Ogni giorno'), findsOneWidget);
+    expect(find.text('Every day'), findsOneWidget);
   });
 
   testWidgets('displays up-to-date card when check returns no newer release', (tester) async {
@@ -124,7 +124,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('check_for_updates_button')));
     await tester.pumpAndSettle();
 
-    expect(find.text('PiFrame è aggiornato all\'ultima versione disponibile'), findsOneWidget);
+    expect(find.text('PiFrame is up to date'), findsOneWidget);
   });
 
   testWidgets('displays update available card, download, and install dialog', (tester) async {
@@ -168,23 +168,23 @@ void main() {
 
     expect(find.text('PiFrame v99.0.0'), findsOneWidget);
     expect(find.textContaining('Nuova versione con supporto ad aggiornamenti automatici!'), findsOneWidget);
-    expect(find.text('Scarica aggiornamento'), findsOneWidget);
+    expect(find.text('Download update'), findsOneWidget);
 
     // Tap download
-    await tester.tap(find.text('Scarica aggiornamento'));
+    await tester.tap(find.text('Download update'));
     await tester.pumpAndSettle();
 
     // Now ready to install
-    expect(find.text('Installa e riavvia'), findsOneWidget);
-    expect(find.text('Pronto per l\'installazione'), findsOneWidget);
+    expect(find.text('Install & Restart'), findsOneWidget);
+    expect(find.text('Ready to install'), findsOneWidget);
 
     // Tap install button -> confirmation dialog should open
-    await tester.tap(find.text('Installa e riavvia'));
+    await tester.tap(find.text('Install & Restart'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Confermare installazione?'), findsOneWidget);
+    expect(find.text('Confirm installation?'), findsOneWidget);
     // Confirm install in dialog
-    await tester.tap(find.text('Installa e riavvia').last);
+    await tester.tap(find.text('Install & Restart').last);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
 

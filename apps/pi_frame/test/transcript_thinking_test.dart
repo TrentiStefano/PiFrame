@@ -45,13 +45,13 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify thinking block header is present
-    expect(find.text('Ragionamento'), findsOneWidget);
+    expect(find.text('Reasoning'), findsOneWidget);
     // Initially collapsed: SelectableText body should not be rendered
     expect(find.byType(SelectableText), findsNothing);
     expect(find.byIcon(Icons.expand_more_outlined), findsOneWidget);
 
     // Tap the thinking block header to expand
-    await tester.tap(find.text('Ragionamento'));
+    await tester.tap(find.text('Reasoning'));
     await tester.pumpAndSettle();
 
     // Now SelectableText body should be visible with thinking details
@@ -93,7 +93,7 @@ void main() {
     expect(find.text('And what about the second part?'), findsOneWidget);
 
     // Tapping header again collapses it
-    await tester.tap(find.text('Ragionamento'));
+    await tester.tap(find.text('Reasoning'));
     await tester.pumpAndSettle();
 
     expect(find.byType(SelectableText), findsNothing);

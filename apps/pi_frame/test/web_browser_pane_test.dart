@@ -323,7 +323,7 @@ void main() {
       expect(find.text('Flutter State Management'), findsOneWidget);
       expect(find.text('Getting Started with Riverpod'), findsOneWidget);
       expect(find.text('final countProvider = StateProvider((ref) => 0);'), findsOneWidget);
-      expect(find.byTooltip('Invia al chat composer'), findsWidgets);
+      expect(find.byTooltip('Send to Chat Composer'), findsWidgets);
     });
 
     testWidgets('Clicking "Invia a Chat Composer" updates composerDraftProvider', (tester) async {
@@ -470,7 +470,7 @@ void main() {
       await container.read(webBrowserProvider.notifier).navigate('https://broken.link');
       await tester.pumpAndSettle();
 
-      expect(find.text('Impossibile caricare la pagina'), findsOneWidget);
+      expect(find.text('Unable to load page'), findsOneWidget);
       expect(find.byKey(const ValueKey('browser-retry-btn')), findsOneWidget);
     });
 

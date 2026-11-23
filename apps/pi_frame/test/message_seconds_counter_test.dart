@@ -138,7 +138,7 @@ void main() {
 
       final abortedTagFinder = find.byKey(const ValueKey('entry_aborted_asst_aborted'));
       expect(abortedTagFinder, findsOneWidget);
-      expect(find.descendant(of: abortedTagFinder, matching: find.text('Interrotto')), findsOneWidget);
+      expect(find.descendant(of: abortedTagFinder, matching: find.text('Interrupted')), findsOneWidget);
       expect(find.byKey(const ValueKey('entry_aborted_asst_done')), findsNothing);
     });
   });

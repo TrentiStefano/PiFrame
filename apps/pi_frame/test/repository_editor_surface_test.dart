@@ -141,7 +141,7 @@ void main() {
       tester.element(_editorField),
       editorState,
     ) as AdaptiveTextSelectionToolbar;
-    menu.buttonItems!.singleWhere((item) => item.label == 'Aggiungi alla chat (main.dart:L2–L3)').onPressed!.call();
+    menu.buttonItems!.singleWhere((item) => item.label == 'Add to chat (main.dart:L2–L3)').onPressed!.call();
 
     final draft = ProviderScope.containerOf(tester.element(find.byType(RepositoryPane)))
         .read(composerDraftProvider('session-a'));
@@ -182,7 +182,7 @@ void main() {
     await tester.pumpAndSettle();
 
     await _pressCtrl(tester, LogicalKeyboardKey.keyG);
-    expect(find.text('Vai alla riga'), findsOneWidget);
+    expect(find.text('Go to line'), findsOneWidget);
     await tester.enterText(find.byKey(const ValueKey('repository-goto-line-field')), '3');
     await tester.tap(find.byKey(const ValueKey('repository-goto-line-confirm')));
     await tester.pumpAndSettle();
@@ -199,13 +199,13 @@ void main() {
     await tester.enterText(_editorField, 'changed\n');
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Chiudi file'));
+    await tester.tap(find.byTooltip('Close file'));
     await tester.pumpAndSettle();
-    expect(find.text('Modifiche non salvate'), findsOneWidget);
-    expect(find.text('Non salvare'), findsOneWidget);
-    expect(find.text('Salva'), findsWidgets);
+    expect(find.text('Unsaved changes'), findsOneWidget);
+    expect(find.text('Don\'t save'), findsOneWidget);
+    expect(find.text('Save'), findsWidgets);
 
-    await tester.tap(find.text('Annulla'));
+    await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
     expect(_editorField, findsOneWidget);
     expect(client.saveCount, 0);

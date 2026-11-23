@@ -2,6 +2,9 @@ import '../../domain/errors/user_facing_error.dart';
 import 'language_settings.dart';
 
 extension ComposerStrings on AppStrings {
+  String contextSizeWithTier(String formatted, {required bool extended}) => extended
+      ? (isItalian ? '$formatted (Max / Tier esteso)' : '$formatted (Max / extended tier)')
+      : (isItalian ? '$formatted (Tier base)' : '$formatted (Base tier)');
   // --- Section 1: Composer Main & Prompts ---
   String get composerHintDefault =>
       isItalian ? 'Cosa vuoi realizzare? Digita / per i comandi.' : 'What do you want to build? Type / for commands.';

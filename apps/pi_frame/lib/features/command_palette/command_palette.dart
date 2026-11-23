@@ -236,7 +236,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
         onExecute: () async {
           final client = hostRef.read(pcpClientProvider);
           if (client == null) return;
-          await createSession(host, hostRef, name: strings.isItalian ? 'Nuova Sessione' : 'New Session');
+          await createSession(host, hostRef, name: strings.newSessionDefaultName);
           if (!host.mounted) return;
           hostRef.invalidate(sessionListProvider);
         },

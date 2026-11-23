@@ -44,7 +44,7 @@ class PiCommandItem {
 /// Content width at which the console moves to a right column.
 const _piCliWideBreakpoint = 880.0;
 
-List<PiCommandItem> get kBuiltinPiCommands => getBuiltinPiCommands(const AppStrings(AppLanguage.it));
+List<PiCommandItem> get kBuiltinPiCommands => getBuiltinPiCommands(const AppStrings(AppLanguage.defaultLanguage));
 
 List<PiCommandItem> getBuiltinPiCommands(AppStrings strings) => [
   PiCommandItem(
@@ -128,7 +128,7 @@ class _PiCliSectionState extends State<PiCliSection> {
     try {
       return ProviderScope.containerOf(context, listen: false).read(appStringsProvider);
     } catch (_) {
-      return const AppStrings(AppLanguage.it);
+      return const AppStrings(AppLanguage.defaultLanguage);
     }
   }
 

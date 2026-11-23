@@ -15,11 +15,27 @@ class DownloadProgress {
   const DownloadProgress({required this.downloadedBytes, required this.totalBytes, required this.fraction});
 }
 
+/// Why an update check or download failed; the translation tables word it
+/// for the user (`updateFailureMessage`).
+enum UpdateFailure {
+  rateLimited,
+  checkFailed,
+  unreachable,
+  timeout,
+  unexpected,
+  invalidDownloadUrl,
+  downloadFailed,
+  cancelled,
+  emptyDownload,
+}
+
 class UpdateException implements Exception {
+  /// English technical message, for logs and details.
   final String message;
   final int? statusCode;
+  final UpdateFailure? failure;
 
-  const UpdateException(this.message, [this.statusCode]);
+  const UpdateException(this.message, [this.statusCode, this.failure]);
 
   @override
   String toString() => message;
@@ -71,20 +87,25 @@ class GithubUpdateClient implements UpdateClient {
       } else if (response.statusCode == 404) {
         return null;
       } else if (response.statusCode == 403 || response.statusCode == 429) {
-        throw const UpdateException('Limite di richieste GitHub raggiunto. Riprova più tardi.', 403);
+        throw const UpdateException('GitHub rate limit reached. Try again later.', 403, UpdateFailure.rateLimited);
       } else {
         throw UpdateException(
-          'Errore durante il controllo degli aggiornamenti (HTTP ${response.statusCode})',
+          'Update check failed (HTTP ${response.statusCode})',
           response.statusCode,
+          UpdateFailure.checkFailed,
         );
       }
     } on SocketException {
-      throw const UpdateException('Impossibile contattare GitHub. Verifica la connessione a Internet.');
+      throw const UpdateException(
+        'Cannot reach GitHub. Check the Internet connection.',
+        null,
+        UpdateFailure.unreachable,
+      );
     } on TimeoutException {
-      throw const UpdateException('La richiesta di aggiornamento a GitHub è scaduta (timeout).');
+      throw const UpdateException('The GitHub update request timed out.', null, UpdateFailure.timeout);
     } catch (e) {
       if (e is UpdateException) rethrow;
-      throw UpdateException('Errore imprevisto durante il controllo: $e');
+      throw UpdateException('Unexpected error while checking for updates: $e', null, UpdateFailure.unexpected);
     }
   }
 
@@ -96,7 +117,11 @@ class GithubUpdateClient implements UpdateClient {
   }) async* {
     final uri = Uri.tryParse(asset.downloadUrl);
     if (uri == null || uri.scheme != 'https' || !_isAllowedHost(uri.host)) {
-      throw const UpdateException('URL di download non valido o dominio non autorizzato per sicurezza.');
+      throw const UpdateException(
+        'Invalid download URL or domain not allowed for security.',
+        null,
+        UpdateFailure.invalidDownloadUrl,
+      );
     }
 
     final destFile = File(destinationPath);
@@ -113,8 +138,9 @@ class GithubUpdateClient implements UpdateClient {
 
     if (streamedResponse.statusCode != 200) {
       throw UpdateException(
-        'Errore durante il download del file di aggiornamento (HTTP ${streamedResponse.statusCode})',
+        'Update download failed (HTTP ${streamedResponse.statusCode})',
         streamedResponse.statusCode,
+        UpdateFailure.downloadFailed,
       );
     }
 
@@ -131,7 +157,7 @@ class GithubUpdateClient implements UpdateClient {
     try {
       await for (final chunk in streamedResponse.stream) {
         if (isCancelled) {
-          throw const UpdateException('Download annullato dall\'utente.');
+          throw const UpdateException('Download cancelled by the user.', null, UpdateFailure.cancelled);
         }
         sink.add(chunk);
         downloadedBytes += chunk.length;
@@ -151,7 +177,7 @@ class GithubUpdateClient implements UpdateClient {
 
     // Verify downloaded file exists and is non-empty
     if (!await destFile.exists() || await destFile.length() == 0) {
-      throw const UpdateException('Il file scaricato è vuoto o non valido.');
+      throw const UpdateException('The downloaded file is empty or invalid.', null, UpdateFailure.emptyDownload);
     }
   }
 

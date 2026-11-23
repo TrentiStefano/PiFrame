@@ -51,7 +51,7 @@ void main() {
         {'id': 'one', 'name': 'PiFrame', 'cwd': r'C:\repo\PiFrame'},
       ],
     );
-    final strings = AppStrings(AppLanguage.it);
+    final strings = AppStrings(AppLanguage.en);
 
     await tester.enterText(find.byType(TextField), 'nomatch');
     await tester.pumpAndSettle();
@@ -71,7 +71,7 @@ void main() {
 
   testWidgets('no sessions at all offers one action that starts a new session', (tester) async {
     await _pump(tester, client: _IdleClient(), sessions: const []);
-    final strings = AppStrings(AppLanguage.it);
+    final strings = AppStrings(AppLanguage.en);
 
     expect(find.text(strings.noSessionsFound), findsOneWidget);
     expect(find.byKey(const ValueKey('sessions-empty-clear-search')), findsNothing);

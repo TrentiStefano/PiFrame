@@ -91,7 +91,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Riprendi il lavoro'), findsOneWidget);
+    expect(find.text('Resume your work'), findsOneWidget);
     expect(find.text('alpha'), findsOneWidget);
     expect(find.text('beta'), findsOneWidget);
     expect(find.byKey(const ValueKey('quick-launch-session-a5')), findsOneWidget);
@@ -135,7 +135,7 @@ void main() {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
     await _pumpWelcome(tester, sessions: const []);
     await tester.pumpAndSettle();
-    expect(find.text('Ctrl / Cmd + K · Comandi'), findsNothing);
+    expect(find.text('Ctrl / Cmd + K · Commands'), findsNothing);
     debugDefaultTargetPlatformOverride = null;
   });
 
@@ -144,7 +144,7 @@ void main() {
     debugDefaultTargetPlatformOverride = TargetPlatform.windows;
     await _pumpWelcome(tester, sessions: const []);
     await tester.pumpAndSettle();
-    expect(find.text('Ctrl / Cmd + K · Comandi'), findsOneWidget);
+    expect(find.text('Ctrl / Cmd + K · Commands'), findsOneWidget);
     debugDefaultTargetPlatformOverride = null;
   });
 
@@ -154,7 +154,7 @@ void main() {
 
     await _pumpWelcome(tester, sessions: const []);
     // First frame: the title is still transparent.
-    final titleOpacity = find.ancestor(of: find.text('Riprendi il lavoro'), matching: find.byType(Opacity));
+    final titleOpacity = find.ancestor(of: find.text('Resume your work'), matching: find.byType(Opacity));
     expect(tester.widget<Opacity>(titleOpacity.first).opacity, lessThan(1));
 
     await tester.pumpAndSettle();
@@ -164,11 +164,11 @@ void main() {
     // Second launch: the intro is already recorded, so the title is visible at once.
     await tester.pumpWidget(const SizedBox.shrink());
     await _pumpWelcome(tester, sessions: const []);
-    final again = find.ancestor(of: find.text('Riprendi il lavoro'), matching: find.byType(Opacity));
+    final again = find.ancestor(of: find.text('Resume your work'), matching: find.byType(Opacity));
     for (final element in again.evaluate()) {
       expect((element.widget as Opacity).opacity, 1);
     }
-    expect(find.text('Riprendi il lavoro'), findsOneWidget);
+    expect(find.text('Resume your work'), findsOneWidget);
   });
 }
 

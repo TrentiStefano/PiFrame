@@ -58,9 +58,7 @@ void main() {
       final client = GithubUpdateClient(client: mockClient);
       expect(
         () => client.fetchLatestRelease(),
-        throwsA(
-          isA<UpdateException>().having((e) => e.message, 'message', contains('Limite di richieste GitHub raggiunto')),
-        ),
+        throwsA(isA<UpdateException>().having((e) => e.message, 'message', contains('GitHub rate limit reached'))),
       );
     });
 
@@ -78,7 +76,7 @@ void main() {
 
       expect(
         () => client.downloadAsset(asset: maliciousAsset, destinationPath: '${tempDir.path}/payload.exe').toList(),
-        throwsA(isA<UpdateException>().having((e) => e.message, 'message', contains('dominio non autorizzato'))),
+        throwsA(isA<UpdateException>().having((e) => e.message, 'message', contains('domain not allowed'))),
       );
     });
 
@@ -96,7 +94,7 @@ void main() {
 
       expect(
         () => client.downloadAsset(asset: insecureAsset, destinationPath: '${tempDir.path}/test.exe').toList(),
-        throwsA(isA<UpdateException>().having((e) => e.message, 'message', contains('URL di download non valido'))),
+        throwsA(isA<UpdateException>().having((e) => e.message, 'message', contains('Invalid download URL'))),
       );
     });
 

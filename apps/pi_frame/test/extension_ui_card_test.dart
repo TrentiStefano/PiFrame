@@ -92,7 +92,7 @@ void main() {
     expect(find.text('3. Type something.'), findsNothing);
     expect(find.text('1. Yes — Proceed'), findsOneWidget);
     expect(find.text('2. No — Stop'), findsOneWidget);
-    final send = find.widgetWithText(ElevatedButton, 'Invia');
+    final send = find.widgetWithText(ElevatedButton, 'Send');
     expect(tester.widget<ElevatedButton>(send).onPressed, isNull);
     expect(client.responses, isEmpty);
 
@@ -126,7 +126,7 @@ void main() {
     expect(tester.widget<TextField>(answerField).controller!.text, 'Custom draft');
     await tester.tap(find.text('2. No — Stop'));
     await tester.pump();
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Send'));
     await tester.pumpAndSettle();
     expect(client.responses, ['2. No — Stop']);
   });
@@ -169,7 +169,7 @@ void main() {
     await tester.enterText(field, 'Custom answer ');
     await tester.pump();
     expect(tester.getSize(find.byType(ExtensionUiDialog)), initialSize);
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Send'));
     await tester.pumpAndSettle();
     expect(client.responses, ['Custom answer ']);
   });
@@ -188,7 +188,7 @@ void main() {
     await tester.enterText(find.byKey(const ValueKey('extension-ui-custom-answer')), '1');
     await tester.pump();
     expect(find.textContaining('richiederà di inserirla di nuovo'), findsNothing);
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Send'));
     await tester.pumpAndSettle();
     expect(client.responses, ['2. Type something.']);
   });
@@ -206,7 +206,7 @@ void main() {
     await tester.pump();
     await tester.enterText(find.byKey(const ValueKey('extension-ui-custom-answer')), 'Yes');
     await tester.pump();
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Send'));
     await tester.pumpAndSettle();
     expect(client.responses, ['2. Type something.']);
   });
@@ -224,7 +224,7 @@ void main() {
     await tester.pump();
     await tester.enterText(find.byKey(const ValueKey('extension-ui-custom-answer')), 'Yes — maybe');
     await tester.pump();
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Send'));
     await tester.pumpAndSettle();
     expect(client.responses, ['2. Type something.']);
   });
@@ -243,7 +243,7 @@ void main() {
     await tester.enterText(find.byKey(const ValueKey('extension-ui-custom-answer')), '999');
     await tester.pump();
     expect(find.textContaining('richiederà di inserirla di nuovo'), findsNothing);
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Send'));
     await tester.pumpAndSettle();
     expect(client.responses, ['999']);
   });
@@ -259,7 +259,7 @@ void main() {
       'dialog': true,
     });
 
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Send'));
     await tester.pumpAndSettle();
 
     expect(client.responses, [
@@ -290,12 +290,12 @@ void main() {
     expect(find.text('[Layout] Choose?'), findsOneWidget);
     expect(find.text(firstPreview), findsOneWidget);
     expect(find.text(secondPreview), findsNothing);
-    expect(tester.getRect(find.widgetWithText(ElevatedButton, 'Invia')).top, greaterThanOrEqualTo(0));
+    expect(tester.getRect(find.widgetWithText(ElevatedButton, 'Send')).top, greaterThanOrEqualTo(0));
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowDown);
     await tester.pump();
     expect(find.text(firstPreview), findsNothing);
     expect(find.text(secondPreview), findsOneWidget);
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Send'));
     await tester.pump();
     expect(client.responses, ['2. Second — Explanation']);
   });
@@ -325,7 +325,7 @@ void main() {
     final field = find.byKey(const ValueKey('extension-ui-custom-answer'));
     await tester.enterText(field, 'My own design');
     await tester.pump();
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Send'));
     await tester.pump();
     expect(client.responses, ['My own design']);
     expect(tester.takeException(), isNull);
@@ -371,8 +371,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(tester.getSize(find.byType(ExtensionUiDialog)).height, lessThan(400));
-    expect(tester.getRect(find.widgetWithText(ElevatedButton, 'Invia')).top, greaterThanOrEqualTo(0));
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
+    expect(tester.getRect(find.widgetWithText(ElevatedButton, 'Send')).top, greaterThanOrEqualTo(0));
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Send'));
     await tester.pump();
     expect(client.responses, ['Yes']);
   });
@@ -386,14 +386,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    final send = tester.getRect(find.widgetWithText(ElevatedButton, 'Invia'));
+    final send = tester.getRect(find.widgetWithText(ElevatedButton, 'Send'));
     expect(send.bottom, lessThanOrEqualTo(500));
     expect(send.top, greaterThanOrEqualTo(0));
 
     await tester.ensureVisible(find.text('Opzione 25'));
     await tester.tap(find.text('Opzione 25'));
     await tester.pump();
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Send'));
     await tester.pump();
     expect(client.responses, ['Opzione 25']);
   });
@@ -402,8 +402,8 @@ void main() {
     final client = _Client(claim: () => Future.error(StateError('Request not found')));
     await mount(tester, client, longSelect);
     await tester.pumpAndSettle();
-    expect(find.textContaining('Un altro client'), findsNothing);
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
+    expect(find.textContaining('Another client'), findsNothing);
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Send'));
     await tester.pump();
     expect(client.responses, ['Opzione 0']);
   });
@@ -412,7 +412,7 @@ void main() {
     final claim = Completer<Map<String, dynamic>>();
     final client = _Client(claim: () => claim.future);
     await mount(tester, client, longSelect);
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Send'));
     await tester.pump();
     expect(client.responses, ['Opzione 0']);
     claim.complete({
@@ -426,8 +426,8 @@ void main() {
     final client = _Client(claim: () => Future.error(StateError('UI request already claimed by another client')));
     await mount(tester, client, longSelect);
     await tester.pumpAndSettle();
-    expect(find.textContaining('Un altro client'), findsOneWidget);
-    final send = tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Invia'));
+    expect(find.textContaining('Another client'), findsOneWidget);
+    final send = tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Send'));
     expect(send.onPressed, isNull);
   });
 
@@ -436,7 +436,7 @@ void main() {
     final client = _Client();
     await mount(tester, client, longSelect, onDismissed: () => dismissed++);
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Send'));
     await tester.pumpAndSettle();
     expect(dismissed, 1);
   });
@@ -446,12 +446,12 @@ void main() {
     final client = _Client(respond: () => Future.error(StateError('boom')));
     await mount(tester, client, longSelect, onDismissed: () => dismissed++);
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(ElevatedButton, 'Invia'));
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Send'));
     await tester.pumpAndSettle();
     expect(dismissed, 0);
     expect(find.textContaining('boom'), findsNothing);
-    expect(find.text('Operazione non riuscita'), findsOneWidget);
-    final send = tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Invia'));
+    expect(find.text('Operation failed'), findsOneWidget);
+    final send = tester.widget<ElevatedButton>(find.widgetWithText(ElevatedButton, 'Send'));
     expect(send.onPressed, isNotNull);
     // No retry action here: the user answers again with Invia.
     expect(find.byKey(const ValueKey('extension-ui-retry')), findsNothing);
@@ -466,7 +466,7 @@ void main() {
     final client = _Client(respond: () => Future.error(StateError('Request not found')));
     await mount(tester, client, longSelect, onDismissed: () => dismissed++);
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(TextButton, 'Annulla'));
+    await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
     await tester.pumpAndSettle();
     expect(dismissed, 1);
   });

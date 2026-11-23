@@ -190,7 +190,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('Sessioni recenti'), findsOneWidget);
+    expect(find.text('Recent sessions'), findsOneWidget);
     expect(find.text('Audit Dart consumers e grafica Linux'), findsOneWidget);
 
     await _captureToPng(tester, boundaryKey, '01_landing_quick_launch.png');
@@ -233,7 +233,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
 
-    // Tap "Genera con Pi" button
+    // Tap "Generate with Pi" button
     final generateBtn = find.byKey(const ValueKey('instruction-generate-pi-btn'));
     expect(generateBtn, findsOneWidget);
     await tester.tap(generateBtn);
@@ -382,7 +382,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(find.text('Lingua dell\'applicazione'), findsOneWidget);
+    expect(find.text('Application Language'), findsOneWidget);
 
     await _captureToPng(tester, boundaryKey, '05_appearance_settings.png');
   });

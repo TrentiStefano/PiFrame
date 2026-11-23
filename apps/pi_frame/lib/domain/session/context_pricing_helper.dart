@@ -1,6 +1,9 @@
 /// Helper functions for models with variable context pricing (Luna, Haiku, etc.)
 library;
 
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_composer.dart';
+
 bool hasVariableContextPricing(Map<String, dynamic> model) {
   final cost = model['cost'];
   if (cost is Map) {
@@ -85,10 +88,6 @@ String formatTokens(dynamic count) {
   return numVal.toInt().toString();
 }
 
-String formatContextSize(int size, int fullWindow, {bool italian = true}) {
-  final formatted = formatTokens(size);
-  if (size >= fullWindow) {
-    return italian ? '$formatted (Max / Tier esteso)' : '$formatted (Max / extended tier)';
-  }
-  return italian ? '$formatted (Tier base)' : '$formatted (Base tier)';
-}
+/// The size with its pricing tier, in the language of [strings].
+String formatContextSize(int size, int fullWindow, AppStrings strings) =>
+    strings.contextSizeWithTier(formatTokens(size), extended: size >= fullWindow);

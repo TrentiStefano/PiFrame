@@ -104,7 +104,7 @@ void main() {
     await tester.pump(finalAnswerQuietPeriod);
 
     expect(mockService.sent, hasLength(1));
-    expect(mockService.sent.first.title, contains('Risposta completata'));
+    expect(mockService.sent.first.title, contains('Answer completed'));
     expect(mockService.sent.first.body, contains('I have finished writing the patch and tests.'));
     expect(mockService.sent.first.sessionId, 'sess_notif_1');
   });
@@ -198,7 +198,7 @@ void main() {
     await tester.pump(finalAnswerQuietPeriod);
 
     expect(mockService.sent, hasLength(1));
-    expect(mockService.sent.first.title, contains('Richiesta attenzione'));
+    expect(mockService.sent.first.title, contains('Attention needed'));
     expect(mockService.sent.first.body, contains('Conferma esecuzione comando'));
     expect(mockService.sent.first.sessionId, 'sess_notif_3');
   });
@@ -289,7 +289,7 @@ void main() {
     await tester.pump(finalAnswerQuietPeriod);
 
     expect(mockService.sent, hasLength(1));
-    expect(mockService.sent.first.title, contains('Risposta completata'));
+    expect(mockService.sent.first.title, contains('Answer completed'));
     expect(mockService.sent.first.body, contains('Final response after retry.'));
   });
 
@@ -355,7 +355,7 @@ void main() {
 
     // Now notification fires because all work has settled
     expect(mockService.sent, hasLength(1));
-    expect(mockService.sent.first.title, contains('Risposta completata'));
+    expect(mockService.sent.first.title, contains('Answer completed'));
     expect(mockService.sent.first.body, contains('Launched background workers'));
   });
 

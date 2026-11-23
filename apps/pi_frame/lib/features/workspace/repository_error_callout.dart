@@ -10,7 +10,7 @@ AppStrings repositoryStrings(WidgetRef ref) {
   try {
     return ref.watch(appStringsProvider);
   } catch (_) {
-    return const AppStrings(AppLanguage.it);
+    return const AppStrings(AppLanguage.defaultLanguage);
   }
 }
 

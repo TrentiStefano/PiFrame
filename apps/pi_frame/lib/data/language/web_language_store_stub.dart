@@ -2,5 +2,3 @@
 String? readWebLanguage() => null;
 
 void writeWebLanguage(String code) {}
-
-String? browserLanguage() => null;

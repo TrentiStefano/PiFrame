@@ -96,7 +96,7 @@ export async function discoverPi(customPath?: string): Promise<PiInstallation> {
       found: false,
       supported: false,
       error: 'PI_NOT_FOUND',
-      hint: 'Installa Pi (npm install -g @earendil-works/pi-coding-agent) o specifica il percorso nelle impostazioni.'
+      hint: 'Install Pi (npm install -g @earendil-works/pi-coding-agent) or set its path in the settings.'
     };
   }
 
@@ -116,7 +116,7 @@ export async function discoverPi(customPath?: string): Promise<PiInstallation> {
         path: foundPath,
         supported: false,
         error: 'PI_VERSION_UNPARSEABLE',
-        hint: `Impossibile determinare la versione di Pi da: "${stdout.trim()}"`
+        hint: `Could not determine the Pi version from: "${stdout.trim()}"`
       };
     }
 
@@ -128,9 +128,7 @@ export async function discoverPi(customPath?: string): Promise<PiInstallation> {
       version: rawVersion,
       supported: isSupported,
       error: isSupported ? undefined : 'PI_VERSION_UNSUPPORTED',
-      hint: isSupported
-        ? undefined
-        : `Versione ${rawVersion} rilevata. Richiesta >= ${MINIMUM_PI_VERSION}. Aggiorna Pi.`
+      hint: isSupported ? undefined : `Version ${rawVersion} found. Required >= ${MINIMUM_PI_VERSION}. Update Pi.`
     };
   } catch (err: any) {
     return {
@@ -138,7 +136,7 @@ export async function discoverPi(customPath?: string): Promise<PiInstallation> {
       path: foundPath,
       supported: false,
       error: 'PI_EXECUTION_FAILED',
-      hint: `Errore durante l'esecuzione di ${foundPath} --version: ${err.message}`
+      hint: `Error running ${foundPath} --version: ${err.message}`
     };
   }
 }

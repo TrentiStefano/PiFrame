@@ -68,11 +68,11 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify header and search field
-    expect(find.text('Sessioni'), findsOneWidget);
+    expect(find.text('Sessions'), findsOneWidget);
     expect(find.byType(TextField), findsOneWidget);
-    expect(find.text('Tutte'), findsOneWidget);
-    expect(find.text('Gestite'), findsOneWidget);
-    expect(find.text('Questo repo'), findsOneWidget);
+    expect(find.text('All'), findsOneWidget);
+    expect(find.text('Managed'), findsOneWidget);
+    expect(find.text('This repo'), findsOneWidget);
 
     // The active repository is expanded by default; the other one stays collapsed.
     expect(find.text('pi-frame'), findsOneWidget);
@@ -97,7 +97,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Filter by daemon-managed sessions.
-    await tester.tap(find.text('Gestite'));
+    await tester.tap(find.text('Managed'));
     await tester.pumpAndSettle();
 
     expect(find.text('Feature Branch A'), findsOneWidget);
@@ -150,7 +150,7 @@ void main() {
     await tester.pumpAndSettle();
     final container = ProviderScope.containerOf(tester.element(find.byType(SessionsSidebar)));
     expect(container.read(pcpClientProvider), same(client));
-    await tester.tap(find.byTooltip('Nuova sessione'));
+    await tester.tap(find.byTooltip('New Session'));
     await tester.pumpAndSettle();
     final projectDir = Directory.systemTemp.createTempSync('piframe_new_session_');
     addTearDown(() => projectDir.deleteSync(recursive: true));
@@ -158,7 +158,7 @@ void main() {
     // The folder check is debounced, so let it run before Create is enabled.
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Crea'));
+    await tester.tap(find.text('Create'));
     await tester.pumpAndSettle();
 
     final create = client.commands.firstWhere((command) => command.type == 'session.create');
@@ -182,9 +182,9 @@ void main() {
     // Title is the session title (the id here, as the session is not listed)
     // and the raw id moves to a copyable detail row.
     expect(find.text('sess_test'), findsWidgets);
-    expect(find.text('ID sessione'), findsOneWidget);
-    expect(find.byTooltip('Copia ID sessione'), findsOneWidget);
-    expect(find.text('Chiudi'), findsOneWidget);
+    expect(find.text('Session ID'), findsOneWidget);
+    expect(find.byTooltip('Copy session ID'), findsOneWidget);
+    expect(find.text('Close'), findsOneWidget);
     // Not connected to a daemon in tests: the error state offers one action.
     expect(find.byKey(const ValueKey('session-tree-error-action')), findsOneWidget);
   });

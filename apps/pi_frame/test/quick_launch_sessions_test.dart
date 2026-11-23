@@ -99,9 +99,9 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify recent sessions title is present
-    expect(find.text('Sessioni recenti'), findsOneWidget);
+    expect(find.text('Recent sessions'), findsOneWidget);
     // The welcome surface is a resume list now; it no longer has a Quick Launch heading.
-    expect(find.text('Avvio rapido'), findsNothing);
+    expect(find.text('Quick Launch'), findsNothing);
     expect(find.text('Quick Launch'), findsNothing);
 
     // Verify the top 5 sessions are rendered

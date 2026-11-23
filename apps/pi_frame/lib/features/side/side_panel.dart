@@ -205,7 +205,7 @@ class _SidePanelState extends ConsumerState<SidePanel> {
           if (sideThread.isError || selectedRecord?.status == 'error')
             _buildErrorNotice(
               tokens,
-              sideThread.errorMessage ?? selectedRecord?.errorMessage ?? 'Errore conversazione laterale',
+              sideThread.errorMessage ?? selectedRecord?.errorMessage ?? strings.sideConversationError,
             ),
 
           // Transcript

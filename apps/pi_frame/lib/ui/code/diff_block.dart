@@ -70,7 +70,7 @@ class _DiffBlockState extends State<DiffBlock> {
         },
       );
     }
-    return _buildContent(context, tokens, const AppStrings(AppLanguage.it));
+    return _buildContent(context, tokens, const AppStrings(AppLanguage.defaultLanguage));
   }
 
   Widget _buildContent(BuildContext context, FrameTokens tokens, AppStrings strings) {

@@ -315,7 +315,7 @@ void main() {
 
     // Verify compaction summary banner
     expect(find.text('Compacted context'), findsOneWidget);
-    expect(find.text('32000 token iniziali'), findsOneWidget);
+    expect(find.text('32000 initial tokens'), findsOneWidget);
 
     // Verify custom extension card
     expect(find.text('linter-hook'), findsOneWidget);
