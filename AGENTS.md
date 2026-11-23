@@ -6,9 +6,8 @@ fails when it names a path or `pnpm run` script that does not exist (`tools/guar
 ## Rules
 
 1. **Real captures only.** Show the PiFrame interface with real screenshots or recordings of the running Flutter app,
-   never an HTML/CSS/canvas mockup. Captures live in `docs/design-evidence/` (for example
-   `docs/design-evidence/recordly-projects/*.preview.png`, `docs/design-evidence/bento-triptych-fixture-*.png`);
-   take new ones with the UI harness (`.agents/skills/piframe-ui-harness/SKILL.md`).
+   never an HTML/CSS/canvas mockup. The curated captures that `DESIGN.md` references live in `docs/design/screens/`;
+   take new ones with the UI harness (`.agents/skills/piframe-ui-harness/SKILL.md`), never from a test run.
 2. **Real numbers only.** Quote actual repository links, release targets and verified capabilities; no invented
    metrics such as star or user counts.
 3. **MCP tools.** The Flutter and Dart MCP tools are available in this environment; use them.
@@ -54,7 +53,8 @@ apps/agentd  --one `pi --mode rpc` worker per session-->  Pi  --history-->  ~/.p
 | drive the app off-screen, real screenshots | `pnpm run harness` (`tools/harness/README.md`) |
 | all tests / end-to-end tests | `pnpm run test` / `pnpm run test:e2e` |
 
-`check` runs in the working tree: the escape-hatch audit, the doc link and map checks, TypeScript build and types, and
+`check` runs in the working tree: the escape-hatch audit, the doc link and map checks, the DESIGN.md lint and token
+match, TypeScript build and types, and
 `flutter analyze`. `*_test.dart` files run with `flutter test`, `*.test.mjs` with `node --test`, and
 `apps/agentd/src/**/*.test.ts` from its compiled copy under dist. `verify` runs the CI steps on the committed
 HEAD merged with origin/main. Tests regenerate screenshots under `docs/design-evidence/` and
@@ -67,6 +67,8 @@ Details: `docs/pr-verification.md`.
   providers and services, `docs/adr/0004-flutter-state-management.md`), domain (plain models), features (one folder
   per UI area), ui (shared widgets). Colours, spacing and motion come from `packages/pi_frame_theme/` (a lint rejects
   hardcoded colours); user-facing text goes through `apps/pi_frame/lib/data/language/`.
+- **Design**: `DESIGN.md` (Google's DESIGN.md format) is the design system: tokens, components, states, the anti-slop
+  gate and the definition of done for UI work. Its tokens must match `themes/` and `packages/pi_frame_theme/` (gate).
 - **Daemon**: one folder per module in `apps/agentd/src/` (commands, journal, pi, server, sessions, side, workspace,
   ...); tests sit in each module's own test folder as `*.test.ts`, for example `apps/agentd/src/journal/test/`.
 - **Protocol**: change `packages/pcp-spec/schema/` first, then `pnpm run codegen`; the gate fails on drift
