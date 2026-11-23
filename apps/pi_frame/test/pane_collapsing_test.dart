@@ -320,7 +320,7 @@ void main() {
     expect(git, findsOneWidget);
     final gitBefore = tester.getSize(git).width;
 
-    await tester.tap(find.byTooltip('Collassa pannello repository'));
+    await tester.tap(find.byTooltip('Collapse Repository panel'));
     for (final ms in [30, 30, 60, 60]) {
       await tester.pump(Duration(milliseconds: ms));
       final opacities = tester.widgetList<Opacity>(find.ancestor(of: git, matching: find.byType(Opacity)));
