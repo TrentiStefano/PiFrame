@@ -1145,7 +1145,7 @@ In Pi's user settings (`~/.pi/agent/settings.json`), `subagents.agentOverrides.<
 - The animated glowing border with blur and the animated intro were too heavy for the mobile browser canvas.
 
 ### Fix
-Update PiFrame (app and daemon): all the fixes are included (see [install.md section 22](install.md#22-mobile-web-app-reliable-startup-aligned-taps-and-better-speed)). If you still see a message:
+Update PiFrame (app and daemon): all the fixes are included (see [PiFrame on your phone](user-guide.md#14-piframe-on-your-phone-remote-access) in the user guide). If you still see a message:
 - **"Pair the device again"**: generate a new QR code from Settings → Remote connection.
 - **Screenshots or files from the phone do not reach the agent**: the device needs `control` mode (Settings → Remote connection) and an updated daemon. In `view` mode a notice says the device is read-only. The limit is 50 MB per file.
 - **Interface zoomed or cut off while typing, composer buttons gone**: this was iOS auto-zoom on focusing a field with text under 16 px, combined with a composer taller than the space above the keyboard. Update the web app and reload it (close and reopen the Home Screen icon).

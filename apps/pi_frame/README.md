@@ -33,6 +33,10 @@ Design tokens (colors, spacing, typography, motion) come from [`packages/pi_fram
 
 User-facing text lives in `lib/data/language/strings_*.dart`, in both Italian and English.
 
+## Dart/Flutter MCP for Pi
+
+To let Pi work on this app with the official Dart/Flutter MCP server, configure it at user level in `~/.pi/agent/mcp.json` (`dart mcp-server`, deferred exposure); it needs the Flutter/Dart SDK on `PATH`. From the project root, `pi mcp list` should show `dart · connected`. PiFrame starts Pi workers with the workspace as their working directory, so the server attaches to the active project without needing local trust; its tools are discovered on demand through `tool_search`.
+
 ## Checks
 
 ```bash

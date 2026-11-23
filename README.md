@@ -25,6 +25,7 @@
   <a href="https://trentistefano.github.io/PiFrame/"><strong>Website</strong></a> ·
   <a href="https://github.com/TrentiStefano/PiFrame/releases/latest"><strong>Download</strong></a> ·
   <a href="docs/install.md">Install guide</a> ·
+  <a href="docs/user-guide.md">User guide</a> ·
   <a href="docs/troubleshooting.md">Troubleshooting</a>
 </p>
 
@@ -129,7 +130,7 @@ The installers include the PiFrame app, `pi-agentd` and the Node.js runtime it n
    ```
 2. **A model provider** configured in Pi (for example with `/login`).
 
-The full installation and feature guide is in [docs/install.md](docs/install.md).
+Installing, updating and removing PiFrame: [install guide](docs/install.md). Every feature, one by one: [user guide](docs/user-guide.md). Known problems and fixes: [troubleshooting guide](docs/troubleshooting.md).
 
 ### Recommended Pi packages
 
@@ -200,6 +201,19 @@ flutter run -d windows   # or 'macos' / 'linux'
 flutter build web --no-web-resources-cdn
 ```
 
+### 4. Standalone desktop build
+
+To build the desktop executable yourself (for example `flutter build windows --release`), rebuild the daemon first with `pnpm build:agentd` (or `pnpm build:all`): the Windows build refuses a missing or outdated daemon bundle. CMake copies `apps/agentd/dist/pi-agentd.cjs` next to the executable; also copy `node.exe` there if the Node runtime is not already in that folder. Rebuilding the app does not stop a running daemon: let active Pi workers finish, then use **Settings → Daemon → Restart daemon**. For file-lock errors (`EBUSY`), see [docs/troubleshooting.md](docs/troubleshooting.md#4-daemon-unreachable-or-connection-error-with-a-source-build).
+
+### 5. Package the installers locally
+
+The same scripts the release workflow runs build the installers into `dist/`:
+
+- **Windows** (needs Inno Setup 6, for example `winget install JRSoftware.InnoSetup`): `pnpm run package:windows` builds the TypeScript packages, the daemon bundle, the Flutter Windows and web apps, the Node runtime with its licenses and `dist/PiFrame-Setup-<version>-windows-x64.exe`. Pass `-SkipBuild` to `tools/scripts/package-windows-installer.ps1` to repackage without rebuilding Flutter.
+- **macOS** (on a Mac, with the Xcode Command Line Tools, Flutter and Node.js): `pnpm run package:macos` (or `bash tools/scripts/package-macos-dmg.sh [version] [architecture] [--skip-build|--build]`) builds the daemon bundle and the web and macOS apps, packages `PiFrame.app` with the Node runtime, signs it ad hoc and creates `dist/PiFrame-<version>-macos-<arch>.dmg` with `hdiutil`, fully offline. `--skip-build` reuses existing binaries; `--build` forces a full rebuild.
+- **Linux**: after the release builds of the daemon (`pnpm build:agentd`), the Linux app and the web app, `bash tools/scripts/package-linux-deb.sh <version>` packages them as a `.deb`.
+
+To check the interface without touching your own sessions, use the off-screen UI harness with Fake Pi: see [tools/harness/README.md](tools/harness/README.md).
 ---
 
 ## Architecture
@@ -269,7 +283,7 @@ PiFrame/
 │   ├── pi_frame_protocol/  # Generated Dart types for the app
 │   └── pi_frame_theme/  # Theme engine (JSON themes with inheritance)
 ├── website/             # Project website (GitHub Pages)
-├── docs/                # Install, security, theming, troubleshooting, ADRs, design evidence
+├── docs/                # Install, user and troubleshooting guides, security, theming, ADRs
 ├── tools/               # fake-pi, fault-proxy, codegen, packaging and showcase scripts
 └── test/e2e/            # End-to-end tests
 ```
