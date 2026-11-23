@@ -42,9 +42,7 @@ void main() {
         ),
       ),
     );
-    for (int i = 0; i < 10; i++) {
-      await tester.pump(const Duration(milliseconds: 16));
-    }
+    await tester.pumpAndSettle();
 
     final answer = find.ancestor(
       of: find.text('One acceptance test is failing.', findRichText: true),
@@ -110,11 +108,9 @@ void main() {
         ),
       ),
     );
-    Future<void> settle() async {
-      for (int i = 0; i < 10; i++) {
-        await tester.pump(const Duration(milliseconds: 16));
-      }
-    }
+    // A working turn shows an endless activity indicator, so pumpAndSettle would never return. One frame is all a
+    // state change needs: the transcript rebuilds from the new session state in it.
+    Future<void> settle() => tester.pump();
 
     Iterable<AssistantTurnFrame> cards() =>
         tester.widgetList<AssistantTurnFrame>(find.byType(AssistantTurnFrame)).where((frame) => frame.isCard);

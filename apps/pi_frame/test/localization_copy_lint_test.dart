@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// Copy lint for the Italian UI (audit P2-2, N7).
+/// Copy lint for the Italian UI.
 ///
 /// Reads every Italian value in `lib/data/language/strings_*.dart` (the first
 /// branch of each `isItalian ? '...' : '...'` expression) and fails when an
@@ -12,8 +12,8 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   final languageDir = Directory('lib/data/language');
 
-  // Matches the Italian branch: `isItalian ? 'value'` (value may span lines).
-  final italianValue = RegExp(r"isItalian\s*\?\s*'((?:[^'\\\r\n]|\\.)*)'");
+  // Matches the Italian branch: `isItalian ? 'value'`.
+  final italianValue = RegExp(_italianBranch);
 
   // Internal IDs from the design docs must never reach user copy.
   final internalIds = <String, RegExp>{
@@ -124,10 +124,16 @@ final c = `template \${'nella cartella'} end`;
   });
 }
 
+/// A single-quoted, single-line Dart string literal; group 1 is its contents.
+const _singleQuoted = r"'((?:[^'\\\r\n]|\\.)*)'";
+
+/// The Italian branch of an `isItalian ? '...' : '...'` expression.
+const _italianBranch = r'isItalian\s*\?\s*' + _singleQuoted;
+
 /// Words that appear only on the Italian side of the translation tables
 /// (lib/data/language): Italian vocabulary that English copy and code never use.
 final Set<String> _italianVocabulary = () {
-  final pair = RegExp(r"isItalian\s*\?\s*'((?:[^'\\\r\n]|\\.)*)'\s*:\s*'((?:[^'\\\r\n]|\\.)*)'");
+  final pair = RegExp(_italianBranch + r'\s*:\s*' + _singleQuoted);
   final italian = <String>{};
   final english = <String>{};
   for (final file in Directory('lib/data/language').listSync().whereType<File>()) {
