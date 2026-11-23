@@ -40,4 +40,6 @@ Default five-role vocabulary: `needs-triage`, `needs-info`, `ready-for-agent`, `
 
 ### Domain docs
 
-Single-context: one root `GLOSSARY.md` (created lazily) plus the existing `docs/adr/`. See `docs/agents/domain.md`.
+Single-context: one root `GLOSSARY.md` plus the existing `docs/adr/`. See `docs/agents/domain.md`.
+
+Glossary: `GLOSSARY.md` gives each core concept one name; use it, not the aliases it lists to avoid.
