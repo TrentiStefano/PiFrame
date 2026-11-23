@@ -286,10 +286,18 @@ Before offering a newer npm version, PiFrame checks that it can be installed, in
 
 ### Interface language
 
-In **Settings → Appearance → Application Language** you can choose English or Italian. The choice applies to the whole interface: title bar, Sessions sidebar, Repository pane, chat pane and step groups, composer, Session panel and context picker, Git Changes pane, change review, integrated browser, terminal, Agents pane, side conversations and Settings. Only a few error and update messages are not translated.
+In **Settings → Appearance → Application Language** you can choose English or Italian. The choice applies to the whole interface: title bar, Sessions sidebar, Repository pane, chat pane and step groups, composer, Session panel and context picker, Git Changes pane, change review, integrated browser, terminal, Agents pane, side conversations, Settings, update and error messages, and desktop notifications. The daemon's own messages (for example the remote pairing page and "Read-only session.") are in English.
 
-- **Desktop app**: the choice is saved in `~/.piframe/language_settings.json`. The default is Italian.
-- **Web and phone (remote access)**: the web client cannot read `~/.piframe`, so it saves the choice in the browser's `localStorage`. If you have never picked a language, the web client follows the browser language: Italian for `it-*`, English for everything else.
+**Default language**: English.
+
+- **New install** (no PiFrame settings in `~/.piframe` yet): the app starts in English.
+- **Existing install with no language choice** (settings saved by an earlier PiFrame, but no language picked): the app keeps Italian, the old default, so an update does not change your language.
+- **Explicit choice**: the language you pick in Settings always wins.
+
+The language is decided once, on the first launch of this version, and saved, so the rule above does not change later.
+
+- **Desktop app**: the choice is saved in `~/.piframe/language_settings.json`.
+- **Web and phone (remote access)**: the web client cannot read `~/.piframe`, so it saves the choice in the browser's `localStorage`. If you have never picked a language on that browser, the web client starts in English.
 
 ### Technical stats
 

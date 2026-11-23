@@ -58,7 +58,7 @@ void main() {
 
       await tester.pump();
 
-      expect(find.text('Task agente'), findsOneWidget);
+      expect(find.text('Agent Tasks (Todo)'), findsOneWidget);
       expect(find.text('First Task'), findsOneWidget);
       expect(find.text('Second Task...'), findsOneWidget);
       expect(find.byType(Checkbox), findsNWidgets(2));
@@ -67,7 +67,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('todo-checkbox-2')));
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('2 / 2 completati'), findsOneWidget);
+      expect(find.text('2 / 2 completed'), findsOneWidget);
     });
 
     testWidgets('clicking on a collapsed task expands and shows description', (tester) async {
@@ -214,11 +214,11 @@ void main() {
 
       // Badges must not exist
       expect(find.text('COMPLETED'), findsNothing);
-      expect(find.text('COMPLETATO'), findsNothing);
+      expect(find.text('COMPLETED'), findsNothing);
       expect(find.text('IN PROGRESS'), findsNothing);
-      expect(find.text('IN CORSO'), findsNothing);
+      expect(find.text('IN PROGRESS'), findsNothing);
       expect(find.text('PENDING'), findsNothing);
-      expect(find.text('IN ATTESA'), findsNothing);
+      expect(find.text('PENDING'), findsNothing);
 
       // In-progress item has shimmering three dots suffix
       expect(find.text('Doing Item...'), findsOneWidget);

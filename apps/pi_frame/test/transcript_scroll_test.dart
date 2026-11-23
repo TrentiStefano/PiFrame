@@ -68,7 +68,7 @@ void main() {
     expect(find.textContaining('Transcript entry 0'), findsNothing);
 
     // Scroll up to reveal the load previous messages button
-    final loadMoreFinder = find.textContaining('Carica messaggi precedenti');
+    final loadMoreFinder = find.textContaining('Load earlier messages');
     await tester.scrollUntilVisible(
       loadMoreFinder,
       -300,

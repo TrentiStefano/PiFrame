@@ -190,7 +190,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   FrameTokens? _cachedHeaderTokens;
   AppStrings? _cachedHeaderStrings;
   List<MapEntry<String, dynamic>>? _cachedHeaderExtStatuses;
-  AppStrings _currentStrings = const AppStrings(AppLanguage.it);
+  AppStrings _currentStrings = const AppStrings(AppLanguage.defaultLanguage);
   String? _trackedSessionId;
 
   bool _extensionStatusesEqual(List<MapEntry<String, dynamic>> a, List<MapEntry<String, dynamic>>? b) {

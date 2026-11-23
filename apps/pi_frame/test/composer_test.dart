@@ -172,7 +172,7 @@ void main() {
     await tester.pump();
     expect(find.text('Keep this draft'), findsNothing);
     expect(session.state.entries.single.text, 'Keep this draft');
-    expect(session.state.entries.single.metadata?['sendError'], contains('Daemon non connesso'));
+    expect(session.state.entries.single.metadata?['sendError'], contains('Daemon not connected'));
     expect(tester.takeException(), isNull);
   });
 
@@ -202,7 +202,7 @@ void main() {
     await tester.tap(find.byIcon(Icons.arrow_upward_outlined));
     await tester.pump();
     expect(session.state.entries.single.text, 'Session A draft');
-    expect(session.state.entries.single.metadata?['sendError'], contains('Daemon non connesso'));
+    expect(session.state.entries.single.metadata?['sendError'], contains('Daemon not connected'));
     final container = ProviderScope.containerOf(tester.element(find.byType(Composer)));
     container.read(activeSessionIdProvider.notifier).state = 'B';
     await tester.pump();
@@ -306,8 +306,8 @@ void main() {
     expect(find.byKey(const ValueKey('composer-status-line')), findsOneWidget);
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('In coda (2): 1 steer, 1 follow-up'), findsOneWidget);
-    expect(find.text('Svuota coda'), findsOneWidget);
+    expect(find.textContaining('Queued (2): 1 steer, 1 follow-up'), findsOneWidget);
+    expect(find.text('Clear queue'), findsOneWidget);
   });
 
   testWidgets('Stopped worker shows recovery banner without a stop button', (tester) async {
@@ -341,7 +341,7 @@ void main() {
 
     // The recovery action keeps its visible text label, and send remains available.
     expect(find.byKey(const ValueKey('composer-crash-banner')), findsOneWidget);
-    expect(find.text('Riprendi sessione'), findsOneWidget);
+    expect(find.text('Resume session'), findsOneWidget);
     expect(find.byKey(const ValueKey('composer-send-btn')), findsOneWidget);
   });
 }

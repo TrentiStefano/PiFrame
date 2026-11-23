@@ -54,7 +54,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
     try {
       return ref.watch(appStringsProvider);
     } catch (_) {
-      return const AppStrings(AppLanguage.it);
+      return const AppStrings(AppLanguage.defaultLanguage);
     }
   }
 
@@ -62,7 +62,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
     try {
       return ref.read(appStringsProvider);
     } catch (_) {
-      return const AppStrings(AppLanguage.it);
+      return const AppStrings(AppLanguage.defaultLanguage);
     }
   }
 

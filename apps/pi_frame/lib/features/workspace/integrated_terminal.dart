@@ -359,7 +359,7 @@ class _IntegratedTerminalPanelState extends ConsumerState<IntegratedTerminalPane
     try {
       return ref.watch(appStringsProvider);
     } catch (_) {
-      return const AppStrings(AppLanguage.it);
+      return const AppStrings(AppLanguage.defaultLanguage);
     }
   }
 
@@ -367,7 +367,7 @@ class _IntegratedTerminalPanelState extends ConsumerState<IntegratedTerminalPane
     try {
       return ref.read(appStringsProvider);
     } catch (_) {
-      return const AppStrings(AppLanguage.it);
+      return const AppStrings(AppLanguage.defaultLanguage);
     }
   }
 

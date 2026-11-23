@@ -310,28 +310,28 @@ void main() {
     await tester.tap(find.text('demo_repo'), buttons: kSecondaryMouseButton);
     await tester.pumpAndSettle();
 
-    final removeRepoItem = find.text('Rimuovi repository dal riquadro');
+    final removeRepoItem = find.text('Remove repository from sidebar');
     expect(removeRepoItem, findsOneWidget);
 
     await tester.tap(removeRepoItem);
     await tester.pumpAndSettle();
 
     // Dialog should appear with removal options
-    expect(find.text('Rimuovi repository "demo_repo"'), findsOneWidget);
-    expect(find.text('Rimuovi solo dalla vista'), findsOneWidget);
-    expect(find.text('Elimina repository e tutte le sessioni...'), findsOneWidget);
+    expect(find.text('Remove repository "demo_repo"'), findsOneWidget);
+    expect(find.text('Remove from view only'), findsOneWidget);
+    expect(find.text('Delete repository and all sessions...'), findsOneWidget);
 
-    // Tap on "Elimina repository e tutte le sessioni..." to test the double confirmation
+    // Tap on "Delete repository and all sessions..." to test the double confirmation
     await tester.tap(find.byKey(const ValueKey('delete-all-repo-sessions-btn')));
     await tester.pumpAndSettle();
 
     // Second warning dialog with required "delete" box
-    expect(find.text('ATTENZIONE: Eliminazione'), findsOneWidget);
+    expect(find.text('WARNING: Deletion'), findsOneWidget);
     final deleteField = find.byWidgetPredicate((w) => w is TextField && w.decoration?.hintText == 'delete');
     expect(deleteField, findsOneWidget);
 
     // Initially confirm button is disabled
-    final confirmBtn = find.widgetWithText(FilledButton, 'Elimina tutto');
+    final confirmBtn = find.widgetWithText(FilledButton, 'Delete all');
     expect(tester.widget<FilledButton>(confirmBtn).onPressed, isNull);
 
     // Type "delete" in input box
@@ -376,9 +376,9 @@ void main() {
     await tester.pumpAndSettle();
 
     // Session menu holds session actions only; repository actions moved to the repository row.
-    expect(find.text('Elimina sessione'), findsOneWidget);
-    expect(find.text('Istruzioni repository'), findsNothing);
-    expect(find.text('Rimuovi repository dal riquadro'), findsNothing);
+    expect(find.text('Delete session'), findsOneWidget);
+    expect(find.text('Repository instructions'), findsNothing);
+    expect(find.text('Remove repository from sidebar'), findsNothing);
   });
 
   testWidgets('delete session with confirmation popup works correctly', (tester) async {
@@ -416,15 +416,15 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('session-row-sess_to_delete')), buttons: kSecondaryMouseButton);
     await tester.pumpAndSettle();
 
-    // Click "Elimina sessione" in menu
-    expect(find.text('Elimina sessione'), findsOneWidget);
-    await tester.tap(find.text('Elimina sessione'));
+    // Click "Delete session" in menu
+    expect(find.text('Delete session'), findsOneWidget);
+    await tester.tap(find.text('Delete session'));
     await tester.pumpAndSettle();
 
     // Confirmation dialog must appear
-    expect(find.text('Elimina sessione'), findsOneWidget);
-    expect(find.textContaining('Sei sicuro di voler eliminare la sessione'), findsOneWidget);
-    expect(find.text('Elimina'), findsOneWidget);
-    expect(find.text('Annulla'), findsOneWidget);
+    expect(find.text('Delete session'), findsOneWidget);
+    expect(find.textContaining('Are you sure you want to delete session'), findsOneWidget);
+    expect(find.text('Delete'), findsOneWidget);
+    expect(find.text('Cancel'), findsOneWidget);
   });
 }

@@ -618,7 +618,7 @@ class _ComposerState extends ConsumerState<Composer> {
 
       await _ingestFiles(files, idPrefix: 'att_ext');
     } catch (e) {
-      debugPrint('Selezione file annullata o non riuscita: $e');
+      debugPrint('File selection cancelled or failed: $e');
     }
   }
 
@@ -670,7 +670,7 @@ class _ComposerState extends ConsumerState<Composer> {
 
       await _ingestFiles(files, idPrefix: 'att_img', forceImage: true);
     } catch (e) {
-      debugPrint('Selezione immagini annullata o non riuscita: $e');
+      debugPrint('Image selection cancelled or failed: $e');
     }
   }
 

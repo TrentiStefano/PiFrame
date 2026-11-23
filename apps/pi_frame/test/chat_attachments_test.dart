@@ -103,16 +103,16 @@ void main() {
 
       // Verify the 4 options appear in the popup-dropdown
       expect(find.byKey(const ValueKey('attach-option-repo')), findsOneWidget);
-      expect(find.text('File dal repository'), findsOneWidget);
+      expect(find.text('File from repository'), findsOneWidget);
 
       expect(find.byKey(const ValueKey('attach-option-external')), findsOneWidget);
-      expect(find.text('File esterno'), findsOneWidget);
+      expect(find.text('External file'), findsOneWidget);
 
       expect(find.byKey(const ValueKey('attach-option-link')), findsOneWidget);
-      expect(find.text('Link web'), findsOneWidget);
+      expect(find.text('Web link'), findsOneWidget);
 
       expect(find.byKey(const ValueKey('attach-option-image')), findsOneWidget);
-      expect(find.text('Immagine'), findsOneWidget);
+      expect(find.text('Image'), findsOneWidget);
     });
 
     testWidgets('renders attachment chips in composer and allows removing', (tester) async {
@@ -275,7 +275,7 @@ void main() {
       expect(find.byType(InteractiveViewer), findsOneWidget);
 
       // Close the lightbox dialog
-      await tester.tap(find.byTooltip('Chiudi anteprima'));
+      await tester.tap(find.byTooltip('Close preview'));
       await tester.pumpAndSettle();
 
       expect(find.byKey(const ValueKey('image-lightbox-dialog')), findsNothing);
@@ -320,7 +320,7 @@ void main() {
       // Overlay is visible
       final AnimatedOpacity activeOpacityWidget = tester.widget(opacityFinder);
       expect(activeOpacityWidget.opacity, 1.0);
-      expect(find.text('Rilascia i file qui per allegarli'), findsOneWidget);
+      expect(find.text('Drop files here to attach'), findsOneWidget);
 
       // Simulate onDragDone with a dropped file and an image
       dropTarget.onDragDone?.call(
@@ -437,11 +437,11 @@ void main() {
       await pumpThumbnail(validPng, 'img_valid');
       expect(find.byKey(const ValueKey('attachment-image-img_valid')), findsOneWidget);
       expect(find.byKey(const ValueKey('attachment-image-invalid-img_valid')), findsNothing);
-      expect(find.text('Immagine non valida'), findsNothing);
+      expect(find.text('Invalid image'), findsNothing);
 
       await pumpThumbnail(invalidPng, 'img_invalid');
       expect(find.byKey(const ValueKey('attachment-image-invalid-img_invalid')), findsOneWidget);
-      expect(find.text('Immagine non valida'), findsOneWidget);
+      expect(find.text('Invalid image'), findsOneWidget);
     });
   });
 }

@@ -11,13 +11,13 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 void main() {
   group('AppLanguage and AppStrings', () {
-    test('AppLanguage.fromCode parses properly with fallback to it', () {
+    test('AppLanguage.fromCode parses properly with fallback to English', () {
       expect(AppLanguage.fromCode('it'), AppLanguage.it);
       expect(AppLanguage.fromCode('IT'), AppLanguage.it);
       expect(AppLanguage.fromCode('en'), AppLanguage.en);
       expect(AppLanguage.fromCode('EN'), AppLanguage.en);
-      expect(AppLanguage.fromCode(null), AppLanguage.it);
-      expect(AppLanguage.fromCode('fr'), AppLanguage.it);
+      expect(AppLanguage.fromCode(null), AppLanguage.en);
+      expect(AppLanguage.fromCode('fr'), AppLanguage.en);
     });
 
     test('AppStrings provides correct Italian translations', () {
@@ -96,13 +96,13 @@ void main() {
 
     test('AppLanguageNotifier updates state', () {
       final notifier = AppLanguageNotifier();
-      expect(notifier.state, AppLanguage.it);
-
-      notifier.setLanguage(AppLanguage.en);
       expect(notifier.state, AppLanguage.en);
 
       notifier.setLanguage(AppLanguage.it);
       expect(notifier.state, AppLanguage.it);
+
+      notifier.setLanguage(AppLanguage.en);
+      expect(notifier.state, AppLanguage.en);
     });
   });
 

@@ -661,7 +661,7 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
     final client = ref.read(pcpClientProvider);
     if (client != null) {
       client
-          .sendPrompt(sessionId, 'Nuovo task aggiunto dall\'utente: #$newId "$trimmed".', streamingBehavior: 'steer')
+          .sendPrompt(sessionId, 'New task added by the user: #$newId "$trimmed".', streamingBehavior: 'steer')
           .catchError((_) => <String, dynamic>{});
     }
   }

@@ -91,7 +91,7 @@ void main() {
     await tester.pumpWidget(_app(session));
     await tester.pumpAndSettle();
 
-    expect(find.text('Invio non riuscito: Model unavailable'), findsOneWidget);
+    expect(find.text('Send failed: Model unavailable'), findsOneWidget);
     expect(find.byKey(const ValueKey('retry-user-message-failed_1')), findsOneWidget);
     final bubble = tester.widget<Container>(find.byKey(const ValueKey('failed-message-bubble-failed_1')));
     expect((bubble.decoration! as BoxDecoration).border!.top.color, FrameTokens.dark.danger);

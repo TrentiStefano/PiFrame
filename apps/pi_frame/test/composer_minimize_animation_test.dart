@@ -45,7 +45,7 @@ void main() {
 
       // Should be minimized with compact bar
       expect(find.byKey(const ValueKey('composer-minimized-bar')), findsOneWidget);
-      expect(find.textContaining('L\'agente sta rispondendo'), findsOneWidget);
+      expect(find.textContaining('Agent is responding'), findsOneWidget);
       // The full text field input area is minimized
       expect(find.byKey(const ValueKey('composer-input-area')), findsNothing);
     });
@@ -246,10 +246,7 @@ void main() {
         ),
       );
       final interruptText = tester.widget<Text>(
-        find.descendant(
-          of: find.byKey(const ValueKey('composer-minimized-interrupt')),
-          matching: find.text('Interrompi'),
-        ),
+        find.descendant(of: find.byKey(const ValueKey('composer-minimized-interrupt')), matching: find.text('Stop')),
       );
 
       expect(interruptIcon.color, FrameTokens.dark.signalDanger);

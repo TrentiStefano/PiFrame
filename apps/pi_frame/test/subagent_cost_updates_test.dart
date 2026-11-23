@@ -287,8 +287,8 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.text('In corso'), findsOneWidget);
-    expect(find.text('Completato'), findsNothing);
+    expect(find.text('In progress'), findsOneWidget);
+    expect(find.text('Completed'), findsNothing);
     session.state = session.state.copyWith(
       entries: const [
         launch,
@@ -301,8 +301,8 @@ void main() {
       ],
     );
     await tester.pumpAndSettle();
-    expect(find.text('Completato'), findsOneWidget);
-    expect(find.text('In corso'), findsNothing);
+    expect(find.text('Completed'), findsOneWidget);
+    expect(find.text('In progress'), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 1));
   });
@@ -695,7 +695,7 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(find.text('Sessione principale'), findsOneWidget);
+    expect(find.text('Main session'), findsOneWidget);
     expect(find.byKey(const ValueKey('subagent-card-agent-1')), findsOneWidget);
     expect(find.byKey(const ValueKey('subagent-card-agent-2')), findsOneWidget);
     expect(find.byKey(const ValueKey('subagent-card-child')), findsNothing);
@@ -717,7 +717,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('cost-breakdown-subagents-row')));
     await tester.pumpAndSettle();
-    expect(find.text('Costi sessioni figlie (2 agenti)'), findsOneWidget);
+    expect(find.text('Child session costs (2 agents)'), findsOneWidget);
     expect(find.byKey(const ValueKey('unlinked-session-cost-child')), findsOneWidget);
     expect(find.byKey(const ValueKey('subagent-cost-item-child')), findsNothing);
     expect(find.textContaining('Parziale \$0.0150'), findsNothing);
@@ -1093,7 +1093,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(find.byKey(const ValueKey('cost-breakdown-subagents-row')));
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.text('Costi subagenti & modelli'), findsOneWidget);
+    expect(find.text('Subagent & Model Costs'), findsOneWidget);
     expect(find.descendant(of: find.byType(Dialog), matching: find.text('\$0.0175')), findsNWidgets(2));
 
     final callsBefore = client.calls;

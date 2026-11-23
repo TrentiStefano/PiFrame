@@ -19,72 +19,105 @@ enum AppLanguage {
 
   const AppLanguage(this.code, this.label, this.flag);
 
-  static AppLanguage fromCode(String? code) {
-    if (code == null) return AppLanguage.it;
-    return AppLanguage.values.firstWhere(
-      (lang) => lang.code == code.toLowerCase().trim(),
-      orElse: () => AppLanguage.it,
-    );
+  /// The language of a fresh install.
+  static const AppLanguage defaultLanguage = AppLanguage.en;
+
+  /// The language for [code], or null when [code] names none.
+  static AppLanguage? tryFromCode(String? code) {
+    if (code == null) return null;
+    final normalized = code.toLowerCase().trim();
+    for (final lang in AppLanguage.values) {
+      if (lang.code == normalized) return lang;
+    }
+    return null;
+  }
+
+  /// The language for [code], English when [code] names none.
+  static AppLanguage fromCode(String? code) => tryFromCode(code) ?? defaultLanguage;
+}
+
+/// Where the language choice is kept, and the default-language rule:
+/// - no saved PiFrame settings (a new install): English;
+/// - saved settings but no language choice (an existing user from before
+///   English became the default): Italian, so an update does not silently
+///   change their language;
+/// - an explicit choice always wins.
+///
+/// The first resolution is saved, so settings files written later (window
+/// state, first run, ...) never change it. Desktop builds keep the files in
+/// ~/.piframe; the web client keeps the choice in the browser's localStorage
+/// and, having no other saved settings, starts in English.
+class LanguageSettingsStore {
+  const LanguageSettingsStore({required this.directory});
+
+  /// ~/.piframe on desktop; null (no storage) on the web and under tests.
+  factory LanguageSettingsStore.standard() {
+    if (kIsWeb || Platform.environment.containsKey('FLUTTER_TEST')) {
+      return const LanguageSettingsStore(directory: null);
+    }
+    final env = Platform.environment;
+    final home = Platform.isWindows ? (env['USERPROFILE'] ?? 'C:\\Users\\Default') : (env['HOME'] ?? '/tmp');
+    return LanguageSettingsStore(directory: Directory('$home/.piframe'));
+  }
+
+  static const _fileName = 'language_settings.json';
+
+  /// The settings directory, or null when nothing can be stored.
+  final Directory? directory;
+
+  File? get _file => directory == null ? null : File('${directory!.path}/$_fileName');
+
+  AppLanguage load() {
+    if (kIsWeb) return AppLanguage.tryFromCode(readWebLanguage()) ?? AppLanguage.defaultLanguage;
+    final file = _file;
+    if (file == null) return AppLanguage.defaultLanguage;
+    try {
+      if (file.existsSync()) {
+        final decoded = jsonDecode(file.readAsStringSync());
+        final saved = decoded is Map ? AppLanguage.tryFromCode(decoded['language']?.toString()) : null;
+        return saved ?? AppLanguage.it;
+      }
+      final resolved = _hasSavedSettings() ? AppLanguage.it : AppLanguage.defaultLanguage;
+      save(resolved);
+      return resolved;
+    } catch (_) {
+      return AppLanguage.defaultLanguage;
+    }
+  }
+
+  bool _hasSavedSettings() {
+    final dir = directory;
+    if (dir == null || !dir.existsSync()) return false;
+    return dir.listSync().whereType<File>().any((f) => f.path.endsWith('.json'));
+  }
+
+  void save(AppLanguage language) {
+    if (kIsWeb) {
+      writeWebLanguage(language.code);
+      return;
+    }
+    final file = _file;
+    if (file == null) return;
+    try {
+      file.parent.createSync(recursive: true);
+      file.writeAsStringSync(jsonEncode({'language': language.code}));
+    } catch (_) {}
   }
 }
 
 class AppLanguageNotifier extends StateNotifier<AppLanguage> {
-  AppLanguageNotifier() : super(AppLanguage.it) {
-    _load();
+  AppLanguageNotifier({LanguageSettingsStore? store})
+    : _store = store ?? LanguageSettingsStore.standard(),
+      super(AppLanguage.defaultLanguage) {
+    state = _store.load();
   }
 
-  File? _getStorageFile() {
-    if (kIsWeb || Platform.environment.containsKey('FLUTTER_TEST')) return null;
-    try {
-      final env = Platform.environment;
-      final home = Platform.isWindows ? (env['USERPROFILE'] ?? 'C:\\Users\\Default') : (env['HOME'] ?? '/tmp');
-      final dir = Directory('$home/.piframe');
-      if (!dir.existsSync()) {
-        dir.createSync(recursive: true);
-      }
-      return File('${dir.path}/language_settings.json');
-    } catch (_) {
-      return null;
-    }
-  }
-
-  void _load() {
-    if (kIsWeb) {
-      // Saved choice first, then the browser language (Italian only for it-*).
-      final saved = readWebLanguage();
-      final browser = browserLanguage()?.toLowerCase() ?? '';
-      state = saved != null
-          ? AppLanguage.fromCode(saved)
-          : (browser.startsWith('it') || browser.isEmpty ? AppLanguage.it : AppLanguage.en);
-      return;
-    }
-    final file = _getStorageFile();
-    if (file != null && file.existsSync()) {
-      try {
-        final content = file.readAsStringSync();
-        final map = jsonDecode(content) as Map<String, dynamic>;
-        state = AppLanguage.fromCode(map['language']?.toString());
-      } catch (_) {}
-    }
-  }
-
-  void _save() {
-    if (kIsWeb) {
-      writeWebLanguage(state.code);
-      return;
-    }
-    final file = _getStorageFile();
-    if (file != null) {
-      try {
-        file.writeAsStringSync(jsonEncode({'language': state.code}));
-      } catch (_) {}
-    }
-  }
+  final LanguageSettingsStore _store;
 
   void setLanguage(AppLanguage language) {
     if (state != language) {
       state = language;
-      _save();
+      _store.save(language);
     }
   }
 }
@@ -458,6 +491,7 @@ class AppStrings {
   String get sideToggleActionSubtitle => isItalian
       ? 'Apri o chiudi il pannello laterale di sola lettura'
       : 'Open or toggle read-only side conversation panel';
+  String get sideConversationError => isItalian ? 'Errore conversazione laterale' : 'Side conversation error';
   String get sideOpening => isItalian ? 'Apertura conversazione laterale...' : 'Opening side conversation...';
   String get sideNewConversationTooltip => isItalian ? 'Nuova conversazione laterale' : 'New side conversation';
   String get sideAllConversationsTitle => isItalian ? 'Conversazioni laterali' : 'Side conversations';

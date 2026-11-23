@@ -69,7 +69,7 @@ void main() {
     expect(_compactList(), findsOneWidget);
     expect(tester.getSize(_compactList()).height, lessThanOrEqualTo(_windowHeight / 2 + 0.5));
     expect(_expandAll(), findsOneWidget);
-    expect(find.text('Mostra tutti i passaggi (60)'), findsOneWidget);
+    expect(find.text('Show all steps (60)'), findsOneWidget);
 
     // The compact list scrolls on its own.
     final scrollable = find.descendant(of: _compactList(), matching: find.byType(Scrollable));

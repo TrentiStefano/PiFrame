@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/session/agent_status.dart';
 import '../../domain/session/session_state.dart';
 import '../daemon/daemon_providers.dart';
+import '../language/language_settings.dart';
+import '../language/strings_shell.dart';
 import '../../features/sessions_sidebar/pinned_sessions_provider.dart';
 import '../../features/transcript/subagents_provider.dart';
 import '../../features/transcript/workflows_provider.dart';
@@ -228,11 +230,12 @@ class _SessionWatcherItemState extends ConsumerState<_SessionWatcherItem> {
           if (reqId.isNotEmpty && !_handledUiRequestIds.contains(reqId)) {
             _handledUiRequestIds.add(reqId);
             final sessionName = ref.read(sessionDisplayNameProvider(widget.sessionId));
-            final title = req['title']?.toString() ?? 'Attenzione richiesta';
-            final message = req['message']?.toString() ?? 'L\'agente richiede una tua risposta o scelta.';
+            final strings = ref.read(appStringsProvider);
+            final title = req['title']?.toString() ?? strings.notifAttentionTitle;
+            final message = req['message']?.toString() ?? strings.notifAttentionBody;
             unawaited(
               service.showNotification(
-                title: 'Richiesta attenzione · $sessionName',
+                title: strings.notifAttentionNeeded(sessionName),
                 body: '$title: $message',
                 sessionId: widget.sessionId,
               ),
@@ -319,10 +322,15 @@ class _SessionWatcherItemState extends ConsumerState<_SessionWatcherItem> {
 
     if (!ref.read(notificationsEnabledProvider) || isFocused || !mounted) return;
     final sessionName = ref.read(sessionDisplayNameProvider(widget.sessionId));
+    final strings = ref.read(appStringsProvider);
     final rawText = answer.text.trim();
     final preview = rawText.length > 120 ? '${rawText.substring(0, 120)}...' : rawText;
     unawaited(
-      service.showNotification(title: 'Risposta completata · $sessionName', body: preview, sessionId: widget.sessionId),
+      service.showNotification(
+        title: strings.notifAnswerCompleted(sessionName),
+        body: preview,
+        sessionId: widget.sessionId,
+      ),
     );
   }
 }

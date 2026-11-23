@@ -71,7 +71,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Dialog Level 0 Overview
-    expect(find.text('Dettaglio costi sessione'), findsOneWidget);
+    expect(find.text('Session Cost Breakdown'), findsOneWidget);
     expect(find.byKey(const ValueKey('cost-breakdown-agent-row')), findsOneWidget);
 
     // Click on Agent cost row to open Level 1 (Agent Models)
@@ -79,8 +79,8 @@ void main() {
     await tester.pumpAndSettle();
 
     // Dialog Level 1: Agent Models
-    expect(find.text('Costi modelli agente'), findsOneWidget);
-    expect(find.text('Costo riportato da Pi'), findsOneWidget);
+    expect(find.text('Agent Model Costs'), findsOneWidget);
+    expect(find.text('Cost reported by Pi'), findsOneWidget);
 
     // Check all models and their costs
     expect(find.text('github-copilot/gpt-6.1-sol'), findsOneWidget);
@@ -166,7 +166,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('cost-breakdown-agent-row')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Costi modelli agente'), findsOneWidget);
+    expect(find.text('Agent Model Costs'), findsOneWidget);
     expect(find.text('model-a'), findsOneWidget);
     expect(find.text('\$0.0150'), findsOneWidget);
     expect(find.text('15.0k tokens'), findsOneWidget);

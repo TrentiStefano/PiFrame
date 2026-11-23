@@ -81,7 +81,7 @@ String abbreviateTarget(ToolExecutionState tool) {
 }
 
 /// Extracts title for thinking step (first non-empty line or ~80 chars).
-String thinkingTitle(String text, {int maxLength = 80, String defaultLabel = 'Ragionamento'}) {
+String thinkingTitle(String text, {int maxLength = 80, String defaultLabel = 'Reasoning'}) {
   final trimmed = text.trim();
   if (trimmed.isEmpty) return defaultLabel;
   final firstLine = trimmed.split('\n').first.trim();
@@ -385,10 +385,10 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
       return target.isNotEmpty ? '${step.toolName} $target' : step.toolName;
     }
     if (step is ThinkingStep) {
-      return thinkingTitle(step.text, defaultLabel: strings?.transcriptReasoning ?? 'Ragionamento');
+      return thinkingTitle(step.text, defaultLabel: strings?.transcriptReasoning ?? 'Reasoning');
     }
     if (step is IntermediateTextStep) {
-      return thinkingTitle(step.text, defaultLabel: strings?.transcriptReasoning ?? 'Ragionamento');
+      return thinkingTitle(step.text, defaultLabel: strings?.transcriptReasoning ?? 'Reasoning');
     }
     if (step is SubagentNotificationStep) {
       final data = TaskNotificationData.tryParse(step.entry.text);

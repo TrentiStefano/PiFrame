@@ -1326,7 +1326,7 @@ export class SessionIndex {
                 ) {
                   modelKey = 'Tools/summaries';
                 } else if (!modelKey) {
-                  modelKey = model || 'Modello Principale';
+                  modelKey = model || 'Main model';
                 }
                 if (!byModel[modelKey]) {
                   byModel[modelKey] = { tokens: { total: 0, input: 0, output: 0 } };

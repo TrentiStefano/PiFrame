@@ -28,7 +28,7 @@ class _ReviewFileDiffViewerState extends ConsumerState<ReviewFileDiffViewer> {
     try {
       return ref.watch(appStringsProvider);
     } catch (_) {
-      return const AppStrings(AppLanguage.it);
+      return const AppStrings(AppLanguage.defaultLanguage);
     }
   }
 

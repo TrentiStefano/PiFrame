@@ -78,8 +78,8 @@ void main() {
     await pumpPane(tester, selected: selected);
 
     expect(
-      tester.getSemantics(find.bySemanticsLabel('Rivedi modifiche')),
-      matchesSemantics(label: 'Rivedi modifiche', isButton: true, hasSelectedState: true, isSelected: true),
+      tester.getSemantics(find.bySemanticsLabel('Review Changes')),
+      matchesSemantics(label: 'Review Changes', isButton: true, hasSelectedState: true, isSelected: true),
     );
     expect(
       tester.getSemantics(find.bySemanticsLabel('File')),
@@ -151,11 +151,11 @@ void main() {
       await pumpPane(tester, selected: selected, width: width);
 
       // Every tab keeps its name for assistive tech, even when only its icon shows.
-      for (final label in ['File', 'Rivedi modifiche', 'Chat']) {
+      for (final label in ['File', 'Review Changes', 'Chat']) {
         expect(find.bySemanticsLabel(label), findsOneWidget);
       }
       // The active tab always shows its label; at 320 px the others are icon-only.
-      expect(find.text('RIVEDI MODIFICHE'), findsOneWidget);
+      expect(find.text('REVIEW CHANGES'), findsOneWidget);
       if (width < kCompanionTabLabelsMinWidth) {
         expect(find.text('File'), findsNothing);
         expect(find.text('Chat'), findsNothing);

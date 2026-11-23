@@ -1,5 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pi_frame/data/language/language_settings.dart';
 import 'package:pi_frame/domain/session/context_pricing_helper.dart';
+
+const it = AppStrings(AppLanguage.it);
+const en = AppStrings(AppLanguage.en);
 
 void main() {
   group('ContextPricingHelper', () {
@@ -80,11 +84,11 @@ void main() {
       expect(formatTokens(1000000), '1M');
       expect(formatTokens(500), '500');
 
-      expect(formatContextSize(32768, 200000), '32k (Tier base)');
-      expect(formatContextSize(200000, 200000), '200k (Max / Tier esteso)');
-      expect(formatContextSize(1048576, 2000000), '1M (Tier base)');
-      expect(formatContextSize(200000, 200000, italian: false), '200k (Max / extended tier)');
-      expect(formatContextSize(32768, 200000, italian: false), '32k (Base tier)');
+      expect(formatContextSize(32768, 200000, it), '32k (Tier base)');
+      expect(formatContextSize(200000, 200000, it), '200k (Max / Tier esteso)');
+      expect(formatContextSize(1048576, 2000000, it), '1M (Tier base)');
+      expect(formatContextSize(200000, 200000, en), '200k (Max / extended tier)');
+      expect(formatContextSize(32768, 200000, en), '32k (Base tier)');
     });
   });
 }

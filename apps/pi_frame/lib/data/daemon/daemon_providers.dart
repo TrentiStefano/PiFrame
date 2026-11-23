@@ -373,7 +373,7 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     state = state.copyWith(entries: entries, agentStatus: AgentStatus.working);
     try {
       final promptClient = client;
-      if (promptClient == null) throw StateError('Daemon non connesso');
+      if (promptClient == null) throw StateError('Daemon not connected');
       await promptClient.sendPrompt(sessionId, entry.text);
     } catch (error) {
       _markPromptFailed(
@@ -389,7 +389,7 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     final promptClient = client;
 
     if (streamingBehavior != null && promptClient == null) {
-      throw StateError('Daemon non connesso');
+      throw StateError('Daemon not connected');
     }
 
     final prevStatus = state.agentStatus;
@@ -404,7 +404,7 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
       state = state.copyWith(entries: [...state.entries, userEntry], agentStatus: AgentStatus.working);
     }
     try {
-      if (promptClient == null) throw StateError('Daemon non connesso');
+      if (promptClient == null) throw StateError('Daemon not connected');
       await promptClient.sendPrompt(sessionId, text, streamingBehavior: streamingBehavior);
     } catch (error) {
       if (mounted && optimisticId != null) {
@@ -424,7 +424,7 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
   /// rejecting the request while the agent streams.
   Future<void> runCommand(String command) async {
     final promptClient = client;
-    if (promptClient == null) throw StateError('Daemon non connesso');
+    if (promptClient == null) throw StateError('Daemon not connected');
     await promptClient.sendPrompt(sessionId, command, streamingBehavior: 'steer');
   }
 
@@ -525,12 +525,12 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
   }
 
   Future<void> piAuthLogin() async {
-    if (client == null) throw StateError('Daemon non connesso');
+    if (client == null) throw StateError('Daemon not connected');
     await client!.piAuthLogin(sessionId);
   }
 
   Future<void> piAuthLogout() async {
-    if (client == null) throw StateError('Daemon non connesso');
+    if (client == null) throw StateError('Daemon not connected');
     await client!.piAuthLogout(sessionId);
   }
 
@@ -578,7 +578,7 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
   }
 
   Future<void> setContextWindow(int? size) async {
-    if (client == null) throw StateError('Daemon non connesso');
+    if (client == null) throw StateError('Daemon not connected');
     if (size != null && size <= 0) {
       throw ArgumentError.value(size, 'size', 'Must be positive or null');
     }
@@ -598,7 +598,7 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
     if (!percent.isFinite || percent <= 0 || percent >= 100) {
       throw ArgumentError.value(percent, 'percent', 'Must be greater than 0 and less than 100');
     }
-    if (client == null) throw StateError('Daemon non connesso');
+    if (client == null) throw StateError('Daemon not connected');
     final result = await client!.setCompactionReservePercent(sessionId, percent);
     final data = result['data'] as Map<String, dynamic>? ?? result;
     final reserve = (data['compactionReservePercent'] as num?)?.toDouble() ?? percent;

@@ -53,11 +53,11 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('tree-menu-session')), findsOneWidget);
-    expect(find.text('Nuova sessione qui'), findsOneWidget);
+    expect(find.text('New session here'), findsOneWidget);
     expect(find.byKey(const ValueKey('tree-menu-copy')), findsOneWidget);
     // Folders get the folder variant of add-to-chat, never the file one.
     expect(find.byKey(const ValueKey('tree-menu-chat-folder')), findsOneWidget);
-    expect(find.text('Aggiungi cartella alla chat'), findsOneWidget);
+    expect(find.text('Add folder to chat'), findsOneWidget);
     expect(find.byKey(const ValueKey('tree-menu-chat')), findsNothing);
   });
 
@@ -93,6 +93,6 @@ void main() {
     await gesture.moveTo(tester.getCenter(find.text('app.dart')));
     await tester.pumpAndSettle();
     expect(opacity().opacity, 1);
-    expect(tester.widget<FrameIconAction>(action).tooltip, 'Aggiungi alla chat');
+    expect(tester.widget<FrameIconAction>(action).tooltip, 'Add to chat');
   });
 }

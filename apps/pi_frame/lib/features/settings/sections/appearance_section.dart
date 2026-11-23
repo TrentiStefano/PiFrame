@@ -479,9 +479,7 @@ class AppearanceSection extends ConsumerWidget {
                       ),
                       subtitle: Text(
                         stepGroupingSettings.mode == StepGroupingMode.full
-                            ? (strings.isItalian
-                                  ? 'Non applicabile in modalità Completo (tutte le risposte intermedie sono raggruppate nei passaggi).'
-                                  : 'Not applicable in Full mode (all intermediate answers are compacted into steps).')
+                            ? strings.stepGroupingIntermediateNotApplicable
                             : strings.stepGroupingShowIntermediateAnswersSubtitle,
                         style: text.caption.copyWith(color: tokens.textMuted),
                       ),

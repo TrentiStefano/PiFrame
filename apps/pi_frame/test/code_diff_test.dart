@@ -18,7 +18,7 @@ void main() {
     );
 
     expect(find.text('DART'), findsOneWidget);
-    expect(find.text('Copia'), findsOneWidget);
+    expect(find.text('Copy'), findsOneWidget);
     expect(find.byType(SelectableText), findsOneWidget);
   });
 
