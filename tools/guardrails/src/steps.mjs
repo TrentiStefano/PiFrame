@@ -25,6 +25,12 @@ const DOC_LINKS = {
   command: ['node', 'tools/scripts/check-doc-links.mjs']
 };
 /** @type {Step} */
+const AGENT_MAP_CHECK = {
+  job: 'node',
+  name: 'AGENTS.md map check (length, paths, scripts)',
+  command: ['node', 'tools/scripts/check-agent-map.mjs']
+};
+/** @type {Step} */
 const TS_BUILD = { job: 'node', name: 'Build TypeScript packages', command: ['pnpm', '-r', 'run', 'build'] };
 /** @type {Step} */
 const TS_LINT = { job: 'node', name: 'TypeScript lint (tsc --noEmit)', command: ['pnpm', '-r', 'run', 'lint'] };
@@ -45,6 +51,7 @@ const GATE = [
   },
   ESCAPE_HATCH_AUDIT,
   DOC_LINKS,
+  AGENT_MAP_CHECK,
   { job: 'node', name: 'Verify Pi target recon', command: ['node', 'tools/recon/verify.ts'] },
   { job: 'node', name: 'PCP schema validation', command: ['pnpm', '--filter', '@piframe/pcp-spec', 'run', 'test'] },
   TS_BUILD,
@@ -146,6 +153,8 @@ const CHECK = [
   ESCAPE_HATCH_AUDIT,
   // Also Node only and under a second: a moved or deleted doc must not leave a broken link.
   DOC_LINKS,
+  // Node only and under a second too: AGENTS.md stays short and names only paths and scripts that exist.
+  AGENT_MAP_CHECK,
   // agentd and e2e type-check against the other workspace packages' dist/*.d.ts, so they must be built first. The
   // build also refreshes the compiled TypeScript tests that `check` runs.
   TS_BUILD,

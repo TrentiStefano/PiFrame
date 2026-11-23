@@ -2,13 +2,14 @@
  * Approval status: decides whether a pull request changes a guardrail and, if so, whether a human approved it.
  *
  * A PR needs approval when it raises a number in the escape-hatch baseline (lowering is free) or changes a guarded
- * path (analyzer options, tsconfig, formatter/linter configs, guardrail tooling, workflows, the agent guards). It is
+ * path (analyzer options, tsconfig, formatter/linter configs, guardrail tooling, workflows, the agent guards, AGENTS.md). It is
  * approved only when the `human-approved` label is on the PR and was added after the latest push: an older label
  * is stale, because the human has not seen the newer commits.
  *
  * Pure: no I/O. tools/scripts/guardrails-approval.mjs (run by .github/workflows/guardrails-approval.yml) reads git
  * and GitHub and calls it. See docs/pr-verification.md.
  */
+import { AGENT_MAP_PATH } from './agent-map.mjs';
 import { BASELINE_PATH } from './escape-hatches.mjs';
 import { APPROVAL_LABEL } from './label.mjs';
 import { basename, SCRIPT_FILE, toPosix } from './paths.mjs';
@@ -58,6 +59,8 @@ function guardedKind(path) {
   // The `build`, `lint` and `test` scripts the gate runs, and the pinned Prettier version, live in package.json.
   if (name === 'package.json' && !path.split('/').includes('node_modules')) return 'package manifest';
   if (AGENT_GUARD_FILES.has(path) || AGENT_GUARD_DIRS.some((dir) => path.startsWith(dir))) return 'agent guard';
+  // The agents' rules and map (the agent map check keeps it short and correct, tools/guardrails/src/agent-map.mjs).
+  if (path === AGENT_MAP_PATH) return 'agent instructions';
   return undefined;
 }
 

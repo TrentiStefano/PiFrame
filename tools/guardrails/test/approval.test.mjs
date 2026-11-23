@@ -55,6 +55,9 @@ test('a change to a guarded path needs approval, whichever way it goes', () => {
     'apps/agentd/eslint.config.mjs',
     '.eslintrc.json',
     'tools/guardrails/src/escape-hatches.mjs',
+    'tools/guardrails/src/agent-map.mjs',
+    'tools/scripts/check-agent-map.mjs',
+    'AGENTS.md',
     'tools/scripts/format.mjs',
     'tools/scripts/flutter-projects.json',
     'tools/scripts/audit-escape-hatches.mjs',
@@ -211,6 +214,7 @@ test('ordinary paths that only look like guarded ones need no approval', () => {
     changedPaths: [
       'tools/scripts/smoke-real-pi.mjs',
       'docs/guardrails.md',
+      'apps/pi_frame/AGENTS.md',
       'apps/agentd/node_modules/foo/package.json',
       '.claude/skills/tdd/SKILL.md',
       'apps/pi_frame/lib/analysis_options_view.dart'

@@ -5,7 +5,7 @@
 ## Commands
 
 ```bash
-pnpm run check             # inner loop: escape-hatch audit, type checking, flutter analyze (+ the test files you pass)
+pnpm run check             # inner loop: escape-hatch audit, doc link and agent map checks, type checking, flutter analyze (+ the test files you pass)
 pnpm run verify            # CI checks + release validation
 pnpm run pr                # verify + push the branch + open the PR (gh pr create)
 ```
@@ -27,7 +27,7 @@ Options (they work for both commands; with `pnpm` they go after `--`):
 
 `pnpm run check` is the fast tier to run after every small change. It runs the `check` tier of the shared step list in the **current working tree**, uncommitted changes included: no `pnpm install`, no worktree, no merge with `origin/main`, no cache. It assumes `pnpm run setup` has been run once.
 
-1. the escape-hatch audit (see [below](#escape-hatch-ratchet)), then the doc link check (see [below](#doc-link-check))
+1. the escape-hatch audit (see [below](#escape-hatch-ratchet)), the doc link check (see [below](#doc-link-check)) and the agent map check (see [below](#agent-map-check))
 2. `pnpm -r run build` (agentd and the e2e tests type-check against the other packages' built `.d.ts`; a fresh or stale `dist/` would give false errors)
 3. `pnpm -r run lint` (`tsc --noEmit` for every TypeScript package)
 4. `node tools/scripts/sync-changelog.mjs` (what `pnpm run sync:changelog` runs): generates the in-app changelog, which the app's `pubspec.yaml` lists, so `flutter analyze` and the Flutter tests find it
@@ -42,16 +42,17 @@ Any other path fails before anything runs, with a message naming the supported k
 ```text
 # (each step's own output omitted)
 $ pnpm run check -- apps/pi_frame/test/changelog_test.dart apps/agentd/src/pi/test/PiEventAdapter.test.ts tools/guardrails/test/steps.test.mjs
-[1/9] Escape-hatch audit (baseline ratchet) ... ok (1.8s)
-[2/9] Doc links (relative links and anchors resolve) ... ok (0.3s)
-[3/9] Build TypeScript packages ... ok (9.4s)
-[4/9] TypeScript lint (tsc --noEmit) ... ok (4.8s)
-[5/9] Generate the in-app changelog ... ok (0.1s)
-[6/9] Flutter analyze (all projects) ... ok (30.4s)
-[7/9] Flutter test apps/pi_frame/test/changelog_test.dart ... ok (11.4s)
-[8/9] Node test apps/agentd/dist/pi/test/PiEventAdapter.test.js (compiled from apps/agentd/src/pi/test/PiEventAdapter.test.ts) ... ok (0.2s)
-[9/9] Node test tools/guardrails/test/steps.test.mjs ... ok (0.3s)
-✔ check: all 9 steps passed in 58.4s.
+[1/10] Escape-hatch audit (baseline ratchet) ... ok (1.8s)
+[2/10] Doc links (relative links and anchors resolve) ... ok (0.3s)
+[3/10] AGENTS.md map check (length, paths, scripts) ... ok (0.2s)
+[4/10] Build TypeScript packages ... ok (9.4s)
+[5/10] TypeScript lint (tsc --noEmit) ... ok (4.8s)
+[6/10] Generate the in-app changelog ... ok (0.1s)
+[7/10] Flutter analyze (all projects) ... ok (30.4s)
+[8/10] Flutter test apps/pi_frame/test/changelog_test.dart ... ok (11.4s)
+[9/10] Node test apps/agentd/dist/pi/test/PiEventAdapter.test.js (compiled from apps/agentd/src/pi/test/PiEventAdapter.test.ts) ... ok (0.2s)
+[10/10] Node test tools/guardrails/test/steps.test.mjs ... ok (0.3s)
+✔ check: all 10 steps passed in 58.6s.
 ```
 
 The `check` tier is local only: `ci.yml` follows the `ci` tier, so adding a step to `check` does not change the workflow. `check` passing does not mean "ready for a PR"; only `verify` does.
@@ -64,7 +65,7 @@ The steps come from one shared step list, `tools/guardrails/src/steps.mjs`. `ver
 
 1. `pnpm install --frozen-lockfile`
 2. TypeScript/Node formatting (Prettier `--check`)
-3. the escape-hatch audit (see [below](#escape-hatch-ratchet)), then the doc link check (see [below](#doc-link-check))
+3. the escape-hatch audit (see [below](#escape-hatch-ratchet)), the doc link check (see [below](#doc-link-check)) and the agent map check (see [below](#agent-map-check))
 4. `node tools/recon/verify.ts`
 5. PCP schema validation
 6. `pnpm -r run build` (including the daemon bundle build)
@@ -161,12 +162,22 @@ The logic is `auditEscapeHatches` in `tools/guardrails/src/escape-hatches.mjs` (
 
 The logic is `checkDocLinks` in `tools/guardrails/src/doc-links.mjs` (pure, tested with in-memory fixtures in `tools/guardrails/test/doc-links.test.mjs`); the script only lists the files and reads the Markdown ones. Both are guarded paths (see below).
 
+## Agent map check
+
+`node tools/scripts/check-agent-map.mjs` (in `check`, `verify` and CI) keeps `AGENTS.md` a short, correct map. It fails when the file:
+
+- is over 100 lines (the final newline does not count);
+- names a path that matches no file or folder in the repository (tracked plus untracked, not ignored). Paths are the tokens in inline code spans and fenced code blocks that contain a `/` or end in a file extension, plus relative link targets (anchors dropped). They are read from the repository root; a glob without a folder (`*_test.dart`) matches a file name anywhere. URLs, home (`~/`) and absolute paths, slash commands, flags, `<placeholders>` and `@scoped/packages` are not paths;
+- runs `pnpm run <script>` where the root `package.json` has no such script.
+
+Each message names the line, for example ``AGENTS.md:11 names `scratch/release_ui_screenshots/*.png`, which matches no tracked file or folder. Fix the path or remove the mention.`` The logic is `checkAgentMap` in `tools/guardrails/src/agent-map.mjs` (pure, tested with in-memory fixtures in `tools/guardrails/test/agent-map.test.mjs`); the script only reads `AGENTS.md`, `git ls-files` and the root `package.json`.
+
 ## Guardrail approval
 
 `.github/workflows/guardrails-approval.yml` runs on every pull-request event (`opened`, `synchronize`, `reopened`, `labeled`, `unlabeled`). It is a separate workflow, not a `ci.yml` job, because `ci.yml`'s jobs must equal the step list's `ci` tier. It fails while the PR changes a guardrail without a current `human-approved` label:
 
 - **A raised baseline number**: any count in `tools/guardrails/escape-hatch-baseline.json` that is higher on the PR head than at its merge base. Lowering is free.
-- **A guarded path changed**, in either direction: every `analysis_options.yaml`, `tsconfig*.json`, `.prettierrc.json` and `.prettierignore`, any ESLint config (`.eslintrc*`, `.eslintignore`, `eslint.config.*`), `tools/guardrails/**` (except the baseline file, see above), `tools/codegen/**`, **every script a gate step runs** (derived from the step list, all tiers: for example `tools/scripts/format.mjs`, `audit-escape-hatches.mjs`, `check-doc-links.mjs`, `lint-flutter.js`, `test-flutter.js`, `setup-flutter.js`, `check-version-sync.mjs`, `sync-changelog.mjs`, `tools/recon/verify.ts`, `tools/remote-e2e/remote-iphone-e2e.mjs`), the gate runners `tools/scripts/verify-ci.mjs` and `tools/scripts/check.mjs`, `tools/scripts/flutter-projects.json`, `tools/scripts/guardrails-approval.mjs`, every `package.json` (the root one and each workspace package's: the `build`, `lint` and `test` scripts and the Prettier pin live there) and `pnpm-workspace.yaml`, `.github/workflows/**`, and the agent guards: `.claude/settings.json`, `.claude/hooks/**`, `.pi/extensions/**`, `.codex/rules/**`.
+- **A guarded path changed**, in either direction: every `analysis_options.yaml`, `tsconfig*.json`, `.prettierrc.json` and `.prettierignore`, any ESLint config (`.eslintrc*`, `.eslintignore`, `eslint.config.*`), `tools/guardrails/**` (except the baseline file, see above), `tools/codegen/**`, **every script a gate step runs** (derived from the step list, all tiers: for example `tools/scripts/format.mjs`, `audit-escape-hatches.mjs`, `check-doc-links.mjs`, `check-agent-map.mjs`, `lint-flutter.js`, `test-flutter.js`, `setup-flutter.js`, `check-version-sync.mjs`, `sync-changelog.mjs`, `tools/recon/verify.ts`, `tools/remote-e2e/remote-iphone-e2e.mjs`), the gate runners `tools/scripts/verify-ci.mjs` and `tools/scripts/check.mjs`, `tools/scripts/flutter-projects.json`, `tools/scripts/guardrails-approval.mjs`, every `package.json` (the root one and each workspace package's: the `build`, `lint` and `test` scripts and the Prettier pin live there) and `pnpm-workspace.yaml`, `.github/workflows/**`, and the agent guards: `.claude/settings.json`, `.claude/hooks/**`, `.pi/extensions/**`, `.codex/rules/**`, and the agents' map `AGENTS.md`.
 
 When approval is needed, the job posts **one** comment (found again by a hidden `<!-- guardrails-approval -->` marker and edited, never duplicated) listing each reason, for example ``agentd lib `as any` 44 → 45`` or ``CI workflow changed: `.github/workflows/ci.yml` ``. To approve, review the PR and add the label in the GitHub UI: the `labeled` event re-runs the job, which turns green and updates the comment; no push is needed. A PR that needs nothing passes silently, without a comment (if an earlier commit needed approval and no longer does, the existing comment says so).
 
