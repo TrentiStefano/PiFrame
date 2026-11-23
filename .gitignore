@@ -164,10 +164,8 @@ Thumbs.db
 # Showcase recording masters (large; regenerate with tools/showcase/post.py)
 # ==============================================================================
 website/assets/showcase/*/master.mp4
-brag-output/work/
-
-# Promo masters (web versions live in website/assets/video/)
-brag-output/*.mp4
+# Launch-video output of the /brag skill, kept locally (web versions of the promo live in website/assets/video/)
+brag-output/
 
 # ==============================================================================
 # Generated in-app changelog (copy of the root CHANGELOG.md, written by tools/scripts/sync-changelog.mjs)
