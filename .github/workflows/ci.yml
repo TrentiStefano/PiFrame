@@ -45,6 +45,11 @@ jobs:
 
       - name: AGENTS.md map check (length, paths, scripts)
         run: node tools/scripts/check-agent-map.mjs
+      - name: DESIGN.md lint (@google/design.md)
+        run: node tools/scripts/lint-design.mjs
+
+      - name: DESIGN.md tokens match the theme
+        run: node tools/scripts/check-design-tokens.mjs
 
       - name: Verify Pi target recon
         run: node tools/recon/verify.ts

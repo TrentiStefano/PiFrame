@@ -11,6 +11,8 @@ test('verify runs the full gate in order, including codegen parity and an explic
     'node tools/scripts/audit-escape-hatches.mjs',
     'node tools/scripts/check-doc-links.mjs',
     'node tools/scripts/check-agent-map.mjs',
+    'node tools/scripts/lint-design.mjs',
+    'node tools/scripts/check-design-tokens.mjs',
     'node tools/recon/verify.ts',
     'pnpm --filter @piframe/pcp-spec run test',
     'pnpm -r run build',
@@ -89,11 +91,13 @@ test('a release build without a platform or version is refused instead of buildi
 const FLUTTER_PROJECTS = ['packages/pi_frame_protocol', 'packages/pi_frame_theme', 'apps/pi_frame'];
 const check = (tests = []) => stepList('check', { tests, flutterProjects: FLUTTER_PROJECTS });
 
-test('check is the inner loop: escape-hatch audit, doc link and agent map checks, build (for the workspace type declarations), type checking and flutter analyze', () => {
+test('check is the inner loop: escape-hatch audit, doc link, agent map and DESIGN.md checks, build (for the workspace type declarations), type checking and flutter analyze', () => {
   assert.deepEqual(commandLines(check()), [
     'node tools/scripts/audit-escape-hatches.mjs',
     'node tools/scripts/check-doc-links.mjs',
     'node tools/scripts/check-agent-map.mjs',
+    'node tools/scripts/lint-design.mjs',
+    'node tools/scripts/check-design-tokens.mjs',
     'pnpm -r run build',
     'pnpm -r run lint',
     // The app's pubspec lists the untracked in-app changelog: analyze and the Flutter tests both need it.
@@ -102,7 +106,7 @@ test('check is the inner loop: escape-hatch audit, doc link and agent map checks
   ]);
 });
 
-const ANALYSIS_STEPS = 7;
+const ANALYSIS_STEPS = 9;
 
 test('check never installs, creates a worktree or merges', () => {
   const steps = check(['apps/pi_frame/test/a_test.dart', 'tools/guardrails/test/steps.test.mjs']);

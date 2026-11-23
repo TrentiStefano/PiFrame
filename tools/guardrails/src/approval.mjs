@@ -2,7 +2,8 @@
  * Approval status: decides whether a pull request changes a guardrail and, if so, whether a human approved it.
  *
  * A PR needs approval when it raises a number in the escape-hatch baseline (lowering is free) or changes a guarded
- * path (analyzer options, tsconfig, formatter/linter configs, guardrail tooling, workflows, the agent guards, AGENTS.md). It is
+ * path (analyzer options, tsconfig, formatter/linter configs, guardrail tooling, workflows, the agent guards, AGENTS.md,
+ * DESIGN.md). It is
  * approved only when the `human-approved` label is on the PR and was added after the latest push: an older label
  * is stale, because the human has not seen the newer commits.
  *
@@ -54,6 +55,8 @@ function guardedKind(path) {
   if (name === '.prettierrc.json' || name === '.prettierignore') return 'formatter config';
   if (/^(\.eslintrc(\..+)?|\.eslintignore|eslint\.config\.[cm]?[jt]s)$/.test(name)) return 'linter config';
   if (path.startsWith('.github/workflows/')) return 'CI workflow';
+  // The design system the DESIGN.md lint and token match check; its linter wrapper is a gate script (below).
+  if (path === 'DESIGN.md') return 'design system';
   if (GATE_SCRIPTS.has(path)) return 'gate script';
   if (TOOLING_FILES.has(path) || TOOLING_DIRS.some((dir) => path.startsWith(dir))) return 'guardrail tooling';
   // The `build`, `lint` and `test` scripts the gate runs, and the pinned Prettier version, live in package.json.

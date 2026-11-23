@@ -6,3 +6,4 @@ export { guardCommand } from './guard-command.mjs';
 export { approvalStatus, APPROVAL_LABEL, APPROVAL_MARKER } from './approval.mjs';
 export { checkDocLinks, inDocLinkScope } from './doc-links.mjs';
 export { checkAgentMap, AGENT_MAP_PATH, AGENT_MAP_MAX_LINES } from './agent-map.mjs';
+export { designTokenMatch, motionTable, themeTokenSources } from './design-tokens.mjs';
