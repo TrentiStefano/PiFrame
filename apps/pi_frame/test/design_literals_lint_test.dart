@@ -2,7 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// Ratchet for design literals (DESIGN.md §07, plan task 2.5).
+/// Ratchet for design literals (root DESIGN.md, section "Do's and Don'ts", plan task 2.5).
 ///
 /// Each pattern has a baseline. The test fails when a count goes UP, so the
 /// number can only fall over time. When a migration lowers a count, lower the
@@ -57,7 +57,7 @@ const _baselines = <String, int>{
 typedef _Hit = ({String file, int line});
 
 void main() {
-  test('Design literal ratchet: counts may only go down (DESIGN.md §07)', () {
+  test("Design literal ratchet: counts may only go down (DESIGN.md Do's and Don'ts)", () {
     final libDir = Directory('lib');
     expect(libDir.existsSync(), isTrue, reason: 'lib directory must exist');
 

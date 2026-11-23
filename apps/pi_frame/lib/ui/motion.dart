@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
-/// Shared motion timings and curves (DESIGN.md §07 "Motion").
+/// Shared motion timings and curves (root DESIGN.md, section "Motion").
 ///
 /// Reduced motion is decided by `MediaQuery.disableAnimationsOf`. `PiFrameApp`
 /// sets that flag when the user enables "Reduce motion" in Appearance, so

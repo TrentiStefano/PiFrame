@@ -1,4 +1,4 @@
-/// Spacing scale in logical pixels (DESIGN.md §07).
+/// Spacing scale in logical pixels (root DESIGN.md, section "Layout").
 ///
 /// These values do not vary by theme, so they are plain constants.
 abstract final class FrameSpace {

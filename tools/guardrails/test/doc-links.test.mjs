@@ -107,7 +107,7 @@ test('docs, README files and the root agent context (AGENTS.md, GLOSSARY.md, DES
       doc('tools/harness/readme.md', broken),
       doc('docs/adr/0001-x.md', broken),
       doc('CHANGELOG.md', '## 1.5.1', broken),
-      doc('apps/pi_frame/DESIGN.md', broken),
+      doc('apps/pi_frame/NOTES.md', broken),
       doc('.claude/skills/tdd/SKILL.md', broken)
     ],
     trackedFiles: ['CHANGELOG.md']

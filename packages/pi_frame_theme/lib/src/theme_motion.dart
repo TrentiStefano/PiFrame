@@ -3,7 +3,7 @@ import 'package:flutter/animation.dart';
 /// Single source of truth for motion timings and curves.
 ///
 /// `FrameTokens` (theme defaults) and `FrameMotion` (app widgets) both read
-/// these constants, so the two cannot drift apart. DESIGN.md §07 "Motion".
+/// these constants, so the two cannot drift apart. Root DESIGN.md, section "Motion".
 abstract final class FrameMotionTokens {
   /// Zero-duration change, for transitions that must not animate.
   static const Duration instant = Duration.zero;

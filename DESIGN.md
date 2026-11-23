@@ -504,6 +504,21 @@ Appearance picks System, Light or Dark, and the title bar toggles between them; 
 The emotional target is "a tool that gets out of the way": the agent's work is the content, and the chrome stays quiet
 until something needs the user (a UI request, an error, a finished run).
 
+**Who it is for.** Pi users who work in a terminal coding harness and want a desktop or web window to manage
+sessions, follow the agent and review its changes; the design balances fast paths for frequent users with visible,
+labelled controls for occasional ones. Windows, macOS and the web build have equal priority (Linux builds too); iOS and
+Android apps are out of scope, and the web build on a phone is for remote access.
+
+**What the design must never break** (each has an ADR):
+
+- Pi owns session history: the app shows and drives sessions, but the session files stay Pi's (ADR 0021).
+- Agent work outlives the window: closing or losing the app never stops a run; reconnecting replays it (ADR 0006,
+  0008).
+- Everything stays local: the daemon listens on `127.0.0.1` with a token, and the app sends no telemetry (ADR 0011,
+  0016).
+- The layout is one window of related work areas tied to the active session (ADR 0022), in PiFrame's own two themes
+  and one surface grammar (ADR 0023).
+
 ## Colors
 
 Colour is semantic. Each token has one job, and the light and dark values are tuned separately for contrast instead of
@@ -519,7 +534,8 @@ of the light accent for tools that need one brand colour.
 - **Text** — `text-primary` for content, `text-secondary` for labels and metadata, `text-muted` for hints, timestamps
   and placeholders. Never use a fourth grey.
 - **Lines** — `border` for hairlines between rows and panes, `border-strong` for dividers that must read at a glance,
-  `input-border` for text field outlines, `focus-ring` for keyboard focus.
+  `input-border` for text field outlines, `focus-ring` for keyboard focus. `input-border` and `focus-ring` keep at
+  least 3:1 contrast against `surface` ([docs/theming.md](docs/theming.md)).
 - **Status** — `success`, `warning`, `danger`, `info` for general outcomes; the `agent-*` set for what the agent is
   doing (working, retrying, compacting, settled, awaiting user, error); `thinking` for reasoning. `signal-warning` and
   `signal-danger` are the same hues for small signals on the chassis.
@@ -538,7 +554,9 @@ Three families, bundled with the app, each with a fixed role:
 - **Schibsted Grotesk** (`SchibstedGrotesk`) for all UI text: the nine roles below.
 - **Barlow Condensed** (`BarlowCondensed`, `brand-heading`) only for the brand and pane headings: the session title,
   "Sessions", "Resume your work", "PiFrame Settings". Never for body text or buttons.
-- **Source Code Pro** (`SourceCodePro`) for code, diffs, paths, branch names, token counts and timers.
+- **Source Code Pro** (`SourceCodePro`) for code, diffs, paths, branch names, token counts and timers. File and
+  folder names in the repository tree are UI text in Schibsted Grotesk; only the full root path above the tree is
+  mono.
 
 | Role | Size / line height | Weight | Use |
 | --- | --- | --- | --- |
@@ -568,6 +586,16 @@ The window is one row of panes under a 40 px title bar ([welcome, dark](docs/des
 3. **Agents pane** — opens beside the chat pane when the session has subagents, workflows, a side conversation or
    tasks ([active run with subagents](docs/design/screens/run-active-agents-light.png)).
 
+The work panes adapt to the window width (ADR 0022):
+
+- **1440 px and wider** — every visible pane side by side.
+- **900 to 1439 px** — the chat pane plus one companion pane; the other companions become tabs in its header.
+- **Below 900 px** — one pane at a time, chosen from a Chat / Files / Git Changes selector, chat first; the sessions
+  rail is a drawer.
+
+Hiding or switching a pane keeps its state: scroll position, selected file and unsaved editor text. The repository
+and Git Changes panes always show the active session's working folder; selecting another session switches them too.
+
 Spacing uses a 4 px base: `x1` 4, `x2` 8, `x3` 12, `x4` 16, `x6` 24, `x8` 32, and `x12` 48 for the page gutter of
 wide layouts such as the welcome view. Lists use 28 px rows; form rows are 40 px; pane headers are 40 px. Content
 inside a pane starts 12–16 px from its edge. Wide reading content (settings, the welcome view) is centred in a column
@@ -581,8 +609,11 @@ PiFrame is flat. Hierarchy comes from tone and hairlines, not shadows:
   `surface` cards with a `border` outline; code blocks, menus and dialogs use `surface-elevated`.
 - Modal layers (command palette, dialogs) dim the window with the `overlay` scrim and sit centred above it
   ([command palette](docs/design/screens/command-palette-light.png)).
-- No drop shadows anywhere: the app draws none. Floating layers separate from the content by the scrim, their
-  surface-elevated fill and their order outline.
+- No drop shadows on panes, cards or dialogs. The exceptions in the app today: a small soft shadow under the menus
+  that float over the composer without a scrim (slash menu, `@` file menu, attachment preview), the one-shot glows of
+  the command chip and the chat drop target, and a faint shadow on the task notification card and the todo panel.
+  New UI does not add to this list. Floating layers separate from the content by the scrim, their
+  surface-elevated fill and their border outline.
 
 ## Shapes
 
@@ -626,6 +657,12 @@ Exits are faster than entrances. Pressed controls scale to 0.97; disabled contro
 animations" (Settings → Appearance, or the operating system setting) movement becomes a cross-fade of at most 150 ms
 and the three loops stop. Keyboard activation never waits for an animation.
 
+Motion may confirm a mode change that matters for safety. The command chip is the reference case: it pops in and
+fades a one-shot accent glow over `panel`, so the user sees that the input became a command; the slash menu fades
+and slides in over `small` and its highlight moves over `micro`. The startup overlay plays on the first run and,
+when "Startup animation" is on in Settings (off by default), on every launch; other launches use `launch-reveal`,
+which the first input finishes at once.
+
 ## Voice & Content Strategy
 
 - **Tone:** plain, precise, calm. Say what happened and what to do next; no exclamation marks, no jokes in errors.
@@ -661,10 +698,24 @@ paints, so the linter checks their contrast. Fill-only entries (`divider`, `inpu
 - **Messages** (`user-bubble`, `pane`) — user messages are filled `user-bubble` cards aligned right with a "You" label;
   assistant messages are outlined cards with an "Assistant" label and a duration chip. Markdown renders headings,
   lists, tables, quotes, links and code blocks with a language tag and Copy action.
+- **Command chip** (ADR 0025) — a Pi `/` command staged at the start of the composer instead of text: terminal
+  icon, mono `/name`, a small source label (`Pi`, `extension`, `prompt`, `skill`) and a close control; the field's
+  hint then names the arguments and "Enter runs /name". Its fill is an accent gradient (about 22% to 8%) with a 55%
+  accent border and primary text; while the command runs, a spinner replaces the icon. It pops in over `panel` with a
+  one-shot accent glow, and appears without motion under reduced motion. `ComposerCommandChip`.
+- **Slash menu** — opens on `/` at the start of an empty line, above the composer: rows with a terminal icon, mono
+  `/name` with its argument hint, the description and the source. The keyboard highlight is a 2 px accent bar plus
+  a light accent tint, never colour alone; ↑/↓ move it, Enter or Tab stages the chip, Escape closes the menu.
+  `SlashMenu`.
+- **Activity rows** (ADR 0024) — reasoning, tool calls and commands are compact borderless rows: an icon, the tool
+  and its mono target, then duration, status icon and expand chevron aligned on the right; expanding shows the
+  details.
 - **Step group** — a collapsible row "Completed 1 step in 7.0s" above the final answer; expanded, it lists reasoning
   and tool calls on an indented rail ([step group](docs/design/screens/step-group-dark.png)).
 - **Task notification card** — a bordered card with a "Subagent Notification" title, a COMPLETED status pill, metrics
   in mono and a collapsible "Operation result" ([task notifications](docs/design/screens/task-notifications-dark.png)).
+  A subagent's `<task-notification>` always renders as this card, also when its result contains a code fence; raw
+  notification XML never reaches the transcript.
 - **Status tags and pills** (`status-*`, `agent-*`) — a dot plus a label ("Completed", "Working", "In progress");
   pills in the session header for status, context use and cost.
 - **Lists** — 28 px rows with a leading icon, a title and secondary text; the selected row gets a `surface-elevated`
@@ -680,6 +731,29 @@ paints, so the linter checks their contrast. Fill-only entries (`divider`, `inpu
   ([repository editor](docs/design/screens/repository-editor-light.png)).
 - **Inputs** (`input-outline`) — 1 px `input-border` outline, `sm` corners, placeholder in `text-muted`, a leading
   search icon for search fields (`FrameSearchField`).
+- **Sessions rail** — sessions grouped by repository (or folder), each group with "New session in this folder";
+  pinned sessions on top; subagent `worker#` sessions are hidden. A working session shows a small spinner; an idle one
+  with activity the user has not opened shows an accent dot.
+
+Shared widgets in `apps/pi_frame/lib/ui/` to reuse before writing a new one:
+
+- `FrameDialog` — dialog shell with cancel, primary and destructive actions; the body scrolls past 80% of the window
+  height.
+- `FrameCallout` and `FrameErrorCallout` — inline notices (info, warning, danger); the error callout adds a retry
+  action when the error is retryable and a collapsed details toggle for the raw text.
+- `FrameEmptyState` — centred icon, title, message and one action.
+- `FrameListRow` — compact selectable row, at least 28 px, with actions revealed on hover or focus that stay in the
+  tab order.
+- `FrameMiddleEllipsis` — truncates a path in the middle so the file name stays visible.
+- `FrameSnackBar` — notice at the bottom right, 280 to 460 px wide; activating it dismisses it.
+- `FrameStatusTag` — coloured dot plus label, no background or border.
+- `FrameActivityIndicator` and `FrameLinearProgress` — every spinner and progress bar; under reduced motion they
+  become a static glyph or a static bar.
+- `FrameFocusRing`, `FrameIconAction`, `FramePaneHeader`, `FrameSearchField`, `FrameSection` — see above.
+- `PressFeedback` — the 0.97 pointer press scale, applied at each filled or outlined button call site.
+- `EscapeLayers` — the registry that makes Escape close the topmost layer.
+- `FrameEnter`, `FrameExpandable`, `FrameSwitcher` (`motion.dart`) — enter, expand/collapse and keyed swaps with the
+  motion tokens.
 
 ## Do's and Don'ts
 
@@ -703,9 +777,17 @@ paints, so the linter checks their contrast. Fill-only entries (`divider`, `inpu
 - **Sending:** Ctrl/Cmd+Enter sends by default; "Send with Enter" in Settings swaps Enter and Shift+Enter.
 - **During a run** the user can keep typing: a message sent as a **steer** redirects the agent now, a **follow-up**
   waits for the run to end; both sit in the steer queue, where they can be edited or removed. Stop ends the run.
+- **Commands are not text.** A Pi `/` command is staged as a command chip and runs on Enter; Backspace at the start
+  of the empty field or the chip's close control removes it. Text with a `/` and no chip is always a message
+  (ADR 0025).
 - **UI requests** from extensions appear in place of the composer and are answered once for every client.
 - **The agent never acts on the workspace silently:** file changes appear in Git Changes and "Review changes (n)"
   before the user commits.
+- **Every write names its target and can be stopped.** Closing an editor or switching session with unsaved text asks
+  Save, Don't save or Cancel; a file changed on disk keeps the local text and offers Keep changes, Reload from disk or
+  Overwrite explicitly; discarding a Git change opens a confirmation that names the file, repository and branch,
+  shows its diff and uses a destructive button. Repository writes are disabled for read-only sessions and while the
+  agent works.
 - **Read-only sessions** (open in a Pi terminal) can be read but not driven; the composer is disabled and shows why.
 - Pointer feedback is immediate (hover tint, 0.97 press scale) and never delays keyboard activation.
 
@@ -738,17 +820,24 @@ capture of the state.
 | Error | The failing item outlined in `danger`, the provider's message, a retry action | [send failed](docs/design/screens/send-failed-dark.png) |
 | Subagents | Agents pane with each agent's status; task notification cards in the transcript | [task notifications](docs/design/screens/task-notifications-dark.png) |
 | Changes to review | "Review changes (n)" in the composer, Git Changes counts, the diff in place | [review](docs/design/screens/review-diff-dark.png) |
+| After compaction | The context pill shows Pi's estimate of the tokens left, or "post-compaction" until Pi reports real use; never the pre-compaction total | — |
+| Composer with a command | The command chip, argument hint "Enter runs /name"; on failure the chip stays and a notice shows the error | — |
 | Disabled | Lower-contrast text, no hover or press feedback, a tooltip that says why | [commit button](docs/design/screens/workspace-chat-light.png) |
 
 ## Anti-slop gate
 
 A UI change is rejected if it adds any of these, however good it looks in isolation:
 
-- Gradients, glows, glassmorphism, drop shadows, or decorative illustrations.
+- Gradients, glows, glassmorphism, drop shadows, or decorative illustrations. The gradients the app has are
+  functional and listed here: the command chip fill, the composer's shimmer border and the step-group shimmer
+  (both tied to a running agent), the fade at the edges of the scrolling Settings tabs, and the startup overlay; the
+  shadows are listed under Elevation & Depth.
 - A new colour, font, radius, spacing or duration that is not a token in this file.
 - Emoji or marketing copy in the UI; exclamation marks; "Oops"-style errors.
 - Generic placeholder content ("Lorem ipsum", fake metrics, invented users) in screens, docs or screenshots.
 - Mocked or hand-drawn screenshots of PiFrame: only real captures from the app (UI harness) are allowed.
+- The "AI-generated" triple tint: a fill, a lighter outline and text all in the same hue on one box (ADR 0024).
+- Copied product chrome: another IDE's logo, icons or exact components.
 - Animation that loops or moves without a user action or an agent state behind it.
 - Centred hero layouts, cards inside cards inside cards, or pills for things that are not statuses.
 - A control without a keyboard path, an accessible name or a 28 px target.
