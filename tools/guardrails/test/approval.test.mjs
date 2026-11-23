@@ -61,6 +61,8 @@ test('a change to a guarded path needs approval, whichever way it goes', () => {
     'tools/scripts/format.mjs',
     'tools/scripts/flutter-projects.json',
     'tools/scripts/audit-escape-hatches.mjs',
+    'tools/scripts/check-doc-links.mjs',
+    'tools/guardrails/src/doc-links.mjs',
     'tools/scripts/guardrails-approval.mjs',
     '.github/workflows/ci.yml',
     '.claude/settings.json',

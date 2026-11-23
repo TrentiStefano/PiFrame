@@ -576,3 +576,7 @@ Coding agents working on this repository (Claude Code, pi, Codex) cannot apply t
 ## 34. Human approval for guardrail changes (development)
 
 Pull requests that raise an escape-hatch baseline number or change a guardrail (analyzer options, `tsconfig*.json`, Prettier/ESLint configs, `tools/guardrails`, `tools/codegen`, every script a gate step runs plus the gate runners `verify-ci.mjs` and `check.mjs`, every `package.json` and `pnpm-workspace.yaml`, workflows, the agent guards) fail the `Guardrail approval` check until the maintainer adds the `human-approved` label in the GitHub UI. The check posts one comment listing exactly what needs approval, re-runs when the label is added, and treats a label added before the latest push as stale (it removes it, so approving again is one click). Lowering a baseline number never needs approval, and PRs that need nothing pass silently. Details: [`docs/pr-verification.md`](pr-verification.md#guardrail-approval).
+
+## 35. Doc link check (development)
+
+`pnpm run check`, `pnpm run verify` and CI check every relative link in `docs/`, the README files and `AGENTS.md` (Markdown links, reference definitions and HTML `src`/`href`): the target must be a tracked file or folder and, for a link to a Markdown heading, the anchor must exist. External URLs and links inside code are ignored. A broken link fails with the file, the line, the missing target and how to fix it, so moving or deleting a document cannot leave a stale reference. Details: [`docs/pr-verification.md`](pr-verification.md#doc-link-check).
