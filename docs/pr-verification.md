@@ -122,6 +122,16 @@ A passing result is valid for the same content (tree hash), the same base (`orig
 - Some tests regenerate tracked screenshots (`docs/design-evidence`, `website/assets`). This is not an error, but if you see them changed in your tree after running tests by hand, **do not commit them** (`git checkout -- docs/design-evidence website/assets`). `verify` works in a throw-away worktree, so it does not leave them behind.
 - It is a local check and can be bypassed. It does not replace the GitHub workflows; it protects them from avoidable failures.
 
+## Build and release problems
+
+- **`EBUSY: resource busy or locked, symlink` on Windows** (`pnpm install` or `pnpm build:all`, often followed by `'tsc' is not recognized`): a running PiFrame, daemon or terminal holds the package folders. Stop them (`Stop-Process -Name "pi-agentd","PiFrame" -ErrorAction SilentlyContinue`) and run `pnpm install` again.
+- **`pnpm run package:windows` cannot copy `node.exe` or `PiFrame.exe`**: a PiFrame or daemon started from `apps/pi_frame/build/windows/x64/runner/Release/` still runs. The script stops processes inside that folder and retries; close any it misses. After a successful Flutter build, repackage without rebuilding: `powershell -ExecutionPolicy Bypass -File tools/scripts/package-windows-installer.ps1 -SkipBuild`.
+- **Linux build: `webkit2gtk-4.1` or `libnotify` not found**: install the development packages, `sudo apt-get install libwebkit2gtk-4.1-dev libnotify-dev`. The release workflow does the same.
+- **Web build: `Dart library 'dart:ffi' is not available on this platform`**: code that uses `dart:ffi` is reachable from `main.dart` without a conditional import (`stub.dart if (dart.library.ffi) 'real.dart'`). `web_ffi_import_test.dart` catches it; `--release` runs the web build itself.
+- **GitHub Pages returns 404**: in **Repository Settings → Pages**, set **Build and deployment → Source** to **GitHub Actions**.
+- **Rebuilding an old release**: **Actions → Release → Run workflow** with an older tag uses the current workflow but that tag's packaging scripts, so packaging fixes made later are not in the rebuilt installers. Cut a new release instead.
+- **Context-limit smoke test**: after building the daemon, `node tools/scripts/smoke-context-policy.mjs` runs real Pi against a local HTTP model in temporary folders, with no calls to paid providers.
+
 ## Example
 
 ```text
