@@ -105,10 +105,13 @@ function resolve(from, target) {
   return parts.join('/');
 }
 
-/** The files whose links are checked: every Markdown file under docs/, every README.md and AGENTS.md. */
+/** The root files agents read as context; their links are checked like the docs. */
+const ROOT_AGENT_CONTEXT = new Set(['AGENTS.md', 'GLOSSARY.md', 'DESIGN.md']);
+
+/** The files whose links are checked: every Markdown file under docs/, every README.md and the root agent context. */
 export function inDocLinkScope(path) {
   const p = toPosix(path);
-  return (p.startsWith('docs/') && MARKDOWN.test(p)) || /(^|\/)readme\.md$/i.test(p) || p === 'AGENTS.md';
+  return (p.startsWith('docs/') && MARKDOWN.test(p)) || /(^|\/)readme\.md$/i.test(p) || ROOT_AGENT_CONTEXT.has(p);
 }
 
 /**

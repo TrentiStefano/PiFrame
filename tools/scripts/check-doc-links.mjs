@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * The doc link check (`check`, `verify` and CI run it). Reads the tracked files and fails on any broken relative
- * link (missing file or heading anchor) in docs/, the README files and AGENTS.md.
+ * link (missing file or heading anchor) in docs/, the README files and the root agent context (AGENTS.md, GLOSSARY.md, DESIGN.md).
  * The decision logic lives in tools/guardrails/src/doc-links.mjs. See docs/pr-verification.md.
  *
  *   node tools/scripts/check-doc-links.mjs
@@ -33,7 +33,9 @@ const files = trackedFiles
 
 const { ok, broken } = checkDocLinks({ files, trackedFiles });
 if (ok) {
-  console.log('✔ doc link check: every relative link in docs/, the README files and AGENTS.md resolves.');
+  console.log(
+    '✔ doc link check: every relative link in docs/, the README files and the root agent context (AGENTS.md, GLOSSARY.md, DESIGN.md) resolves.'
+  );
 } else {
   console.error(`\n✖ doc link check: ${broken.length} broken link(s):\n`);
   for (const b of broken) console.error(`- ${b.message}\n`);

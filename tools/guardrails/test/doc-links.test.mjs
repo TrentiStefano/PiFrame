@@ -95,11 +95,13 @@ test('links to existing headings pass, with GitHub anchors (punctuation, code, d
   assert.equal(notAHeading.ok, false);
 });
 
-test('only docs, README files and AGENTS.md are checked; other Markdown files only provide headings to link to', () => {
+test('docs, README files and the root agent context (AGENTS.md, GLOSSARY.md, DESIGN.md) are checked; other Markdown files only provide headings', () => {
   const broken = '[x](gone.md)';
   const result = checkDocLinks({
     files: [
       doc('AGENTS.md', broken),
+      doc('GLOSSARY.md', broken),
+      doc('DESIGN.md', broken),
       doc('README.md', broken, '[log](CHANGELOG.md#151)'),
       doc('apps/pi_frame/README.md', broken),
       doc('tools/harness/readme.md', broken),
@@ -112,6 +114,8 @@ test('only docs, README files and AGENTS.md are checked; other Markdown files on
   });
   assert.deepEqual(result.broken.map((b) => b.file).sort(), [
     'AGENTS.md',
+    'DESIGN.md',
+    'GLOSSARY.md',
     'README.md',
     'apps/pi_frame/README.md',
     'docs/adr/0001-x.md',
