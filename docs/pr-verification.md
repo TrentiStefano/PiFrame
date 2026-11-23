@@ -27,7 +27,7 @@ Options (they work for both commands; with `pnpm` they go after `--`):
 
 `pnpm run check` is the fast tier to run after every small change. It runs the `check` tier of the shared step list in the **current working tree**, uncommitted changes included: no `pnpm install`, no worktree, no merge with `origin/main`, no cache. It assumes `pnpm run setup` has been run once.
 
-1. the escape-hatch audit (see [below](#escape-hatch-ratchet))
+1. the escape-hatch audit (see [below](#escape-hatch-ratchet)), then the doc link check (see [below](#doc-link-check))
 2. `pnpm -r run build` (agentd and the e2e tests type-check against the other packages' built `.d.ts`; a fresh or stale `dist/` would give false errors)
 3. `pnpm -r run lint` (`tsc --noEmit` for every TypeScript package)
 4. `node tools/scripts/sync-changelog.mjs` (what `pnpm run sync:changelog` runs): generates the in-app changelog, which the app's `pubspec.yaml` lists, so `flutter analyze` and the Flutter tests find it
@@ -42,15 +42,16 @@ Any other path fails before anything runs, with a message naming the supported k
 ```text
 # (each step's own output omitted)
 $ pnpm run check -- apps/pi_frame/test/changelog_test.dart apps/agentd/src/pi/test/PiEventAdapter.test.ts tools/guardrails/test/steps.test.mjs
-[1/8] Escape-hatch audit (baseline ratchet) ... ok (1.8s)
-[2/8] Build TypeScript packages ... ok (9.4s)
-[3/8] TypeScript lint (tsc --noEmit) ... ok (4.8s)
-[4/8] Generate the in-app changelog ... ok (0.1s)
-[5/8] Flutter analyze (all projects) ... ok (30.4s)
-[6/8] Flutter test apps/pi_frame/test/changelog_test.dart ... ok (11.4s)
-[7/8] Node test apps/agentd/dist/pi/test/PiEventAdapter.test.js (compiled from apps/agentd/src/pi/test/PiEventAdapter.test.ts) ... ok (0.2s)
-[8/8] Node test tools/guardrails/test/steps.test.mjs ... ok (0.3s)
-✔ check: all 8 steps passed in 58.4s.
+[1/9] Escape-hatch audit (baseline ratchet) ... ok (1.8s)
+[2/9] Doc links (relative links and anchors resolve) ... ok (0.3s)
+[3/9] Build TypeScript packages ... ok (9.4s)
+[4/9] TypeScript lint (tsc --noEmit) ... ok (4.8s)
+[5/9] Generate the in-app changelog ... ok (0.1s)
+[6/9] Flutter analyze (all projects) ... ok (30.4s)
+[7/9] Flutter test apps/pi_frame/test/changelog_test.dart ... ok (11.4s)
+[8/9] Node test apps/agentd/dist/pi/test/PiEventAdapter.test.js (compiled from apps/agentd/src/pi/test/PiEventAdapter.test.ts) ... ok (0.2s)
+[9/9] Node test tools/guardrails/test/steps.test.mjs ... ok (0.3s)
+✔ check: all 9 steps passed in 58.4s.
 ```
 
 The `check` tier is local only: `ci.yml` follows the `ci` tier, so adding a step to `check` does not change the workflow. `check` passing does not mean "ready for a PR"; only `verify` does.
@@ -63,7 +64,7 @@ The steps come from one shared step list, `tools/guardrails/src/steps.mjs`. `ver
 
 1. `pnpm install --frozen-lockfile`
 2. TypeScript/Node formatting (Prettier `--check`)
-3. the escape-hatch audit (see [below](#escape-hatch-ratchet))
+3. the escape-hatch audit (see [below](#escape-hatch-ratchet)), then the doc link check (see [below](#doc-link-check))
 4. `node tools/recon/verify.ts`
 5. PCP schema validation
 6. `pnpm -r run build` (including the daemon bundle build)
@@ -143,12 +144,29 @@ Merged origin/main (2 commit(s)) into the verification worktree.
 
 The logic is `auditEscapeHatches` in `tools/guardrails/src/escape-hatches.mjs` (pure, tested with in-memory fixtures in `tools/guardrails/test/escape-hatches.test.mjs`); the script only reads the files (tracked plus untracked, not ignored, as they are on disk) and the baseline.
 
+## Doc link check
+
+`node tools/scripts/check-doc-links.mjs` (in `check`, `verify` and CI) fails on any broken relative link in every Markdown file under `docs/`, every `README.md` and `AGENTS.md`, so moving or deleting a document cannot leave a stale reference.
+
+- **Links.** Inline Markdown links and images (`[text](target)`, `![alt](target)`, `<target>` and titles allowed), reference definitions (`[label]: target`) and HTML `src`/`href` attributes. A target is resolved against the linking file's folder (`/...` against the repository root) and must be a tracked file or folder (untracked, not ignored files on disk count too, as for the escape-hatch audit).
+- **Anchors.** A `#heading` on a Markdown file (or a bare `#heading` in the same file) must match one of its headings, slugged as GitHub does (lower case, punctuation dropped, spaces as hyphens, duplicates as `-1`, `-2`), or an explicit `id`/`name` attribute. Any Markdown file in the repository can be linked to, `CHANGELOG.md` included. Anchors on other files (`foo.dart#L10`) are not checked.
+- **Ignored.** External URLs (anything with a scheme, `https:`, `mailto:`, ..., or `//host`), fenced code blocks and inline code spans, so examples are not reported.
+- **A link is broken**: the message names the file and line, the target and what is missing, and how to fix it; for a missing anchor it lists the anchors the target file has.
+
+```text
+✖ doc link check: 1 broken link(s):
+
+- docs/install.md:60: the link "troubleshooting-gone.md" points at docs/troubleshooting-gone.md, which is not a tracked file or folder. To fix it, point the link at where that file is now (relative to the linking file), or remove the link if the file was deleted.
+```
+
+The logic is `checkDocLinks` in `tools/guardrails/src/doc-links.mjs` (pure, tested with in-memory fixtures in `tools/guardrails/test/doc-links.test.mjs`); the script only lists the files and reads the Markdown ones. Both are guarded paths (see below).
+
 ## Guardrail approval
 
 `.github/workflows/guardrails-approval.yml` runs on every pull-request event (`opened`, `synchronize`, `reopened`, `labeled`, `unlabeled`). It is a separate workflow, not a `ci.yml` job, because `ci.yml`'s jobs must equal the step list's `ci` tier. It fails while the PR changes a guardrail without a current `human-approved` label:
 
 - **A raised baseline number**: any count in `tools/guardrails/escape-hatch-baseline.json` that is higher on the PR head than at its merge base. Lowering is free.
-- **A guarded path changed**, in either direction: every `analysis_options.yaml`, `tsconfig*.json`, `.prettierrc.json` and `.prettierignore`, any ESLint config (`.eslintrc*`, `.eslintignore`, `eslint.config.*`), `tools/guardrails/**` (except the baseline file, see above), `tools/codegen/**`, **every script a gate step runs** (derived from the step list, all tiers: for example `tools/scripts/format.mjs`, `audit-escape-hatches.mjs`, `lint-flutter.js`, `test-flutter.js`, `setup-flutter.js`, `check-version-sync.mjs`, `sync-changelog.mjs`, `tools/recon/verify.ts`, `tools/remote-e2e/remote-iphone-e2e.mjs`), the gate runners `tools/scripts/verify-ci.mjs` and `tools/scripts/check.mjs`, `tools/scripts/flutter-projects.json`, `tools/scripts/guardrails-approval.mjs`, every `package.json` (the root one and each workspace package's: the `build`, `lint` and `test` scripts and the Prettier pin live there) and `pnpm-workspace.yaml`, `.github/workflows/**`, and the agent guards: `.claude/settings.json`, `.claude/hooks/**`, `.pi/extensions/**`, `.codex/rules/**`.
+- **A guarded path changed**, in either direction: every `analysis_options.yaml`, `tsconfig*.json`, `.prettierrc.json` and `.prettierignore`, any ESLint config (`.eslintrc*`, `.eslintignore`, `eslint.config.*`), `tools/guardrails/**` (except the baseline file, see above), `tools/codegen/**`, **every script a gate step runs** (derived from the step list, all tiers: for example `tools/scripts/format.mjs`, `audit-escape-hatches.mjs`, `check-doc-links.mjs`, `lint-flutter.js`, `test-flutter.js`, `setup-flutter.js`, `check-version-sync.mjs`, `sync-changelog.mjs`, `tools/recon/verify.ts`, `tools/remote-e2e/remote-iphone-e2e.mjs`), the gate runners `tools/scripts/verify-ci.mjs` and `tools/scripts/check.mjs`, `tools/scripts/flutter-projects.json`, `tools/scripts/guardrails-approval.mjs`, every `package.json` (the root one and each workspace package's: the `build`, `lint` and `test` scripts and the Prettier pin live there) and `pnpm-workspace.yaml`, `.github/workflows/**`, and the agent guards: `.claude/settings.json`, `.claude/hooks/**`, `.pi/extensions/**`, `.codex/rules/**`.
 
 When approval is needed, the job posts **one** comment (found again by a hidden `<!-- guardrails-approval -->` marker and edited, never duplicated) listing each reason, for example ``agentd lib `as any` 44 → 45`` or ``CI workflow changed: `.github/workflows/ci.yml` ``. To approve, review the PR and add the label in the GitHub UI: the `labeled` event re-runs the job, which turns green and updates the comment; no push is needed. A PR that needs nothing passes silently, without a comment (if an earlier commit needed approval and no longer does, the existing comment says so).
 
