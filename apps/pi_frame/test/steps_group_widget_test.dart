@@ -744,5 +744,69 @@ void main() {
 
       expect(find.textContaining('fix_linter...'), findsOneWidget);
     });
+
+    // One turn can hold several compact step groups (with intermediate answers
+    // between them). Their open state was stored per turn, so opening one
+    // opened every group of that turn.
+    testWidgets('12. step groups of the same turn expand independently', (tester) async {
+      const sid = 'session_grouping_12';
+      StepsGroupBlock block(String groupId, String toolId) => StepsGroupBlock(
+        groupId: groupId,
+        turnId: 'turn_12',
+        steps: [
+          ToolStep(
+            id: toolId,
+            tool: ToolExecutionState(
+              toolCallId: toolId,
+              toolName: 'read',
+              args: {'path': 'lib/$toolId.dart'},
+              output: 'ok',
+              isRunning: false,
+              durationMs: 10,
+            ),
+          ),
+        ],
+        isRunning: false,
+        hasError: false,
+        aborted: false,
+        stepCount: 1,
+      );
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          child: SingleChildScrollView(
+            child: Column(
+              children: [
+                StepsGroup(block: block('steps_turn_12_a', 'tool_a'), sessionId: sid, tokens: FrameTokens.dark),
+                StepsGroup(block: block('steps_turn_12_b', 'tool_b'), sessionId: sid, tokens: FrameTokens.dark),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('tool_step_header_tool_a')), findsNothing);
+      expect(find.byKey(const ValueKey('tool_step_header_tool_b')), findsNothing);
+
+      await tester.tap(find.byKey(const ValueKey('step_group_header_steps_turn_12_a')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('tool_step_header_tool_a')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('tool_step_header_tool_b')),
+        findsNothing,
+        reason: 'the other group stays closed',
+      );
+
+      await tester.tap(find.byKey(const ValueKey('step_group_header_steps_turn_12_b')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('step_group_header_steps_turn_12_a')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('tool_step_header_tool_a')), findsNothing);
+      expect(
+        find.byKey(const ValueKey('tool_step_header_tool_b')),
+        findsOneWidget,
+        reason: 'closing one leaves the other open',
+      );
+    });
   });
 }

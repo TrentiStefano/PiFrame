@@ -284,6 +284,53 @@ void main() {
       }
     });
   }
+
+  // Panes already open that widen while another collapses used to be faded
+  // out like entering panes for 60 % of the transition, so they vanished for
+  // a moment (flicker).
+  testWidgets('panes that widen while another collapses stay fully visible', (tester) async {
+    tester.view.physicalSize = const Size(1920, 1080);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+
+    final container = ProviderContainer(
+      overrides: [
+        desktopWindowLifecycleProvider.overrideWithValue(false),
+        desktopChromeProvider.overrideWithValue(false),
+        activeSessionIdProvider.overrideWith((ref) => 'session_1'),
+        connectionStateProvider.overrideWith((ref) => Stream.value(DaemonConnectionState.connected)),
+        sessionStateFamily('session_1').overrideWith(
+          (ref) =>
+              SessionStateNotifier('session_1', null)
+                ..state = const SessionState(sessionId: 'session_1', cwd: 'C:/repo'),
+        ),
+        repositoryStateProvider('session_1').overrideWith((ref) => RepositoryController('session_1', () => null)),
+      ],
+    );
+    addTearDown(container.dispose);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: AppShell()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final git = find.byKey(const ValueKey('git_session_1'));
+    expect(git, findsOneWidget);
+    final gitBefore = tester.getSize(git).width;
+
+    await tester.tap(find.byTooltip('Collassa pannello repository'));
+    for (final ms in [30, 30, 60, 60]) {
+      await tester.pump(Duration(milliseconds: ms));
+      final opacities = tester.widgetList<Opacity>(find.ancestor(of: git, matching: find.byType(Opacity)));
+      for (final opacity in opacities) {
+        expect(opacity.opacity, 1.0, reason: 'Git Changes faded out while widening');
+      }
+    }
+    await tester.pumpAndSettle();
+    expect(tester.getSize(git).width, greaterThan(gitBefore), reason: 'Git Changes widened into the freed space');
+  });
 }
 
 class _FixedSubagents extends SubagentsNotifier {

@@ -162,4 +162,63 @@ void main() {
     expect(tester.getTopLeft(anchor).dy, closeTo(before, 0.01));
     expect(scrollController.offset, closeTo(beforeOffset, 0.01));
   });
+
+  // While the agent streams the first answer of a turn the prompt is still the
+  // last committed entry. Re-enabling auto-follow on every such rebuild pulled
+  // a user who had scrolled up back to the bottom on each streaming update.
+  testWidgets('scrolling up while the agent streams its first answer stays where the user left it', (tester) async {
+    tester.view.physicalSize = const Size(1200, 760);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    const sid = 'read-while-streaming';
+    final entries = [
+      for (int i = 0; i < 12; i++) ...[
+        SessionEntry(id: 'u$i', role: 'user', text: 'Question $i', timestamp: i * 10),
+        SessionEntry(
+          id: 'a$i',
+          role: 'assistant',
+          text: List.filled(8, 'Earlier answer line $i').join('\n'),
+          timestamp: i * 10 + 5,
+        ),
+      ],
+      const SessionEntry(id: 'u_now', role: 'user', text: 'New question', timestamp: 500),
+    ];
+    final notifier = SessionStateNotifier(sid, null)
+      ..state = SessionState(sessionId: sid, cwd: '/repo', entries: entries, agentStatus: AgentStatus.working);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          daemonEndpointProvider.overrideWith((ref) async => null),
+          sessionStateFamily(sid).overrideWith((ref) => notifier),
+          stepGroupingSettingsProvider.overrideWith(
+            (ref) => StepGroupingSettingsNotifier()..setMode(StepGroupingMode.off),
+          ),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+          home: const Scaffold(body: TranscriptView(sessionId: sid)),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final scrollView = find.byKey(const ValueKey('transcript-scroll'));
+    final controller = tester.widget<ListView>(scrollView).controller!;
+    final atBottom = controller.offset;
+    await tester.drag(scrollView, const Offset(0, 400));
+    await tester.pump(const Duration(milliseconds: 300));
+    final reading = controller.offset;
+    expect((reading - atBottom).abs(), greaterThan(200), reason: 'the drag scrolled away from the bottom');
+
+    var answer = '';
+    for (int i = 0; i < 6; i++) {
+      answer += 'Streaming answer line $i\n';
+      notifier.state = notifier.state.copyWith(streamingTextBlocks: {0: answer});
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(controller.offset, closeTo(reading, 1), reason: 'update $i pulled the view back to the bottom');
+    }
+  });
 }

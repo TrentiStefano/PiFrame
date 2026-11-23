@@ -40,6 +40,12 @@ jobs:
       - name: Escape-hatch audit (baseline ratchet)
         run: node tools/scripts/audit-escape-hatches.mjs
 
+      - name: Doc links (relative links and anchors resolve)
+        run: node tools/scripts/check-doc-links.mjs
+
+      - name: AGENTS.md map check (length, paths, scripts)
+        run: node tools/scripts/check-agent-map.mjs
+
       - name: Verify Pi target recon
         run: node tools/recon/verify.ts
 
