@@ -6,7 +6,6 @@ import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { setTimeout as delay } from 'node:timers/promises';
 import { Session } from '../Session.js';
 import { WorkerSupervisor } from '../WorkerSupervisor.js';
 
@@ -56,9 +55,11 @@ const bridgeReport = (anyRunning: boolean) => ({
   })
 });
 
-test('the idle shutdown keeps a worker alive while a background agent runs in it', async () => {
-  // Long enough for the fake worker to start before the first idle check.
-  const idleTimeoutMs = 300;
+test('the idle shutdown keeps a worker alive while a background agent runs in it', async (t) => {
+  // The idle timer runs on mocked time: it fires only when the test advances
+  // the clock, never while the worker is still starting on a loaded machine.
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const idleTimeoutMs = 60_000;
   const supervisor = new WorkerSupervisor({
     piExecutablePath: workerFile,
     capabilities: { version: '0.99.2', supported: true, modes: ['rpc'], features: [] },
@@ -71,14 +72,18 @@ test('the idle shutdown keeps a worker alive while a background agent runs in it
     session.status = 'settled';
     session.dispatchPiEvent(bridgeReport(true));
 
-    await delay(idleTimeoutMs * 3);
+    // The idle check stops a worker synchronously (it kills the process
+    // before its first await), so liveWorker answers right after the tick.
+    t.mock.timers.tick(idleTimeoutMs);
     assert.ok(supervisor.liveWorker(session.id), 'a settled main agent with a running background agent is not idle');
+    t.mock.timers.tick(idleTimeoutMs);
+    assert.ok(supervisor.liveWorker(session.id), 'the check is repeated, and still waits');
 
     session.dispatchPiEvent(bridgeReport(false));
-    const deadline = Date.now() + 5000;
-    while (supervisor.liveWorker(session.id) && Date.now() < deadline) await delay(20);
+    t.mock.timers.tick(idleTimeoutMs);
     assert.equal(supervisor.liveWorker(session.id), undefined, 'once nothing runs the idle worker stops');
   } finally {
+    t.mock.timers.reset();
     await supervisor.stopAll(500);
     await session.journal.close();
   }
