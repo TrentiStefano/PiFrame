@@ -19,6 +19,18 @@ const ESCAPE_HATCH_AUDIT = {
   command: ['node', 'tools/scripts/audit-escape-hatches.mjs']
 };
 /** @type {Step} */
+const DOC_LINKS = {
+  job: 'node',
+  name: 'Doc links (relative links and anchors resolve)',
+  command: ['node', 'tools/scripts/check-doc-links.mjs']
+};
+/** @type {Step} */
+const AGENT_MAP_CHECK = {
+  job: 'node',
+  name: 'AGENTS.md map check (length, paths, scripts)',
+  command: ['node', 'tools/scripts/check-agent-map.mjs']
+};
+/** @type {Step} */
 const TS_BUILD = { job: 'node', name: 'Build TypeScript packages', command: ['pnpm', '-r', 'run', 'build'] };
 /** @type {Step} */
 const TS_LINT = { job: 'node', name: 'TypeScript lint (tsc --noEmit)', command: ['pnpm', '-r', 'run', 'lint'] };
@@ -52,6 +64,8 @@ const GATE = [
     command: ['node', 'tools/scripts/format.mjs', '--check', 'ts']
   },
   ESCAPE_HATCH_AUDIT,
+  DOC_LINKS,
+  AGENT_MAP_CHECK,
   DESIGN_LINT,
   DESIGN_TOKENS,
   { job: 'node', name: 'Verify Pi target recon', command: ['node', 'tools/recon/verify.ts'] },
@@ -153,6 +167,10 @@ export function stepList(tier, options = {}) {
 const CHECK = [
   // First: it needs only Node and fails in under a second when an escape hatch was added or removed.
   ESCAPE_HATCH_AUDIT,
+  // Also Node only and under a second: a moved or deleted doc must not leave a broken link.
+  DOC_LINKS,
+  // Node only and under a second too: AGENTS.md stays short and names only paths and scripts that exist.
+  AGENT_MAP_CHECK,
   DESIGN_LINT,
   DESIGN_TOKENS,
   // agentd and e2e type-check against the other workspace packages' dist/*.d.ts, so they must be built first. The

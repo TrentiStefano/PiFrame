@@ -9,6 +9,8 @@ test('verify runs the full gate in order, including codegen parity and an explic
     'pnpm install --frozen-lockfile',
     'node tools/scripts/format.mjs --check ts',
     'node tools/scripts/audit-escape-hatches.mjs',
+    'node tools/scripts/check-doc-links.mjs',
+    'node tools/scripts/check-agent-map.mjs',
     'node tools/scripts/lint-design.mjs',
     'node tools/scripts/check-design-tokens.mjs',
     'node tools/recon/verify.ts',
@@ -89,9 +91,11 @@ test('a release build without a platform or version is refused instead of buildi
 const FLUTTER_PROJECTS = ['packages/pi_frame_protocol', 'packages/pi_frame_theme', 'apps/pi_frame'];
 const check = (tests = []) => stepList('check', { tests, flutterProjects: FLUTTER_PROJECTS });
 
-test('check is the inner loop: escape-hatch audit, DESIGN.md lint and token match, build (for the workspace type declarations), type checking and flutter analyze', () => {
+test('check is the inner loop: escape-hatch audit, doc link, agent map and DESIGN.md checks, build (for the workspace type declarations), type checking and flutter analyze', () => {
   assert.deepEqual(commandLines(check()), [
     'node tools/scripts/audit-escape-hatches.mjs',
+    'node tools/scripts/check-doc-links.mjs',
+    'node tools/scripts/check-agent-map.mjs',
     'node tools/scripts/lint-design.mjs',
     'node tools/scripts/check-design-tokens.mjs',
     'pnpm -r run build',
@@ -102,7 +106,7 @@ test('check is the inner loop: escape-hatch audit, DESIGN.md lint and token matc
   ]);
 });
 
-const ANALYSIS_STEPS = 7;
+const ANALYSIS_STEPS = 9;
 
 test('check never installs, creates a worktree or merges', () => {
   const steps = check(['apps/pi_frame/test/a_test.dart', 'tools/guardrails/test/steps.test.mjs']);

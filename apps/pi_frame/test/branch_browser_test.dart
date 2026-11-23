@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -412,6 +413,47 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.byType(BranchPickerDialog), findsOneWidget);
     });
+
+    // The dialog used to be 540 px wide with the upstream squeezed onto the
+    // branch name's line, so ordinary long names were cut with an ellipsis.
+    testWidgets('a long branch name is shown in full when the window has room', (tester) async {
+      const name = 'Sprint_2026_21/Sprint_Login_Refactor_Phase1';
+      final client = _MockBranchClient();
+      client.mockBranches = [
+        const WorkspaceBranchInfo(name: 'main', isCurrent: true, upstream: 'origin/main', lastCommitUnix: 1700000000),
+        const WorkspaceBranchInfo(
+          name: name,
+          isCurrent: false,
+          upstream: 'origin/$name',
+          ahead: 3,
+          behind: 1,
+          lastCommitUnix: 1699900000,
+        ),
+      ];
+      tester.view.physicalSize = const Size(1400, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        _wrapWithApp(
+          child: Builder(
+            builder: (context) => ElevatedButton(
+              onPressed: () =>
+                  BranchPickerDialog.show(context, sessionId: 'session-a', client: client, currentBranch: 'main'),
+              child: const Text('Open'),
+            ),
+          ),
+          client: client,
+        ),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+
+      final label = tester.renderObject<RenderParagraph>(find.text(name));
+      expect(label.didExceedMaxLines, isFalse, reason: 'the branch name is not cut with an ellipsis');
+      expect(find.text('origin/$name'), findsOneWidget, reason: 'the upstream has its own line');
+    });
   });
 
   group('GitChangesPane branch switcher workflow', () {
@@ -640,6 +682,29 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Cannot switch branch while the agent is working'), findsOneWidget);
+    });
+
+    // The pill was capped at 160 px whatever the pane width.
+    testWidgets('a long current branch fits the branch pill of a roomy pane', (tester) async {
+      // Wider than the old 160 px cap in the test font, narrower than 65 % of the pane.
+      const name = 'Sprint_2026_21/Login_Phase1';
+      final client = _MockBranchClient()..currentBranch = name;
+      tester.view.physicalSize = const Size(700, 800);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+
+      await tester.pumpWidget(
+        _wrapWithApp(
+          child: const GitChangesPane(sessionId: 'session-a'),
+          client: client,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final label = find.descendant(of: find.byKey(const ValueKey('git-branch-chip')), matching: find.text(name));
+      expect(label, findsOneWidget);
+      expect(tester.renderObject<RenderParagraph>(label).didExceedMaxLines, isFalse);
     });
 
     testWidgets('detached HEAD renders short SHA in branch chip', (tester) async {
