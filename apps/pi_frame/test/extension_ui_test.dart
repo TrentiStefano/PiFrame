@@ -55,7 +55,7 @@ void main() {
     );
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Conferma'));
+    await tester.tap(find.text('Confirm'));
     await tester.pumpAndSettle();
     expect(client.responded, true);
     expect(find.text('Confirm action'), findsNothing);
@@ -86,8 +86,8 @@ void main() {
 
     expect(find.text('Esecuzione comando pericoloso'), findsOneWidget);
     expect(find.textContaining('L\'estensione desidera eseguire rm -rf'), findsOneWidget);
-    expect(find.text('Conferma'), findsOneWidget);
-    expect(find.text('Annulla'), findsOneWidget);
+    expect(find.text('Confirm'), findsOneWidget);
+    expect(find.text('Cancel'), findsOneWidget);
     expect(find.text('30s'), findsOneWidget);
   });
 
@@ -189,7 +189,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Workflows (1)'));
-    await tester.tap(find.text('Invia'));
+    await tester.tap(find.text('Send'));
     await tester.pumpAndSettle();
     expect(client.cancelled, isTrue);
     expect(container.read(agentActivityPanelOpenProvider('s_agents')), isTrue);

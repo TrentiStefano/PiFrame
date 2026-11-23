@@ -1,5 +1,6 @@
 import '../../domain/errors/user_facing_error.dart';
 import '../../domain/update/update_models.dart';
+import '../update/github_update_client.dart';
 import 'language_settings.dart';
 
 extension SettingsStrings on AppStrings {
@@ -601,9 +602,56 @@ extension SettingsStrings on AppStrings {
       : 'Disabled by default to protect privacy and prevent unrequested network calls.';
   String get updatesCheckFrequencyLabel => isItalian ? 'Frequenza di controllo:' : 'Check frequency:';
 
+  String get stepGroupingIntermediateNotApplicable => isItalian
+      ? 'Non applicabile in modalità Completo (tutte le risposte intermedie sono raggruppate nei passaggi).'
+      : 'Not applicable in Full mode (all intermediate answers are compacted into steps).';
+  String updateFailureMessage(UpdateFailure failure, int? statusCode) => switch (failure) {
+    UpdateFailure.rateLimited =>
+      isItalian
+          ? 'Limite di richieste GitHub raggiunto. Riprova più tardi.'
+          : 'GitHub rate limit reached. Try again later.',
+    UpdateFailure.checkFailed =>
+      isItalian
+          ? 'Errore durante il controllo degli aggiornamenti (HTTP $statusCode)'
+          : 'Update check failed (HTTP $statusCode)',
+    UpdateFailure.unreachable =>
+      isItalian
+          ? 'Impossibile contattare GitHub. Verifica la connessione a Internet.'
+          : 'Cannot reach GitHub. Check your Internet connection.',
+    UpdateFailure.timeout =>
+      isItalian
+          ? 'La richiesta di aggiornamento a GitHub è scaduta (timeout).'
+          : 'The GitHub update request timed out.',
+    UpdateFailure.unexpected =>
+      isItalian
+          ? 'Errore imprevisto durante il controllo degli aggiornamenti.'
+          : 'Unexpected error while checking for updates.',
+    UpdateFailure.invalidDownloadUrl =>
+      isItalian
+          ? 'URL di download non valido o dominio non autorizzato per sicurezza.'
+          : 'Invalid download URL or domain not allowed for security.',
+    UpdateFailure.downloadFailed =>
+      isItalian
+          ? 'Errore durante il download del file di aggiornamento (HTTP $statusCode)'
+          : 'Update download failed (HTTP $statusCode)',
+    UpdateFailure.cancelled => isItalian ? 'Download annullato dall\'utente.' : 'Download cancelled by the user.',
+    UpdateFailure.emptyDownload =>
+      isItalian ? 'Il file scaricato è vuoto o non valido.' : 'The downloaded file is empty or invalid.',
+  };
+  String get updateNoAssetForPlatform => isItalian
+      ? 'Nessun file scaricabile disponibile per il tuo sistema operativo.'
+      : 'No download available for your operating system.';
+  String updateDownloadFailed(String reason) => isItalian ? 'Download fallito: $reason' : 'Download failed: $reason';
+  String updateInstallLaunchFailed(String reason) =>
+      isItalian ? 'Impossibile avviare l\'installazione: $reason' : 'Could not start the installer: $reason';
+
   String updateIntervalLabel(UpdateCheckInterval interval) {
     if (isItalian) {
-      return interval.label;
+      return switch (interval) {
+        UpdateCheckInterval.daily => 'Ogni giorno',
+        UpdateCheckInterval.weekly => 'Ogni settimana (consigliato)',
+        UpdateCheckInterval.monthly => 'Ogni mese',
+      };
     }
     switch (interval) {
       case UpdateCheckInterval.daily:

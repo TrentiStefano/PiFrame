@@ -19,11 +19,3 @@ void writeWebLanguage(String code) {
     html.window.localStorage[_key] = code;
   } catch (_) {}
 }
-
-String? browserLanguage() {
-  try {
-    return html.window.navigator.language;
-  } catch (_) {
-    return null;
-  }
-}

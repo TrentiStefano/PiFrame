@@ -14,7 +14,7 @@ export function contextLimitExtension(pi: any): void {
   const apply = async (ctx: any) => {
     if (!policy || !ctx.model || applying) return;
     if (typeof pi.getSettings !== 'function') {
-      throw new Error('Aggiorna Pi: questa versione non espone getSettings per i limiti di contesto.');
+      throw new Error('Update Pi: this version does not expose getSettings for context limits.');
     }
     const model = ctx.model;
     const maximum = model.piframeOriginalContextWindow ?? model.contextWindow;
@@ -48,7 +48,7 @@ export function contextLimitExtension(pi: any): void {
           return typeof ctx.getContextUsage === 'function' ? ctx.getContextUsage() : null;
         }
       });
-      if (!ok) throw new Error('Impossibile applicare il limite al modello attivo.');
+      if (!ok) throw new Error('Could not apply the limit to the active model.');
     } finally {
       applying = false;
     }
@@ -57,8 +57,7 @@ export function contextLimitExtension(pi: any): void {
     description: 'PiFrame internal reload',
     handler: async (_args: string, ctx: any) => {
       // ctx.reload() is Pi's own resource reload (extensions, skills, prompts, context files).
-      if (typeof ctx?.reload !== 'function')
-        throw new Error('Aggiorna Pi: ricaricamento non disponibile in questa versione.');
+      if (typeof ctx?.reload !== 'function') throw new Error('Update Pi: reload is not available in this version.');
       await ctx.reload();
     }
   });
@@ -68,7 +67,7 @@ export function contextLimitExtension(pi: any): void {
     // Pi exposes auth operations through ModelRuntime internally, while its public extension facade is read-only.
     const runtime = ctx?.modelRegistry?.runtime;
     if (!runtime || typeof runtime.login !== 'function' || typeof runtime.logout !== 'function') {
-      throw new Error('Aggiorna Pi: la gestione dell’autenticazione non è disponibile in questa versione.');
+      throw new Error('Update Pi: authentication management is not available in this version.');
     }
     return runtime;
   };
@@ -286,7 +285,7 @@ export async function applyContextPolicy(worker: StdioPiTransport, policy: Conte
   const state = (await worker.send({ command: 'get_state' })).data;
   const applied = state?.model?.piframeContextPolicy;
   if (applied?.limit !== configuration.limit || applied?.percent !== configuration.percent) {
-    throw new Error('Pi non ha applicato il limite di contesto. Aggiorna Pi e riavvia il worker.');
+    throw new Error('Pi did not apply the context limit. Update Pi and restart the worker.');
   }
   return physicalModel(state.model);
 }

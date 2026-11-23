@@ -100,7 +100,7 @@ void main() {
       );
 
       // Assistant label for final text is rendered
-      expect(find.text('Assistente'), findsOneWidget);
+      expect(find.text('Assistant'), findsOneWidget);
     });
 
     testWidgets('2. group open while streaming with "Working…" + latest step', (tester) async {
@@ -453,7 +453,7 @@ void main() {
       expect(find.text('Input'), findsOneWidget);
       expect(find.text('Output'), findsOneWidget);
 
-      // Shows "Show all" or "Mostra tutti" button
+      // Shows "Show all" or "Show all" button
       final showAllBtn = find.byKey(const ValueKey('tool_step_toggle_output_truncation'));
       expect(showAllBtn, findsOneWidget);
 
@@ -568,7 +568,7 @@ void main() {
       // Instead, normal entries are rendered directly
       expect(find.text('Hello off mode'), findsOneWidget);
       expect(find.text('Answer in off mode'), findsOneWidget);
-      expect(find.text('Ragionamento'), findsOneWidget);
+      expect(find.text('Reasoning'), findsOneWidget);
     });
 
     testWidgets('9. expansion survives re-render with new streaming deltas', (tester) async {

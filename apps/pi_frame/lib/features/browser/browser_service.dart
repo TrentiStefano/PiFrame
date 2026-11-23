@@ -82,7 +82,7 @@ class WebBrowserService {
         url: 'about:home',
         title: 'Home',
         domain: 'about:home',
-        paragraphs: [strings?.browserDefaultGreeting ?? 'Benvenuto nel browser integrato di PiFrame.'],
+        paragraphs: [strings?.browserDefaultGreeting ?? 'Welcome to the PiFrame built-in browser.'],
       );
     }
 
@@ -122,12 +122,12 @@ class WebBrowserService {
     final domain = finalUri.host.isNotEmpty ? finalUri.host : finalUrl;
     final title =
         _extractTitle(html) ??
-        (queryText != null ? (strings?.browserSearchTitle(queryText) ?? 'Ricerca: $queryText') : domain);
+        (queryText != null ? (strings?.browserSearchTitle(queryText) ?? 'Search: $queryText') : domain);
     final description = _extractMetaDescription(html);
     final headings = _extractHeadings(html);
     final codeSnippets = _extractCodeSnippets(html);
     final links = _extractLinks(html, finalUri);
-    final searchResults = _extractSearchResults(html, finalUri, queryText);
+    final searchResults = _extractSearchResults(html, finalUri, queryText, strings);
     final paragraphs = _extractParagraphs(html);
     final rawText = _extractReadableText(html);
 
@@ -231,7 +231,8 @@ class WebBrowserService {
     return links;
   }
 
-  List<WebSearchResult> _extractSearchResults(String html, Uri baseUri, String? query) {
+  List<WebSearchResult> _extractSearchResults(String html, Uri baseUri, String? query, [AppStrings? strings]) {
+    final s = strings ?? const AppStrings(AppLanguage.defaultLanguage);
     final results = <WebSearchResult>[];
 
     // 1. DuckDuckGo HTML search results
@@ -262,7 +263,7 @@ class WebBrowserService {
             WebSearchResult(
               title: title,
               url: actualUrl,
-              snippet: snippet.isNotEmpty ? snippet : 'Risultato DuckDuckGo per "${query ?? ''}"',
+              snippet: snippet.isNotEmpty ? snippet : s.browserDuckDuckGoResult(query ?? ''),
               domain: Uri.tryParse(actualUrl)?.host ?? '',
             ),
           );
@@ -346,7 +347,12 @@ class WebBrowserService {
         final linkUri = Uri.tryParse(resolved);
         if (linkUri != null && title.isNotEmpty && !results.any((r) => r.url == resolved)) {
           results.add(
-            WebSearchResult(title: title, url: resolved, snippet: 'Risultato da ${linkUri.host}', domain: linkUri.host),
+            WebSearchResult(
+              title: title,
+              url: resolved,
+              snippet: s.browserResultFrom(linkUri.host),
+              domain: linkUri.host,
+            ),
           );
           if (results.length >= 12) break;
         }
@@ -363,7 +369,7 @@ class WebBrowserService {
             WebSearchResult(
               title: link.text,
               url: link.url,
-              snippet: 'Risultato correlato per "$query" da ${linkUri.host}',
+              snippet: s.browserRelatedResult(query, linkUri.host),
               domain: linkUri.host,
             ),
           );

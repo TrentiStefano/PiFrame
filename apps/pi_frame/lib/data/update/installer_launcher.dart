@@ -22,7 +22,7 @@ class PlatformInstallerLauncher implements InstallerLauncher {
 
     final file = File(filePath);
     if (!await file.exists()) {
-      throw FileSystemException('File di installazione non trovato', filePath);
+      throw FileSystemException('Installer file not found', filePath);
     }
 
     if (Platform.isWindows) {

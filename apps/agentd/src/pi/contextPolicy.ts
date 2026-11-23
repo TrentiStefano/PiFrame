@@ -11,15 +11,15 @@ export interface ContextPolicy {
 export function validateContextLimit(value: unknown, modelMaximum: number): number | null {
   if (value === null) return null;
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) {
-    throw Object.assign(new Error('Il limite di contesto deve essere un numero intero positivo.'), {
+    throw Object.assign(new Error('The context limit must be a positive integer.'), {
       code: 'COMMAND_REJECTED'
     });
   }
   if (!Number.isSafeInteger(modelMaximum) || modelMaximum <= 0) {
-    throw Object.assign(new Error('Dimensione massima del modello non disponibile.'), { code: 'COMMAND_REJECTED' });
+    throw Object.assign(new Error('Model maximum size not available.'), { code: 'COMMAND_REJECTED' });
   }
   if (value > modelMaximum)
-    throw Object.assign(new Error(`Il contesto massimo del modello è ${modelMaximum} token.`), {
+    throw Object.assign(new Error(`The model's maximum context is ${modelMaximum} tokens.`), {
       code: 'COMMAND_REJECTED'
     });
   return value;
@@ -27,7 +27,7 @@ export function validateContextLimit(value: unknown, modelMaximum: number): numb
 
 export function validateReservePercent(value: unknown): number {
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0 || value >= 100) {
-    throw Object.assign(new Error('Il margine di compattazione deve essere maggiore di 0 e minore di 100%.'), {
+    throw Object.assign(new Error('The compaction margin must be greater than 0 and less than 100%.'), {
       code: 'COMMAND_REJECTED'
     });
   }

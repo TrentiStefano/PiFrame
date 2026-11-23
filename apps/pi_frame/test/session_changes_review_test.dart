@@ -131,7 +131,7 @@ index ccb1dd3..d31323b 100644
       final offlineState = offline.read(sessionChangesProvider('session_review'));
       expect(offlineState.files, isEmpty);
       expect(offlineState.totalAdditions, 0);
-      expect(offlineState.error, 'Daemon non connesso');
+      expect(offlineState.error, 'Daemon not connected');
 
       final failingClient = _ReviewWorkspaceClient(() async => throw StateError('workspace refresh failed'));
       final failing = ProviderContainer(
@@ -245,16 +245,16 @@ index ccb1dd3..d31323b 100644
       );
       await tester.pumpAndSettle();
 
-      // The "Review changes" button should be visible on the left side of the "Invia" button
+      // The "Review changes" button should be visible on the left side of the "Send" button
       final reviewBtnFinder = find.byKey(const ValueKey('review-changes-btn'));
       expect(reviewBtnFinder, findsOneWidget);
       // Narrow rows show the icon; the tooltip names the action (the label appears on wide rows).
-      expect(find.byTooltip('Rivedi modifiche ai file'), findsOneWidget);
-      expect(find.text('Invia'), findsOneWidget);
+      expect(find.byTooltip('Review file changes'), findsOneWidget);
+      expect(find.text('Send'), findsOneWidget);
 
       // Verify button position: Review changes button should be to the left of Invia
       final reviewCenter = tester.getCenter(reviewBtnFinder);
-      final sendCenter = tester.getCenter(find.text('Invia'));
+      final sendCenter = tester.getCenter(find.text('Send'));
       expect(reviewCenter.dx, lessThan(sendCenter.dx));
     });
 
@@ -308,7 +308,7 @@ index ccb1dd3..d31323b 100644
       await tester.pumpAndSettle();
 
       // Title and count
-      expect(find.text('Rivedi modifiche'), findsOneWidget);
+      expect(find.text('Review Changes'), findsOneWidget);
       expect(find.text('2'), findsOneWidget);
 
       // Files listed
@@ -401,8 +401,8 @@ index ccb1dd3..d31323b 100644
         await tester.pumpAndSettle();
 
         // Now:
-        // 1. Sessions sidebar is minimized (showing collapsed strip with 'SESSIONI')
-        expect(find.text('SESSIONI'), findsOneWidget);
+        // 1. Sessions sidebar is minimized (showing collapsed strip with 'SESSIONS')
+        expect(find.text('SESSIONS'), findsOneWidget);
         // 2. Repository pane is hidden
         expect(find.byType(RepositoryPane), findsNothing);
         // 3. GitChangesPane is replaced by SessionChangesPane

@@ -114,7 +114,6 @@ UserFacingError describeError(Object error, AppStrings s) {
     return known(s.errorSessionMissingTitle, s.errorSessionMissingHint);
   }
   if (has([
-    'daemon non connesso',
     'daemon disconnected',
     'daemon not connected',
     'pcp websocket',

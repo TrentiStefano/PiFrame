@@ -144,7 +144,7 @@ export class Dispatcher {
   private async reloadWorkerSession(sessionId: string): Promise<{ reloaded: true }> {
     const session = this.registry.getSession(sessionId);
     if (session?.isStreaming || session?.isCompacting) {
-      const err: any = new Error('Attendi la fine della risposta prima di ricaricare.');
+      const err: any = new Error('Wait for the answer to finish before reloading.');
       err.code = 'COMMAND_REJECTED';
       throw err;
     }
@@ -160,7 +160,7 @@ export class Dispatcher {
     const session = this.registry.getSession(sessionId);
     if (!session) throw Object.assign(new Error(`Session ${sessionId} not found`), { code: 'SESSION_NOT_FOUND' });
     if (session.isStreaming || session.isCompacting) {
-      throw Object.assign(new Error('Attendi la fine della risposta prima di gestire l’autenticazione.'), {
+      throw Object.assign(new Error('Wait for the answer to finish before managing authentication.'), {
         code: 'COMMAND_REJECTED'
       });
     }
@@ -986,7 +986,7 @@ export class Dispatcher {
         if (session.isStreaming && !payload.streamingBehavior) {
           const err: any = new Error('Agent is streaming. Specify streamingBehavior ("steer" or "followUp").');
           err.code = 'COMMAND_REJECTED';
-          err.hint = 'Usa Steer o Follow-up durante lo streaming.';
+          err.hint = 'Use Steer or Follow-up while the agent is streaming.';
           throw err;
         }
 
@@ -1104,9 +1104,9 @@ export class Dispatcher {
         if (!sessionId) throw new Error('sessionId required');
         const session = this.registry.getSession(sessionId);
         if (!session) throw new Error('Session not found');
-        if (session.readOnly) throw Object.assign(new Error('Sessione in sola lettura.'), { code: 'COMMAND_REJECTED' });
+        if (session.readOnly) throw Object.assign(new Error('Read-only session.'), { code: 'COMMAND_REJECTED' });
         if (session.isStreaming || session.isCompacting)
-          throw Object.assign(new Error('Attendi la fine del turno o della compattazione.'), {
+          throw Object.assign(new Error('Wait for the turn or the compaction to finish.'), {
             code: 'COMMAND_REJECTED'
           });
         const worker = await this.registry.ensureWorkerForSession(sessionId);
@@ -1191,7 +1191,7 @@ export class Dispatcher {
         const session = this.registry.getSession(sessionId);
         if (!session) throw new Error('Session not found');
         if (session.isStreaming || session.isCompacting)
-          throw new Error('Attendi la fine del turno o della compattazione.');
+          throw new Error('Wait for the turn or the compaction to finish.');
         if (payload.provider === 'github-copilot') {
           const entitlements = await getCopilotEntitlements();
           if (
@@ -1286,7 +1286,7 @@ export class Dispatcher {
           warning:
             !entitlements.diagnostic.available &&
             models.some((model: Record<string, unknown>) => model.provider === 'github-copilot')
-              ? `Modelli GitHub Copilot nascosti: ${entitlements.diagnostic.message}`
+              ? `GitHub Copilot models hidden: ${entitlements.diagnostic.message}`
               : undefined,
           models: filterModelsByEnabledPatterns(
             models.filter(

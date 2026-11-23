@@ -41,7 +41,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify Repository pane collapse button exists
-    final repoCollapseBtn = find.byTooltip('Collassa pannello repository');
+    final repoCollapseBtn = find.byTooltip('Collapse Repository panel');
     expect(repoCollapseBtn, findsOneWidget);
 
     // Click collapse button on Repository pane
@@ -50,7 +50,7 @@ void main() {
 
     // Now collapsed strip for Repository should be visible
     expect(find.text('REPOSITORY'), findsOneWidget);
-    final repoExpandBtn = find.byTooltip('Espandi pannello Repository');
+    final repoExpandBtn = find.byTooltip('Expand Repository panel');
     expect(repoExpandBtn, findsOneWidget);
 
     // Tap expand button to restore Repository pane
@@ -58,10 +58,10 @@ void main() {
     await tester.pumpAndSettle();
 
     // Repository pane is expanded again
-    expect(find.byTooltip('Collassa pannello repository'), findsOneWidget);
+    expect(find.byTooltip('Collapse Repository panel'), findsOneWidget);
 
     // Verify Git Changes pane collapse button exists
-    final gitCollapseBtn = find.byTooltip('Collassa pannello Git changes');
+    final gitCollapseBtn = find.byTooltip('Collapse Git Changes panel');
     expect(gitCollapseBtn, findsOneWidget);
 
     // Click collapse button on Git Changes pane
@@ -69,15 +69,15 @@ void main() {
     await tester.pumpAndSettle();
 
     // Collapsed strip for Git Changes should be visible
-    expect(find.text('MODIFICHE GIT'), findsOneWidget);
-    final gitExpandBtn = find.byTooltip('Espandi pannello Modifiche Git');
+    expect(find.text('GIT CHANGES'), findsOneWidget);
+    final gitExpandBtn = find.byTooltip('Expand Git Changes panel');
     expect(gitExpandBtn, findsOneWidget);
 
     // Tap expand button to restore Git Changes pane
     await tester.tap(gitExpandBtn);
     await tester.pumpAndSettle();
 
-    expect(find.byTooltip('Collassa pannello Git changes'), findsOneWidget);
+    expect(find.byTooltip('Collapse Git Changes panel'), findsOneWidget);
   });
 
   testWidgets('Sessions sidebar can collapse and expand using arrow icon', (tester) async {
@@ -110,7 +110,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify Sessions sidebar collapse button exists
-    final sidebarCollapseBtn = find.byTooltip('Collassa barra sessioni');
+    final sidebarCollapseBtn = find.byTooltip('Collapse sessions sidebar');
     expect(sidebarCollapseBtn, findsOneWidget);
 
     // Tap collapse button
@@ -118,7 +118,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify collapsed sidebar strip exists
-    final sidebarExpandBtn = find.byTooltip('Espandi barra sessioni');
+    final sidebarExpandBtn = find.byTooltip('Expand sessions sidebar');
     expect(sidebarExpandBtn, findsOneWidget);
 
     // Tap expand button
@@ -126,7 +126,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Expanded sidebar is back
-    expect(find.byTooltip('Collassa barra sessioni'), findsOneWidget);
+    expect(find.byTooltip('Collapse sessions sidebar'), findsOneWidget);
   });
 
   testWidgets('Pane collapses when dragging border over minimum space', (tester) async {
@@ -168,7 +168,7 @@ void main() {
 
     // Repository should now be collapsed!
     expect(find.text('REPOSITORY'), findsOneWidget);
-    expect(find.byTooltip('Espandi pannello Repository'), findsOneWidget);
+    expect(find.byTooltip('Expand Repository panel'), findsOneWidget);
   });
 
   for (final preOpened in [false, true]) {
@@ -212,13 +212,13 @@ void main() {
         );
         await tester.pumpAndSettle();
         if (!preOpened) {
-          expect(find.byTooltip('Collassa pannello Git changes'), findsOneWidget);
+          expect(find.byTooltip('Collapse Git Changes panel'), findsOneWidget);
           await tester.tap(find.byKey(const ValueKey('agent-activity-open-btn')));
           await tester.pumpAndSettle();
         }
 
         expect(find.byKey(const ValueKey('agent-activity-panel')), findsOneWidget);
-        expect(find.byTooltip('Collassa pannello Git changes'), findsOneWidget);
+        expect(find.byTooltip('Collapse Git Changes panel'), findsOneWidget);
       },
     );
   }
@@ -264,11 +264,11 @@ void main() {
       await tester.pumpAndSettle();
 
       final card = find.byKey(const ValueKey('pane-enter-WorkspacePane.repository'));
-      await tester.tap(find.byTooltip('Collassa pannello repository'));
+      await tester.tap(find.byTooltip('Collapse Repository panel'));
       await tester.pumpAndSettle();
       expect(card, findsNothing);
 
-      await tester.tap(find.byTooltip('Espandi pannello Repository'));
+      await tester.tap(find.byTooltip('Expand Repository panel'));
       await tester.pump(const Duration(milliseconds: 60));
       final midWidth = tester.getSize(card).width;
       final midSlot = tester.getSize(find.ancestor(of: card, matching: find.byType(ClipRect)).first).width;

@@ -234,7 +234,7 @@ void main() {
 
       expect(find.text('/side [question]'), findsOneWidget);
       expect(find.text('/btw [question]'), findsOneWidget);
-      expect(find.text('Conversazione laterale in sola lettura'), findsNWidgets(2));
+      expect(find.text('Read-only side conversation'), findsNWidgets(2));
     });
 
     testWidgets('Side stream events update side state but NOT main session state (isolation)', (tester) async {
@@ -373,13 +373,13 @@ void main() {
 
       // Read-only badge visible
       expect(find.byKey(const ValueKey('side-read-only-badge')), findsOneWidget);
-      expect(find.text('Laterale · sola lettura'), findsOneWidget);
+      expect(find.text('Side · read-only'), findsOneWidget);
 
       // Model visible
       expect(find.text('gpt-4o'), findsOneWidget);
 
       // Note visible
-      expect(find.text('Non fa parte della conversazione principale'), findsAtLeastNWidgets(1));
+      expect(find.text('Not part of the main conversation'), findsAtLeastNWidgets(1));
     });
 
     testWidgets('Stop sends side.abort', (tester) async {
@@ -454,7 +454,7 @@ void main() {
       await tester.tap(closeBtn);
       await tester.pumpAndSettle();
 
-      expect(find.text('Chiudi conversazione laterale'), findsNothing);
+      expect(find.text('Close side conversation'), findsNothing);
 
       final closeCmds = fakeClient.sentCommands.where((c) => c.type == 'side.close').toList();
       expect(closeCmds, hasLength(1));
@@ -493,8 +493,8 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('side-close-btn')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Chiudi conversazione laterale'), findsOneWidget);
-      await tester.tap(find.text('Annulla'));
+      expect(find.text('Close side conversation'), findsOneWidget);
+      await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
 
       final closeCmds = fakeClient.sentCommands.where((c) => c.type == 'side.close');
@@ -598,7 +598,7 @@ void main() {
 
       // Notice should be visible
       expect(find.byKey(const ValueKey('side-closed-notice')), findsOneWidget);
-      expect(find.text('Conversazione laterale chiusa per inattività.'), findsOneWidget);
+      expect(find.text('Side conversation closed due to inactivity.'), findsOneWidget);
     });
 
     testWidgets('Shortcut Ctrl/Cmd+Shift+B toggles side panel', (tester) async {

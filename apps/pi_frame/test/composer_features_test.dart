@@ -58,7 +58,7 @@ void main() {
 
       expect(find.text('main.dart'), findsOneWidget);
       expect(find.text('lib'), findsNWidgets(2));
-      expect(find.text('Collega file (@)'), findsOneWidget);
+      expect(find.text('Link file (@)'), findsOneWidget);
 
       await tester.tap(find.text('main.dart'));
       expect(selected, 'lib/main.dart');
@@ -91,18 +91,18 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Aggiungi contesto al chat'), findsOneWidget);
-      expect(find.text('3 file trovati'), findsOneWidget);
+      expect(find.text('Add context to chat'), findsOneWidget);
+      expect(find.text('3 files found'), findsOneWidget);
 
       // Search for app
       await tester.enterText(find.byType(TextField), 'app');
       await tester.pumpAndSettle();
 
-      expect(find.text('2 file trovati'), findsOneWidget);
+      expect(find.text('2 files found'), findsOneWidget);
       expect(find.text('lib/app.dart'), findsOneWidget);
 
       // Select mention via Collega @ button
-      await tester.tap(find.text('Collega @').first);
+      await tester.tap(find.text('Link @').first);
       await tester.pumpAndSettle();
 
       expect(result, isNotNull);

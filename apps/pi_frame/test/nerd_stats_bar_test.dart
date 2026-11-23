@@ -65,7 +65,7 @@ void main() {
       expect(find.byKey(const ValueKey('nerd-stats-bar')), findsOneWidget);
 
       // Verify the exact rendered monospace string
-      expect(find.text('CPU 12.3% · RAM 48% · DISK 62% · GPU n/d · 60 FPS'), findsOneWidget);
+      expect(find.text('CPU 12.3% · RAM 48% · DISK 62% · GPU N/A · 60 FPS'), findsOneWidget);
     });
 
     testWidgets('shows GPU percentage when available', (tester) async {

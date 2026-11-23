@@ -48,7 +48,7 @@ class FileMentionMenu extends StatelessWidget {
     try {
       return ProviderScope.containerOf(context, listen: false).read(appStringsProvider);
     } catch (_) {
-      return const AppStrings(AppLanguage.it);
+      return const AppStrings(AppLanguage.defaultLanguage);
     }
   }
 

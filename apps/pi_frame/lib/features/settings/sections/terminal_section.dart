@@ -134,9 +134,7 @@ class TerminalSection extends ConsumerWidget {
                                           ..selection = TextSelection.collapsed(offset: termSettings.customPath.length),
                                         style: text.mono.copyWith(color: tokens.textPrimary),
                                         decoration: InputDecoration(
-                                          hintText: isWindowsOs
-                                              ? 'C:\\Percorso\\A\\terminal.exe'
-                                              : '/usr/bin/alacritty',
+                                          hintText: isWindowsOs ? 'C:\\Path\\To\\terminal.exe' : '/usr/bin/alacritty',
                                           isDense: true,
                                           border: OutlineInputBorder(
                                             borderRadius: BorderRadius.circular(tokens.radiusSm),

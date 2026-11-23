@@ -80,7 +80,7 @@ String? _railDefaultFolder(List<Map<String, dynamic>> sessions, String? activeId
   return latest == null ? null : _sessionFolder(latest);
 }
 
-String _folderName(String path, [String fallback = 'Sessioni']) {
+String _folderName(String path, [String fallback = 'Sessions']) {
   final segments = path.replaceAll('\\', '/').split('/').where((part) => part.isNotEmpty);
   return segments.isEmpty ? fallback : segments.last;
 }

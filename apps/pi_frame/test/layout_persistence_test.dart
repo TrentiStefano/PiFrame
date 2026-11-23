@@ -68,9 +68,9 @@ void main() {
     addTearDown(container.dispose);
     await pumpShell(tester, container);
 
-    expect(find.byTooltip('Collassa pannello repository'), findsNothing);
+    expect(find.byTooltip('Collapse Repository panel'), findsNothing);
     expect(find.byTooltip('Espandi pannello Repository'), findsNothing);
-    expect(find.byTooltip('Collassa pannello Git changes'), findsOneWidget);
+    expect(find.byTooltip('Collapse Git Changes panel'), findsOneWidget);
   });
 
   testWidgets('hiding a pane and collapsing the sessions bar are saved', (tester) async {
@@ -78,7 +78,7 @@ void main() {
     addTearDown(container.dispose);
     await pumpShell(tester, container);
 
-    await tester.tap(find.byTooltip('Collassa barra sessioni'));
+    await tester.tap(find.byTooltip('Collapse sessions sidebar'));
     await tester.pumpAndSettle();
 
     final saved = jsonDecode(layoutFile.readAsStringSync()) as Map<String, dynamic>;
@@ -92,8 +92,8 @@ void main() {
     addTearDown(container.dispose);
     await pumpShell(tester, container);
 
-    expect(find.byTooltip('Collassa pannello repository'), findsOneWidget);
-    expect(find.byTooltip('Collassa barra sessioni'), findsOneWidget);
+    expect(find.byTooltip('Collapse Repository panel'), findsOneWidget);
+    expect(find.byTooltip('Collapse sessions sidebar'), findsOneWidget);
   });
 
   testWidgets('sessions sidebar grows, shrinks and preserves width on reopen', (tester) async {
@@ -118,10 +118,10 @@ void main() {
     expect(narrower, lessThan(wider));
     expect(narrower, greaterThanOrEqualTo(220));
 
-    await tester.tap(find.byTooltip('Collassa barra sessioni'));
+    await tester.tap(find.byTooltip('Collapse sessions sidebar'));
     await tester.pumpAndSettle();
     expect(divider, findsNothing);
-    await tester.tap(find.byTooltip('Espandi barra sessioni'));
+    await tester.tap(find.byTooltip('Expand sessions sidebar'));
     await tester.pumpAndSettle();
     expect(tester.getSize(sidebar).width, narrower);
 
@@ -155,7 +155,7 @@ void main() {
 
     tester.view.physicalSize = const Size(390, 844);
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Apri sessioni'));
+    await tester.tap(find.byTooltip('Open sessions'));
     await tester.pumpAndSettle();
     final sidebar = find.byKey(const ValueKey('sessions-sidebar-pane'));
     final divider = find.byKey(const ValueKey('sessions-sidebar-divider'));
@@ -270,7 +270,7 @@ void main() {
       addTearDown(container.dispose);
       await pumpShell(tester, container);
 
-      await tester.tap(find.byTooltip('Collassa pannello Git changes'));
+      await tester.tap(find.byTooltip('Collapse Git Changes panel'));
       await tester.pumpAndSettle();
 
       final saved = jsonDecode(layoutFile.readAsStringSync()) as Map<String, dynamic>;

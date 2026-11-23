@@ -71,7 +71,7 @@ class _PiInstallDialogState extends ConsumerState<PiInstallDialog> {
           if (!mounted) return;
           setState(() {
             _logOutput += chunk;
-            if (chunk.contains('[SUCCESSO]')) {
+            if (chunk.contains('[SUCCESS]')) {
               _isSuccess = true;
             }
           });
@@ -80,7 +80,7 @@ class _PiInstallDialogState extends ConsumerState<PiInstallDialog> {
         onError: (err) {
           if (!mounted) return;
           setState(() {
-            _logOutput += '\n[ERRORE] $err\n';
+            _logOutput += '\n[ERROR] $err\n';
             _isSuccess = false;
           });
           _scrollToBottom();

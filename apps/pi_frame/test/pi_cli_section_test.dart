@@ -19,29 +19,29 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify Title
-    expect(find.text('Interfaccia Pi CLI'), findsOneWidget);
+    expect(find.text('Pi CLI Interface'), findsOneWidget);
 
     // Verify Key Command Buttons
-    expect(find.text('Aggiorna Pi CLI'), findsOneWidget);
+    expect(find.text('Update Pi CLI'), findsOneWidget);
     expect(find.text('pi update'), findsOneWidget);
 
-    expect(find.text('Aggiorna estensioni'), findsOneWidget);
+    expect(find.text('Update Extensions'), findsOneWidget);
     expect(find.text('pi update --extensions'), findsOneWidget);
 
-    expect(find.text('Aggiorna catalogo modelli'), findsOneWidget);
+    expect(find.text('Update Model Catalog'), findsOneWidget);
     expect(find.text('pi update --models'), findsOneWidget);
 
-    expect(find.text('Aggiorna tutto'), findsOneWidget);
+    expect(find.text('Update All'), findsOneWidget);
     expect(find.text('pi update --all'), findsOneWidget);
 
-    expect(find.text('Elenco estensioni'), findsOneWidget);
-    expect(find.text('Stato server MCP'), findsOneWidget);
-    expect(find.text('Versione Pi CLI'), findsOneWidget);
+    expect(find.text('List Extensions'), findsOneWidget);
+    expect(find.text('MCP Server Status'), findsOneWidget);
+    expect(find.text('Pi CLI Version'), findsOneWidget);
 
     // Verify Custom Command Input
-    expect(find.text('Comando personalizzato'), findsOneWidget);
+    expect(find.text('Custom command'), findsOneWidget);
     expect(find.text('pi '), findsOneWidget);
-    expect(find.text('Esegui'), findsWidgets);
+    expect(find.text('Run'), findsWidgets);
 
     // Verify Output Console
     expect(find.text('Output'), findsOneWidget);

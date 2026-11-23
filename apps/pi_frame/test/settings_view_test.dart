@@ -134,12 +134,12 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('update-all-pi-packages')));
     await tester.pumpAndSettle();
     if (expectedCount != null) {
-      expect(find.textContaining('$expectedCount pacchetti utente con aggiornamenti disponibili'), findsOneWidget);
+      expect(find.textContaining('$expectedCount user packages with available updates'), findsOneWidget);
     }
     await tester.tap(
       find.descendant(
         of: find.byWidgetPredicate((w) => w is FrameDialog),
-        matching: find.widgetWithText(FilledButton, 'Aggiorna tutto'),
+        matching: find.widgetWithText(FilledButton, 'Update all'),
       ),
     );
     await tester.pumpAndSettle();
@@ -173,7 +173,7 @@ void main() {
     expect(client.updatedSources, ['npm:pi-caveman', 'npm:pi-ranged@^1.0.0']);
     expect(client.listRequests, 2);
     expect(client.packageCheckRequests, [true, true]);
-    expect(find.textContaining('Tutti i 2 pacchetti sono stati aggiornati.'), findsOneWidget);
+    expect(find.textContaining('All 2 packages have been updated.'), findsOneWidget);
     expect(tester.widget<FilledButton>(find.byKey(const ValueKey('update-all-pi-packages'))).onPressed, isNull);
   });
 
@@ -183,7 +183,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('update-all-pi-packages')));
     await tester.pumpAndSettle();
     await tester.tap(
-      find.descendant(of: find.byWidgetPredicate((w) => w is FrameDialog), matching: find.text('Annulla')),
+      find.descendant(of: find.byWidgetPredicate((w) => w is FrameDialog), matching: find.text('Cancel')),
     );
     await tester.pumpAndSettle();
     expect(client.updatedSources, isEmpty);
@@ -203,9 +203,9 @@ void main() {
     await confirmUpdateAll(tester);
 
     expect(client.updatedSources, ['npm:first']);
-    expect(find.text('Aggiornamento...'), findsOneWidget);
+    expect(find.text('Updating...'), findsOneWidget);
     expect(tester.widget<FilledButton>(find.byKey(const ValueKey('update-all-pi-packages'))).onPressed, isNull);
-    for (final tooltip in ['Aggiorna first', 'Blocca versione first', 'Rimuovi first']) {
+    for (final tooltip in ['Update first', 'Pin version for first', 'Remove first']) {
       expect(
         tester
             .widget<IconButton>(find.byWidgetPredicate((widget) => widget is IconButton && widget.tooltip == tooltip))
@@ -220,12 +220,12 @@ void main() {
     expect(tester.widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator)).value, 0.5);
     second.complete(_updatedResult());
     await tester.pumpAndSettle();
-    expect(find.text('Aggiorna tutto'), findsOneWidget);
+    expect(find.text('Update all'), findsOneWidget);
     expect(find.byType(LinearProgressIndicator), findsNothing);
     expect(
       tester
           .widget<IconButton>(
-            find.byWidgetPredicate((widget) => widget is IconButton && widget.tooltip == 'Aggiorna first'),
+            find.byWidgetPredicate((widget) => widget is IconButton && widget.tooltip == 'Update first'),
           )
           .onPressed,
       isNull,
@@ -247,11 +247,11 @@ void main() {
     expect(client.updatedSources, ['npm:broken', 'npm:working']);
     expect(client.listRequests, 2);
     final error = tester.widget<Text>(find.byKey(const ValueKey('pi-package-update-error'))).data!;
-    expect(error, contains('Pacchetti aggiornati: 1.'));
-    expect(error, contains('Aggiornamenti non riusciti: 1.'));
-    expect(error, contains('npm:broken: Operazione non riuscita'));
+    expect(error, contains('Packages updated: 1.'));
+    expect(error, contains('Updates failed: 1.'));
+    expect(error, contains('npm:broken: Operation failed'));
     expect(error, isNot(contains('Package download failed')));
-    expect(find.textContaining('Tutti i 2 pacchetti sono stati aggiornati.'), findsNothing);
+    expect(find.textContaining('All 2 packages have been updated.'), findsNothing);
   });
 
   testWidgets('an update that becomes current is not counted as newly updated', (tester) async {
@@ -261,8 +261,8 @@ void main() {
       };
     await pumpPackages(tester, client);
     await confirmUpdateAll(tester);
-    expect(find.textContaining('Pacchetti aggiornati: 0. Già aggiornati: 1. Versione bloccata: 0.'), findsOneWidget);
-    expect(find.textContaining('Riavvia Pi per applicare le modifiche.'), findsNothing);
+    expect(find.textContaining('Packages updated: 0. Already up to date: 1. Version pinned: 0.'), findsOneWidget);
+    expect(find.textContaining('Restart Pi to apply the changes.'), findsNothing);
     expect(client.updateChecks, 1);
   });
 
@@ -274,9 +274,9 @@ void main() {
     await pumpPackages(tester, client);
     await confirmUpdateAll(tester);
     final error = tester.widget<Text>(find.byKey(const ValueKey('pi-package-update-error'))).data!;
-    expect(error, contains('Il daemon non ha verificato la versione installata'));
-    expect(error, contains('Aggiornamenti non riusciti: 1.'));
-    expect(find.textContaining('Tutti i 1 pacchetti sono stati aggiornati.'), findsNothing);
+    expect(error, contains('The daemon did not verify the installed version'));
+    expect(error, contains('Updates failed: 1.'));
+    expect(find.textContaining('All 1 packages have been updated.'), findsNothing);
   });
 
   testWidgets('an updated npm result without an installed version is rejected', (tester) async {
@@ -287,7 +287,7 @@ void main() {
     await pumpPackages(tester, client);
     await confirmUpdateAll(tester);
     final error = tester.widget<Text>(find.byKey(const ValueKey('pi-package-update-error'))).data!;
-    expect(error, contains('Il daemon non ha verificato la versione installata'));
+    expect(error, contains('The daemon did not verify the installed version'));
   });
 
   testWidgets('installed updates clear the startup notice and display the new version', (tester) async {
@@ -316,10 +316,10 @@ void main() {
     final client = _PackageClient()
       ..onUpdate = (_) async => throw PcpException('installed 0.1.15, expected 1.2.0', code: 'PACKAGE_UPDATE_FAILED');
     await pumpPackages(tester, client);
-    await tester.tap(find.byTooltip('Aggiorna pi-caveman'));
+    await tester.tap(find.byTooltip('Update pi-caveman'));
     await tester.pumpAndSettle();
     await tester.tap(
-      find.descendant(of: find.byWidgetPredicate((w) => w is FrameDialog), matching: find.text('Aggiorna')),
+      find.descendant(of: find.byWidgetPredicate((w) => w is FrameDialog), matching: find.text('Update')),
     );
     await tester.pumpAndSettle();
     final error = tester.widget<Text>(find.byKey(const ValueKey('pi-package-update-error'))).data!;
@@ -339,14 +339,14 @@ void main() {
     final container = ProviderScope.containerOf(tester.element(find.byType(SettingsView)));
     await container.read(startupUpdatesProvider.notifier).checkUpdates();
     await tester.pumpAndSettle();
-    expect(find.textContaining('Aggiornamento 1.2.0 non compatibile con questa piattaforma.'), findsOneWidget);
+    expect(find.textContaining('Update 1.2.0 is not compatible with this platform.'), findsOneWidget);
     expect(find.textContaining('Required dependency only supports macOS and Linux.'), findsOneWidget);
   });
 
   testWidgets('update all is disabled when no packages are installed', (tester) async {
     final client = _PackageClient()..packages = [];
     await pumpPackages(tester, client);
-    expect(find.text('Nessun pacchetto Pi utente installato.'), findsOneWidget);
+    expect(find.text('No user Pi packages installed.'), findsOneWidget);
     expect(tester.widget<FilledButton>(find.byKey(const ValueKey('update-all-pi-packages'))).onPressed, isNull);
   });
 
@@ -368,7 +368,7 @@ void main() {
       expect(
         tester
             .widget<IconButton>(
-              find.byWidgetPredicate((widget) => widget is IconButton && widget.tooltip == 'Aggiorna tested'),
+              find.byWidgetPredicate((widget) => widget is IconButton && widget.tooltip == 'Update tested'),
             )
             .onPressed,
         isNull,
@@ -393,7 +393,7 @@ void main() {
     expect(
       tester
           .widget<IconButton>(
-            find.byWidgetPredicate((widget) => widget is IconButton && widget.tooltip == 'Aggiorna pi-caveman'),
+            find.byWidgetPredicate((widget) => widget is IconButton && widget.tooltip == 'Update pi-caveman'),
           )
           .onPressed,
       isNotNull,
@@ -446,12 +446,12 @@ void main() {
   testWidgets('a single update disables controls once the package is current', (tester) async {
     final client = _PackageClient();
     await pumpPackages(tester, client);
-    await tester.tap(find.byTooltip('Aggiorna pi-caveman'));
+    await tester.tap(find.byTooltip('Update pi-caveman'));
     await tester.pumpAndSettle();
     await tester.tap(
       find.descendant(
         of: find.byWidgetPredicate((w) => w is FrameDialog),
-        matching: find.widgetWithText(FilledButton, 'Aggiorna'),
+        matching: find.widgetWithText(FilledButton, 'Update'),
       ),
     );
     await tester.pumpAndSettle();
@@ -459,7 +459,7 @@ void main() {
     expect(
       tester
           .widget<IconButton>(
-            find.byWidgetPredicate((widget) => widget is IconButton && widget.tooltip == 'Aggiorna pi-caveman'),
+            find.byWidgetPredicate((widget) => widget is IconButton && widget.tooltip == 'Update pi-caveman'),
           )
           .onPressed,
       isNull,
@@ -472,7 +472,7 @@ void main() {
       final client = _PackageClient();
       await pumpPackages(tester, client);
       await tester.tap(
-        bulk ? find.byKey(const ValueKey('update-all-pi-packages')) : find.byTooltip('Aggiorna pi-caveman'),
+        bulk ? find.byKey(const ValueKey('update-all-pi-packages')) : find.byTooltip('Update pi-caveman'),
       );
       await tester.pumpAndSettle();
       client.packages = [
@@ -484,7 +484,7 @@ void main() {
       await tester.tap(
         find.descendant(
           of: find.byWidgetPredicate((w) => w is FrameDialog),
-          matching: find.widgetWithText(FilledButton, bulk ? 'Aggiorna tutto' : 'Aggiorna'),
+          matching: find.widgetWithText(FilledButton, bulk ? 'Update all' : 'Update'),
         ),
       );
       await tester.pumpAndSettle();
@@ -499,8 +499,8 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     await pumpPackages(tester, _PackageClient());
-    expect(find.text('Pacchetti Pi installati'), findsOneWidget);
-    expect(find.text('Aggiorna tutto'), findsOneWidget);
+    expect(find.text('Installed Pi Packages'), findsOneWidget);
+    expect(find.text('Update all'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -510,7 +510,7 @@ void main() {
       final client = _PackageClient()..onList = () => pending.future;
       await pumpPackages(tester, client, settle: false);
 
-      expect(find.text('Caricamento pacchetti…'), findsOneWidget);
+      expect(find.text('Loading packages…'), findsOneWidget);
       expect(find.byKey(const ValueKey('packages-skeleton-row')), findsNWidgets(4));
       expect(
         find.descendant(
@@ -548,7 +548,7 @@ void main() {
 
       await tester.pump(const Duration(seconds: 10));
       await tester.pump();
-      expect(find.text('Il caricamento richiede più tempo del previsto'), findsOneWidget);
+      expect(find.text('Loading is taking longer than expected'), findsOneWidget);
       expect(find.byKey(const ValueKey('packages-skeleton-row')), findsNWidgets(4));
       expect(find.byKey(const ValueKey('packages-load-retry')), findsOneWidget);
       expect(client.listRequests, 1);
@@ -566,9 +566,9 @@ void main() {
       await pumpPackages(tester, client);
 
       expect(find.byKey(const ValueKey('packages-load-error')), findsOneWidget);
-      expect(find.text('Impossibile caricare i pacchetti'), findsOneWidget);
+      expect(find.text('Could not load packages'), findsOneWidget);
       expect(find.byKey(const ValueKey('packages-load-retry')), findsOneWidget);
-      expect(find.text('Dettagli'), findsOneWidget);
+      expect(find.text('Details'), findsOneWidget);
       expect(find.byKey(const ValueKey('packages-load-error-details')), findsNothing);
 
       await tester.tap(find.byKey(const ValueKey('packages-load-error-details-toggle')));
@@ -647,19 +647,19 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Pacchetti'));
+    await tester.tap(find.text('Packages'));
     await tester.pumpAndSettle();
 
     expect(find.text('pi-caveman'), findsOneWidget);
     expect(find.textContaining('0.1.15'), findsOneWidget);
-    await tester.tap(find.byTooltip('Blocca versione pi-caveman'));
+    await tester.tap(find.byTooltip('Pin version for pi-caveman'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField), '0.1.16');
     // The pin action reads the field through a rebuilt dialog, so let it rebuild.
     await tester.pump();
-    await tester.tap(find.text('Blocca'));
+    await tester.tap(find.text('Pin'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Blocca versione'));
+    await tester.tap(find.text('Pin version'));
     await tester.pumpAndSettle();
 
     expect(client.pinnedSource, 'npm:pi-caveman');
@@ -667,7 +667,7 @@ void main() {
     expect(
       tester
           .widget<IconButton>(
-            find.byWidgetPredicate((widget) => widget is IconButton && widget.tooltip == 'Aggiorna pi-caveman'),
+            find.byWidgetPredicate((widget) => widget is IconButton && widget.tooltip == 'Update pi-caveman'),
           )
           .onPressed,
       isNull,
@@ -712,10 +712,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text(const Color(0xFFF1F3F7).toARGB32().toString()), findsOneWidget);
 
-    await tester.tap(find.text('Aspetto'));
+    await tester.tap(find.text('Appearance'));
     await tester.pumpAndSettle();
-    // The "Tema" control: choosing Scuro applies the default dark theme.
-    await tester.tap(find.text('Scuro'));
+    // The "Theme" control: choosing Scuro applies the default dark theme.
+    await tester.tap(find.text('Dark'));
     await tester.pumpAndSettle();
 
     expect(find.text(const Color(0xFF161C27).toARGB32().toString()), findsOneWidget);
@@ -734,14 +734,14 @@ void main() {
     await tester.pumpAndSettle();
     for (final tab in [
       'Pi CLI',
-      'Pacchetti',
+      'Packages',
       'Daemon',
-      'Aspetto',
-      'Diagnostica',
-      'Aggiornamenti',
-      'Terminale',
-      'Accesso remoto',
-      'Agenti',
+      'Appearance',
+      'Diagnostics',
+      'Updates',
+      'Terminal',
+      'Remote access',
+      'Agents',
     ]) {
       await tester.ensureVisible(find.text(tab).first);
       expect(find.text(tab), findsOneWidget);
@@ -769,7 +769,7 @@ void main() {
       200,
       scrollable: find.descendant(of: find.byType(ListView), matching: find.byType(Scrollable)).first,
     );
-    expect(find.textContaining('PiFrame non invia alcun dato di utilizzo a server remoti.'), findsOneWidget);
+    expect(find.textContaining('PiFrame does not send usage data to remote servers.'), findsOneWidget);
     expect(find.byType(Switch), findsNothing);
     expect(find.byType(Checkbox), findsNothing);
     expect(find.byType(Radio), findsNothing);
@@ -870,7 +870,7 @@ void main() {
 
     final backButton = find.byKey(const ValueKey('settings-back-button'));
     expect(backButton, findsOneWidget);
-    expect(tester.widget<IconButton>(backButton).tooltip, 'Torna all\'area di lavoro');
+    expect(tester.widget<IconButton>(backButton).tooltip, 'Back to workspace');
 
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pump();
@@ -900,8 +900,8 @@ void main() {
     testWidgets('wide layout shows grouped left navigation', (tester) async {
       await pumpSettings(tester, size: const Size(1200, 900));
 
-      expect(find.text('Generale'), findsOneWidget);
-      expect(find.text('Sistema'), findsOneWidget);
+      expect(find.text('General'), findsOneWidget);
+      expect(find.text('System'), findsOneWidget);
       expect(find.byKey(const ValueKey('settings-nav-appearance')), findsOneWidget);
       expect(find.byKey(const ValueKey('settings-nav-remote')), findsOneWidget);
       expect(find.byKey(const ValueKey('settings-section-piCli')), findsOneWidget);
@@ -910,7 +910,7 @@ void main() {
     testWidgets('narrow layout uses a single section tab row', (tester) async {
       await pumpSettings(tester, size: const Size(800, 900));
 
-      expect(find.text('Generale'), findsNothing);
+      expect(find.text('General'), findsNothing);
       expect(find.byKey(const ValueKey('settings-nav-packages')), findsOneWidget);
     });
 

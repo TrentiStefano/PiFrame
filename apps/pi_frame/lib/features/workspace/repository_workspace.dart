@@ -17,6 +17,7 @@ import '../../ui/frame_search_field.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../sessions_sidebar/session_actions.dart';
 import '../../data/language/language_settings.dart';
+import '../../data/language/strings_shell.dart';
 import '../../data/language/strings_workspace.dart';
 import '../../data/language/strings_errors.dart';
 import 'editor/repository_editor_pane.dart';
@@ -307,7 +308,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
     final blockReason = readOnly
         ? (readOnlyReason ?? strings.readOnlySessionCapital)
         : writeBlocked
-        ? strings.savingDisabledReason(agentStatus.label)
+        ? strings.savingDisabledReason(strings.agentStatusLabel(agentStatus))
         : null;
     return Container(
       decoration: BoxDecoration(color: tokens.surface),
@@ -690,7 +691,7 @@ class _TreeRowState extends ConsumerState<_TreeRow> {
     try {
       return ref.watch(appStringsProvider);
     } catch (_) {
-      return const AppStrings(AppLanguage.it);
+      return const AppStrings(AppLanguage.defaultLanguage);
     }
   }
 

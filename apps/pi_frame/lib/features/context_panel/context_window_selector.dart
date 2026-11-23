@@ -147,7 +147,7 @@ class _ContextWindowSelectorState extends ConsumerState<ContextWindowSelector> {
                       maximum == null
                           ? formatTokens(size)
                           : hasVariableContextPricing(widget.model)
-                          ? formatContextSize(size, maximum, italian: strings.isItalian)
+                          ? formatContextSize(size, maximum, strings)
                           : '${formatTokens(size)} (Max)',
                       overflow: TextOverflow.ellipsis,
                     ),
