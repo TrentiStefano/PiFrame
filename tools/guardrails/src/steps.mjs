@@ -29,6 +29,20 @@ const FLUTTER_ANALYZE = {
   command: ['node', 'tools/scripts/lint-flutter.js']
 };
 
+// DESIGN.md: Google's linter (errors and warnings fail) and its tokens against the shipped theme.
+/** @type {Step} */
+const DESIGN_LINT = {
+  job: 'node',
+  name: 'DESIGN.md lint (@google/design.md)',
+  command: ['node', 'tools/scripts/lint-design.mjs']
+};
+/** @type {Step} */
+const DESIGN_TOKENS = {
+  job: 'node',
+  name: 'DESIGN.md tokens match the theme',
+  command: ['node', 'tools/scripts/check-design-tokens.mjs']
+};
+
 /** @type {Step[]} */
 const GATE = [
   { job: 'node', name: 'Install dependencies (frozen lockfile)', command: ['pnpm', 'install', '--frozen-lockfile'] },
@@ -38,6 +52,8 @@ const GATE = [
     command: ['node', 'tools/scripts/format.mjs', '--check', 'ts']
   },
   ESCAPE_HATCH_AUDIT,
+  DESIGN_LINT,
+  DESIGN_TOKENS,
   { job: 'node', name: 'Verify Pi target recon', command: ['node', 'tools/recon/verify.ts'] },
   { job: 'node', name: 'PCP schema validation', command: ['pnpm', '--filter', '@piframe/pcp-spec', 'run', 'test'] },
   TS_BUILD,
@@ -137,6 +153,8 @@ export function stepList(tier, options = {}) {
 const CHECK = [
   // First: it needs only Node and fails in under a second when an escape hatch was added or removed.
   ESCAPE_HATCH_AUDIT,
+  DESIGN_LINT,
+  DESIGN_TOKENS,
   // agentd and e2e type-check against the other workspace packages' dist/*.d.ts, so they must be built first. The
   // build also refreshes the compiled TypeScript tests that `check` runs.
   TS_BUILD,

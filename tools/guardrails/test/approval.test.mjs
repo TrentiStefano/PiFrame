@@ -77,7 +77,10 @@ test('a change to a guarded path needs approval, whichever way it goes', () => {
     'apps/agentd/package.json',
     'tools/guardrails/package.json',
     'test/e2e/package.json',
-    'pnpm-workspace.yaml'
+    'pnpm-workspace.yaml',
+    'DESIGN.md',
+    'tools/scripts/lint-design.mjs',
+    'tools/scripts/check-design-tokens.mjs'
   ];
   for (const path of guarded) {
     const result = approvalStatus({
@@ -211,7 +214,8 @@ test('ordinary paths that only look like guarded ones need no approval', () => {
       'docs/guardrails.md',
       'apps/agentd/node_modules/foo/package.json',
       '.claude/skills/tdd/SKILL.md',
-      'apps/pi_frame/lib/analysis_options_view.dart'
+      'apps/pi_frame/lib/analysis_options_view.dart',
+      'docs/design/screens/chat-dark.png'
     ],
     labelEvents: [],
     ciRunTimes: ['2026-11-20T10:00:00Z']
