@@ -14,8 +14,8 @@ fails when it names a path or `pnpm run` script that does not exist (`tools/guar
 3. **MCP tools.** The Flutter and Dart MCP tools are available in this environment; use them.
 4. **Fixes leave a check.** A bug fix adds a regression test, or a lint for a recurring pattern.
    `docs/troubleshooting.md` changes only for problems users must work around; `docs/install.md` only when
-   installing or operating the app changes. Developer tooling is documented in the developer docs
-   (`docs/pr-verification.md`, the package READMEs).
+   installing or operating the app changes; a user-facing feature is described in `docs/user-guide.md`, under
+   its feature. Developer tooling is documented in the developer docs (`docs/pr-verification.md`, the package READMEs).
 5. **Green gate, no escape hatches.** Fix the root cause; never add `// ignore:`, `@ts-ignore`, `as any`, `: any`
    or similar to pass a check: the escape-hatch audit fails on any new one.
 
@@ -35,7 +35,7 @@ apps/agentd  --one `pi --mode rpc` worker per session-->  Pi  --history-->  ~/.p
 | `packages/pi_frame_theme/` | theme engine and design tokens; theme files in `themes/` |
 | `tools/` | `tools/guardrails/` gate logic, `tools/scripts/`, `tools/codegen/`, `tools/harness/` UI harness, `tools/fake-pi/` |
 | `test/e2e/` | end-to-end tests with fault injection |
-| `docs/` | install, troubleshooting, security, theming, verification, ADRs, design evidence |
+| `docs/` | install, user and troubleshooting guides, security, theming, verification, ADRs, design evidence |
 | `website/` | project site (GitHub Pages) |
 | `packaging/`, `release-assets/` | installer packaging and release artwork |
 

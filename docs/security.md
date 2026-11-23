@@ -16,7 +16,9 @@ The `pi-agentd` daemon is a local, high-privilege service: it can work with the 
 
 ---
 
-## 2. Authentication and token handling (D11)
+## 2. Authentication and token handling
+
+Decision record: [ADR 0011](adr/0011-authentication-and-tokens.md).
 
 - **Master token entropy**: every daemon instance generates a random 256-bit token at startup (`crypto.randomBytes(32).toString('hex')`).
 - **Strict master token segregation (H2)**:
@@ -47,7 +49,9 @@ The `pi-agentd` daemon is a local, high-privilege service: it can work with the 
 
 ---
 
-## 4. Web hosting and Content Security Policy (D13)
+## 4. Web hosting and Content Security Policy
+
+Decision record: [ADR 0013](adr/0013-local-web-hosting.md).
 
 - **Dynamic Content Security Policy (M4)**:
   - Local listener: a strict CSP that allows connections only to loopback (`ws://127.0.0.1:*`, `http://127.0.0.1:*`).
@@ -66,7 +70,9 @@ The `pi-agentd` daemon is a local, high-privilege service: it can work with the 
 
 ---
 
-## 5. Privacy and no remote telemetry (D16)
+## 5. Privacy and no remote telemetry
+
+Decision record: [ADR 0016](adr/0016-zero-remote-telemetry.md).
 
 - **No remote data collection**:
   - PiFrame includes no SDK or endpoint for telemetry, analytics or crash reporting to third-party servers.
