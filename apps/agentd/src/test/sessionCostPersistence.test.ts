@@ -444,6 +444,54 @@ test('SessionIndex: notification tool-call identity updates the actual agent and
   assert.equal(agents[0].status, 'completed');
 });
 
+// The Agents pane kept finished agents "Running": only the first
+// <task-notification> of a message was read, and the subagents:record entry
+// pi-subagents writes when an agent ends was ignored.
+test('SessionIndex: every notification in a message and the final agent record settle their agents', async (t) => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentd-agent-records-'));
+  t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
+  const parentFile = path.join(tmpDir, 'parent.jsonl');
+  const launch = (agentId: string) => ({
+    type: 'message',
+    message: {
+      role: 'toolResult',
+      toolName: 'Agent',
+      toolCallId: `call-${agentId}`,
+      details: { agentId, status: 'background', subagentType: 'general-purpose', description: `Task ${agentId}` }
+    }
+  });
+  const notification = (agentId: string, status: string) =>
+    `<task-notification><task-id>${agentId}</task-id><status>${status}</status><summary>${agentId} ended</summary></task-notification>`;
+  fs.writeFileSync(
+    parentFile,
+    [
+      { type: 'session', id: 'parent', cwd: '/repo' },
+      launch('agent-first'),
+      launch('agent-second'),
+      launch('agent-recorded'),
+      launch('agent-working'),
+      {
+        type: 'message',
+        message: {
+          role: 'user',
+          content: `${notification('agent-first', 'completed')}\n${notification('agent-second', 'failed')}`
+        }
+      },
+      { type: 'custom', customType: 'subagents:record', data: { id: 'agent-recorded', status: 'aborted' } }
+    ]
+      .map((entry) => JSON.stringify(entry))
+      .join('\n') + '\n'
+  );
+
+  const index = new SessionIndex({ sessionsDir: tmpDir, cachePath: path.join(tmpDir, 'cache.json') });
+  const agents = await index.getSubagents('parent', parentFile);
+  const status = (id: string) => agents.find((agent) => agent.id === id)?.status;
+  assert.equal(status('agent-first'), 'completed');
+  assert.equal(status('agent-second'), 'error', 'the second notification of the same message is read too');
+  assert.equal(status('agent-recorded'), 'stopped', 'the final record settles an agent with no notification');
+  assert.equal(status('agent-working'), 'running', 'an agent with neither keeps running');
+});
+
 test('SessionIndex: a background agent whose notification never arrived settles from its child file', async (t) => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentd-agent-orphan-'));
   t.after(() => fs.rmSync(tmpDir, { recursive: true, force: true }));
