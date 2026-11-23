@@ -9,6 +9,7 @@ import 'ui/precision.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app/router.dart';
+import 'data/language/language_settings.dart';
 import 'data/theme/theme_providers.dart';
 import 'data/notifications/desktop_notification_service.dart';
 import 'data/window/window_state_service.dart';
@@ -21,6 +22,9 @@ Future<void> main() => runPiFrame();
 
 Future<void> runPiFrame({Future<void> Function()? configureWindow, Widget Function(Widget child)? rootWrapper}) async {
   WidgetsFlutterBinding.ensureInitialized();
+  // Decide (and save) the language before anything else writes a settings
+  // file, so a new install is not mistaken for an existing user.
+  LanguageSettingsStore.standard().load();
   final isWindows = !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
   final isMacOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS;
   final customDesktopChrome = isWindows || isMacOS;

@@ -67,7 +67,7 @@ The package adds PiFrame to the applications menu and includes the daemon and th
 2. When you open `http://127.0.0.1:<port>/` in a local browser, the daemon sets an `HttpOnly; SameSite=Strict` cookie with the authentication token, so access works at once without manual setup ([ADR 0013](adr/0013-local-web-hosting.md)).
 
 ### From source
-To build and run PiFrame from a clone of the repository, follow [Build from source](../README.md#build-from-source) in the README. A source build does not stop a daemon that is already running: after rebuilding the daemon, use **Settings → Daemon → Restart daemon** to load it (see the [troubleshooting guide](troubleshooting.md#4-daemon-unreachable-or-connection-error-with-a-source-build)).
+To build and run PiFrame from a clone of the repository, follow [Build from source](../README.md#build-from-source) in the README. A source build does not stop a daemon that is already running: after rebuilding the daemon, use **Settings → Daemon → Restart daemon** to load it (see the [troubleshooting guide](troubleshooting.md#daemon-unreachable-after-building-piframe-from-source)).
 
 ---
 

@@ -91,7 +91,7 @@ void main() {
       ]),
       {'one': 'PiFrame', 'two': 'PiFrame', 'three': 'three'},
     );
-    expect(folderDisplayNames(['']), {'': 'Sessioni'});
+    expect(folderDisplayNames(['']), {'': 'Sessions'});
   });
 
   test('working directories distinguish sessions inside the same git root', () {

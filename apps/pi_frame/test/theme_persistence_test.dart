@@ -123,7 +123,7 @@ void main() {
 
       final importBtn = find.byKey(const ValueKey('settings-import-theme-btn'));
       expect(importBtn, findsOneWidget);
-      expect(find.text('Importa tema JSON (VSCode / PiFrame)'), findsOneWidget);
+      expect(find.text('Import JSON Theme (VSCode / PiFrame)'), findsOneWidget);
     });
 
     test('default dark and light themes persist and update independently', () {
@@ -171,11 +171,11 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      // One "Tema" control: Sistema / Chiaro / Scuro (task 8.3).
+      // One "Theme" control: Sistema / Chiaro / Scuro (task 8.3).
       expect(find.byKey(const ValueKey('settings-theme-mode-segmented')), findsOneWidget);
-      expect(find.text('Sistema'), findsOneWidget);
-      expect(find.text('Chiaro'), findsOneWidget);
-      expect(find.text('Scuro'), findsOneWidget);
+      expect(find.text('System'), findsOneWidget);
+      expect(find.text('Light'), findsOneWidget);
+      expect(find.text('Dark'), findsOneWidget);
       // Only the select the chosen mode needs is shown, not both.
       expect(
         find.byKey(const ValueKey('settings-dark-theme-dropdown')).evaluate().length +
@@ -183,13 +183,13 @@ void main() {
         1,
       );
 
-      // Choose "Sistema": both default selects appear and the setting persists.
-      await tester.tap(find.text('Sistema'));
+      // Choose "System": both default selects appear and the setting persists.
+      await tester.tap(find.text('System'));
       await tester.pumpAndSettle();
 
       expect(storage.loadSettingsSync().useSystemTheme, isTrue);
-      expect(find.text('Tema scuro predefinito:'), findsOneWidget);
-      expect(find.text('Tema chiaro predefinito:'), findsOneWidget);
+      expect(find.text('Default Dark Theme:'), findsOneWidget);
+      expect(find.text('Default Light Theme:'), findsOneWidget);
     });
   });
 }

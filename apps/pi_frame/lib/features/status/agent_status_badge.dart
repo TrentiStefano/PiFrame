@@ -26,7 +26,7 @@ class AgentStatusBadge extends StatelessWidget {
         },
       );
     }
-    return _buildBadge(context, tokens, const AppStrings(AppLanguage.it));
+    return _buildBadge(context, tokens, const AppStrings(AppLanguage.defaultLanguage));
   }
 
   Widget _buildBadge(BuildContext context, FrameTokens tokens, AppStrings strings) {

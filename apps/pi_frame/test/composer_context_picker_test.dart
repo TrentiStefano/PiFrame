@@ -85,9 +85,9 @@ void main() {
     expect(session.modelLoads, greaterThan(1));
     await tester.tap(find.byKey(const ValueKey('context-window-preset-dropdown')));
     await tester.pumpAndSettle();
-    expect(find.text('Personalizzato').last, findsOneWidget);
-    expect(find.text('272k (Tier base)').last, findsOneWidget);
-    await tester.tap(find.text('1M (Max / Tier esteso)').last);
+    expect(find.text('Custom').last, findsOneWidget);
+    expect(find.text('272k (Base tier)').last, findsOneWidget);
+    await tester.tap(find.text('1M (Max / extended tier)').last);
     await tester.pumpAndSettle();
     expect(session.applied.last, 1000000);
     expect(find.byKey(const ValueKey('context-window-custom-slider')), findsNothing);
@@ -100,7 +100,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('context-window-preset-dropdown')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Personalizzato').last);
+    await tester.tap(find.text('Custom').last);
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('context-window-custom-slider')), findsOneWidget);
     Navigator.of(tester.element(find.byKey(const ValueKey('composer-context-size-dialog')))).pop();
@@ -110,7 +110,7 @@ void main() {
     expect(find.byKey(const ValueKey('context-window-custom-slider')), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('context-window-preset-dropdown')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('272k (Tier base)').last);
+    await tester.tap(find.text('272k (Base tier)').last);
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('context-window-custom-slider')), findsNothing);
     expect(session.applied.last, 272000);
@@ -137,7 +137,7 @@ void main() {
     await mount(tester, _PickerSession(unavailable: true));
     await tester.tap(find.byKey(const ValueKey('composer-context-size-picker-btn')));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Contesto del modello non disponibile'), findsOneWidget);
+    expect(find.textContaining('Model context not available'), findsOneWidget);
     expect(find.byKey(const ValueKey('composer-context-size-dialog')), findsNothing);
   });
 }

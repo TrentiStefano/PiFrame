@@ -183,18 +183,18 @@ void main() {
     final dropdown = find.byKey(const ValueKey('context-window-preset-dropdown'));
     await tester.tap(dropdown);
     await tester.pumpAndSettle();
-    expect(find.text('Personalizzato').last, findsOneWidget);
-    await tester.tap(find.text('Personalizzato').last);
+    expect(find.text('Custom').last, findsOneWidget);
+    await tester.tap(find.text('Custom').last);
     await tester.pumpAndSettle();
     expect(session.state.contextWindowOverride, 250000);
     expect(find.byKey(const ValueKey('context-window-custom-slider')), findsOneWidget);
-    expect(find.textContaining('250k token (250000 token esatti)'), findsOneWidget);
+    expect(find.textContaining('250k tokens (250000 exact tokens)'), findsOneWidget);
 
     final capped = _PanelSession(override: 263000, modelMaximum: 263000);
     await mount(tester, capped, GlobalKey());
     await tester.tap(find.byKey(const ValueKey('context-window-preset-dropdown')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Personalizzato').last);
+    await tester.tap(find.text('Custom').last);
     await tester.pumpAndSettle();
     expect(capped.state.contextWindowOverride, 250000);
     final slider = tester.widget<Slider>(find.byKey(const ValueKey('context-window-custom-slider')));
@@ -225,7 +225,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(session.state.contextWindowOverride, accepted);
     expect(tester.widget<Slider>(finder).value, accepted!.toDouble());
-    expect(find.textContaining('Limite non applicato'), findsOneWidget);
+    expect(find.textContaining('Limit not applied'), findsOneWidget);
   });
 
   testWidgets('failed Custom selection stays on its accepted tier; small models cannot exceed capacity', (
@@ -235,11 +235,11 @@ void main() {
     await mount(tester, session, GlobalKey());
     await tester.tap(find.byKey(const ValueKey('context-window-preset-dropdown')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Personalizzato').last);
+    await tester.tap(find.text('Custom').last);
     await tester.pumpAndSettle();
     expect(session.state.contextWindowOverride, 272000);
     expect(find.byKey(const ValueKey('context-window-custom-slider')), findsNothing);
-    expect(find.textContaining('Limite non applicato'), findsOneWidget);
+    expect(find.textContaining('Limit not applied'), findsOneWidget);
     final small = _PanelSession(override: 64000, modelMaximum: 64000);
     await mount(tester, small, GlobalKey());
     final dropdown = tester.widget<DropdownButton<Object>>(
@@ -255,7 +255,7 @@ void main() {
     await mount(tester, session, GlobalKey());
     await tester.tap(find.byKey(const ValueKey('context-window-preset-dropdown')));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Personalizzato').last);
+    await tester.tap(find.text('Custom').last);
     await tester.pumpAndSettle();
     expect(
       tester.widget<Slider>(find.byKey(const ValueKey('context-panel-compaction-reserve-slider'))).onChanged,
@@ -313,18 +313,18 @@ void main() {
     await tester.drag(reserveSlider, const Offset(-300, 0));
     await tester.pumpAndSettle();
     expect(failing.state.compactionReservePercent, 2.5);
-    expect(find.textContaining('Margine non applicato'), findsOneWidget);
+    expect(find.textContaining('Margin not applied'), findsOneWidget);
   });
 
   testWidgets('shows runtime context usage, not token totals, and captures real fixture', (tester) async {
     final session = _PanelSession(override: 750000);
     final capture = GlobalKey();
     await mount(tester, session, capture, customMode: true);
-    expect(find.text('70656 / 750k token'), findsOneWidget);
+    expect(find.text('70656 / 750k tokens'), findsOneWidget);
     expect(find.text('9.4 %'), findsOneWidget);
     expect(find.textContaining('42,000'), findsNothing);
-    expect(find.text('Personalizzato'), findsOneWidget);
-    expect(find.textContaining('750k token (750000 token esatti)'), findsOneWidget);
+    expect(find.text('Custom'), findsOneWidget);
+    expect(find.textContaining('750k tokens (750000 exact tokens)'), findsOneWidget);
     await capturePanel(tester, capture, 'context-policy-panel-fixture.png');
   });
 
@@ -335,12 +335,12 @@ void main() {
     final slider = tester.widget<Slider>(find.byKey(const ValueKey('context-panel-compaction-reserve-slider')));
     expect(slider.value, 25);
     expect(find.text('25.0%'), findsOneWidget);
-    expect(find.textContaining('Margine salvato fuori intervallo: 50.0%'), findsOneWidget);
+    expect(find.textContaining('Saved margin out of range: 50.0%'), findsOneWidget);
     expect(session.state.compactionReservePercent, 50);
   });
 
   testWidgets('automatic-compaction explanation follows Pi state', (tester) async {
     await mount(tester, _PanelSession(auto: false), GlobalKey());
-    expect(find.text('Compattazione automatica disabilitata in Pi.'), findsOneWidget);
+    expect(find.text('Automatic compaction disabled in Pi.'), findsOneWidget);
   });
 }

@@ -319,10 +319,29 @@ extension ShellStrings on AppStrings {
   String paletteTogglePaneSubtitle(String pane) =>
       isItalian ? 'Mostra o nascondi il pannello $pane' : 'Show or hide the $pane pane';
 
+  // Desktop notifications
+  String get notifAttentionTitle => isItalian ? 'Attenzione richiesta' : 'Attention needed';
+  String get notifAttentionBody =>
+      isItalian ? 'L\'agente richiede una tua risposta o scelta.' : 'The agent needs your answer or choice.';
+  String notifAttentionNeeded(String session) =>
+      isItalian ? 'Richiesta attenzione · $session' : 'Attention needed · $session';
+  String notifAnswerCompleted(String session) =>
+      isItalian ? 'Risposta completata · $session' : 'Answer completed · $session';
+  String get newSessionDefaultName => isItalian ? 'Nuova Sessione' : 'New Session';
+
   // Agent Status Badge
   String agentStatusLabel(AgentStatus status) {
     if (isItalian) {
-      return status.label;
+      return switch (status) {
+        AgentStatus.idle => 'Inattivo',
+        AgentStatus.working => 'In esecuzione',
+        AgentStatus.retrying => 'Nuovo tentativo...',
+        AgentStatus.compacting => 'Compattazione...',
+        AgentStatus.awaitingUser => 'In attesa di input',
+        AgentStatus.settled => 'Completato',
+        AgentStatus.error => 'Errore',
+        AgentStatus.workerError => 'Worker arrestato',
+      };
     }
     return switch (status) {
       AgentStatus.idle => 'Idle',

@@ -188,7 +188,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
   Future<void> _refreshOnce() async {
     final client = ref.read(pcpClientProvider);
     if (client == null) {
-      if (mounted) setState(() => _status = {'error': 'Daemon non connesso'});
+      if (mounted) setState(() => _status = {'error': 'Daemon not connected'});
       return;
     }
     if (!mounted) return;

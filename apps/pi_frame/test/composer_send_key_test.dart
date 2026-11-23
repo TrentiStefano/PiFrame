@@ -239,12 +239,12 @@ void main() {
       await tester.pumpAndSettle();
 
       // Mode OFF tooltip
-      expect(find.byTooltip('Invia prompt (Ctrl+Invio)'), findsOneWidget);
+      expect(find.byTooltip('Send prompt (Ctrl+Enter)'), findsOneWidget);
 
       // Mode ON tooltip
       settingsNotifier.setSendWithEnter(true);
       await tester.pumpAndSettle();
-      expect(find.byTooltip('Invia prompt (Invio)'), findsOneWidget);
+      expect(find.byTooltip('Send prompt (Enter)'), findsOneWidget);
     });
 
     testWidgets('streaming steer behavior: mode ON Enter steers, mode OFF Ctrl+Enter steers', (tester) async {

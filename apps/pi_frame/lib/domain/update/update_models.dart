@@ -162,17 +162,6 @@ enum UpdateCheckInterval {
     }
   }
 
-  String get label {
-    switch (this) {
-      case UpdateCheckInterval.daily:
-        return 'Ogni giorno';
-      case UpdateCheckInterval.weekly:
-        return 'Ogni settimana (consigliato)';
-      case UpdateCheckInterval.monthly:
-        return 'Ogni mese';
-    }
-  }
-
   String get id => name;
 
   static UpdateCheckInterval fromId(String? id) {

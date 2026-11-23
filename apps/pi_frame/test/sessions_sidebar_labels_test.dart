@@ -52,7 +52,7 @@ void main() {
     // The row's menu button is revealed on hover only; right-click opens the same menu.
     await tester.tap(find.byKey(const ValueKey('session-row-one')), buttons: kSecondaryMouseButton);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Rinomina'));
+    await tester.tap(find.text('Rename'));
     await tester.pumpAndSettle();
     final field = tester.widget<TextField>(
       find.descendant(of: find.byType(AlertDialog), matching: find.byType(TextField)),

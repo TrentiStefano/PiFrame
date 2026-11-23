@@ -184,7 +184,7 @@ export function serveStaticFile(
     if (url.pathname === '/' || url.pathname === '/index.html') {
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       res.end(`<!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -283,16 +283,16 @@ export function serveStaticFile(
       <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
     </div>
     <h1>PiFrame Daemon</h1>
-    <p>${isRemote ? 'Connessione remota attiva e sicura.' : 'Il daemon locale è attivo e operativo su loopback.'}</p>
+    <p>${isRemote ? 'Secure remote connection active.' : 'The local daemon is running on loopback.'}</p>
     <div class="status-row">
       <div class="badge"><span class="badge-dot"></span>v${opts.version} • ONLINE</div>
     </div>
     <div class="pair-box" id="pairBox">
-      <div class="pair-title">Associazione Dispositivo</div>
-      <div class="pair-status" id="pairStatus">Verifica codice di associazione in corso...</div>
+      <div class="pair-title">Device pairing</div>
+      <div class="pair-status" id="pairStatus">Checking the pairing code...</div>
       <div class="pair-form" id="pairForm" style="display: none;">
-        <input type="text" class="pair-input" id="pinInput" placeholder="Inserisci codice PIN o secret" />
-        <button class="pair-btn" id="pairBtn" onclick="submitPairing()">Associa</button>
+        <input type="text" class="pair-input" id="pinInput" placeholder="Enter the PIN or secret" />
+        <button class="pair-btn" id="pairBtn" onclick="submitPairing()">Pair</button>
       </div>
     </div>
   </div>
@@ -300,7 +300,7 @@ export function serveStaticFile(
     function doPair(secret) {
       var statusEl = document.getElementById('pairStatus');
       var formEl = document.getElementById('pairForm');
-      statusEl.textContent = 'Associazione in corso...';
+      statusEl.textContent = 'Pairing...';
       statusEl.className = 'pair-status';
 
       fetch('/api/remote/pair', {
@@ -315,18 +315,18 @@ export function serveStaticFile(
             sessionStorage.setItem('pcp_device_token', res.deviceToken);
             localStorage.setItem('pcp_device_token', res.deviceToken);
           } catch(e) {}
-          statusEl.textContent = '✓ Dispositivo associato con successo! (Permessi: ' + (res.device ? res.device.mode : 'view') + ')';
+          statusEl.textContent = '✓ Device paired! (Permissions: ' + (res.device ? res.device.mode : 'view') + ')';
           statusEl.className = 'pair-status success';
           if (formEl) formEl.style.display = 'none';
           setTimeout(function() { window.location.reload(); }, 1500);
         } else {
-          statusEl.textContent = 'Errore: ' + (res.error || 'Codice non valido');
+          statusEl.textContent = 'Error: ' + (res.error || 'Invalid code');
           statusEl.className = 'pair-status error';
           if (formEl) formEl.style.display = 'flex';
         }
       })
       .catch(function(err) {
-        statusEl.textContent = 'Errore di connessione durante l\\'associazione.';
+        statusEl.textContent = 'Connection error while pairing.';
         statusEl.className = 'pair-status error';
         if (formEl) formEl.style.display = 'flex';
       });
@@ -348,7 +348,7 @@ export function serveStaticFile(
       } else {
         var statusEl = document.getElementById('pairStatus');
         var formEl = document.getElementById('pairForm');
-        statusEl.textContent = 'Inquadra il codice QR da PiFrame sul desktop per associare questo dispositivo, oppure inserisci il codice:';
+        statusEl.textContent = 'Scan the QR code shown by PiFrame on the desktop to pair this device, or enter the code:';
         formEl.style.display = 'flex';
       }
     })();

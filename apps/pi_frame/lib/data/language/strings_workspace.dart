@@ -405,6 +405,11 @@ extension WorkspaceStrings on AppStrings {
   String get browserDefaultGreeting =>
       isItalian ? 'Benvenuto nel browser integrato di PiFrame.' : 'Welcome to PiFrame integrated browser.';
 
+  String browserDuckDuckGoResult(String query) =>
+      isItalian ? 'Risultato DuckDuckGo per "$query"' : 'DuckDuckGo result for "$query"';
+  String browserResultFrom(String host) => isItalian ? 'Risultato da $host' : 'Result from $host';
+  String browserRelatedResult(String query, String host) =>
+      isItalian ? 'Risultato correlato per "$query" da $host' : 'Related result for "$query" from $host';
   String browserSearchTitle(String query) => isItalian ? 'Ricerca: $query' : 'Search: $query';
 
   String get browserLoading => isItalian ? 'Caricamento...' : 'Loading...';

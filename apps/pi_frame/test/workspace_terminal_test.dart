@@ -96,11 +96,11 @@ void main() {
     // Verify first terminal tab and TerminalView exist
     expect(find.byIcon(Icons.terminal_outlined), findsWidgets);
     expect(find.byType(TerminalView), findsOneWidget); // Direct in-terminal view
-    expect(find.byTooltip('Apri nel terminale nativo (OS)'), findsOneWidget);
-    expect(find.byTooltip('Interrompi processo (Ctrl+C)'), findsOneWidget);
+    expect(find.byTooltip('Open in native terminal (OS)'), findsOneWidget);
+    expect(find.byTooltip('Stop process (Ctrl+C)'), findsOneWidget);
 
     // Verify + button exists (PopupMenuButton with add icon)
-    final addBtn = find.byTooltip('Nuovo terminale');
+    final addBtn = find.byTooltip('New terminal');
     expect(addBtn, findsOneWidget);
 
     // Tap + button to open menu and create second tab
@@ -109,9 +109,7 @@ void main() {
 
     // Select default new terminal
     final defaultItem = find.text(
-      find.text('Nuovo terminale (PowerShell)').evaluate().isNotEmpty
-          ? 'Nuovo terminale (PowerShell)'
-          : 'Nuovo terminale',
+      find.text('New terminal (PowerShell)').evaluate().isNotEmpty ? 'New terminal (PowerShell)' : 'New terminal',
     );
     expect(defaultItem, findsOneWidget);
     await tester.tap(defaultItem);
@@ -121,13 +119,13 @@ void main() {
     expect(find.byIcon(Icons.close_outlined), findsWidgets);
 
     // Test collapse downward button
-    final collapseBtn = find.byTooltip('Collassa in basso');
+    final collapseBtn = find.byTooltip('Collapse down');
     expect(collapseBtn, findsOneWidget);
     await tester.tap(collapseBtn);
     expect(collapsed, isTrue);
 
     // Test close button on panel
-    final closePanelBtn = find.byTooltip('Chiudi terminale');
+    final closePanelBtn = find.byTooltip('Close terminal');
     expect(closePanelBtn, findsOneWidget);
     await tester.tap(closePanelBtn);
     expect(closed, isTrue);
@@ -159,7 +157,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Terminal button should be present in Repository header
-    final termToggleBtn = find.byTooltip('Terminale integrato');
+    final termToggleBtn = find.byTooltip('Integrated terminal');
     expect(termToggleBtn, findsOneWidget);
 
     // Click terminal button to open terminal panel
@@ -170,17 +168,17 @@ void main() {
     expect(find.byType(IntegratedTerminalPanel), findsOneWidget);
 
     // Click collapse downward button in terminal
-    final collapseDownBtn = find.byTooltip('Collassa in basso');
+    final collapseDownBtn = find.byTooltip('Collapse down');
     expect(collapseDownBtn, findsOneWidget);
     await tester.tap(collapseDownBtn);
     await tester.pumpAndSettle();
 
     // Now the collapsed terminal bar should be visible with expand arrow
-    expect(find.text('TERMINALE'), findsOneWidget);
+    expect(find.text('TERMINAL'), findsOneWidget);
     expect(find.byIcon(Icons.keyboard_arrow_up_outlined), findsOneWidget);
 
     // Tap the collapsed bar to expand it back
-    await tester.tap(find.text('TERMINALE'));
+    await tester.tap(find.text('TERMINAL'));
     await tester.pumpAndSettle();
 
     // IntegratedTerminalPanel should be expanded again

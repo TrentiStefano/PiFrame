@@ -75,8 +75,8 @@ void main() {
     await tester.drag(scrollable, const Offset(0, 10000));
     await tester.pumpAndSettle();
 
-    final loadMore = find.textContaining('Carica messaggi precedenti');
-    expect(find.textContaining('Carica messaggi precedenti (35 non mostrati)'), findsOneWidget);
+    final loadMore = find.textContaining('Load earlier messages');
+    expect(find.textContaining('Load earlier messages (35 not shown)'), findsOneWidget);
 
     // The 10th-last turn's prompt ('Prompt 5') is loaded; earlier prompts (e.g. Prompt 4) are hidden.
     expect(find.textContaining('Prompt 5'), findsOneWidget);

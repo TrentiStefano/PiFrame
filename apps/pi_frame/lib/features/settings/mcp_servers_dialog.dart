@@ -153,7 +153,7 @@ AppStrings _stringsFor(BuildContext context) {
   try {
     return ProviderScope.containerOf(context, listen: false).read(appStringsProvider);
   } catch (_) {
-    return const AppStrings(AppLanguage.it);
+    return const AppStrings(AppLanguage.defaultLanguage);
   }
 }
 
@@ -175,7 +175,7 @@ class _McpServersBodyState extends State<_McpServersBody> {
     try {
       return ProviderScope.containerOf(context, listen: false).read(appStringsProvider);
     } catch (_) {
-      return const AppStrings(AppLanguage.it);
+      return const AppStrings(AppLanguage.defaultLanguage);
     }
   }
 

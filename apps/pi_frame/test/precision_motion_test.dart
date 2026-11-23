@@ -51,7 +51,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 620));
     await tester.pump();
     expect(tester.widget<FadeTransition>(find.byKey(const ValueKey('launch-opacity'))).opacity.value, 1);
-    await tester.pumpWidget(themed(const LaunchReveal(child: Row(children: [PiFrameMark(), Text('Sessione')]))));
+    await tester.pumpWidget(themed(const LaunchReveal(child: Row(children: [PiFrameMark(), Text('Session')]))));
     expect(tester.widget<FadeTransition>(find.byKey(const ValueKey('launch-opacity'))).opacity.value, 1);
     await tester.pumpAndSettle();
     expect(tester.binding.transientCallbackCount, 0);
@@ -76,11 +76,11 @@ void main() {
     await tester.pumpWidget(
       themed(
         PressFeedback(
-          child: FilledButton(autofocus: true, onPressed: () {}, child: const Text('Invia')),
+          child: FilledButton(autofocus: true, onPressed: () {}, child: const Text('Send')),
         ),
       ),
     );
-    final gesture = await tester.startGesture(tester.getCenter(find.text('Invia')));
+    final gesture = await tester.startGesture(tester.getCenter(find.text('Send')));
     await tester.pump();
     expect(tester.widget<AnimatedScale>(find.byType(AnimatedScale)).scale, 0.97);
     await gesture.up();
@@ -123,9 +123,9 @@ void main() {
     addTearDown(() => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, null));
     await tester.pumpWidget(themed(const DesktopCaptionButtons()));
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Riduci a icona'));
-    await tester.tap(find.byTooltip('Massimizza finestra'));
-    await tester.tap(find.byTooltip('Chiudi finestra'));
+    await tester.tap(find.byTooltip('Minimize'));
+    await tester.tap(find.byTooltip('Maximize window'));
+    await tester.tap(find.byTooltip('Close window'));
     await tester.pump();
     expect(calls, containsAllInOrder(['isMaximized', 'minimize', 'maximize', 'close']));
     expect(tester.takeException(), isNull);

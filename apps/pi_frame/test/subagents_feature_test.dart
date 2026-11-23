@@ -147,11 +147,11 @@ void main() {
       await tester.pumpAndSettle();
 
       // Verify header and subagent details
-      expect(find.text('Sessione principale'), findsOneWidget);
+      expect(find.text('Main session'), findsOneWidget);
       expect(find.text('Explore Agent'), findsOneWidget);
       expect(find.textContaining('gpt-6-luna'), findsOneWidget);
       expect(find.textContaining('\$0.0175'), findsNWidgets(2));
-      expect(find.textContaining('In corso'), findsWidgets);
+      expect(find.textContaining('In progress'), findsWidgets);
 
       // Individual subagent cards start collapsed; expand to inspect output.
       expect(find.textContaining('Found 4 files matching auth query:'), findsNothing);
@@ -224,7 +224,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Status should be stopped
-      expect(find.textContaining('Fermato'), findsOneWidget);
+      expect(find.text('Stopped'), findsOneWidget);
     });
 
     testWidgets('TranscriptView displays subagents popdown banner and toggle chip', (tester) async {
@@ -500,9 +500,9 @@ void main() {
 
       expect(find.text('WORKFLOW'), findsOneWidget);
       expect(find.text('audit'), findsOneWidget);
-      expect(find.text('In corso'), findsNWidgets(2));
+      expect(find.text('In progress'), findsNWidgets(2));
       expect(find.text('Scan'), findsOneWidget);
-      expect(find.text('0/1 agenti finiti · 1 al lavoro'), findsOneWidget);
+      expect(find.text('0/1 agents finished · 1 working'), findsOneWidget);
       // The workflow child shows its own task and what it is running now.
       expect(find.text('COMPITO: QA finale del sito'), findsOneWidget);
       expect(find.textContaining('npm test'), findsOneWidget);
@@ -803,7 +803,7 @@ void main() {
       await tester.tap(find.textContaining('\$0.0200'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Dettaglio costi sessione'), findsOneWidget);
+      expect(find.text('Session Cost Breakdown'), findsOneWidget);
       expect(find.byKey(const ValueKey('cost-breakdown-agent-row')), findsOneWidget);
       expect(find.byKey(const ValueKey('cost-breakdown-subagents-row')), findsOneWidget);
 
@@ -811,21 +811,21 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('cost-breakdown-agent-row')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Costi modelli agente'), findsOneWidget);
-      expect(find.text('Costi per modello non disponibili'), findsOneWidget);
+      expect(find.text('Agent Model Costs'), findsOneWidget);
+      expect(find.text('Costs per model unavailable'), findsOneWidget);
       expect(find.byKey(const ValueKey('agent-model-cost-claude-3-5-sonnet')), findsNothing);
       expect(find.text('\$0.0200'), findsWidgets);
 
       // Click Back button to return to Level 0
       await tester.tap(find.byKey(const ValueKey('cost-breakdown-back-btn')));
       await tester.pumpAndSettle();
-      expect(find.text('Dettaglio costi sessione'), findsOneWidget);
+      expect(find.text('Session Cost Breakdown'), findsOneWidget);
 
       // Click on Subagents cost row -> navigate to Level 2
       await tester.tap(find.byKey(const ValueKey('cost-breakdown-subagents-row')));
       await tester.pumpAndSettle();
 
-      expect(find.text('Costi subagenti & modelli'), findsOneWidget);
+      expect(find.text('Subagent & Model Costs'), findsOneWidget);
       expect(find.descendant(of: find.byType(Dialog), matching: find.text('Code Reviewer')), findsOneWidget);
       expect(find.text('gemini-1.5-pro'), findsWidgets);
       expect(find.text('\$0.0125'), findsWidgets);
@@ -835,7 +835,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Dialog is dismissed
-      expect(find.text('Costi subagenti & modelli'), findsNothing);
+      expect(find.text('Subagent & Model Costs'), findsNothing);
     });
 
     testWidgets('Chat parses <task-notification> and displays formatted card instead of raw XML', (tester) async {
@@ -882,7 +882,7 @@ Full transcript available at: C:\\Temp\\tasks\\05928f01-b805-46c.output
       expect(find.textContaining('<tool-use-id>'), findsNothing);
 
       // Beautiful card should be rendered with summary, status, tokens, and duration
-      expect(find.text('Notifica subagente'), findsOneWidget);
+      expect(find.text('Subagent Notification'), findsOneWidget);
       expect(
         find.descendant(
           of: find.byKey(const ValueKey('task-notification-card-05928f01-b805-46c')),
@@ -1137,7 +1137,7 @@ Full transcript available at: C:\\Temp\\tasks\\3c52f51e-5f5f-408.output
       );
 
       await tester.pumpAndSettle();
-      expect(find.text('N/D · N/D'), findsOneWidget); // Unknown model and cost.
+      expect(find.text('N/A · N/A'), findsOneWidget); // Unknown model and cost.
       expect(find.text('\$0.0000'), findsNothing);
     });
 

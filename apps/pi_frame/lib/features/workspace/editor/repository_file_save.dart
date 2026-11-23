@@ -5,8 +5,8 @@ import '../../../ui/precision.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../data/daemon/daemon_providers.dart';
-import '../../../domain/session/agent_status.dart';
 import '../../../data/language/language_settings.dart';
+import '../../../data/language/strings_shell.dart' show ShellStrings;
 import '../../../data/language/strings_workspace.dart';
 import '../../../ui/frame_dialog.dart';
 
@@ -33,14 +33,14 @@ Future<bool> resolveDirtyRepository(BuildContext context, WidgetRef ref, String?
   final blockedReason = session.readOnly
       ? (session.readOnlyReason ?? strings.readOnlySessionLower)
       : writesBlocked
-      ? session.agentStatus.label
+      ? ShellStrings(strings).agentStatusLabel(session.agentStatus)
       : strings.daemonNotConnectedLower;
   // Destructive role: Cancel takes the initial focus, so Enter never drops
   // the unsaved text by accident.
   final choice = await showFrameDialog<String>(
     context: context,
     dialog: FrameDialog<String>(
-      title: strings.unsavedChangesTitle,
+      title: WorkspaceStrings(strings).unsavedChangesTitle,
       body: Text(canSave ? strings.unsavedChangesContentCanSave : strings.unsavedChangesContentBlocked(blockedReason)),
       actions: [
         FrameDialogAction<String>(label: strings.cancel, role: FrameDialogActionRole.cancel, value: 'cancel'),
@@ -84,7 +84,9 @@ Future<void> saveRepositoryFile(BuildContext context, WidgetRef ref, String sess
   final strings = ref.read(appStringsProvider);
   if (sessionWritesBlocked(session)) {
     throw StateError(
-      session.readOnly ? (session.readOnlyReason ?? strings.readOnlySessionCapital) : session.agentStatus.label,
+      session.readOnly
+          ? (session.readOnlyReason ?? strings.readOnlySessionCapital)
+          : ShellStrings(strings).agentStatusLabel(session.agentStatus),
     );
   }
   final controller = ref.read(repositoryStateProvider(sessionId).notifier);

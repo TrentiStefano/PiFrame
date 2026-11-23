@@ -44,7 +44,7 @@ void main() {
     });
 
     test('a disconnected daemon maps to the reachability hint', () {
-      final e = describeError(StateError('Daemon non connesso'), it);
+      final e = describeError(StateError('Daemon not connected'), it);
       expect(e.title, it.errorDaemonUnreachableTitle);
       expect(e.hint, it.errorDaemonUnreachableHint);
       expect(e.retryable, isTrue);
@@ -192,7 +192,7 @@ void main() {
 
   group('failureText', () {
     test('a known error appends the title and hint to the prefix', () {
-      final text = failureText(it, 'Invio non riuscito', StateError('Daemon non connesso'));
+      final text = failureText(it, 'Invio non riuscito', StateError('Daemon not connected'));
       expect(
         text,
         'Invio non riuscito: Daemon non raggiungibile. '

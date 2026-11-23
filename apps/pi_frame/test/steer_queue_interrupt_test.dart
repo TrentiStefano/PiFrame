@@ -122,7 +122,7 @@ void main() {
     expect(textField.controller?.text, isEmpty);
 
     // Verify snackbar feedback
-    expect(find.text('Agente interrotto. La coda di messaggi è stata cancellata.'), findsOneWidget);
+    expect(find.text('Agent interrupted. Queued messages were cleared.'), findsOneWidget);
 
     // Verify notifier state cleared queues
     expect(notifier.state.steeringQueue, isEmpty);

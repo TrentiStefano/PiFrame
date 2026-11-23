@@ -759,7 +759,7 @@ class RichContent extends StatefulWidget {
           alignment: PlaceholderAlignment.middle,
           child: SelectionContainer.disabled(
             child: Tooltip(
-              message: strings?.richContentOpenFileTooltip ?? 'CTRL+clic per aprire in Esplora file',
+              message: strings?.richContentOpenFileTooltip ?? 'Ctrl+Click to open in File Explorer',
               child: MouseRegion(
                 cursor: SystemMouseCursors.click,
                 // Focusable link (plan 6.1): reachable by Tab, activated by

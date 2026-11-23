@@ -5,6 +5,8 @@ import 'package:pi_frame_protocol/pi_frame_protocol.dart';
 
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/daemon/pcp_client.dart';
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_settings.dart';
 import '../../domain/session/session_reducer.dart';
 import '../../domain/session/session_state.dart';
 import '../../domain/session/snapshot_reducer.dart';
@@ -219,13 +221,13 @@ class SideThreadNotifier extends StateNotifier<SideThreadState> {
     if (client == null) {
       final withErr = updatedConversations.map((c) {
         if (c.id == tempRecordId) {
-          return c.copyWith(status: 'error', errorMessage: 'Daemon non connesso');
+          return c.copyWith(status: 'error', errorMessage: ref.read(appStringsProvider).daemonNotConnected);
         }
         return c;
       }).toList();
       state = state.copyWith(
         status: 'error',
-        errorMessage: 'Daemon non connesso',
+        errorMessage: ref.read(appStringsProvider).daemonNotConnected,
         isOpen: true,
         conversations: withErr,
         selectedConversationId: tempRecordId,

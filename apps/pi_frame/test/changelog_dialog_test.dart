@@ -50,12 +50,12 @@ void main() {
     expect(find.text('2026-11-20'), findsOneWidget);
 
     // Verify sections and item texts
-    expect(find.textContaining('Nuove Funzionalità'), findsOneWidget);
+    expect(find.textContaining('New Features'), findsOneWidget);
     expect(find.text('chat'), findsOneWidget);
     expect(find.text('add read-only side conversations'), findsOneWidget);
     expect(find.text('2e48ed2'), findsOneWidget);
 
-    expect(find.textContaining('Correzioni di Bug'), findsOneWidget);
+    expect(find.textContaining('Bug Fixes'), findsOneWidget);
     expect(find.text('workspace'), findsOneWidget);
     expect(find.text('do not collapse git changes when opening agents sidecar'), findsOneWidget);
 
