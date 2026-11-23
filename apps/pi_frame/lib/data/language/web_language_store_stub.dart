@@ -2,3 +2,6 @@
 String? readWebLanguage() => null;
 
 void writeWebLanguage(String code) {}
+
+/// Non-web builds have no browser language.
+String? readBrowserLanguage() => null;

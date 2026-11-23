@@ -19,3 +19,13 @@ void writeWebLanguage(String code) {
     html.window.localStorage[_key] = code;
   } catch (_) {}
 }
+
+/// The browser's preferred language (`navigator.language`, such as `it-IT`), or null when it gives none.
+String? readBrowserLanguage() {
+  try {
+    final value = html.window.navigator.language;
+    return value.isEmpty ? null : value;
+  } catch (_) {
+    return null;
+  }
+}

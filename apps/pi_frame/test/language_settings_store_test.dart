@@ -32,6 +32,22 @@ void main() {
     expect(store().load(), AppLanguage.it);
   });
 
+  test('a new install with an unrelated JSON file in the folder still gets English', () {
+    writeJson('notes.json', {'todo': 'try PiFrame'});
+    expect(store().load(), AppLanguage.en);
+  });
+
+  test('every known PiFrame settings file marks an existing user', () {
+    expect(LanguageSettingsStore.knownSettingsFiles, contains('theme_settings.json'));
+    for (final name in LanguageSettingsStore.knownSettingsFiles) {
+      for (final file in dir.listSync()) {
+        file.deleteSync();
+      }
+      writeJson(name, <String, Object>{});
+      expect(store().load(), AppLanguage.it, reason: name);
+    }
+  });
+
   test('a language file without a language entry: Italian', () {
     writeJson('language_settings.json', <String, Object>{});
     expect(store().load(), AppLanguage.it);
@@ -67,6 +83,28 @@ void main() {
     expect(notifier.state, AppLanguage.it);
     notifier.setLanguage(AppLanguage.en);
     expect(store().load(), AppLanguage.en);
+  });
+
+  group('web client', () {
+    test('with no saved choice, an Italian browser starts in Italian', () {
+      expect(webLanguage(saved: null, browser: 'it-IT'), AppLanguage.it);
+      expect(webLanguage(saved: null, browser: 'it'), AppLanguage.it);
+    });
+
+    test('with no saved choice, an English browser starts in English', () {
+      expect(webLanguage(saved: null, browser: 'en-GB'), AppLanguage.en);
+    });
+
+    test('with no saved choice, any other or unknown browser language starts in English', () {
+      expect(webLanguage(saved: null, browser: 'fr-FR'), AppLanguage.en);
+      expect(webLanguage(saved: null, browser: 'italic'), AppLanguage.en);
+      expect(webLanguage(saved: null, browser: null), AppLanguage.en);
+    });
+
+    test('a saved choice wins over the browser language', () {
+      expect(webLanguage(saved: 'en', browser: 'it-IT'), AppLanguage.en);
+      expect(webLanguage(saved: 'it', browser: 'en-US'), AppLanguage.it);
+    });
   });
 
   test('without storage (tests, no home directory) the app starts in English', () {

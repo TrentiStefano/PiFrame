@@ -37,16 +37,17 @@ enum AppLanguage {
 }
 
 /// Where the language choice is kept, and the default-language rule:
-/// - no saved PiFrame settings (a new install): English;
-/// - saved settings but no language choice (an existing user from before
-///   English became the default): Italian, so an update does not silently
-///   change their language;
+/// - no PiFrame settings file ([knownSettingsFiles]) in ~/.piframe (a new
+///   install): English;
+/// - a PiFrame settings file but no language choice (an existing user from
+///   before English became the default): Italian, so an update does not
+///   silently change their language;
 /// - an explicit choice always wins.
 ///
 /// The first resolution is saved, so settings files written later (window
 /// state, first run, ...) never change it. Desktop builds keep the files in
 /// ~/.piframe; the web client keeps the choice in the browser's localStorage
-/// and, having no other saved settings, starts in English.
+/// and, with no saved choice, follows the browser's language ([webLanguage]).
 class LanguageSettingsStore {
   const LanguageSettingsStore({required this.directory});
 
@@ -67,8 +68,30 @@ class LanguageSettingsStore {
 
   File? get _file => directory == null ? null : File('${directory!.path}/$_fileName');
 
+  /// The settings files PiFrame writes in ~/.piframe besides the language file. Any of them means PiFrame ran
+  /// here before, so the user is an existing one; other files in the folder (or its themes/ and runtime/
+  /// subfolders) do not count. Add a new settings file here when a store starts writing one.
+  static const knownSettingsFiles = [
+    'app_first_run.json',
+    'changelog_state.json',
+    'composer_settings.json',
+    'first_run.json',
+    'layout.json',
+    'nerd_stats_settings.json',
+    'pinned_sessions.json',
+    'reduced_motion_settings.json',
+    'removed_repos.json',
+    'startup_animation_settings.json',
+    'step_grouping_settings.json',
+    'terminal_settings.json',
+    'theme_settings.json',
+    'unread_sessions.json',
+    'update_settings.json',
+    'window_state.json',
+  ];
+
   AppLanguage load() {
-    if (kIsWeb) return AppLanguage.tryFromCode(readWebLanguage()) ?? AppLanguage.defaultLanguage;
+    if (kIsWeb) return webLanguage(saved: readWebLanguage(), browser: readBrowserLanguage());
     final file = _file;
     if (file == null) return AppLanguage.defaultLanguage;
     try {
@@ -88,7 +111,7 @@ class LanguageSettingsStore {
   bool _hasSavedSettings() {
     final dir = directory;
     if (dir == null || !dir.existsSync()) return false;
-    return dir.listSync().whereType<File>().any((f) => f.path.endsWith('.json'));
+    return knownSettingsFiles.any((name) => File('${dir.path}/$name').existsSync());
   }
 
   void save(AppLanguage language) {
@@ -103,6 +126,15 @@ class LanguageSettingsStore {
       file.writeAsStringSync(jsonEncode({'language': language.code}));
     } catch (_) {}
   }
+}
+
+/// The web client's language: the saved choice ([saved], a language code from localStorage) when there is one;
+/// otherwise the browser's language ([browser], a BCP 47 tag such as `it-IT`) when PiFrame has it, else English.
+AppLanguage webLanguage({required String? saved, required String? browser}) {
+  final choice = AppLanguage.tryFromCode(saved);
+  if (choice != null) return choice;
+  final primary = browser?.split(RegExp('[-_]')).first;
+  return AppLanguage.tryFromCode(primary) ?? AppLanguage.defaultLanguage;
 }
 
 class AppLanguageNotifier extends StateNotifier<AppLanguage> {

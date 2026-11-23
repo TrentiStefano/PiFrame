@@ -290,14 +290,14 @@ In **Settings → Appearance → Application Language** you can choose English o
 
 **Default language**: English.
 
-- **New install** (no PiFrame settings in `~/.piframe` yet): the app starts in English.
-- **Existing install with no language choice** (settings saved by an earlier PiFrame, but no language picked): the app keeps Italian, the old default, so an update does not change your language.
+- **New install** (no PiFrame settings file in `~/.piframe` yet): the app starts in English. Other files you keep in that folder do not count.
+- **Existing install with no language choice** (a settings file saved by an earlier PiFrame, such as `theme_settings.json` or `window_state.json`, but no language picked): the app keeps Italian, the old default, so an update does not change your language.
 - **Explicit choice**: the language you pick in Settings always wins.
 
 The language is decided once, on the first launch of this version, and saved, so the rule above does not change later.
 
 - **Desktop app**: the choice is saved in `~/.piframe/language_settings.json`.
-- **Web and phone (remote access)**: the web client cannot read `~/.piframe`, so it saves the choice in the browser's `localStorage`. If you have never picked a language on that browser, the web client starts in English.
+- **Web and phone (remote access)**: the web client cannot read `~/.piframe`, so it saves the choice in the browser's `localStorage`. If you have never picked a language on that browser, the web client follows the browser's language when it is Italian or English, and starts in English for any other language.
 
 ### Technical stats
 
