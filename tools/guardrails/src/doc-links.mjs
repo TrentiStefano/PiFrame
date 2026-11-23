@@ -3,49 +3,16 @@
  *
  * Pure: no I/O. tools/scripts/check-doc-links.mjs reads the tracked files and calls it.
  */
+import { linkTargets, markdownLines } from './markdown.mjs';
 import { toPosix } from './paths.mjs';
 
-/** `[text](target "title")` and `![alt](target)`: group 1 is `<target>` or a bare target. */
-const INLINE_LINK = /!?\[[^\]]*\]\(\s*(<[^>]*>|[^)\s]+)[^)]*\)/g;
-/** `[label]: target "title"` at the start of a line. */
-const REFERENCE_DEFINITION = /^ {0,3}\[[^\]]+\]:\s*(<[^>]*>|\S+)/;
-
-/** `<img src="...">` and `<a href="...">`: group 1 is the target. */
-const HTML_LINK = /<[a-z][^>]*?\s(?:src|href)\s*=\s*["']([^"']*)["']/gi;
-/** A code fence: three or more backticks or tildes (indented too, as inside list items). */
-const FENCE = /^\s*(`{3,}|~{3,})/;
-/** An inline code span: a run of backticks, its contents, and a run of the same length. */
-const CODE_SPAN = /(`+)[\s\S]*?\1/g;
-/** A target with a scheme (`https:`, `mailto:`, `vscode:`) or protocol-relative (`//host`): not a repository path. */
-const EXTERNAL = /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i;
+const MARKDOWN = /\.md$/i;
 
 /** Each line of Markdown outside fenced code blocks, as [line number, text]. */
-function proseLines(contents) {
-  const out = [];
-  let fence = null;
-  contents.split(/\r?\n/).forEach((text, index) => {
-    const marker = text.match(FENCE)?.[1];
-    if (fence) {
-      if (marker && marker[0] === fence[0] && marker.length >= fence.length && text.trim() === marker) fence = null;
-    } else if (marker) {
-      fence = marker;
-    } else {
-      out.push([index + 1, text]);
-    }
-  });
-  return out;
-}
-
-/** The link targets on one line of Markdown, code spans and external URLs left out. */
-function linkTargets(line) {
-  const text = line.replace(CODE_SPAN, '');
-  const targets = [...text.matchAll(INLINE_LINK), ...text.matchAll(HTML_LINK)].map((m) => m[1]);
-  const definition = text.match(REFERENCE_DEFINITION);
-  if (definition) targets.push(definition[1]);
-  return targets
-    .map((t) => (t.startsWith('<') && t.endsWith('>') ? t.slice(1, -1) : t))
-    .filter((t) => !EXTERNAL.test(t));
-}
+const proseLines = (contents) =>
+  markdownLines(contents)
+    .filter(({ kind }) => kind === 'prose')
+    .map(({ line, text }) => [line, text]);
 
 const ATX_HEADING = /^ {0,3}#{1,6}(?:\s+(.*?))?(?:\s+#+)?\s*$/;
 const SETEXT_UNDERLINE = /^ {0,3}(=+|-+)\s*$/;
@@ -119,7 +86,7 @@ export function inDocLinkScope(path) {
  * @param {{ path: string, contents: string }[]} input.files every tracked Markdown file: the ones in scope
  *   (inDocLinkScope) have their links checked, all of them provide the headings a link can point at
  * @param {string[]} input.trackedFiles every tracked file in the repository
- * @returns {{ ok: boolean, broken: { file: string, line: number, target: string, message: string }[] }} `message`
+ * @returns {{ ok: boolean, problems: { file: string, line: number, target: string, message: string }[] }} `message`
  *   names the file, the line and the missing target, and says how to fix it
  */
 export function checkDocLinks({ files, trackedFiles }) {
@@ -139,21 +106,19 @@ export function checkDocLinks({ files, trackedFiles }) {
     return anchorCache.get(path);
   };
 
-  const broken = [];
+  const problems = [];
   for (const [path, text] of contents) {
     if (!inDocLinkScope(path)) continue;
     for (const [line, prose] of proseLines(text)) {
-      for (const target of linkTargets(prose)) {
+      for (const { target } of linkTargets(prose)) {
         const problem = linkProblem(path, target, { tracked, folders, anchors });
         if (problem)
-          broken.push({ file: path, line, target, message: `${path}:${line}: the link "${target}" ${problem}` });
+          problems.push({ file: path, line, target, message: `${path}:${line}: the link "${target}" ${problem}` });
       }
     }
   }
-  return { ok: broken.length === 0, broken };
+  return { ok: problems.length === 0, problems };
 }
-
-const MARKDOWN = /\.md$/i;
 
 /** Why `target`, linked from `from`, is broken (with how to fix it), or null when it is fine. */
 function linkProblem(from, target, { tracked, folders, anchors }) {

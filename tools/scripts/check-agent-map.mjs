@@ -7,32 +7,24 @@
  *
  *   node tools/scripts/check-agent-map.mjs
  */
-import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { AGENT_MAP_PATH, checkAgentMap } from '../guardrails/src/index.mjs';
+import { REPO, repoFiles } from './repo-files.mjs';
 
-const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
-
-const listed = spawnSync('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard'], {
-  cwd: REPO,
-  encoding: 'utf8',
-  maxBuffer: 64 * 1024 * 1024
-});
-if (listed.status !== 0) {
+const paths = repoFiles();
+if (!paths) {
   console.error('✖ agent map check: `git ls-files` failed; run it inside the repository.');
   process.exit(1);
 }
-const paths = listed.stdout.split('\0').filter((p) => p && fs.existsSync(path.join(REPO, p)));
 const text = fs.readFileSync(path.join(REPO, AGENT_MAP_PATH), 'utf8');
 const scripts = Object.keys(JSON.parse(fs.readFileSync(path.join(REPO, 'package.json'), 'utf8')).scripts ?? {});
 
-const { ok, violations } = checkAgentMap({ text, paths, scripts });
+const { ok, problems } = checkAgentMap({ text, paths, scripts });
 if (ok) {
   console.log(`✔ agent map check: ${AGENT_MAP_PATH} is short and every path and script it names exists.`);
 } else {
-  console.error(`\n✖ agent map check: ${violations.length} problem(s) in ${AGENT_MAP_PATH}:\n`);
-  for (const v of violations) console.error(`- ${v.message}`);
+  console.error(`\n✖ agent map check: ${problems.length} problem(s) in ${AGENT_MAP_PATH}:\n`);
+  for (const p of problems) console.error(`- ${p.message}`);
   process.exit(1);
 }

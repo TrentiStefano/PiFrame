@@ -10,8 +10,8 @@ test('a link to a file that does not exist fails, naming the file, the line, the
     trackedFiles: ['docs/guide.md']
   });
   assert.equal(result.ok, false);
-  assert.equal(result.broken.length, 1);
-  const [broken] = result.broken;
+  assert.equal(result.problems.length, 1);
+  const [broken] = result.problems;
   assert.equal(broken.file, 'docs/guide.md');
   assert.equal(broken.line, 3);
   assert.equal(broken.target, 'setup.md');
@@ -40,7 +40,7 @@ test('valid relative links pass: sibling, parent, folder, root-relative, image, 
       'docs/design/a shot.png'
     ]
   });
-  assert.deepEqual(result.broken, []);
+  assert.deepEqual(result.problems, []);
   assert.equal(result.ok, true);
 });
 
@@ -53,15 +53,15 @@ test('a link to a heading that does not exist fails, naming the anchor and the h
     trackedFiles: ['docs/a.md', 'docs/b.md']
   });
   assert.deepEqual(
-    result.broken.map((b) => [b.file, b.line, b.target]),
+    result.problems.map((b) => [b.file, b.line, b.target]),
     [
       ['docs/a.md', 3, '#set-up'],
       ['docs/a.md', 3, 'b.md#gone']
     ]
   );
-  assert.match(result.broken[0].message, /docs\/a\.md:3.*#set-up/);
-  assert.match(result.broken[0].message, /#title/);
-  assert.match(result.broken[1].message, /docs\/b\.md.*#install/);
+  assert.match(result.problems[0].message, /docs\/a\.md:3.*#set-up/);
+  assert.match(result.problems[0].message, /#title/);
+  assert.match(result.problems[1].message, /docs\/b\.md.*#install/);
 });
 
 test('links to existing headings pass, with GitHub anchors (punctuation, code, duplicates, explicit ids)', () => {
@@ -87,7 +87,7 @@ test('links to existing headings pass, with GitHub anchors (punctuation, code, d
     ],
     trackedFiles: ['docs/a.md', 'docs/b.md', 'docs/B.md', 'tools/x.mjs']
   });
-  assert.deepEqual(result.broken, []);
+  assert.deepEqual(result.problems, []);
   const notAHeading = checkDocLinks({
     files: [doc('docs/a.md', '```', '# not a heading', '```', '[x](#not-a-heading)')],
     trackedFiles: ['docs/a.md']
@@ -112,7 +112,7 @@ test('docs, README files and the root agent context (AGENTS.md, GLOSSARY.md, DES
     ],
     trackedFiles: ['CHANGELOG.md']
   });
-  assert.deepEqual(result.broken.map((b) => b.file).sort(), [
+  assert.deepEqual(result.problems.map((b) => b.file).sort(), [
     'AGENTS.md',
     'DESIGN.md',
     'GLOSSARY.md',
@@ -135,7 +135,7 @@ test('HTML src and href attributes are links too', () => {
     trackedFiles: ['README.md', 'docs/icon.png', 'docs/security.md', 'LICENSE']
   });
   assert.deepEqual(
-    result.broken.map((b) => [b.line, b.target]),
+    result.problems.map((b) => [b.line, b.target]),
     [[2, 'docs/gone.png']]
   );
 });
@@ -151,7 +151,7 @@ test('external URLs, mailto links and other schemes are ignored', () => {
     ],
     trackedFiles: ['README.md']
   });
-  assert.deepEqual(result.broken, []);
+  assert.deepEqual(result.problems, []);
 });
 
 test('links inside fenced code blocks and inline code are ignored, links after the fence are checked', () => {
@@ -175,7 +175,7 @@ test('links inside fenced code blocks and inline code are ignored, links after t
     trackedFiles: ['docs/a.md']
   });
   assert.deepEqual(
-    result.broken.map((b) => [b.line, b.target]),
+    result.problems.map((b) => [b.line, b.target]),
     [[11, 'gone.md']]
   );
 });
@@ -186,7 +186,7 @@ test('a broken reference-style link definition fails on its own line', () => {
     trackedFiles: ['README.md']
   });
   assert.deepEqual(
-    result.broken.map((b) => [b.line, b.target]),
+    result.problems.map((b) => [b.line, b.target]),
     [[3, 'docs/gone.md']]
   );
 });

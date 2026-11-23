@@ -6,4 +6,13 @@ export { guardCommand } from './guard-command.mjs';
 export { approvalStatus, APPROVAL_LABEL, APPROVAL_MARKER } from './approval.mjs';
 export { checkDocLinks, inDocLinkScope } from './doc-links.mjs';
 export { checkAgentMap, AGENT_MAP_PATH, AGENT_MAP_MAX_LINES } from './agent-map.mjs';
-export { designTokenMatch, motionTable, themeTokenSources } from './design-tokens.mjs';
+export {
+  checkDesignTokens,
+  designTokenMatch,
+  isThemeFile,
+  motionTable,
+  themeTokenSources,
+  DESIGN_PATH,
+  THEME_PACKAGE_FILES
+} from './design-tokens.mjs';
+export { markdownLines, linkTargets, isExternalLink, normalizeLineEndings } from './markdown.mjs';

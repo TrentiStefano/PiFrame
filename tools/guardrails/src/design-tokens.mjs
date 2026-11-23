@@ -2,21 +2,90 @@
  * Design token match: DESIGN.md's front-matter tokens must equal the values the theme files and the theme package
  * ship (themes/*.json and packages/pi_frame_theme are the source of truth).
  *
- * Pure: no I/O. tools/scripts/check-design-tokens.mjs reads the files and calls it.
+ * Pure: no I/O. tools/scripts/check-design-tokens.mjs reads the files and calls checkDesignTokens.
  */
+import { normalizeLineEndings } from './markdown.mjs';
 
 /** @typedef {{ file: string, tokens: Record<string, string> }} TokenSource a file and the token paths it defines */
-/** @typedef {{ token: string, design?: string, theme?: string, file?: string, message: string }} Mismatch */
+/** @typedef {{ token?: string, design?: string, theme?: string, file?: string, message: string }} Problem */
+/** @typedef {{ file: string, text: string }} TextFile */
+
+/** The design system file, relative to the repository root. */
+export const DESIGN_PATH = 'DESIGN.md';
+/** The theme package sources the check reads, relative to the repository root. */
+export const THEME_PACKAGE_FILES = {
+  text: 'packages/pi_frame_theme/lib/src/theme_text.dart',
+  motion: 'packages/pi_frame_theme/lib/src/theme_motion.dart',
+  scale: 'packages/pi_frame_theme/lib/src/theme_scale.dart'
+};
+
+/** A theme file: a JSON file directly in themes/, the JSON Schema excluded. */
+export const isThemeFile = (path) => /^themes\/[^/]+\.json$/.test(path) && !path.endsWith('.schema.json');
+
+/** YAML front matter: a block between two `---` lines at the very top. */
+const FRONT_MATTER = /^---\n([\s\S]*?)\n---(?:\n|$)/;
+
+/**
+ * The whole check: DESIGN.md's front matter plus its Motion table against the theme files and the theme package.
+ *
+ * @param {object} input
+ * @param {string} input.design the DESIGN.md text
+ * @param {(yaml: string) => object} input.parseYaml a YAML parser (the `yaml` package's `parse`)
+ * @param {TextFile[]} input.themeFiles the files in themes/; only the theme JSON files (isThemeFile) are compared
+ * @param {TextFile} input.text theme_text.dart
+ * @param {TextFile} input.motion theme_motion.dart
+ * @param {TextFile} input.scale theme_scale.dart
+ * @returns {{ ok: boolean, problems: Problem[] }}
+ */
+export function checkDesignTokens({ design, parseYaml, themeFiles, text, motion, scale }) {
+  const markdown = normalizeLineEndings(design);
+  const frontMatter = markdown.match(FRONT_MATTER);
+  if (!frontMatter) {
+    return failed(
+      `${DESIGN_PATH} has no YAML front matter. To fix it, put the design tokens in a block between two "---" ` +
+        `lines at the very top of ${DESIGN_PATH}.`
+    );
+  }
+  let tokens;
+  try {
+    tokens = parseYaml(frontMatter[1]) ?? {};
+  } catch (error) {
+    return failed(`${DESIGN_PATH}'s front matter is not valid YAML (${error.message}). To fix it, correct the YAML.`);
+  }
+  // Motion is a table in the Motion section until the pinned linter accepts the spec's motion group (see motionTable).
+  const designTokens = { ...tokens, motion: motionTable(markdown) };
+
+  const themes = [];
+  const problems = [];
+  for (const { file, text: json } of themeFiles.filter(({ file }) => isThemeFile(file))) {
+    try {
+      themes.push({ file, theme: JSON.parse(json) });
+    } catch (error) {
+      problems.push({ file, message: `${file} is not valid JSON (${error.message}). To fix it, correct ${file}.` });
+    }
+  }
+  if (problems.length > 0) return { ok: false, problems };
+  return designTokenMatch({
+    design: designTokens,
+    sources: themeTokenSources({ themes: themes.sort((a, b) => a.file.localeCompare(b.file)), text, motion, scale })
+  });
+}
+
+const failed = (message) => ({ ok: false, problems: [{ message }] });
+
+/** Where in DESIGN.md a token is written: motion tokens in the Motion table, the rest in the front matter. */
+const designPlace = (token) =>
+  token.startsWith('motion.') ? `the Motion table of ${DESIGN_PATH}` : `${DESIGN_PATH}'s front matter`;
 
 /**
  * @param {object} input
- * @param {object} input.design the parsed DESIGN.md front matter
+ * @param {object} input.design the DESIGN.md tokens: the parsed front matter, plus `motion` from the Motion table
  * @param {TokenSource[]} input.sources the token values each theme file defines
- * @returns {Mismatch[]}
+ * @returns {{ ok: boolean, problems: Problem[] }} each message names the token, both values and the file to edit
  */
 export function designTokenMatch({ design, sources }) {
   const designTokens = flatten(design);
-  const out = [];
+  const problems = [];
   const defined = new Set();
   for (const { file, tokens } of sources) {
     for (const [token, value] of Object.entries(tokens)) {
@@ -24,14 +93,24 @@ export function designTokenMatch({ design, sources }) {
       const theme = normalize(value);
       const expected = designTokens.get(token);
       if (expected === undefined) {
-        out.push({ token, theme, file, message: `${token}: ${file} has ${theme}, DESIGN.md does not define it` });
+        problems.push({
+          token,
+          theme,
+          file,
+          message:
+            `${token}: ${file} has ${theme}, ${DESIGN_PATH} does not define it. To fix it, add ${token} = ${theme} ` +
+            `to ${designPlace(token)}.`
+        });
       } else if (expected !== theme) {
-        out.push({
+        problems.push({
           token,
           design: expected,
           theme,
           file,
-          message: `${token}: DESIGN.md has ${expected}, ${file} has ${theme}`
+          message:
+            `${token}: ${DESIGN_PATH} has ${expected}, ${file} has ${theme}. To fix it, set ${token} to ${theme} in ` +
+            `${designPlace(token)} (${file} is the source of truth; change it instead only if the theme itself ` +
+            'should change).'
         });
       }
     }
@@ -39,13 +118,15 @@ export function designTokenMatch({ design, sources }) {
   const files = sources.map(({ file }) => file).join(', ');
   for (const [token, expected] of designTokens) {
     if (defined.has(token)) continue;
-    out.push({
+    problems.push({
       token,
       design: expected,
-      message: `${token}: DESIGN.md has ${expected}, no theme file defines it (${files})`
+      message:
+        `${token}: ${DESIGN_PATH} has ${expected}, no theme file defines it (${files}). To fix it, remove ${token} ` +
+        `from ${designPlace(token)}, or add it to the theme file or theme package constant that should ship it.`
     });
   }
-  return out;
+  return { ok: problems.length === 0, problems };
 }
 
 /** The token groups the theme defines; `components` only references them and is not compared. */
@@ -74,7 +155,7 @@ function normalize(value) {
     .replace(/(\d+(?:\.\d+)?)(px|ms)$/, (_, n, unit) => `${Number(n)}${unit}`);
 }
 
-/** Theme colour keys whose DESIGN.md name is not their kebab-case spelling: the accent is the primary colour. */
+/** Theme color keys whose DESIGN.md name is not their kebab-case spelling: the accent is the primary color. */
 const COLOR_NAMES = { accent: 'primary', accentContrast: 'on-primary' };
 /** The theme's motion keys and the theme package constant each one overrides (FrameTokens' defaults). */
 const THEME_MOTION = { fast: 'micro', normal: 'panel' };
@@ -170,7 +251,7 @@ const REFERENCE = /^\{[\w.-]+\}$/;
  * @returns {Record<string, { duration?: string, timingFunction?: string }>}
  */
 export function motionTable(markdown) {
-  const section = markdown.replace(/\r\n/g, '\n').match(/^## Motion[^\n]*\n([\s\S]*?)(?=^## |(?![\s\S]))/m)?.[1] ?? '';
+  const section = normalizeLineEndings(markdown).match(/^## Motion[^\n]*\n([\s\S]*?)(?=^## |(?![\s\S]))/m)?.[1] ?? '';
   const rows = section.split('\n').filter((line) => line.trim().startsWith('|'));
   const cells = (line) =>
     line

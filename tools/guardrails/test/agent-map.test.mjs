@@ -6,7 +6,7 @@ const PATHS = ['AGENTS.md', 'README.md', 'apps/pi_frame/lib/main.dart', 'docs/pr
 const SCRIPTS = ['check', 'verify', 'pr'];
 
 const map = (...lines) => `${lines.join('\n')}\n`;
-const messages = (result) => result.violations.map((v) => v.message);
+const messages = (result) => result.problems.map((v) => v.message);
 
 test('a short map whose paths and scripts all exist passes', () => {
   const text = map(
@@ -14,7 +14,7 @@ test('a short map whose paths and scripts all exist passes', () => {
     '- `apps/pi_frame/` holds the app; see [the verification guide](docs/pr-verification.md#commands).',
     '- Run `pnpm run check` while working and `pnpm run verify` before a PR (`docs/adr/`, `README.md`).'
   );
-  assert.deepEqual(checkAgentMap({ text, paths: PATHS, scripts: SCRIPTS }), { ok: true, violations: [] });
+  assert.deepEqual(checkAgentMap({ text, paths: PATHS, scripts: SCRIPTS }), { ok: true, problems: [] });
 });
 
 test('a map over 100 lines fails and says how long it is', () => {
@@ -39,7 +39,7 @@ test('a mentioned path that is not tracked fails, naming the line and the path',
   );
   const result = checkAgentMap({ text, paths: PATHS, scripts: SCRIPTS });
   assert.equal(result.ok, false);
-  assert.deepEqual(result.violations, [
+  assert.deepEqual(result.problems, [
     {
       line: 2,
       message:
@@ -66,7 +66,7 @@ test('globs match tracked files; URLs, home paths, placeholders, package names a
     'Tests: `<package>/src/**/*.test.ts`; packages `@piframe/agentd`; see https://example.com/a/b.md and',
     '[the site](https://example.com/x.md), the [commands](#commands) section, and `node --test` with `-- --e2e`.'
   );
-  assert.deepEqual(checkAgentMap({ text, paths: PATHS, scripts: SCRIPTS }), { ok: true, violations: [] });
+  assert.deepEqual(checkAgentMap({ text, paths: PATHS, scripts: SCRIPTS }), { ok: true, problems: [] });
 });
 
 test('paths inside a fenced code block are checked too', () => {

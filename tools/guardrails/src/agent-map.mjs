@@ -4,6 +4,8 @@
  * Pure: no I/O. tools/scripts/check-agent-map.mjs reads AGENTS.md, the tracked files and the root package.json
  * scripts, and calls it.
  */
+import { linkTargets, markdownLines, normalizeLineEndings } from './markdown.mjs';
+import { toPosix } from './paths.mjs';
 
 /** The map the check reads, relative to the repository root. */
 export const AGENT_MAP_PATH = 'AGENTS.md';
@@ -15,14 +17,14 @@ export const AGENT_MAP_MAX_LINES = 100;
  * @param {string} input.text the AGENTS.md text
  * @param {string[]} input.paths tracked repository files (and folders), `/`-separated, relative to the root
  * @param {string[]} input.scripts the root package.json script names
- * @returns {{ ok: boolean, violations: { line: number, message: string }[] }}
+ * @returns {{ ok: boolean, problems: { line: number, message: string }[] }}
  */
 export function checkAgentMap({ text, paths, scripts }) {
   const known = new Set(scripts);
-  const lines = text.replace(/\r\n/g, '\n').replace(/\n$/, '').split('\n');
-  const violations = [];
+  const lines = markdownLines(normalizeLineEndings(text).replace(/\n$/, ''));
+  const problems = [];
   if (lines.length > AGENT_MAP_MAX_LINES) {
-    violations.push({
+    problems.push({
       line: AGENT_MAP_MAX_LINES + 1,
       message:
         `${AGENT_MAP_PATH} has ${lines.length} lines, over the limit of ${AGENT_MAP_MAX_LINES}. ` +
@@ -31,16 +33,11 @@ export function checkAgentMap({ text, paths, scripts }) {
   }
 
   const exists = existenceCheck(paths);
-  let fenced = false;
-  lines.forEach((content, index) => {
-    const line = index + 1;
-    if (/^\s*(```|~~~)/.test(content)) {
-      fenced = !fenced;
-      return;
-    }
-    for (const path of mentionedPaths(content, fenced)) {
+  for (const { line, text: content, kind } of lines) {
+    if (kind === 'fence') continue;
+    for (const path of mentionedPaths(content, kind === 'code')) {
       if (!exists(path)) {
-        violations.push({
+        problems.push({
           line,
           message:
             `${AGENT_MAP_PATH}:${line} names \`${path}\`, which matches no tracked file or folder. ` +
@@ -50,7 +47,7 @@ export function checkAgentMap({ text, paths, scripts }) {
     }
     for (const [, script] of content.matchAll(/\bpnpm run ([\w:.-]*[\w:-])/g)) {
       if (!known.has(script)) {
-        violations.push({
+        problems.push({
           line,
           message:
             `${AGENT_MAP_PATH}:${line} runs \`pnpm run ${script}\`, but the root package.json has no "${script}" ` +
@@ -58,13 +55,13 @@ export function checkAgentMap({ text, paths, scripts }) {
         });
       }
     }
-  });
-  return { ok: violations.length === 0, violations };
+  }
+  return { ok: problems.length === 0, problems };
 }
 
 /** @returns {(path: string) => boolean} true when the path (or glob) names a tracked file or one of their folders. */
 function existenceCheck(paths) {
-  const files = paths.map((p) => p.replaceAll('\\', '/').replace(/\/$/, ''));
+  const files = paths.map((p) => toPosix(p).replace(/\/$/, ''));
   const known = new Set(files);
   for (const file of files) {
     for (let i = file.indexOf('/'); i !== -1; i = file.indexOf('/', i + 1)) known.add(file.slice(0, i));
@@ -110,9 +107,9 @@ function mentionedPaths(content, fenced) {
   if (fenced) addTokens(content, 0);
   else {
     for (const m of content.matchAll(/`([^`]+)`/g)) addTokens(m[1], m.index);
-    for (const m of content.matchAll(/\]\(([^)\s]+)\)/g)) {
-      const target = m[1].replace(/#.*$/, '');
-      if (target && !/^[a-z][\w+.-]*:/i.test(target)) found.push({ at: m.index, path: target });
+    for (const { target, at } of linkTargets(content)) {
+      const path = target.replace(/#.*$/, '');
+      if (path) found.push({ at, path });
     }
   }
   return found.sort((a, b) => a.at - b.at).map(({ path }) => path);
