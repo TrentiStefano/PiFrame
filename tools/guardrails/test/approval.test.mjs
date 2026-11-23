@@ -85,7 +85,8 @@ test('a change to a guarded path needs approval, whichever way it goes', () => {
     'pnpm-workspace.yaml',
     'DESIGN.md',
     'tools/scripts/lint-design.mjs',
-    'tools/scripts/check-design-tokens.mjs'
+    'tools/scripts/check-design-tokens.mjs',
+    'tools/scripts/repo-files.mjs'
   ];
   for (const path of guarded) {
     const result = approvalStatus({

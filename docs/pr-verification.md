@@ -5,7 +5,7 @@
 ## Commands
 
 ```bash
-pnpm run check             # inner loop: escape-hatch audit, doc link and agent map checks, type checking, flutter analyze (+ the test files you pass)
+pnpm run check             # inner loop: escape-hatch audit, doc link, agent map, design lint and design token checks, type checking, flutter analyze (+ the test files you pass)
 pnpm run verify            # CI checks + release validation
 pnpm run pr                # verify + push the branch + open the PR (gh pr create)
 ```
@@ -27,7 +27,9 @@ Options (they work for both commands; with `pnpm` they go after `--`):
 
 `pnpm run check` is the fast tier to run after every small change. It runs the `check` tier of the shared step list in the **current working tree**, uncommitted changes included: no `pnpm install`, no worktree, no merge with `origin/main`, no cache. It assumes `pnpm run setup` has been run once.
 
-1. the escape-hatch audit (see [below](#escape-hatch-ratchet)), the doc link check (see [below](#doc-link-check)) and the agent map check (see [below](#agent-map-check))
+`check` never installs dependencies. After a dependency change (one you made, or one you pulled, such as the `@google/design.md` and `yaml` packages the design checks use), run `pnpm install` first; otherwise the step that needs the missing package fails with `Cannot find package`.
+
+1. the escape-hatch audit (see [below](#escape-hatch-ratchet)), the doc link check (see [below](#doc-link-check)), the agent map check (see [below](#agent-map-check)), the design lint (see [below](#design-lint)) and the design token check (see [below](#design-token-check))
 2. `pnpm -r run build` (agentd and the e2e tests type-check against the other packages' built `.d.ts`; a fresh or stale `dist/` would give false errors)
 3. `pnpm -r run lint` (`tsc --noEmit` for every TypeScript package)
 4. `node tools/scripts/sync-changelog.mjs` (what `pnpm run sync:changelog` runs): generates the in-app changelog, which the app's `pubspec.yaml` lists, so `flutter analyze` and the Flutter tests find it
@@ -42,17 +44,19 @@ Any other path fails before anything runs, with a message naming the supported k
 ```text
 # (each step's own output omitted)
 $ pnpm run check -- apps/pi_frame/test/changelog_test.dart apps/agentd/src/pi/test/PiEventAdapter.test.ts tools/guardrails/test/steps.test.mjs
-[1/10] Escape-hatch audit (baseline ratchet) ... ok (1.8s)
-[2/10] Doc links (relative links and anchors resolve) ... ok (0.3s)
-[3/10] AGENTS.md map check (length, paths, scripts) ... ok (0.2s)
-[4/10] Build TypeScript packages ... ok (9.4s)
-[5/10] TypeScript lint (tsc --noEmit) ... ok (4.8s)
-[6/10] Generate the in-app changelog ... ok (0.1s)
-[7/10] Flutter analyze (all projects) ... ok (30.4s)
-[8/10] Flutter test apps/pi_frame/test/changelog_test.dart ... ok (11.4s)
-[9/10] Node test apps/agentd/dist/pi/test/PiEventAdapter.test.js (compiled from apps/agentd/src/pi/test/PiEventAdapter.test.ts) ... ok (0.2s)
-[10/10] Node test tools/guardrails/test/steps.test.mjs ... ok (0.3s)
-✔ check: all 10 steps passed in 58.6s.
+[1/12] Escape-hatch audit (baseline ratchet) ... ok (1.8s)
+[2/12] Doc links (relative links and anchors resolve) ... ok (0.3s)
+[3/12] AGENTS.md map check (length, paths, scripts) ... ok (0.2s)
+[4/12] DESIGN.md lint (@google/design.md) ... ok (0.4s)
+[5/12] DESIGN.md tokens match the theme ... ok (0.2s)
+[6/12] Build TypeScript packages ... ok (9.4s)
+[7/12] TypeScript lint (tsc --noEmit) ... ok (4.8s)
+[8/12] Generate the in-app changelog ... ok (0.1s)
+[9/12] Flutter analyze (all projects) ... ok (30.4s)
+[10/12] Flutter test apps/pi_frame/test/changelog_test.dart ... ok (11.4s)
+[11/12] Node test apps/agentd/dist/pi/test/PiEventAdapter.test.js (compiled from apps/agentd/src/pi/test/PiEventAdapter.test.ts) ... ok (0.2s)
+[12/12] Node test tools/guardrails/test/steps.test.mjs ... ok (0.3s)
+✔ check: all 12 steps passed in 59.2s.
 ```
 
 The `check` tier is local only: `ci.yml` follows the `ci` tier, so adding a step to `check` does not change the workflow. `check` passing does not mean "ready for a PR"; only `verify` does.
@@ -65,7 +69,7 @@ The steps come from one shared step list, `tools/guardrails/src/steps.mjs`. `ver
 
 1. `pnpm install --frozen-lockfile`
 2. TypeScript/Node formatting (Prettier `--check`)
-3. the escape-hatch audit (see [below](#escape-hatch-ratchet)), the doc link check (see [below](#doc-link-check)) and the agent map check (see [below](#agent-map-check))
+3. the escape-hatch audit (see [below](#escape-hatch-ratchet)), the doc link check (see [below](#doc-link-check)), the agent map check (see [below](#agent-map-check)), the design lint (see [below](#design-lint)) and the design token check (see [below](#design-token-check))
 4. `node tools/recon/verify.ts`
 5. PCP schema validation
 6. `pnpm -r run build` (including the daemon bundle build)
@@ -128,6 +132,7 @@ A passing result is valid for the same content (tree hash), the same base (`orig
 - **`pnpm run package:windows` cannot copy `node.exe` or `PiFrame.exe`**: a PiFrame or daemon started from `apps/pi_frame/build/windows/x64/runner/Release/` still runs. The script stops processes inside that folder and retries; close any it misses. After a successful Flutter build, repackage without rebuilding: `powershell -ExecutionPolicy Bypass -File tools/scripts/package-windows-installer.ps1 -SkipBuild`.
 - **Linux build: `webkit2gtk-4.1` or `libnotify` not found**: install the development packages, `sudo apt-get install libwebkit2gtk-4.1-dev libnotify-dev`. The release workflow does the same.
 - **Web build: `Dart library 'dart:ffi' is not available on this platform`**: code that uses `dart:ffi` is reachable from `main.dart` without a conditional import (`stub.dart if (dart.library.ffi) 'real.dart'`). `web_ffi_import_test.dart` catches it; `--release` runs the web build itself.
+- **Daemon unreachable after building PiFrame from source**: you built `PiFrame.exe` yourself (for example `flutter build windows --release`) and the app cannot connect to the daemon, the sessions list shows `TimeoutException after 0:00:08.000000`, or **Settings → Daemon → Restart daemon** keeps failing. A Flutter build does not rebuild the daemon, and it does not stop a daemon that is already running; when the daemon bundle next to `PiFrame.exe` is older than the app, the app stops it because of the version difference and starts the same old bundle again. Rebuild the daemon first, then the app (`pnpm build:agentd`; the build copies `apps/agentd/dist/pi-agentd.cjs` next to `PiFrame.exe`; copy `node.exe` there too if it is missing). Let running Pi workers finish, then use **Settings → Daemon → Restart daemon**. If the restart still fails, close PiFrame, end the old daemon (the `pi-agentd` process in Task Manager, or the process id in `~/.piframe/runtime/daemon.json`: `Stop-Process -Id (Get-Content "$HOME\.piframe\runtime\daemon.json" | ConvertFrom-Json).pid`), and start PiFrame again.
 - **GitHub Pages returns 404**: in **Repository Settings → Pages**, set **Build and deployment → Source** to **GitHub Actions**.
 - **Rebuilding an old release**: **Actions → Release → Run workflow** with an older tag uses the current workflow but that tag's packaging scripts, so packaging fixes made later are not in the rebuilt installers. Cut a new release instead.
 - **Context-limit smoke test**: after building the daemon, `node tools/scripts/smoke-context-policy.mjs` runs real Pi against a local HTTP model in temporary folders, with no calls to paid providers.
@@ -157,7 +162,7 @@ The logic is `auditEscapeHatches` in `tools/guardrails/src/escape-hatches.mjs` (
 
 ## Doc link check
 
-`node tools/scripts/check-doc-links.mjs` (in `check`, `verify` and CI) fails on any broken relative link in every Markdown file under `docs/`, every `README.md` and `AGENTS.md`, so moving or deleting a document cannot leave a stale reference.
+`node tools/scripts/check-doc-links.mjs` (in `check`, `verify` and CI) fails on any broken relative link in every Markdown file under `docs/`, every `README.md` (at any depth), and `AGENTS.md`, `GLOSSARY.md` and `DESIGN.md` at the root, so moving or deleting a document cannot leave a stale reference.
 
 - **Links.** Inline Markdown links and images (`[text](target)`, `![alt](target)`, `<target>` and titles allowed), reference definitions (`[label]: target`) and HTML `src`/`href` attributes. A target is resolved against the linking file's folder (`/...` against the repository root) and must be a tracked file or folder (untracked, not ignored files on disk count too, as for the escape-hatch audit).
 - **Anchors.** A `#heading` on a Markdown file (or a bare `#heading` in the same file) must match one of its headings, slugged as GitHub does (lower case, punctuation dropped, spaces as hyphens, duplicates as `-1`, `-2`), or an explicit `id`/`name` attribute. Any Markdown file in the repository can be linked to, `CHANGELOG.md` included. Anchors on other files (`foo.dart#L10`) are not checked.
@@ -182,12 +187,28 @@ The logic is `checkDocLinks` in `tools/guardrails/src/doc-links.mjs` (pure, test
 
 Each message names the line, for example ``AGENTS.md:11 names `scratch/release_ui_screenshots/*.png`, which matches no tracked file or folder. Fix the path or remove the mention.`` The logic is `checkAgentMap` in `tools/guardrails/src/agent-map.mjs` (pure, tested with in-memory fixtures in `tools/guardrails/test/agent-map.test.mjs`); the script only reads `AGENTS.md`, `git ls-files` and the root `package.json`.
 
+## Design lint
+
+`node tools/scripts/lint-design.mjs` (in `check`, `verify` and CI) runs Google's DESIGN.md linter (`@google/design.md`, pinned in the root `package.json`) on `DESIGN.md`. The linter's own CLI fails on errors only; this step fails on **errors and warnings**, and prints info findings without failing.
+
+- **What it checks.** That `DESIGN.md` follows the DESIGN.md format, by the pinned linter's rules: the YAML front matter (`colors`, `typography`, `rounded`, `spacing`, `components`) parses, token names, formats and nesting are valid and not duplicated, references such as `{colors.dark.primary}` resolve to a defined token, keys and section names are ones the format knows, and a component's text and background colors have enough contrast.
+- **A finding fails**: the message gives the severity, the linter's text and the path it points at (a front-matter token or a section). Edit `DESIGN.md` there, then run `node tools/scripts/lint-design.mjs` again. Do not add a group the pinned linter rejects: the motion tokens are a table in the `## Motion` section, not front matter, because 0.4.0 warns on a front-matter `motion` group (`DESIGN.md` says so there). A failure prints `✖ design lint: <n> error(s) or warning(s) in DESIGN.md`, then one `- <severity>: <message> (<path>)` line per finding.
+
+## Design token check
+
+`node tools/scripts/check-design-tokens.mjs` (in `check`, `verify` and CI) fails when a token in `DESIGN.md` differs from what the app ships. The shipped theme is the source of truth: the theme files `themes/*.json` (not `theme.schema.json`) and the theme package constants in `packages/pi_frame_theme/lib/src/` (`theme_text.dart` for the type roles, `theme_motion.dart` for durations and curves, `theme_scale.dart` for spacing).
+
+- **What it compares.** The `colors`, `typography`, `rounded` and `spacing` groups of the front matter, plus the motion tokens from the `## Motion` table. Values are compared after normalising case, spaces and units (`6.0px` = `6px`); a token that only references another (`{colors.dark.primary}`) is an alias and is skipped, and `components` is not compared.
+- **A token differs**: the message names the token, both values and the file to edit, for example `colors.dark.primary: DESIGN.md has #5f9fc5, themes/piframe-dark.json has #ff0000. To fix it, set colors.dark.primary to #ff0000 in DESIGN.md's front matter (...)`. Edit `DESIGN.md` (its front matter, or the Motion table for `motion.*`) unless the theme itself should change, in which case edit the theme file named. A token only one side defines is reported too, with where to add or remove it.
+
+The logic is `checkDesignTokens` in `tools/guardrails/src/design-tokens.mjs` (pure, tested with in-memory fixtures in `tools/guardrails/test/design-tokens.test.mjs`); the script only reads the files. The doc link, agent map and design token checks share the Markdown reading in `tools/guardrails/src/markdown.mjs`, and the adapters list the repository's files through `tools/scripts/repo-files.mjs`.
+
 ## Guardrail approval
 
 `.github/workflows/guardrails-approval.yml` runs on every pull-request event (`opened`, `synchronize`, `reopened`, `labeled`, `unlabeled`). It is a separate workflow, not a `ci.yml` job, because `ci.yml`'s jobs must equal the step list's `ci` tier. It fails while the PR changes a guardrail without a current `human-approved` label:
 
 - **A raised baseline number**: any count in `tools/guardrails/escape-hatch-baseline.json` that is higher on the PR head than at its merge base. Lowering is free.
-- **A guarded path changed**, in either direction: every `analysis_options.yaml`, `tsconfig*.json`, `.prettierrc.json` and `.prettierignore`, any ESLint config (`.eslintrc*`, `.eslintignore`, `eslint.config.*`), `tools/guardrails/**` (except the baseline file, see above), `tools/codegen/**`, **every script a gate step runs** (derived from the step list, all tiers: for example `tools/scripts/format.mjs`, `audit-escape-hatches.mjs`, `check-doc-links.mjs`, `check-agent-map.mjs`, `lint-flutter.js`, `test-flutter.js`, `setup-flutter.js`, `check-version-sync.mjs`, `sync-changelog.mjs`, `tools/recon/verify.ts`, `tools/remote-e2e/remote-iphone-e2e.mjs`), the gate runners `tools/scripts/verify-ci.mjs` and `tools/scripts/check.mjs`, `tools/scripts/flutter-projects.json`, `tools/scripts/guardrails-approval.mjs`, every `package.json` (the root one and each workspace package's: the `build`, `lint` and `test` scripts and the Prettier pin live there) and `pnpm-workspace.yaml`, `.github/workflows/**`, and the agent guards: `.claude/settings.json`, `.claude/hooks/**`, `.pi/extensions/**`, `.codex/rules/**`, and the agents' map `AGENTS.md`.
+- **A guarded path changed**, in either direction: every `analysis_options.yaml`, `tsconfig*.json`, `.prettierrc.json` and `.prettierignore`, any ESLint config (`.eslintrc*`, `.eslintignore`, `eslint.config.*`), `tools/guardrails/**` (except the baseline file, see above), `tools/codegen/**`, **every script a gate step runs** (derived from the step list, all tiers: for example `tools/scripts/format.mjs`, `audit-escape-hatches.mjs`, `check-doc-links.mjs`, `check-agent-map.mjs`, `lint-design.mjs`, `check-design-tokens.mjs`, `lint-flutter.js`, `test-flutter.js`, `setup-flutter.js`, `check-version-sync.mjs`, `sync-changelog.mjs`, `tools/recon/verify.ts`, `tools/remote-e2e/remote-iphone-e2e.mjs`), the gate runners `tools/scripts/verify-ci.mjs` and `tools/scripts/check.mjs`, the adapters' file listing `tools/scripts/repo-files.mjs`, `tools/scripts/flutter-projects.json`, `tools/scripts/guardrails-approval.mjs`, every `package.json` (the root one and each workspace package's: the `build`, `lint` and `test` scripts and the Prettier pin live there) and `pnpm-workspace.yaml`, `.github/workflows/**`, and the agent guards: `.claude/settings.json`, `.claude/hooks/**`, `.pi/extensions/**`, `.codex/rules/**`, and the agents' map `AGENTS.md`.
 
 When approval is needed, the job posts **one** comment (found again by a hidden `<!-- guardrails-approval -->` marker and edited, never duplicated) listing each reason, for example ``agentd lib `as any` 44 → 45`` or ``CI workflow changed: `.github/workflows/ci.yml` ``. To approve, review the PR and add the label in the GitHub UI: the `labeled` event re-runs the job, which turns green and updates the comment; no push is needed. A PR that needs nothing passes silently, without a comment (if an earlier commit needed approval and no longer does, the existing comment says so).
 

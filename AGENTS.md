@@ -54,8 +54,8 @@ apps/agentd  --one `pi --mode rpc` worker per session-->  Pi  --history-->  ~/.p
 | all tests / end-to-end tests | `pnpm run test` / `pnpm run test:e2e` |
 
 `check` runs in the working tree: the escape-hatch audit, the doc link and map checks, the DESIGN.md lint and token
-match, TypeScript build and types, and
-`flutter analyze`. `*_test.dart` files run with `flutter test`, `*.test.mjs` with `node --test`, and
+match, TypeScript build and types, and `flutter analyze`. It never installs: run `pnpm install` after a dependency
+change (yours or pulled). `*_test.dart` files run with `flutter test`, `*.test.mjs` with `node --test`, and
 `apps/agentd/src/**/*.test.ts` from its compiled copy under dist. `verify` runs the CI steps on the committed
 HEAD merged with origin/main. Tests regenerate screenshots under `docs/design-evidence/` and
 `website/assets/`: restore them with `git checkout -- docs/design-evidence website/assets` instead of committing.

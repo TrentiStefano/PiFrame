@@ -46,24 +46,6 @@ or download it from [aka.ms/vs/17/release/vc_redist.x64.exe](https://aka.ms/vs/1
 
 **What to do:** check that the distro still exists and starts (`wsl -d <distro>`), then send again. Update PiFrame if the error still names `node.exe` rather than the folder.
 
-### Daemon unreachable after building PiFrame from source
-
-**What you see:** you built `PiFrame.exe` yourself (for example `flutter build windows --release`); the app cannot connect to the daemon, the sessions list shows `TimeoutException after 0:00:08.000000`, or **Settings → Daemon → Restart daemon** keeps failing.
-
-**Why:** a Flutter build does not rebuild the daemon, and it does not stop a daemon that is already running. When the daemon bundle next to `PiFrame.exe` is older than the app, the app stops it because of the version difference and starts the same old bundle again.
-
-**What to do:**
-
-1. From the repository root, rebuild the daemon first, then the app (the build copies `apps/agentd/dist/pi-agentd.cjs` next to `PiFrame.exe`; copy `node.exe` there too if it is missing):
-   ```powershell
-   pnpm build:agentd
-   ```
-2. Let running Pi workers finish, then use **Settings → Daemon → Restart daemon**.
-3. If the restart still fails, close PiFrame, end the old daemon (the `pi-agentd` process in Task Manager, or the process id in `~/.piframe/runtime/daemon.json`), and start PiFrame again:
-   ```powershell
-   Stop-Process -Id (Get-Content "$HOME\.piframe\runtime\daemon.json" | ConvertFrom-Json).pid
-   ```
-
 ---
 
 ## macOS

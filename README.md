@@ -203,7 +203,7 @@ flutter build web --no-web-resources-cdn
 
 ### 4. Standalone desktop build
 
-To build the desktop executable yourself (for example `flutter build windows --release`), rebuild the daemon first with `pnpm build:agentd` (or `pnpm build:all`): the Windows build refuses a missing or outdated daemon bundle. CMake copies `apps/agentd/dist/pi-agentd.cjs` next to the executable; also copy `node.exe` there if the Node runtime is not already in that folder. Rebuilding the app does not stop a running daemon: let active Pi workers finish, then use **Settings → Daemon → Restart daemon**. If the app then cannot reach the daemon, see [docs/troubleshooting.md](docs/troubleshooting.md#daemon-unreachable-after-building-piframe-from-source); for file-lock errors (`EBUSY`), see [docs/pr-verification.md](docs/pr-verification.md#build-and-release-problems).
+To build the desktop executable yourself (for example `flutter build windows --release`), rebuild the daemon first with `pnpm build:agentd` (or `pnpm build:all`): the Windows build refuses a missing or outdated daemon bundle. CMake copies `apps/agentd/dist/pi-agentd.cjs` next to the executable; also copy `node.exe` there if the Node runtime is not already in that folder. Rebuilding the app does not stop a running daemon: let active Pi workers finish, then use **Settings → Daemon → Restart daemon**. If the app then cannot reach the daemon, or you get file-lock errors (`EBUSY`), see [docs/pr-verification.md](docs/pr-verification.md#build-and-release-problems).
 
 ### 5. Package the installers locally
 
