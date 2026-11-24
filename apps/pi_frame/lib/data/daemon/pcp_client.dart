@@ -1084,8 +1084,8 @@ class PcpException extends StateError implements Exception {
   List<Map<String, dynamic>> get validationErrors {
     if (details is List) {
       return (details as List)
-          .whereType<Map<String, dynamic>>()
-          .map((m) => m.map((k, v) => MapEntry(k.toString(), v)))
+          .whereType<Map<Object?, Object?>>()
+          .map((m) => m.map<String, dynamic>((k, v) => MapEntry(k.toString(), v)))
           .toList();
     }
     return const [];

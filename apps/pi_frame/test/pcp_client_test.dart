@@ -529,6 +529,22 @@ void main() {
     expect(stripped, 'Working directory has uncommitted changes');
   });
 
+  test('validationErrors keeps map entries with non-string keys, converting the keys', () {
+    final err = PcpException(
+      'Validation failed',
+      code: 'VALIDATION',
+      details: <Object?>[
+        <Object?, Object?>{'path': 'name', 1: 'numeric key'},
+        'not a map',
+        <String, dynamic>{'path': 'other'},
+      ],
+    );
+    expect(err.validationErrors, [
+      {'path': 'name', '1': 'numeric key'},
+      {'path': 'other'},
+    ]);
+  });
+
   test('openSide sends side.open command with question and returns result', () async {
     final openFuture = client.openSide('session-1', question: 'explain this');
     await Future<void>.delayed(const Duration(milliseconds: 20));
