@@ -37,16 +37,19 @@ export class CustomTunnelProvider extends BaseTunnelProvider {
     }
 
     if (this.options.command) {
-      let argv: string[];
+      let exe: string;
+      let args: string[];
       try {
-        argv = parseCommandLine(this.options.command).map((a) => a.split('$PORT').join(String(localPort)));
-        if (argv.length === 0) throw new Error('Empty tunnel command.');
+        const argv = parseCommandLine(this.options.command).map((a) => a.split('$PORT').join(String(localPort)));
+        const [first, ...rest] = argv;
+        if (first === undefined) throw new Error('Empty tunnel command.');
+        exe = first;
+        args = rest;
       } catch (err: any) {
         this.setState('error', { error: err.message });
         throw err;
       }
 
-      const [exe, ...args] = argv;
       const proc = child_process.spawn(exe, args, {
         shell: false,
         stdio: 'ignore', // never leave pipes undrained
