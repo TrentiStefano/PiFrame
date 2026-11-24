@@ -376,11 +376,10 @@ class _IntegratedTerminalPanelState extends ConsumerState<IntegratedTerminalPane
 
   Future<void> _startProcessForTab(TerminalTabSession session, String executable, List<String> args) async {
     final isWsl = executable.toLowerCase() == 'wsl.exe';
-    final host = ref.read(hostEnvironmentServiceProvider);
-    final cwdExists =
-        !isWsl && widget.cwd.isNotEmpty && await ref.read(fileSystemServiceProvider).directoryExists(widget.cwd);
+    final files = ref.read(fileSystemServiceProvider);
+    final cwdExists = !isWsl && widget.cwd.isNotEmpty && await files.directoryExists(widget.cwd);
     if (!mounted) return;
-    final effectiveCwd = cwdExists ? widget.cwd : host.currentDirectory;
+    final effectiveCwd = cwdExists ? widget.cwd : files.currentDirectory;
 
     final displayDir = isWsl && widget.cwd.isNotEmpty ? widget.cwd : effectiveCwd;
     final strings = _getReadStrings();

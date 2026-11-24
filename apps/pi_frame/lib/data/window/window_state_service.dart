@@ -6,7 +6,7 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:window_manager/window_manager.dart';
 
-import '../../app/harness_mode.dart';
+import '../runtime/harness_mode.dart';
 
 /// Non-visual I/O debounce for saving the window geometry. Numeric on purpose;
 /// listed on the allow-list in test/design_literals_lint_test.dart.

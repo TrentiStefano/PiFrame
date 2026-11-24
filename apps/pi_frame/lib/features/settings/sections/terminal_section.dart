@@ -1,16 +1,15 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:file_selector/file_selector.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../../data/language/language_settings.dart';
 import '../../../data/language/strings_settings.dart';
+import '../../../data/platform/file_dialog_service.dart';
+import '../../../data/platform/file_system_service.dart';
+import '../../../data/platform/host_environment_service.dart';
 import '../../../data/terminal/terminal_settings.dart';
 import '../../../ui/frame_section.dart';
 import '../../../ui/frame_snack_bar.dart';
-import 'settings_common.dart';
 import '../../../ui/precision.dart';
 
 /// Terminal tab: preferred execution mode and native terminal app.
@@ -27,6 +26,7 @@ class TerminalSection extends ConsumerWidget {
     final text = FrameText.of(context);
     final termSettings = ref.watch(terminalSettingsProvider);
     final notifier = ref.read(terminalSettingsProvider.notifier);
+    final isWindows = ref.watch(hostEnvironmentServiceProvider).isWindows;
     final nativeEnabled = termSettings.mode == TerminalMode.native;
     final rowTitleStyle = text.body.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.w600);
     final rowSubtitleStyle = text.caption.copyWith(color: tokens.textMuted);
@@ -92,9 +92,9 @@ class TerminalSection extends ConsumerWidget {
                         value: NativeTerminalApp.systemDefault,
                         activeColor: tokens.accent,
                         contentPadding: EdgeInsets.zero,
-                        title: Text(strings.terminalNativeAppDefault(isWindowsOs), style: rowStyle),
+                        title: Text(strings.terminalNativeAppDefault(isWindows), style: rowStyle),
                       ),
-                      if (isWindowsOs) ...[
+                      if (isWindows) ...[
                         Divider(color: tokens.border, height: 1),
                         RadioListTile<NativeTerminalApp>(
                           value: NativeTerminalApp.powershell,
@@ -134,7 +134,7 @@ class TerminalSection extends ConsumerWidget {
                                           ..selection = TextSelection.collapsed(offset: termSettings.customPath.length),
                                         style: text.mono.copyWith(color: tokens.textPrimary),
                                         decoration: InputDecoration(
-                                          hintText: isWindowsOs ? 'C:\\Path\\To\\terminal.exe' : '/usr/bin/alacritty',
+                                          hintText: isWindows ? 'C:\\Path\\To\\terminal.exe' : '/usr/bin/alacritty',
                                           isDense: true,
                                           border: OutlineInputBorder(
                                             borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -149,16 +149,15 @@ class TerminalSection extends ConsumerWidget {
                                         icon: const Icon(Icons.folder_open_outlined, size: FrameSize.icon),
                                         label: Text(strings.terminalBrowseBtn),
                                         onPressed: () async {
-                                          final file = await openFile(
-                                            acceptedTypeGroups: [
-                                              XTypeGroup(
+                                          final picked = await ref
+                                              .read(fileDialogServiceProvider)
+                                              .pickFiles(
                                                 label: strings.terminalExecutableFilterLabel,
                                                 extensions: const ['exe', 'bat', 'cmd', 'sh'],
-                                              ),
-                                            ],
-                                          );
-                                          if (file != null) {
-                                            notifier.setCustomPath(file.path);
+                                                multiple: false,
+                                              );
+                                          if (picked.isNotEmpty) {
+                                            notifier.setCustomPath(picked.first.path);
                                           }
                                         },
                                       ),
@@ -190,7 +189,7 @@ class TerminalSection extends ConsumerWidget {
               label: Text(strings.terminalTestBtn),
               onPressed: () async {
                 final launched = await launchNativeTerminal(
-                  cwd: Directory.current.path,
+                  cwd: ref.read(fileSystemServiceProvider).currentDirectory,
                   nativeApp: termSettings.nativeApp,
                   customPath: termSettings.customPath,
                 );

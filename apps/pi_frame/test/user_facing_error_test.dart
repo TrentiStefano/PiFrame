@@ -10,6 +10,8 @@ import 'package:pi_frame/data/language/strings_workspace.dart';
 import 'package:pi_frame/data/update/github_update_client.dart';
 import 'package:pi_frame/domain/errors/user_facing_error.dart';
 
+import 'package:pi_frame/data/errors/user_facing_error_mapping.dart';
+
 void main() {
   const it = AppStrings(AppLanguage.it);
   const en = AppStrings(AppLanguage.en);

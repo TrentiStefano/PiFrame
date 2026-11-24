@@ -15,8 +15,8 @@ class ProcessOutput {
   bool get succeeded => exitCode == 0;
 }
 
-/// A child process that stays alive: output arrives as byte streams and input
-/// is written to its standard input.
+/// A child process that is still running. Its output arrives while it runs, and
+/// input can be written to its standard input.
 abstract class RunningProcess {
   Stream<List<int>> get stdout;
 
@@ -31,13 +31,13 @@ abstract class RunningProcess {
   /// Writes [line] followed by a newline to the process's standard input.
   void writeLine(String line);
 
-  /// Asks the process to stop. Returns false when it had already ended.
+  /// Stops the process. Returns false when it had already exited.
   bool kill();
 }
 
-/// Runs child processes (CLI tools) to completion, or starts one that stays alive.
+/// Runs child processes (CLI tools) on the host.
 abstract class ProcessService {
-  /// Runs [executable] with [arguments]. The environment defaults to the
+  /// Runs [executable] with [arguments] to completion. The environment defaults to the
   /// augmented PATH from [PlatformEnvironment].
   Future<ProcessOutput> run(
     String executable,
@@ -47,19 +47,21 @@ abstract class ProcessService {
     Map<String, String>? environment,
   });
 
-  /// Starts [executable] and returns without waiting for it to finish.
+  /// Starts [executable] and returns at once, so the caller can read its output and kill it.
+  /// The process runs in [workingDirectory] when given, else in the app's directory.
   Future<RunningProcess> start(
     String executable,
     List<String> arguments, {
     String? workingDirectory,
     bool runInShell = false,
+    Map<String, String>? environment,
   });
 }
 
 class IoRunningProcess implements RunningProcess {
-  final Process _process;
-
   IoRunningProcess(this._process);
+
+  final Process _process;
 
   @override
   Stream<List<int>> get stdout => _process.stdout;
@@ -107,11 +109,13 @@ class IoProcessService implements ProcessService {
     List<String> arguments, {
     String? workingDirectory,
     bool runInShell = false,
+    Map<String, String>? environment,
   }) async {
     final process = await Process.start(
       executable,
       arguments,
       workingDirectory: workingDirectory,
+      environment: environment,
       runInShell: runInShell,
     );
     return IoRunningProcess(process);

@@ -25,6 +25,7 @@ dependencies:
   xterm: ^4.0.0
   qr_flutter: ^4.1.0
   ffi: ^2.2.0
+  meta: ^1.18.3
   webview_win_floating: ^3.0.3
 dev_dependencies:
   flutter_test:

@@ -12,7 +12,7 @@ import '../../../data/daemon/pcp_client.dart';
 import '../../../data/language/language_settings.dart';
 import '../../../data/language/strings_workspace.dart';
 import '../../../data/language/strings_errors.dart';
-import '../../../domain/errors/user_facing_error.dart';
+import '../../../data/errors/user_facing_error_mapping.dart';
 import '../../../domain/session/agent_status.dart';
 import '../../../domain/session/session_state.dart';
 import '../../../ui/frame_empty_state.dart';

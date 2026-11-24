@@ -7,7 +7,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../../data/language/language_settings.dart';
 import '../../../data/language/strings_workspace.dart';
-import '../../../domain/errors/user_facing_error.dart';
+import '../../../data/errors/user_facing_error_mapping.dart';
 import '../../../ui/frame_error_callout.dart';
 
 /// Soft guide for the commit subject, in characters. Past it the counter

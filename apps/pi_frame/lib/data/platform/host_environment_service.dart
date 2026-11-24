@@ -4,15 +4,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Reads facts about the host that features branch on: whether this is the
-/// web build, the operating system, the working directory and environment variables.
+/// web build, the operating system and the value of an environment variable.
 abstract class HostEnvironmentService {
   bool get isWeb;
 
+  /// True on the Windows desktop build; false on the web build.
+  bool get isWindows;
+
   /// `windows`, `macos`, `linux` (or another Dart platform name). `web` in the browser build.
   String get operatingSystem;
-
-  /// The directory the app runs from. Empty in the browser build.
-  String get currentDirectory;
 
   /// The value of environment variable [name], or null when it is not set.
   String? variable(String name);
@@ -25,10 +25,10 @@ class PlatformHostEnvironmentService implements HostEnvironmentService {
   bool get isWeb => kIsWeb;
 
   @override
-  String get operatingSystem => kIsWeb ? 'web' : Platform.operatingSystem;
+  bool get isWindows => !kIsWeb && Platform.isWindows;
 
   @override
-  String get currentDirectory => kIsWeb ? '' : Directory.current.path;
+  String get operatingSystem => kIsWeb ? 'web' : Platform.operatingSystem;
 
   @override
   String? variable(String name) => kIsWeb ? null : Platform.environment[name];

@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -10,6 +9,9 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_settings.dart';
+import '../../data/platform/file_system_service.dart';
+import '../../data/platform/host_environment_service.dart';
+import '../../data/platform/process_service.dart';
 import '../../ui/frame_activity_indicator.dart';
 import '../../ui/frame_dialog.dart';
 import '../../ui/frame_empty_state.dart';
@@ -198,9 +200,10 @@ class _McpServersBodyState extends ConsumerState<_McpServersBody> {
 
   String _getGlobalMcpConfigPath() {
     if (kIsWeb) return '';
-    final home = Platform.isWindows
-        ? (Platform.environment['USERPROFILE'] ?? Platform.environment['HOME'] ?? '')
-        : (Platform.environment['HOME'] ?? '');
+    final host = ref.read(hostEnvironmentServiceProvider);
+    final home = host.isWindows
+        ? (host.variable('USERPROFILE') ?? host.variable('HOME') ?? '')
+        : (host.variable('HOME') ?? '');
     return p.join(home, '.pi', 'agent', 'mcp.json');
   }
 
@@ -231,10 +234,10 @@ class _McpServersBodyState extends ConsumerState<_McpServersBody> {
       final serversMap = <String, McpServerItem>{};
 
       // 1. Read global config file directly
-      final globalFile = File(globalPath);
-      if (await globalFile.exists()) {
+      final files = ref.read(fileSystemServiceProvider);
+      if (await files.fileExists(globalPath)) {
         try {
-          final content = await globalFile.readAsString();
+          final content = await files.readText(globalPath);
           final parsed = jsonDecode(content);
           if (parsed is Map && parsed['mcpServers'] is Map) {
             final mcpServers = parsed['mcpServers'] as Map;
@@ -268,10 +271,9 @@ class _McpServersBodyState extends ConsumerState<_McpServersBody> {
       // 2. Read local project config if available
       if (widget.projectDir != null && widget.projectDir!.isNotEmpty) {
         final projectPath = p.join(widget.projectDir!, '.pi', 'mcp.json');
-        final projectFile = File(projectPath);
-        if (await projectFile.exists()) {
+        if (await files.fileExists(projectPath)) {
           try {
-            final content = await projectFile.readAsString();
+            final content = await files.readText(projectPath);
             final parsed = jsonDecode(content);
             if (parsed is Map && parsed['mcpServers'] is Map) {
               final mcpServers = parsed['mcpServers'] as Map;
@@ -306,12 +308,14 @@ class _McpServersBodyState extends ConsumerState<_McpServersBody> {
 
       // 3. Try to query live status from `pi mcp list --json`
       try {
-        final result = Platform.isWindows
-            ? await Process.run('cmd.exe', ['/c', 'pi', 'mcp', 'list', '--json']).timeout(const Duration(seconds: 4))
-            : await Process.run('pi', ['mcp', 'list', '--json']).timeout(const Duration(seconds: 4));
+        final processes = ref.read(processServiceProvider);
+        final host = ref.read(hostEnvironmentServiceProvider);
+        final result = host.isWindows
+            ? await processes.run('cmd.exe', ['/c', 'pi', 'mcp', 'list', '--json'], timeout: const Duration(seconds: 4))
+            : await processes.run('pi', ['mcp', 'list', '--json'], timeout: const Duration(seconds: 4));
 
-        if (result.stdout != null) {
-          final rawOutput = result.stdout.toString().trim();
+        if (result.stdout.trim().isNotEmpty) {
+          final rawOutput = result.stdout.trim();
           if (rawOutput.isNotEmpty) {
             final decoded = jsonDecode(rawOutput);
             if (decoded is Map && decoded['servers'] is List) {
@@ -381,9 +385,9 @@ class _McpServersBodyState extends ConsumerState<_McpServersBody> {
     });
 
     try {
-      final file = File(server.sourcePath);
-      if (await file.exists()) {
-        final content = await file.readAsString();
+      final files = ref.read(fileSystemServiceProvider);
+      if (await files.fileExists(server.sourcePath)) {
+        final content = await files.readText(server.sourcePath);
         final parsed = jsonDecode(content);
         if (parsed is Map) {
           final mcpServers = (parsed['mcpServers'] as Map?) ?? <String, dynamic>{};
@@ -397,7 +401,7 @@ class _McpServersBodyState extends ConsumerState<_McpServersBody> {
             mcpServers[server.name] = <String, dynamic>{'enabled': newEnabled};
           }
           parsed['mcpServers'] = mcpServers;
-          await file.writeAsString(const JsonEncoder.withIndent('  ').convert(parsed));
+          await files.writeText(server.sourcePath, const JsonEncoder.withIndent('  ').convert(parsed));
         }
       }
     } catch (e) {

@@ -9,7 +9,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 import '../../../data/daemon/daemon_providers.dart';
 import '../../../data/language/language_settings.dart';
 import '../../../data/language/strings_workspace.dart';
-import '../../../domain/errors/user_facing_error.dart';
+import '../../../data/errors/user_facing_error_mapping.dart';
 import '../../../ui/code/diff_block.dart';
 import '../../../ui/escape_layers.dart';
 import '../../../ui/frame_dialog.dart';

@@ -258,8 +258,8 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      expect(processes.started, ['/bin/zsh -i']);
-      expect(processes.startedIn, ['/work/proj']);
+      expect(processes.started.map((p) => p.startArguments.join(' ')), ['/bin/zsh -i']);
+      expect(processes.started.map((p) => p.workingDirectory), ['/work/proj']);
     });
 
     testWidgets('closing the panel stops the shell process', (tester) async {
@@ -292,14 +292,14 @@ void main() {
       );
       await tester.pump();
       await tester.pump();
-      expect(processes.processes.single.killed, isFalse);
+      expect(processes.started.single.killed, isFalse);
 
       await tester.pumpWidget(const SizedBox());
-      expect(processes.processes.single.killed, isTrue);
+      expect(processes.started.single.killed, isTrue);
     });
 
     test('a submitted command line is written to the shell and Ctrl+C reaches it', () {
-      final process = FakeHostProcess();
+      final process = FakeRunningProcess(startArguments: const []);
       final session = TerminalTabSession(id: 'term_1', title: 'zsh 1', shellName: 'zsh', terminal: Terminal())
         ..process = process;
 

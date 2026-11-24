@@ -11,7 +11,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 import 'package:pi_frame/data/daemon/daemon_providers.dart';
 import 'package:pi_frame/data/daemon/pcp_client.dart';
 import 'package:pi_frame/data/language/language_settings.dart';
-import 'package:pi_frame/domain/errors/user_facing_error.dart';
+import 'package:pi_frame/data/errors/user_facing_error_mapping.dart';
 import 'package:pi_frame/domain/session/agent_status.dart';
 import 'package:pi_frame/domain/session/session_state.dart';
 import 'package:pi_frame/features/composer/composer.dart';

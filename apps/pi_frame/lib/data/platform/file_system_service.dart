@@ -13,6 +13,9 @@ abstract class FileSystemService {
 
   Future<void> writeText(String path, String contents);
 
+  /// The directory the app was started in.
+  String get currentDirectory;
+
   /// Shows the image file at [path]. [errorBuilder] runs when it cannot be shown.
   Widget imageFile(
     String path, {
@@ -25,6 +28,9 @@ abstract class FileSystemService {
 
 class IoFileSystemService implements FileSystemService {
   const IoFileSystemService();
+
+  @override
+  String get currentDirectory => Directory.current.path;
 
   @override
   Future<bool> fileExists(String path) => File(path).exists();

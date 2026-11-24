@@ -11,6 +11,7 @@ import '../../data/daemon/pcp_client.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_settings.dart';
 import '../../domain/errors/user_facing_error.dart';
+import '../../data/errors/user_facing_error_mapping.dart';
 import '../../data/update/startup_updates_provider.dart';
 import '../../domain/session/agent_status.dart';
 import '../../domain/update/semver.dart';

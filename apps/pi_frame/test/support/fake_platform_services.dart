@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
@@ -19,19 +20,20 @@ import 'package:pi_frame/data/platform/window_service.dart';
 class FakeHostEnvironmentService implements HostEnvironmentService {
   FakeHostEnvironmentService({
     this.isWeb = false,
-    this.operatingSystem = 'linux',
-    this.currentDirectory = '/work',
+    this.isWindows = false,
+    String? operatingSystem,
     Map<String, String> variables = const {},
-  }) : _variables = Map.of(variables);
+  }) : operatingSystem = operatingSystem ?? (isWindows ? 'windows' : 'linux'),
+       _variables = Map.of(variables);
 
   @override
   final bool isWeb;
 
   @override
-  final String operatingSystem;
+  final bool isWindows;
 
   @override
-  final String currentDirectory;
+  final String operatingSystem;
 
   final Map<String, String> _variables;
 
@@ -54,13 +56,15 @@ class FakeFileDialogService implements FileDialogService {
   List<PickedFile> files = const [];
   String? directory;
   final List<List<String>> fileRequestedExtensions = [];
+  final List<bool> fileRequestedMultiple = [];
   final List<String?> fileRequestedLabels = [];
   int directoryRequests = 0;
 
   @override
-  Future<List<PickedFile>> pickFiles({String? label, List<String> extensions = const []}) async {
+  Future<List<PickedFile>> pickFiles({String? label, List<String> extensions = const [], bool multiple = true}) async {
     fileRequestedLabels.add(label);
     fileRequestedExtensions.add(extensions);
+    fileRequestedMultiple.add(multiple);
     return files;
   }
 
@@ -160,7 +164,12 @@ class FakeHttpService implements HttpService {
 class FakeFileSystemService implements FileSystemService {
   final Map<String, String> files = {};
   final Set<String> directories = {};
+
+  /// Image paths the feature asked to show, in order.
   final List<String> imagesShown = [];
+
+  @override
+  String currentDirectory = '/fake/cwd';
 
   @override
   Future<bool> fileExists(String path) async => files.containsKey(path);
@@ -191,59 +200,12 @@ class FakeFileSystemService implements FileSystemService {
   }
 }
 
-class FakeHostProcess implements RunningProcess {
-  final StreamController<List<int>> _stdout = StreamController<List<int>>();
-  final StreamController<List<int>> _stderr = StreamController<List<int>>();
-  final Completer<int> _exit = Completer<int>();
-
-  /// Everything written to standard input, as text, in order.
-  final List<String> written = [];
-  bool killed = false;
-
-  @override
-  Stream<List<int>> get stdout => _stdout.stream;
-
-  @override
-  Stream<List<int>> get stderr => _stderr.stream;
-
-  @override
-  Future<int> get exitCode => _exit.future;
-
-  @override
-  void writeBytes(List<int> bytes) => written.add(utf8.decode(bytes));
-
-  @override
-  void writeLine(String line) => written.add('$line\n');
-
-  @override
-  bool kill() {
-    killed = true;
-    return !_exit.isCompleted;
-  }
-
-  /// Simulates the process printing [text] on standard output.
-  void printOut(String text) => _stdout.add(utf8.encode(text));
-
-  /// Simulates the process printing [text] on standard error.
-  void printErr(String text) => _stderr.add(utf8.encode(text));
-
-  /// Simulates the process ending with [code].
-  void finish(int code) {
-    if (!_exit.isCompleted) _exit.complete(code);
-  }
-}
-
 class FakeProcessService implements ProcessService {
   final List<String> commands = [];
   ProcessOutput output = const ProcessOutput(exitCode: 0);
 
-  /// Every process started with [start], as its command line.
-  final List<String> started = [];
-
-  /// The working directory each started process was given (null when none).
-  final List<String?> startedIn = [];
-
-  final List<FakeHostProcess> processes = [];
+  /// Every process started with [start], in order. Tests push output into it and finish it.
+  final List<FakeRunningProcess> started = [];
 
   @override
   Future<ProcessOutput> run(
@@ -263,11 +225,66 @@ class FakeProcessService implements ProcessService {
     List<String> arguments, {
     String? workingDirectory,
     bool runInShell = false,
+    Map<String, String>? environment,
   }) async {
-    started.add([executable, ...arguments].join(' '));
-    startedIn.add(workingDirectory);
-    final process = FakeHostProcess();
-    processes.add(process);
+    commands.add([executable, ...arguments].join(' '));
+    final process = FakeRunningProcess(startArguments: [executable, ...arguments], workingDirectory: workingDirectory);
+    started.add(process);
     return process;
+  }
+}
+
+/// A picked file for [path] with no bytes, for tests that only care about the path.
+PickedFile fakePickedFile(String path) =>
+    PickedFile(path: path, name: path.split('/').last, readBytes: () async => Uint8List(0));
+
+/// A process the test controls: it emits stdout and stderr on demand and exits when told.
+class FakeRunningProcess implements RunningProcess {
+  FakeRunningProcess({required this.startArguments, this.workingDirectory});
+
+  final List<String> startArguments;
+
+  /// The working directory the process was started in, or null when none was given.
+  final String? workingDirectory;
+
+  final StreamController<List<int>> _stdout = StreamController<List<int>>();
+  final StreamController<List<int>> _stderr = StreamController<List<int>>();
+  final Completer<int> _exit = Completer<int>();
+  bool killed = false;
+
+  /// Everything written to standard input, as text, in order.
+  final List<String> written = [];
+
+  @override
+  Stream<List<int>> get stdout => _stdout.stream;
+
+  @override
+  Stream<List<int>> get stderr => _stderr.stream;
+
+  @override
+  Future<int> get exitCode => _exit.future;
+
+  @override
+  void writeBytes(List<int> bytes) => written.add(utf8.decode(bytes));
+
+  @override
+  void writeLine(String line) => written.add('$line\n');
+
+  @override
+  bool kill() {
+    if (_exit.isCompleted) return false;
+    killed = true;
+    return true;
+  }
+
+  void writeStdout(String text) => _stdout.add(utf8.encode(text));
+
+  void writeStderr(String text) => _stderr.add(utf8.encode(text));
+
+  /// Ends the process with [code] and closes its output streams.
+  Future<void> exit(int code) async {
+    if (!_exit.isCompleted) _exit.complete(code);
+    await _stdout.close();
+    await _stderr.close();
   }
 }
