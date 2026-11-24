@@ -9,14 +9,14 @@
     "apps/pi_frame": {
       "argument_type_not_assignable": 6,
       "avoid_dynamic_calls": 43,
-      "discarded_futures": 189,
+      "discarded_futures": 44,
       "for_in_of_invalid_type": 1,
       "inference_failure_on_collection_literal": 39,
       "inference_failure_on_instance_creation": 1,
       "inference_failure_on_untyped_parameter": 2,
       "return_of_invalid_type_from_closure": 1,
       "strict_raw_type": 47,
-      "unawaited_futures": 13
+      "unawaited_futures": 1
     }
   }
 }

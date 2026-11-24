@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/daemon/daemon_providers.dart';
@@ -95,7 +97,7 @@ class SessionChangesNotifier extends StateNotifier<SessionChangesState> {
   final String sessionId;
 
   SessionChangesNotifier(this.ref, this.sessionId) : super(const SessionChangesState()) {
-    refresh();
+    unawaited(refresh());
   }
 
   static String _extractFileName(String path) {

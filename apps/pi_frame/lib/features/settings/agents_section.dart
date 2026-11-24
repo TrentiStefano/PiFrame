@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../../data/errors/user_facing_error_mapping.dart';
 
 import 'package:flutter/material.dart';
@@ -53,7 +55,7 @@ class _AgentsSectionState extends ConsumerState<AgentsSection> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ref.read(agentsConfigControllerProvider.notifier).load();
+      unawaited(ref.read(agentsConfigControllerProvider.notifier).load());
     });
   }
 

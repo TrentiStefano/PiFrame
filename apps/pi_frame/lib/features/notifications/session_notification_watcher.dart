@@ -61,11 +61,11 @@ class _SessionNotificationWatcherState extends ConsumerState<SessionNotification
     final service = _notificationService;
     if (service == null) return;
     if (_workingSessionIds.isNotEmpty) {
-      service.updateIndicatorStatus(DesktopIndicatorStatus.working);
+      unawaited(service.updateIndicatorStatus(DesktopIndicatorStatus.working));
     } else if (_hasUnreadAnswer) {
-      service.updateIndicatorStatus(DesktopIndicatorStatus.unread);
+      unawaited(service.updateIndicatorStatus(DesktopIndicatorStatus.unread));
     } else {
-      service.updateIndicatorStatus(DesktopIndicatorStatus.idle);
+      unawaited(service.updateIndicatorStatus(DesktopIndicatorStatus.idle));
     }
   }
 
@@ -186,17 +186,22 @@ class _SessionWatcherItemState extends ConsumerState<_SessionWatcherItem> {
   Widget build(BuildContext context) {
     ref.listen(sessionStateFamily(widget.sessionId), (prev, next) {
       final subagents = ref.read(subagentsFamily(widget.sessionId));
-      _checkNotifications(next, subagents);
+      unawaited(_checkNotifications(next, subagents));
     });
 
     ref.listen<List<SubagentItem>>(subagentsFamily(widget.sessionId), (prev, next) {
       final session = ref.read(sessionStateFamily(widget.sessionId));
-      _checkNotifications(session, next);
+      unawaited(_checkNotifications(session, next));
     });
 
     // Workflow runs and unlinked agents keep the run going too.
     ref.listen<bool>(backgroundAgentsRunningProvider(widget.sessionId), (prev, next) {
-      _checkNotifications(ref.read(sessionStateFamily(widget.sessionId)), ref.read(subagentsFamily(widget.sessionId)));
+      unawaited(
+        _checkNotifications(
+          ref.read(sessionStateFamily(widget.sessionId)),
+          ref.read(subagentsFamily(widget.sessionId)),
+        ),
+      );
     });
 
     return const SizedBox.shrink();

@@ -150,8 +150,8 @@ class SideSessionNotifier extends StateNotifier<SessionState> {
   void initStream(String streamId, PcpClient client) {
     if (_streamId == streamId && _eventSub != null) return;
     _streamId = streamId;
-    _eventSub?.cancel();
-    _snapSub?.cancel();
+    unawaited(_eventSub?.cancel());
+    unawaited(_snapSub?.cancel());
 
     final parentCwd = ref.read(sessionStateFamily(parentSessionId)).cwd;
     state = SessionState(sessionId: streamId, cwd: parentCwd, readOnly: true, readOnlyReason: 'side');
@@ -169,8 +169,8 @@ class SideSessionNotifier extends StateNotifier<SessionState> {
   }
 
   void reset() {
-    _eventSub?.cancel();
-    _snapSub?.cancel();
+    unawaited(_eventSub?.cancel());
+    unawaited(_snapSub?.cancel());
     _eventSub = null;
     _snapSub = null;
     _streamId = null;
@@ -179,8 +179,8 @@ class SideSessionNotifier extends StateNotifier<SessionState> {
 
   @override
   void dispose() {
-    _eventSub?.cancel();
-    _snapSub?.cancel();
+    unawaited(_eventSub?.cancel());
+    unawaited(_snapSub?.cancel());
     super.dispose();
   }
 }
@@ -320,12 +320,12 @@ class SideThreadNotifier extends StateNotifier<SideThreadState> {
   }
 
   void _listenToEvents(PcpClient client, String streamId, String sideId) {
-    _streamEventSub?.cancel();
+    unawaited(_streamEventSub?.cancel());
     _streamEventSub = client.events(streamId).listen((event) {
       _handleSideEvent(event, sideId);
     });
 
-    _parentEventSub?.cancel();
+    unawaited(_parentEventSub?.cancel());
     _parentEventSub = client.events(parentSessionId).listen((event) {
       _handleSideEvent(event, sideId);
     });
@@ -421,8 +421,8 @@ class SideThreadNotifier extends StateNotifier<SideThreadState> {
 
   @override
   void dispose() {
-    _streamEventSub?.cancel();
-    _parentEventSub?.cancel();
+    unawaited(_streamEventSub?.cancel());
+    unawaited(_parentEventSub?.cancel());
     super.dispose();
   }
 }

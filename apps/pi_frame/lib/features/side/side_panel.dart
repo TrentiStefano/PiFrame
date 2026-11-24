@@ -683,12 +683,12 @@ class _SidePanelState extends ConsumerState<SidePanel> {
 
           if (sendWithEnter) {
             if (!isShift && !isCtrlOrCmd) {
-              _send();
+              unawaited(_send());
               return KeyEventResult.handled;
             }
           } else {
             if (isCtrlOrCmd) {
-              _send();
+              unawaited(_send());
               return KeyEventResult.handled;
             }
           }

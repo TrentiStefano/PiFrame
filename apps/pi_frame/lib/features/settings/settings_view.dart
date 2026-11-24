@@ -101,8 +101,8 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
     _section = widget.initialSection == kSettingsSectionDiagnostics
         ? _SettingsSection.diagnostics
         : _SettingsSection.fromIndex(widget.initialTabIndex);
-    _fetchDaemonConfig();
-    _fetchPiPackages();
+    unawaited(_fetchDaemonConfig());
+    unawaited(_fetchPiPackages());
   }
 
   Future<void> _fetchDaemonConfig() async {
@@ -141,8 +141,8 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
         final strings = ref.read(appStringsProvider);
         if (endpoint != null) {
           ref.invalidate(daemonEndpointProvider);
-          _fetchDaemonConfig();
-          _fetchPiPackages();
+          unawaited(_fetchDaemonConfig());
+          unawaited(_fetchPiPackages());
           FrameSnackBar.show(context, message: strings.daemonRestartSuccess);
         } else {
           FrameSnackBar.show(context, message: strings.daemonRestartFailed, isError: true);
@@ -542,13 +542,13 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
   Widget build(BuildContext context) {
     ref.listen<StartupUpdateState>(startupUpdatesProvider, (previous, next) {
       if (previous?.isChecking == true && !next.isChecking && !_isWorkingWithPackage) {
-        _fetchPiPackages();
+        unawaited(_fetchPiPackages());
       }
     });
     ref.listen<AsyncValue<DaemonConnectionState>>(connectionStateProvider, (prev, next) {
       if (next.value == DaemonConnectionState.connected) {
-        _fetchDaemonConfig();
-        _fetchPiPackages();
+        unawaited(_fetchDaemonConfig());
+        unawaited(_fetchPiPackages());
       }
     });
 

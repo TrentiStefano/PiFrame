@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -28,7 +30,7 @@ class _StartupChangelogWatcherState extends ConsumerState<StartupChangelogWatche
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkChangelog();
+      unawaited(_checkChangelog());
     });
   }
 

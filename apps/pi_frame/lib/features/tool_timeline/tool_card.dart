@@ -560,7 +560,7 @@ class _ToolCardState extends State<ToolCard> {
                               InkWell(
                                 borderRadius: BorderRadius.circular(context.tokens.radiusSm),
                                 onTap: () {
-                                  Clipboard.setData(ClipboardData(text: commandText));
+                                  unawaited(Clipboard.setData(ClipboardData(text: commandText)));
                                   FrameSnackBar.show(
                                     context,
                                     message: strings.toolCardCopiedToClipboard,

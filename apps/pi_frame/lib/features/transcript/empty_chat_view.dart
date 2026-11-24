@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -32,7 +34,7 @@ class _EmptyChatViewState extends ConsumerState<EmptyChatView> {
       if (!mounted) return;
       // Start the new chat with the cursor in the composer.
       ref.read(composerFocusRequestProvider(widget.sessionId).notifier).state++;
-      _loadBranch();
+      unawaited(_loadBranch());
     });
   }
 

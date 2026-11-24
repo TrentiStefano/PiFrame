@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../../data/errors/user_facing_error_mapping.dart';
 import '../../ui/frame_activity_indicator.dart';
 import '../../ui/frame_dialog.dart';
@@ -85,7 +87,7 @@ class UpdatesSection extends ConsumerWidget {
         onPressed: updateState.isChecking || updateState.isDownloading
             ? null
             : () {
-                ref.read(updateControllerProvider.notifier).checkForUpdates(isManual: true);
+                unawaited(ref.read(updateControllerProvider.notifier).checkForUpdates(isManual: true));
               },
         icon: updateState.isChecking
             ? FrameActivityIndicator(size: FrameSize.icon, strokeWidth: 2, color: tokens.textPrimary)
@@ -185,7 +187,7 @@ class UpdatesSection extends ConsumerWidget {
                   value: settings.autoCheckEnabled,
                   activeThumbColor: tokens.accent,
                   onChanged: (enabled) {
-                    ref.read(updateSettingsProvider.notifier).setAutoCheckEnabled(enabled);
+                    unawaited(ref.read(updateSettingsProvider.notifier).setAutoCheckEnabled(enabled));
                   },
                 ),
               ),
@@ -219,7 +221,7 @@ class UpdatesSection extends ConsumerWidget {
                             }).toList(),
                             onChanged: (newInterval) {
                               if (newInterval != null) {
-                                ref.read(updateSettingsProvider.notifier).setInterval(newInterval);
+                                unawaited(ref.read(updateSettingsProvider.notifier).setInterval(newInterval));
                               }
                             },
                           ),
@@ -283,7 +285,7 @@ class UpdatesSection extends ConsumerWidget {
               child: OutlinedButton.icon(
                 style: OutlinedButton.styleFrom(minimumSize: const Size(0, FrameSize.rowForm)),
                 onPressed: () {
-                  ref.read(updateControllerProvider.notifier).openReleasePage();
+                  unawaited(ref.read(updateControllerProvider.notifier).openReleasePage());
                 },
                 icon: const Icon(Icons.open_in_new_outlined, size: FrameSize.icon),
                 label: Text(strings.updatesNotesOnGithub),
@@ -364,7 +366,7 @@ class UpdatesSection extends ConsumerWidget {
                 child: FilledButton.icon(
                   style: FilledButton.styleFrom(minimumSize: const Size(0, FrameSize.rowForm)),
                   onPressed: () {
-                    ref.read(updateControllerProvider.notifier).downloadUpdate(assetOverride: asset);
+                    unawaited(ref.read(updateControllerProvider.notifier).downloadUpdate(assetOverride: asset));
                   },
                   icon: const Icon(Icons.download_outlined, size: FrameSize.icon),
                   label: Text(strings.updatesDownloadBtn),
@@ -375,7 +377,7 @@ class UpdatesSection extends ConsumerWidget {
                 child: OutlinedButton.icon(
                   style: OutlinedButton.styleFrom(minimumSize: const Size(0, FrameSize.rowForm)),
                   onPressed: () {
-                    ref.read(updateControllerProvider.notifier).openReleasePage();
+                    unawaited(ref.read(updateControllerProvider.notifier).openReleasePage());
                   },
                   icon: const Icon(Icons.open_in_browser_outlined, size: FrameSize.icon),
                   label: Text(strings.updatesDownloadManuallyBtn),

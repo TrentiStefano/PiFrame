@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -171,7 +173,7 @@ class WebBrowserNotifier extends StateNotifier<WebBrowserState> {
     final tab = WebBrowserTab(id: newId, url: initialUrl, title: initialTitle, history: [initialUrl], historyIndex: 0);
     state = state.copyWith(tabs: [...state.tabs, tab], activeTabId: newId);
     if (initialUrl != 'about:home') {
-      navigate(initialUrl, tabId: newId);
+      unawaited(navigate(initialUrl, tabId: newId));
     }
   }
 

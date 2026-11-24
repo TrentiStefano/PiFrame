@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -53,7 +55,7 @@ class _SessionTreeDialogState extends ConsumerState<SessionTreeDialog> {
   @override
   void initState() {
     super.initState();
-    _loadTree();
+    unawaited(_loadTree());
   }
 
   Future<void> _loadTree() async {

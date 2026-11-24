@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -251,7 +253,7 @@ class AppearanceSection extends ConsumerWidget {
                       icon: Icon(Icons.palette_outlined, size: FrameSize.icon, color: tokens.accent),
                       label: Text(strings.openThemeEditorBtn, style: text.label.copyWith(color: tokens.accent)),
                       onPressed: () {
-                        ThemeEditorDialog.show(context);
+                        unawaited(ThemeEditorDialog.show(context));
                       },
                     ),
                   ),
