@@ -5,7 +5,6 @@
     "noUnusedParameters": false,
     "noUncheckedIndexedAccess": false,
     "noImplicitOverride": false,
-    "noFallthroughCasesInSwitch": false,
-    "exactOptionalPropertyTypes": false
+    "noFallthroughCasesInSwitch": false
   }
 }
