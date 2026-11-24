@@ -6,6 +6,7 @@ import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { DIAGNOSTICS_BASELINE_PATH } from '../guardrails/src/index.mjs';
 
 /** The repository root. */
 export const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
@@ -23,4 +24,25 @@ export function repoFiles(repo = REPO) {
   });
   if (listed.status !== 0) return null;
   return [...new Set(listed.stdout.split('\0').filter(Boolean))].filter((p) => fs.existsSync(path.join(repo, p)));
+}
+
+/**
+ * Runs a git command in the repository and splits its output into entries (NUL- or newline-separated).
+ * A failing command yields no entries, so callers treat it as "nothing to report".
+ * @param {...string} args the git arguments
+ * @returns {string[]}
+ */
+export function git(...args) {
+  const result = spawnSync('git', args, { cwd: REPO, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  return result.status === 0 ? result.stdout.split(/[\0\n]/).filter(Boolean) : [];
+}
+
+/**
+ * Files this branch changes (working tree and untracked included) since the diagnostics baseline was last committed.
+ * The diagnostics ratchet uses it to name the files a new diagnostic is in.
+ * @returns {string[]}
+ */
+export function changedFiles() {
+  const since = git('log', '-1', '--format=%H', '--', DIAGNOSTICS_BASELINE_PATH)[0] ?? 'HEAD';
+  return [...git('diff', '--name-only', '-z', since), ...git('ls-files', '-z', '--others', '--exclude-standard')];
 }

@@ -17,23 +17,13 @@ import {
   parseEslintJson,
   parseTscOutput
 } from '../guardrails/src/index.mjs';
-import { REPO } from './repo-files.mjs';
+import { changedFiles, REPO } from './repo-files.mjs';
 
 const TOOLS = ['tsc', 'eslint'];
 const packages = JSON.parse(fs.readFileSync(path.join(REPO, 'tools/scripts/typescript-projects.json'), 'utf8'));
 const baseline = JSON.parse(fs.readFileSync(path.join(REPO, DIAGNOSTICS_BASELINE_PATH), 'utf8'));
 // The baseline file is shared with the Dart step: this step judges its own tools only.
 const ownBaseline = Object.fromEntries(TOOLS.map((tool) => [tool, baseline[tool] ?? {}]));
-
-/** Files this branch changes (working tree and untracked included) since the baseline was last committed. */
-function changedFiles() {
-  const git = (...args) => {
-    const result = spawnSync('git', args, { cwd: REPO, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-    return result.status === 0 ? result.stdout.split(/[\0\n]/).filter(Boolean) : [];
-  };
-  const since = git('log', '-1', '--format=%H', '--', DIAGNOSTICS_BASELINE_PATH)[0] ?? 'HEAD';
-  return [...git('diff', '--name-only', '-z', since), ...git('ls-files', '-z', '--others', '--exclude-standard')];
-}
 
 /** Runs a Node script from node_modules; `tsc` and `eslint` exit 1 or 2 on findings, which the ratchet judges. */
 function runNodeTool(cwd, script, args, label) {

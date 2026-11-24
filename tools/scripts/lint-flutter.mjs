@@ -11,20 +11,10 @@ import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { checkDiagnostics, DIAGNOSTICS_BASELINE_PATH, parseDartAnalyzeMachine } from '../guardrails/src/index.mjs';
-import { REPO } from './repo-files.mjs';
+import { changedFiles, REPO } from './repo-files.mjs';
 
 const projects = JSON.parse(fs.readFileSync(path.join(REPO, 'tools/scripts/flutter-projects.json'), 'utf8'));
 const baseline = JSON.parse(fs.readFileSync(path.join(REPO, DIAGNOSTICS_BASELINE_PATH), 'utf8'));
-
-/** Files this branch changes (working tree and untracked included) since the baseline was last committed. */
-function changedFiles() {
-  const git = (...args) => {
-    const result = spawnSync('git', args, { cwd: REPO, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-    return result.status === 0 ? result.stdout.split(/[\0\n]/).filter(Boolean) : [];
-  };
-  const since = git('log', '-1', '--format=%H', '--', DIAGNOSTICS_BASELINE_PATH)[0] ?? 'HEAD';
-  return [...git('diff', '--name-only', '-z', since), ...git('ls-files', '-z', '--others', '--exclude-standard')];
-}
 
 /** The analyzer reports absolute paths: the repository-relative, `/`-separated form the ratchet and git use. */
 const repoPath = (dir, file) =>

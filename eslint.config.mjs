@@ -2,7 +2,13 @@
 // (tools/scripts/lint-typescript.mjs); the baseline holds today's counts per package and rule. Only the five rules
 // below are enabled: they are the ones that find real bugs in async and type-narrowing code, so the rest of the
 // recommended sets stay out of scope.
+import * as fs from 'node:fs';
 import tseslint from 'typescript-eslint';
+
+// The TypeScript package folders, the same list the TypeScript analysis step runs tsc over.
+const TYPESCRIPT_PACKAGES = JSON.parse(
+  fs.readFileSync(new URL('./tools/scripts/typescript-projects.json', import.meta.url), 'utf8')
+);
 
 // node:test's test and describe run their callbacks and return promises the runner awaits, so a bare call is safe.
 const NODE_TEST_SAFE_CALLS = [
@@ -10,7 +16,7 @@ const NODE_TEST_SAFE_CALLS = [
 ];
 
 export default tseslint.config({
-  files: ['apps/agentd/src/**/*.ts', 'packages/pcp-ts/src/**/*.ts', 'test/e2e/src/**/*.ts', 'tools/fake-pi/src/**/*.ts', 'tools/fault-proxy/src/**/*.ts'],
+  files: TYPESCRIPT_PACKAGES.map((dir) => `${dir}/src/**/*.ts`),
   languageOptions: {
     parser: tseslint.parser,
     parserOptions: {
