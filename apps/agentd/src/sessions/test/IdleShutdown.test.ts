@@ -88,3 +88,32 @@ test('the idle shutdown keeps a worker alive while a background agent runs in it
     await session.journal.close();
   }
 });
+
+// Changing the idle timeout in Settings rescheduled the running timers while
+// iterating the same map it re-inserted into, so the loop never ended and the
+// daemon hung whenever a worker was alive (#61).
+test('changing the idle timeout reschedules a live worker once, with the new timeout', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const supervisor = new WorkerSupervisor({
+    piExecutablePath: workerFile,
+    capabilities: { version: '0.99.2', supported: true, modes: ['rpc'], features: [] },
+    defaultIdleTimeoutMs: 60_000,
+    checkTerminalOwner: async () => false
+  });
+  const session = new Session({ id: 's_idle', cwd: root, sessionFile });
+  try {
+    await supervisor.ensureWorker(session);
+    session.status = 'settled';
+
+    supervisor.updateIdleTimeout(5_000);
+
+    t.mock.timers.tick(4_999);
+    assert.ok(supervisor.liveWorker(session.id), 'the worker lives until the new timeout');
+    t.mock.timers.tick(1);
+    assert.equal(supervisor.liveWorker(session.id), undefined, 'the idle worker stops at the new timeout');
+  } finally {
+    t.mock.timers.reset();
+    await supervisor.stopAll(500);
+    await session.journal.close();
+  }
+});

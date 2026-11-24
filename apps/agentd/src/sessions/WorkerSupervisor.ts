@@ -38,9 +38,10 @@ export class WorkerSupervisor {
 
   public updateIdleTimeout(newTimeoutMs: number): void {
     this.idleTimeoutMs = newTimeoutMs;
-    // Reschedule all active idle timers with the new timeout immediately
-    for (const [sessionId, timer] of this.idleTimers.entries()) {
-      clearTimeout(timer);
+    // Reschedule every active idle timer with the new timeout. Iterate over a copy of the keys: rescheduling
+    // re-inserts each key, and a Map iterator visits re-inserted keys again, so iterating the live map never ends.
+    for (const sessionId of [...this.idleTimers.keys()]) {
+      clearTimeout(this.idleTimers.get(sessionId));
       this.idleTimers.delete(sessionId);
       this.scheduleIdleTimeout(sessionId);
     }
