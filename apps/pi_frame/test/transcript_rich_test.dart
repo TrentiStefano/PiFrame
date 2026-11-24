@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 import 'package:pi_frame/data/language/language_settings.dart';
-import 'package:pi_frame/features/transcript/host_file_opener.dart';
+import 'package:pi_frame/data/platform/host_file_opener.dart';
 import 'package:pi_frame/features/transcript/rich_content.dart';
 import 'package:pi_frame/features/transcript/thinking_block.dart';
 import 'package:pi_frame/ui/code/code_block.dart';

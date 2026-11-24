@@ -8,7 +8,7 @@ import '../../data/language/strings_transcript.dart';
 import '../../ui/code/code_block.dart';
 import '../../ui/code/diff_block.dart';
 import '../../ui/frame_focus.dart';
-import 'host_file_opener.dart';
+import '../../data/platform/host_file_opener.dart';
 import 'task_notification_card.dart';
 
 bool isLikelyFilePath(String s) {

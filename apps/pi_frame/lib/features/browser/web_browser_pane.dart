@@ -250,14 +250,11 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
   }
 
   Future<void> _openExternal(String url) async {
-    try {
-      final uri = Uri.parse(url);
-      await ref.read(linkServiceProvider).openExternal(uri);
-    } catch (e) {
-      if (mounted) {
-        final strings = _getReadStrings();
-        FrameSnackBar.show(context, message: strings.cannotOpenSystemBrowser(e), isError: true);
-      }
+    final uri = Uri.tryParse(url);
+    final opened = uri != null && await ref.read(linkServiceProvider).openExternal(uri);
+    if (!opened && mounted) {
+      final strings = _getReadStrings();
+      FrameSnackBar.show(context, message: strings.cannotOpenSystemBrowser(url), isError: true);
     }
   }
 

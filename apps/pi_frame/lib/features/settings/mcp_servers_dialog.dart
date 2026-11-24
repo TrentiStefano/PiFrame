@@ -18,7 +18,7 @@ import '../../ui/frame_empty_state.dart';
 import '../../ui/frame_icon_action.dart';
 import '../../ui/frame_status_tag.dart';
 import '../../ui/frame_snack_bar.dart';
-import '../transcript/host_file_opener.dart';
+import '../../data/platform/host_file_opener.dart';
 
 class McpServerItem {
   final String name;

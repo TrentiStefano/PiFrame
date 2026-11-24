@@ -2,11 +2,11 @@ import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
-import '../../data/platform/file_system_service.dart';
-import '../../data/platform/host_environment_service.dart';
-import '../../data/platform/link_service.dart';
-import '../../data/platform/process_service.dart';
-import '../../data/terminal/terminal_settings.dart';
+import '../terminal/terminal_settings.dart';
+import 'file_system_service.dart';
+import 'host_environment_service.dart';
+import 'link_service.dart';
+import 'process_service.dart';
 
 /// Opens links and reveals files in the host's own applications. Every call
 /// goes through the platform services, so the browser build and tests can swap them.
@@ -21,9 +21,7 @@ class HostFileOpener {
   /// Opens [url] in the default application. Falls back to the OS opener when
   /// the link service cannot.
   Future<void> openUrl(String url) async {
-    try {
-      if (await links.openExternal(Uri.parse(url))) return;
-    } catch (_) {}
+    if (await links.openExternal(Uri.parse(url))) return;
     if (host.isWeb) return;
     try {
       switch (host.operatingSystem) {
@@ -34,7 +32,9 @@ class HostFileOpener {
         case 'linux':
           await processes.run('xdg-open', [url]);
       }
-    } catch (_) {}
+    } catch (error) {
+      debugPrint('openUrl OS opener failed for $url: $error');
+    }
   }
 
   /// Reveals [rawPath] in the host file explorer, selecting it when it exists.
@@ -94,7 +94,9 @@ class HostFileOpener {
             isDir = await files.directoryExists(winPath);
           }
         }
-      } catch (_) {}
+      } catch (error) {
+        debugPrint('wslpath resolution failed for $rawPath: $error');
+      }
     }
 
     if (isFile) {

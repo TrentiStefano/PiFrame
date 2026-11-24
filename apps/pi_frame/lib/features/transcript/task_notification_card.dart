@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/language/strings_transcript.dart';
-import 'host_file_opener.dart';
+import '../../data/platform/host_file_opener.dart';
 
 class TaskNotificationData {
   final String taskId;
