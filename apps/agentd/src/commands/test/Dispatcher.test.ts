@@ -47,7 +47,7 @@ function createTestSetup(piPackages?: PiPackageOperations, sessionIndex?: Sessio
     capabilities: { version: '0.85.1', supported: true, modes: ['rpc'], features: [] },
     workerIdleTimeoutMs: 60000,
     connectionManager: manager,
-    sessionIndex
+    ...(sessionIndex ? { sessionIndex } : {})
   });
   const dispatcher = new Dispatcher(registry, manager, piPackages);
 
@@ -339,11 +339,11 @@ test('Dispatcher: executes daemon.getConfig and returns config', async () => {
     payload: {}
   });
 
-  const ack = JSON.parse(ws.sentMessages[0]);
+  const ack = JSON.parse(ws.sentMessages[0]!);
   assert.equal(ack.kind, 'ack');
   assert.equal(ack.payload.state, 'accepted');
 
-  const res = JSON.parse(ws.sentMessages[1]);
+  const res = JSON.parse(ws.sentMessages[1]!);
   assert.equal(res.kind, 'result');
   assert.equal(res.payload.state, 'completed');
   assert.ok(res.payload.data.workerIdleTimeoutMs !== undefined);
@@ -364,7 +364,7 @@ test('Dispatcher: deduplicates repeated commands with identical commandId', asyn
   });
 
   assert.equal(ws.sentMessages.length, 2); // ack + result
-  const firstResult = JSON.parse(ws.sentMessages[1]);
+  const firstResult = JSON.parse(ws.sentMessages[1]!);
   assert.equal(firstResult.payload.state, 'completed');
 
   // Send exact same commandId again
@@ -379,13 +379,13 @@ test('Dispatcher: deduplicates repeated commands with identical commandId', asyn
   });
 
   assert.equal(ws.sentMessages.length, 4); // second ack + second result
-  const secondResult = JSON.parse(ws.sentMessages[3]);
+  const secondResult = JSON.parse(ws.sentMessages[3]!);
   assert.equal(secondResult.payload.state, 'deduplicated');
   assert.deepEqual(secondResult.payload.data, firstResult.payload.data);
 });
 
 test('Dispatcher: daemon.setConfig validates workerIdleTimeoutMs and updates runtime', async () => {
-  const { dispatcher, ws, conn, registry } = createTestSetup();
+  const { dispatcher, ws, conn } = createTestSetup();
 
   // Valid update to 5 minutes (300,000 ms)
   await dispatcher.handle(conn, {
@@ -398,7 +398,7 @@ test('Dispatcher: daemon.setConfig validates workerIdleTimeoutMs and updates run
     payload: { workerIdleTimeoutMs: 300000 }
   });
 
-  const res = JSON.parse(ws.sentMessages[1]);
+  const res = JSON.parse(ws.sentMessages[1]!);
   assert.equal(res.payload.state, 'completed');
   assert.equal(res.payload.data.workerIdleTimeoutMs, 300000);
 
@@ -455,7 +455,7 @@ test('Dispatcher: executes remote.* commands and enforces remote allowlist', asy
 
   function getLastResult(mockWs: MockWebSocket): any {
     for (let i = mockWs.sentMessages.length - 1; i >= 0; i--) {
-      const msg = JSON.parse(mockWs.sentMessages[i]);
+      const msg = JSON.parse(mockWs.sentMessages[i]!);
       if (msg.kind === 'result') return msg;
     }
     return null;

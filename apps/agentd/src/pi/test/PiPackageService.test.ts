@@ -40,7 +40,7 @@ async function packageFixture(
       if (command[0] === 'install') {
         assert.ok(command.includes('--dry-run'));
         assert.ok(command.includes('--ignore-scripts'));
-        if (incompatible.has(command[1])) {
+        if (incompatible.has(command[1]!)) {
           throw Object.assign(new Error('Unsupported platform'), {
             stdout: JSON.stringify({
               error: { code: 'EBADPLATFORM', summary: 'Unsupported platform for @nested/required@1.2.0' }
@@ -50,8 +50,8 @@ async function packageFixture(
         }
         return { stdout: '{"added":0}', stderr: '' };
       }
-      assert.ok(targets.has(command[1]), `Unexpected package spec: ${command[1]}`);
-      return { stdout: JSON.stringify(targets.get(command[1])), stderr: '' };
+      assert.ok(targets.has(command[1]!), `Unexpected package spec: ${command[1]}`);
+      return { stdout: JSON.stringify(targets.get(command[1]!)), stderr: '' };
     }
     if (command[0] === 'list') {
       const lines: string[] = [];
@@ -64,7 +64,7 @@ async function packageFixture(
       return { stdout: lines.join('\n'), stderr: '' };
     }
     if (command[0] === 'update') {
-      await update(command[1]);
+      await update(command[1]!);
       return { stdout: 'Update command completed.', stderr: '' };
     }
     throw new Error(`Unexpected command: ${command.join(' ')}`);
@@ -137,13 +137,13 @@ test('update checking follows configured sources, skips pins and excludes projec
   fixture.targets.set('tag-package@next', '2.0.0-beta.10');
   const packages = await fixture.service.list(true);
   assert.equal(packages.length, 5);
-  assert.equal(packages[0].latestVersion, '1.2.0');
-  assert.equal(packages[1].latestVersion, '1.9.0');
-  assert.equal(packages[2].latestVersion, '2.0.0-beta.10');
-  assert.equal(packages[3].latestVersion, undefined);
-  assert.equal(packages[4].latestVersion, undefined);
+  assert.equal(packages[0]!.latestVersion, '1.2.0');
+  assert.equal(packages[1]!.latestVersion, '1.9.0');
+  assert.equal(packages[2]!.latestVersion, '2.0.0-beta.10');
+  assert.equal(packages[3]!.latestVersion, undefined);
+  assert.equal(packages[4]!.latestVersion, undefined);
   assert.deepEqual(
-    fixture.calls.filter((args) => args[0] === 'view').sort((a, b) => a[1].localeCompare(b[1])),
+    fixture.calls.filter((args) => args[0] === 'view').sort((a, b) => a[1]!.localeCompare(b[1]!)),
     [
       ['view', 'package@latest', 'version', '--json'],
       ['view', 'range-package@^1.0.0', 'version', '--json'],
@@ -173,7 +173,7 @@ test('update verifies the installed version and preserves the unpinned source', 
     version: '1.2.0'
   });
   assert.ok(fixture.calls.some((args) => args[0] === 'update' && args[1] === 'npm:package'));
-  assert.equal((await fixture.service.list())[0].source, 'npm:package');
+  assert.equal((await fixture.service.list())[0]!.source, 'npm:package');
 });
 
 test('a zero exit code with an unchanged version is rejected', async (context) => {
@@ -205,7 +205,7 @@ test('current, newer and pinned versions do not run an installation', async (con
     false
   );
   assert.equal(
-    fixture.calls.some((args) => args[0] === 'view' && args[1].startsWith('pinned')),
+    fixture.calls.some((args) => args[0] === 'view' && args[1]!.startsWith('pinned')),
     false
   );
 });
@@ -227,13 +227,13 @@ test('incompatible required dependencies are exposed and do not run a Pi update'
   fixture.targets.set('package@latest', '1.2.0');
   fixture.incompatible.add('package@1.2.0');
   const packages = await fixture.service.list(true);
-  assert.equal(packages[0].latestVersion, '1.2.0');
-  assert.match(packages[0].updateError ?? '', /not installable.*@nested\/required/);
-  assert.equal((await fixture.service.list())[0].updateError, packages[0].updateError);
+  assert.equal(packages[0]!.latestVersion, '1.2.0');
+  assert.match(packages[0]!.updateError ?? '', /not installable.*@nested\/required/);
+  assert.equal((await fixture.service.list())[0]!.updateError, packages[0]!.updateError);
   await assert.rejects(fixture.service.update('npm:package'), /not installable/);
   assert.equal(
     fixture.calls.some((args) => args[0] === 'update'),
     false
   );
-  assert.equal((await fixture.service.list())[0].version, '0.1.14');
+  assert.equal((await fixture.service.list())[0]!.version, '0.1.14');
 });

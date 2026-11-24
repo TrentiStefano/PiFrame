@@ -8,10 +8,10 @@ test('JsonlFramer: handles basic single line and CRLF', () => {
   const results = framer.push(chunk);
 
   assert.equal(results.length, 2);
-  assert.equal(results[0].ok, true);
-  assert.deepEqual(results[0].value, { hello: 'world' });
-  assert.equal(results[1].ok, true);
-  assert.deepEqual(results[1].value, { foo: 'bar' });
+  assert.equal(results[0]!.ok, true);
+  assert.deepEqual(results[0]!.value, { hello: 'world' });
+  assert.equal(results[1]!.ok, true);
+  assert.deepEqual(results[1]!.value, { foo: 'bar' });
 });
 
 test('JsonlFramer: does NOT split on U+2028 or U+2029 within string', () => {
@@ -23,8 +23,8 @@ test('JsonlFramer: does NOT split on U+2028 or U+2029 within string', () => {
   const results = framer.push(chunk);
 
   assert.equal(results.length, 1);
-  assert.equal(results[0].ok, true);
-  assert.equal(results[0].value.text, 'Hello\u2028World\u2029Test');
+  assert.equal(results[0]!.ok, true);
+  assert.equal(results[0]!.value.text, 'Hello\u2028World\u2029Test');
 });
 
 test('JsonlFramer: handles multibyte UTF-8 split across chunks', () => {
@@ -45,8 +45,8 @@ test('JsonlFramer: handles multibyte UTF-8 split across chunks', () => {
 
   const res2 = framer.push(part2);
   assert.equal(res2.length, 1);
-  assert.equal(res2[0].ok, true);
-  assert.equal(res2[0].value.rocket, '🚀');
+  assert.equal(res2[0]!.ok, true);
+  assert.equal(res2[0]!.value.rocket, '🚀');
 });
 
 test('JsonlFramer: unparseable line returns ok: false without throwing', () => {
@@ -55,8 +55,8 @@ test('JsonlFramer: unparseable line returns ok: false without throwing', () => {
   const results = framer.push(chunk);
 
   assert.equal(results.length, 2);
-  assert.equal(results[0].ok, false);
-  assert.equal(results[0].raw, 'NOT A VALID JSON LINE');
-  assert.equal(results[1].ok, true);
-  assert.deepEqual(results[1].value, { ok: true });
+  assert.equal(results[0]!.ok, false);
+  assert.equal(results[0]!.raw, 'NOT A VALID JSON LINE');
+  assert.equal(results[1]!.ok, true);
+  assert.deepEqual(results[1]!.value, { ok: true });
 });

@@ -77,7 +77,7 @@ test('Session keeps the bridge report as live state, never as a status line', ()
   });
   assert.deepEqual(emitted, []);
   assert.equal(session.hasRunningSubagents, true);
-  assert.equal(session.liveSubagents?.agents[0].id, 'a');
+  assert.equal(session.liveSubagents?.agents![0]!.id, 'a');
 
   session.markWorkerGone(123);
   assert.equal(session.liveSubagents, null);

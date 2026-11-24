@@ -1,6 +1,5 @@
 import test from 'node:test';
 import * as assert from 'node:assert';
-import { Session } from '../Session.js';
 import { SessionRegistry } from '../SessionRegistry.js';
 
 function createMockConnection(id: string) {

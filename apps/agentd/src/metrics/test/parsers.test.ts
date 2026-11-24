@@ -1,6 +1,6 @@
 import test from 'node:test';
 import * as assert from 'node:assert/strict';
-import { parseNvidiaSmiLine, aggregateNvidiaSmiSamples, parseNvidiaSmiOutput } from '../parsers/nvidiaSmiParser.js';
+import { parseNvidiaSmiLine, parseNvidiaSmiOutput } from '../parsers/nvidiaSmiParser.js';
 import {
   splitCsvLine,
   parseTypeperfHeader,
@@ -55,7 +55,7 @@ test('typeperfParser: splitCsvLine handles quoted and unquoted columns', () => {
   const cols = splitCsvLine(line);
   assert.equal(cols.length, 3);
   assert.equal(cols[0], '(PDH-CSV 4.0) (UTC)(0)');
-  assert.ok(cols[1].includes('GPU Engine'));
+  assert.ok(cols[1]!.includes('GPU Engine'));
   assert.equal(cols[2], '0.000000');
 });
 
@@ -69,9 +69,9 @@ test('typeperfParser: parses header and aggregates data across pids for same (lu
   assert.equal(isTypeperfHeaderLine(header), true);
   const mappings = parseTypeperfHeader(header);
   assert.equal(mappings.length, 3);
-  assert.equal(mappings[0].engineKey, '0x00000000_0x0000E528_phys_0_eng_0');
-  assert.equal(mappings[1].engineKey, '0x00000000_0x0000E528_phys_0_eng_0');
-  assert.equal(mappings[2].engineKey, '0x00000000_0x0000E528_phys_0_eng_1');
+  assert.equal(mappings[0]!.engineKey, '0x00000000_0x0000E528_phys_0_eng_0');
+  assert.equal(mappings[1]!.engineKey, '0x00000000_0x0000E528_phys_0_eng_0');
+  assert.equal(mappings[2]!.engineKey, '0x00000000_0x0000E528_phys_0_eng_1');
 
   // eng_0 has pid_100 (15.5%) + pid_200 (10.2%) = 25.7%
   // eng_1 has pid_300 (18.1%)

@@ -138,8 +138,8 @@ test('SessionIndex: getSubagents accumulates nested Pi usage as child sessions g
   const index = new SessionIndex({ sessionsDir: tmpDir, cachePath: path.join(tmpDir, 'index.json') });
   const initial = await index.getSubagents('parent', path.join(tmpDir, 'parent.jsonl'));
   assert.strictEqual(initial.length, 1);
-  assert.strictEqual(initial[0].cost, 0.0175);
-  assert.strictEqual(initial[0].unlinked, true);
+  assert.strictEqual(initial[0]!.cost, 0.0175);
+  assert.strictEqual(initial[0]!.unlinked, true);
 
   fs.appendFileSync(
     subFile,
@@ -158,9 +158,9 @@ test('SessionIndex: getSubagents accumulates nested Pi usage as child sessions g
   const before = fs.readFileSync(subFile, 'utf8');
   const updated = await index.getSubagents('parent', path.join(tmpDir, 'parent.jsonl'));
   assert.strictEqual(updated.length, 1);
-  assert.ok(Math.abs(updated[0].cost! - 0.064) < 0.000001);
-  assert.strictEqual(updated[0].model, 'test-model');
-  assert.match(updated[0].output, /First turn\nSecond turn\nThird turn/);
+  assert.ok(Math.abs(updated[0]!.cost! - 0.064) < 0.000001);
+  assert.strictEqual(updated[0]!.model, 'test-model');
+  assert.match(updated[0]!.output, /First turn\nSecond turn\nThird turn/);
   assert.strictEqual(fs.readFileSync(subFile, 'utf8'), before);
   assert.strictEqual((await index.getSubagents('unrelated')).length, 0);
 });
@@ -230,13 +230,13 @@ test('SessionIndex: getSubagents uses parent Agent identity and persisted child 
   const index = new SessionIndex({ sessionsDir, cachePath: path.join(tmpDir, 'cache.json') });
   const agents = await index.getSubagents('parent', parentFile);
   assert.equal(agents.length, 1);
-  assert.equal(agents[0].id, agentId);
-  assert.equal(agents[0].name, 'Inspect code');
-  assert.equal(agents[0].description, 'Inspect code');
-  assert.equal(agents[0].toolCallId, 'call-agent');
-  assert.equal(agents[0].model, 'gpt-6 luna');
-  assert.equal(agents[0].cost, 0.025);
-  assert.equal(agents[0].status, 'completed');
+  assert.equal(agents[0]!.id, agentId);
+  assert.equal(agents[0]!.name, 'Inspect code');
+  assert.equal(agents[0]!.description, 'Inspect code');
+  assert.equal(agents[0]!.toolCallId, 'call-agent');
+  assert.equal(agents[0]!.model, 'gpt-6 luna');
+  assert.equal(agents[0]!.cost, 0.025);
+  assert.equal(agents[0]!.status, 'completed');
 });
 
 test('SessionIndex: getSubagents returns parent-only Agent results and leaves missing costs undefined', async (t) => {
@@ -313,13 +313,13 @@ test('SessionIndex: getSubagents returns parent-only Agent results and leaves mi
   const index = new SessionIndex({ sessionsDir, cachePath: path.join(tmpDir, 'cache.json') });
   const agents = await index.getSubagents('parent');
   assert.equal(agents.length, 2);
-  assert.equal(agents[0].id, 'foreground-agent-id');
-  assert.equal(agents[0].toolCallId, 'foreground-call');
-  assert.equal(agents[0].model, undefined);
-  assert.equal(agents[0].cost, undefined);
-  assert.equal(agents[1].cost, undefined);
-  assert.equal(agents[1].model, undefined);
-  assert.equal(agents[1].status, 'running');
+  assert.equal(agents[0]!.id, 'foreground-agent-id');
+  assert.equal(agents[0]!.toolCallId, 'foreground-call');
+  assert.equal(agents[0]!.model, undefined);
+  assert.equal(agents[0]!.cost, undefined);
+  assert.equal(agents[1]!.cost, undefined);
+  assert.equal(agents[1]!.model, undefined);
+  assert.equal(agents[1]!.status, 'running');
 });
 
 test('SessionIndex: getSubagents avoids ambiguous prefixes and unrelated parent sessions', async (t) => {
@@ -434,14 +434,14 @@ test('SessionIndex: notification tool-call identity updates the actual agent and
   const index = new SessionIndex({ sessionsDir: tmpDir, cachePath: path.join(tmpDir, 'cache.json') });
   const agents = await index.getSubagents('parent', parentFile);
   assert.equal(agents.length, 1);
-  assert.equal(agents[0].id, agentId);
-  assert.equal(agents[0].sessionId, 'child-session');
-  assert.equal(agents[0].toolCallId, 'call-agent');
-  assert.equal(agents[0].name, 'Review pending cost changes');
-  assert.equal(agents[0].description, 'Review pending cost changes');
-  assert.equal(agents[0].model, 'actual-model');
-  assert.equal(agents[0].cost, 0.0175);
-  assert.equal(agents[0].status, 'completed');
+  assert.equal(agents[0]!.id, agentId);
+  assert.equal(agents[0]!.sessionId, 'child-session');
+  assert.equal(agents[0]!.toolCallId, 'call-agent');
+  assert.equal(agents[0]!.name, 'Review pending cost changes');
+  assert.equal(agents[0]!.description, 'Review pending cost changes');
+  assert.equal(agents[0]!.model, 'actual-model');
+  assert.equal(agents[0]!.cost, 0.0175);
+  assert.equal(agents[0]!.status, 'completed');
 });
 
 // The Agents pane kept finished agents "Running": only the first
@@ -619,7 +619,7 @@ test('SessionIndex: getSubagents includes persisted subagents in temporary workt
   const subagents = await index.getSubagents('parent', parentFile);
 
   assert.strictEqual(subagents.length, 1);
-  assert.strictEqual(subagents[0].cost, 0.042);
+  assert.strictEqual(subagents[0]!.cost, 0.042);
   assert.ok(!(await index.listSessions()).some((session) => session.id === 'worker#abc12345'));
 });
 
@@ -663,8 +663,8 @@ test('SessionIndex: getSubagents parses object and number costs without NaN', as
   const subagents = await index.getSubagents('main-sess', path.join(sessionsDir, parentBasename));
 
   assert.strictEqual(subagents.length, 1);
-  assert.strictEqual(subagents[0].id, 'worker#1');
-  assert.strictEqual(subagents[0].model, 'gpt-6-luna');
-  assert.strictEqual(subagents[0].cost, 0.0175);
-  assert.strictEqual(Number.isNaN(subagents[0].cost), false);
+  assert.strictEqual(subagents[0]!.id, 'worker#1');
+  assert.strictEqual(subagents[0]!.model, 'gpt-6-luna');
+  assert.strictEqual(subagents[0]!.cost, 0.0175);
+  assert.strictEqual(Number.isNaN(subagents[0]!.cost), false);
 });

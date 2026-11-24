@@ -126,7 +126,7 @@ test('a prompt Pi rejects as already processing is queued as a follow-up instead
   assert.equal(result.payload.state, 'completed');
   const follow = workerCalls.filter((call) => call.command === 'follow_up');
   assert.equal(follow.length, 1);
-  assert.equal(follow[0].arguments.message, 'continua il merge');
+  assert.equal(follow[0]!.arguments.message, 'continua il merge');
 });
 
 test('steer and follow-up go through Pi prompt so Pi queues or starts a run itself', async () => {

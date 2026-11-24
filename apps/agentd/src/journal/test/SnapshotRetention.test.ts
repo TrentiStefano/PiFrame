@@ -38,13 +38,13 @@ test('a session snapshot carries only the latest 100 entries and caps huge text 
   const snapshot = session.getSnapshot();
   const entries = snapshot.transcript.entries;
   assert.equal(entries.length, 100);
-  assert.equal(entries[0].id, 'e1400', 'the most recent entries are kept');
-  assert.equal(entries[99].id, 'e1499');
+  assert.equal(entries[0]!.id, 'e1400', 'the most recent entries are kept');
+  assert.equal(entries[99]!.id, 'e1499');
   assert.equal(snapshot.transcript.totalEntries, 1500);
   assert.equal(snapshot.transcript.hasMore, true, 'older history is paged in on demand');
   const last = entries[99];
-  assert.ok(typeof last.text === 'string' && last.text.length < 300 * 1024, 'oversized text is capped');
-  assert.ok(typeof last.thinking === 'string' && last.thinking.length < 300 * 1024, 'oversized thinking is capped');
+  assert.ok(typeof last!.text === 'string' && last!.text.length < 300 * 1024, 'oversized text is capped');
+  assert.ok(typeof last!.thinking === 'string' && last!.thinking.length < 300 * 1024, 'oversized thinking is capped');
   assert.ok(Buffer.byteLength(JSON.stringify(snapshot)) < 1024 * 1024, 'the frame stays far below the 128 MB limit');
   void session.journal.close();
 });

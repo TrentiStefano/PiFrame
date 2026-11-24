@@ -19,12 +19,12 @@ test('UiRequestBroker: claim, conflict, and resolve lifecycle', async () => {
   });
 
   assert.strictEqual(broker.getPending().length, 1);
-  assert.strictEqual(broker.getPending()[0].claimedBy, null);
+  assert.strictEqual(broker.getPending()[0]!.claimedBy, null);
 
   // 2. Client 1 claims request
   const claim1 = broker.claimRequest('req_1', 'client_1', 1000);
   assert.strictEqual(claim1.success, true);
-  assert.strictEqual(broker.getPending()[0].claimedBy, 'client_1');
+  assert.strictEqual(broker.getPending()[0]!.claimedBy, 'client_1');
 
   // Verify event emitted
   const claimedEvt = events.find((e) => e.type === 'ui.claimed');
@@ -64,18 +64,18 @@ test('UiRequestBroker: lease expiration returns request to unclaimed', async () 
 
   // Short lease duration of 50ms
   broker.claimRequest('req_2', 'client_temp', 50);
-  assert.strictEqual(broker.getPending()[0].claimedBy, 'client_temp');
+  assert.strictEqual(broker.getPending()[0]!.claimedBy, 'client_temp');
 
   // Wait 70ms for lease to expire
   await new Promise((r) => setTimeout(r, 70));
 
   // Request should now be unclaimed
-  assert.strictEqual(broker.getPending()[0].claimedBy, null);
+  assert.strictEqual(broker.getPending()[0]!.claimedBy, null);
 
   // Now client 2 can claim it
   const claim2 = broker.claimRequest('req_2', 'client_next', 1000);
   assert.strictEqual(claim2.success, true);
-  assert.strictEqual(broker.getPending()[0].claimedBy, 'client_next');
+  assert.strictEqual(broker.getPending()[0]!.claimedBy, 'client_next');
 
   broker.dispose();
 });

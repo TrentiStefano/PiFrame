@@ -59,19 +59,19 @@ test(
     try {
       const first = await registry.listSessions();
       assert.equal(first.length, 1);
-      assert.equal(first[0].id, 'fast-id');
-      assert.equal(first[0].cwd, process.cwd());
-      assert.notEqual(first[0].name, 'The exact title');
-      assert.equal(first[0].messageCount, undefined);
+      assert.equal(first[0]!.id, 'fast-id');
+      assert.equal(first[0]!.cwd, process.cwd());
+      assert.notEqual(first[0]!.name, 'The exact title');
+      assert.equal(first[0]!.messageCount, undefined);
       const changed = await event.promise;
       assert.equal(changed.sessionId, '@daemon');
       const final = await registry.listSessions();
-      assert.equal(final[0].name, 'The exact title');
-      assert.equal(final[0].messageCount, 2);
+      assert.equal(final[0]!.name, 'The exact title');
+      assert.equal(final[0]!.messageCount, 2);
       assert.equal(fs.readFileSync(file, 'utf8'), contents);
       const warm = new SessionIndex({ sessionsDir: dir, cachePath: cache });
       const fast = await warm.scanFast();
-      assert.equal(fast.sessions[0].name, 'The exact title');
+      assert.equal(fast.sessions[0]!.name, 'The exact title');
       assert.equal(fast.needsRefresh, false);
     } finally {
       await registry.closeAll();
@@ -112,7 +112,7 @@ test('session.list returns cached rows while filesystem revalidation continues',
         registry.listSessions(),
         new Promise<never>((_, reject) => setTimeout(() => reject(new Error('list waited for filesystem')), 100))
       ]);
-      assert.equal(listed[0].id, 'cached');
+      assert.equal(listed[0]!.id, 'cached');
       release();
       await index.scanFast();
     } finally {
@@ -142,7 +142,7 @@ test('fast refresh publishes changed visible rows', { timeout: 10_000 }, async (
   } as unknown as SessionIndex;
   const registry = makeRegistry(index, (_sessionId, message) => event.resolve(message));
   try {
-    assert.equal((await registry.listSessions())[0].name, 'Old name');
+    assert.equal((await registry.listSessions())[0]!.name, 'Old name');
     assert.equal((await event.promise).payload.updated[0].name, 'New name');
   } finally {
     await registry.closeAll();
@@ -213,7 +213,7 @@ test('cold session.list bounds its filesystem wait and continues discovery', { t
     ]);
     assert.deepEqual(listed, []);
     release();
-    assert.equal((await index.scanFast()).sessions[0].id, 'new');
+    assert.equal((await index.scanFast()).sessions[0]!.id, 'new');
   } finally {
     release();
     await registry.closeAll();
@@ -297,7 +297,7 @@ test('legacy cache titles remain visible while their metadata is revalidated', {
     fs.writeFileSync(cachePath, JSON.stringify(legacy));
     const index = new SessionIndex({ sessionsDir: dir, cachePath });
     const first = await index.scanFast();
-    assert.equal(first.sessions[0].name, 'Indexed title');
+    assert.equal(first.sessions[0]!.name, 'Indexed title');
     assert.equal(first.needsRefresh, true);
     let parses = 0;
     const parse = (index as any).parseSessionFileAsync.bind(index);
@@ -334,10 +334,10 @@ test('legacy cache revalidation detects rewrites with unchanged size and mtime',
     fs.utimesSync(file, stableTime, stableTime);
     const index = new SessionIndex({ sessionsDir: dir, cachePath });
     const first = await index.scanFast();
-    assert.equal(first.sessions[0].name, 'Old name');
+    assert.equal(first.sessions[0]!.name, 'Old name');
     assert.equal(first.needsRefresh, true);
     await index.scan();
-    assert.equal((await index.scanFast()).sessions[0].name, 'New name');
+    assert.equal((await index.scanFast()).sessions[0]!.name, 'New name');
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -366,7 +366,7 @@ test('same-size rewrites with restored mtime invalidate the cached title', { tim
     assert.notEqual(after.ctimeMs, before.ctimeMs);
     assert.equal((await index.scanFast()).needsRefresh, true);
     await index.scan();
-    assert.equal((await index.scanFast()).sessions[0].name, 'New name');
+    assert.equal((await index.scanFast()).sessions[0]!.name, 'New name');
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -422,9 +422,9 @@ test('a session changed during indexing is refreshed after the write settles', {
     if (message.type === 'session.indexChanged' && message.payload.updated) event.resolve(message);
   });
   try {
-    assert.equal((await registry.listSessions())[0].id, 'changing');
+    assert.equal((await registry.listSessions())[0]!.id, 'changing');
     await event.promise;
-    assert.equal((await registry.listSessions())[0].name, 'Final name');
+    assert.equal((await registry.listSessions())[0]!.name, 'Final name');
   } finally {
     await registry.closeAll();
     fs.rmSync(root, { recursive: true, force: true });
@@ -452,8 +452,8 @@ test('discovery follows a linked session directory', { timeout: 10_000 }, async 
       throw error;
     }
     const index = new SessionIndex({ sessionsDir: dir, cachePath: path.join(root, 'index.json') });
-    assert.equal((await index.scanFast()).sessions[0].id, 'linked');
-    assert.equal((await index.scan())[0].id, 'linked');
+    assert.equal((await index.scanFast()).sessions[0]!.id, 'linked');
+    assert.equal((await index.scan())[0]!.id, 'linked');
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -486,7 +486,7 @@ test('full indexing yields to the event loop while a transcript is read', { time
       running = false;
       await heartbeat;
     }
-    assert.equal(rows[0].messageCount, 2_000);
+    assert.equal(rows[0]!.messageCount, 2_000);
     assert.ok(turns > 1, 'indexing must let other event-loop work run');
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
@@ -502,7 +502,7 @@ test('a provisional row can be explicitly deleted before the full scan', { timeo
   try {
     const index = new SessionIndex({ sessionsDir: dir, cachePath: path.join(root, 'index.json') });
     const first = await index.scanFast();
-    assert.equal(first.sessions[0].id, 'delete-id');
+    assert.equal(first.sessions[0]!.id, 'delete-id');
     assert.equal(index.removeSession('delete-id'), file);
     assert.equal(fs.existsSync(file), false);
     assert.equal((await index.scanFast()).sessions.length, 0);
@@ -531,8 +531,8 @@ test('uncached subagent description is recovered from a long message', { timeout
     const index = new SessionIndex({ sessionsDir: dir, cachePath: path.join(root, 'index.json') });
     const result = await index.getSubagents('parent', parent);
     assert.equal(result.length, 1);
-    assert.equal(result[0].description, 'a'.repeat(100));
-    assert.equal(result[0].output, 'a'.repeat(100));
+    assert.equal(result[0]!.description, 'a'.repeat(100));
+    assert.equal(result[0]!.output, 'a'.repeat(100));
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
   }
@@ -559,8 +559,8 @@ test(
       };
       const [active, inactive] = await Promise.all([index.scanFast(new Set(['one'])), index.scanFast()]);
       assert.equal(calls, 1);
-      assert.equal(active.sessions[0].isActive, true);
-      assert.equal(inactive.sessions[0].isActive, false);
+      assert.equal(active.sessions[0]!.isActive, true);
+      assert.equal(inactive.sessions[0]!.isActive, false);
     } finally {
       fs.rmSync(root, { recursive: true, force: true });
     }
@@ -663,7 +663,7 @@ test('fast enumeration preserves a snapshot row resolved concurrently', { timeou
     assert.equal((await index.resolveFast('first'))?.id, 'first');
     release();
     assert.equal((await fast).needsRefresh, true);
-    assert.equal(index.getCachedSnapshot()[0].id, 'first');
+    assert.equal(index.getCachedSnapshot()[0]!.id, 'first');
   } finally {
     release();
     fs.rmSync(root, { recursive: true, force: true });
@@ -1123,14 +1123,14 @@ test('concurrent list calls share one refresh and replay a queued follow-up', { 
   });
   try {
     const [first, second] = await Promise.all([registry.listSessions(), registry.listSessions()]);
-    assert.equal(first[0].name, 'provisional');
-    assert.equal(second[0].name, 'provisional');
+    assert.equal(first[0]!.name, 'provisional');
+    assert.equal(second[0]!.name, 'provisional');
     assert.equal(scans, 1);
     pending = false;
     revision++;
     finish([final]);
     await event.promise;
-    assert.equal((await registry.listSessions())[0].name, 'exact');
+    assert.equal((await registry.listSessions())[0]!.name, 'exact');
     assert.equal(scans, 2);
     assert.equal(events.length, 1);
     assert.equal(events[0].payload.updated[0].name, 'exact');

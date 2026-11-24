@@ -1,6 +1,5 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert';
-import * as http from 'node:http';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
@@ -105,7 +104,7 @@ test('Security: 25 unauthenticated remote WS attempts do NOT block or delay loca
   remotePort = (remoteServer.address() as any).port;
   remoteManager.setListenerPort(remotePort);
 
-  const { wss, manager } = createWsServer({
+  const { wss } = createWsServer({
     httpServer: localServer,
     remoteHttpServer: remoteServer,
     config: DEFAULT_CONFIG,

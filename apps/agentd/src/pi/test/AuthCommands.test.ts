@@ -99,8 +99,8 @@ test('auth secret UI requests are local-only; normal extension input stays share
     { sessionId: 's' }
   );
 
-  assert.equal(secret[0].payload.localOnly, true);
-  assert.equal(secret[0].payload.title, 'API key');
+  assert.equal(secret[0]!.payload.localOnly, true);
+  assert.equal(secret[0]!.payload.title, 'API key');
   const authSelector = adaptPiEvent(
     {
       type: 'extension_ui_request',
@@ -111,7 +111,7 @@ test('auth secret UI requests are local-only; normal extension input stays share
     } as any,
     { sessionId: 's' }
   );
-  assert.equal(authSelector[0].payload.localOnly, true);
-  assert.equal(authSelector[0].payload.title, 'Choose provider');
-  assert.equal(normal[0].payload.localOnly, false);
+  assert.equal(authSelector[0]!.payload.localOnly, true);
+  assert.equal(authSelector[0]!.payload.title, 'Choose provider');
+  assert.equal(normal[0]!.payload.localOnly, false);
 });

@@ -5,7 +5,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { WorkspaceService } from '../WorkspaceService.js';
-import { validateBranchName, listGitBranches, switchGitBranch, getGitDirtyState } from '../gitClient.js';
+import { validateBranchName, listGitBranches } from '../gitClient.js';
 
 function createTempRepo(opts: { initBranch?: string; commit?: boolean } = {}): {
   root: string;
@@ -130,12 +130,12 @@ test('listBranches: parses branches, sorting (current first, lastCommit desc), u
     assert.ok(result.headShortSha);
 
     // Current branch (main) must be first
-    assert.equal(result.branches[0].name, 'main');
-    assert.equal(result.branches[0].isCurrent, true);
+    assert.equal(result.branches[0]!.name, 'main');
+    assert.equal(result.branches[0]!.isCurrent, true);
 
     // Second should be fix#12 because it has the newer commit
-    assert.equal(result.branches[1].name, 'fix#12');
-    assert.equal(result.branches[1].isCurrent, false);
+    assert.equal(result.branches[1]!.name, 'fix#12');
+    assert.equal(result.branches[1]!.isCurrent, false);
 
     // Check upstream tracking on emoji-🚀
     const emojiBranch = result.branches.find((b) => b.name === 'emoji-🚀');

@@ -29,11 +29,11 @@ test('detectSubagentPackages: detects installed nicobailon and tintinweb package
     // 1. Initially neither installed
     const res1 = detectSubagentPackages(tempAgentDir, {});
     assert.equal(res1.packages.length, 2);
-    assert.equal(res1.packages[0].id, 'pi-subagents');
-    assert.equal(res1.packages[0].installed, false);
-    assert.equal(res1.packages[0].version, null);
-    assert.equal(res1.packages[1].id, '@tintinweb/pi-subagents');
-    assert.equal(res1.packages[1].installed, false);
+    assert.equal(res1.packages[0]!.id, 'pi-subagents');
+    assert.equal(res1.packages[0]!.installed, false);
+    assert.equal(res1.packages[0]!.version, null);
+    assert.equal(res1.packages[1]!.id, '@tintinweb/pi-subagents');
+    assert.equal(res1.packages[1]!.installed, false);
 
     // 2. Install fake nicobailon package
     const nicoDir = path.join(tempAgentDir, 'npm', 'node_modules', 'pi-subagents');

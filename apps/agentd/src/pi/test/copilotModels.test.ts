@@ -63,7 +63,7 @@ test('uses enabled-policy fallback for individual only when picker has no regula
 test('refreshes expired access token with installed Pi headers and never persists credentials', async () => {
   const credential = auth('expired', 0);
   const before = structuredClone(credential);
-  const requests: Array<{ url: string; init?: RequestInit }> = [];
+  const requests: Array<{ url: string; init?: RequestInit | undefined }> = [];
   const service = createCopilotEntitlementService({
     readAuth: () => credential,
     now: () => 100,
@@ -79,11 +79,11 @@ test('refreshes expired access token with installed Pi headers and never persist
   const result = await service.get();
   assert.deepEqual([...result.allowedModelIds], ['allowed']);
   assert.equal(requests.length, 2);
-  assert.equal(requests[0].url, 'https://api.github.com/copilot_internal/v2/token');
-  const refreshHeaders = new Headers(requests[0].init?.headers);
+  assert.equal(requests[0]!.url, 'https://api.github.com/copilot_internal/v2/token');
+  const refreshHeaders = new Headers(requests[0]!.init?.headers);
   assert.equal(refreshHeaders.get('authorization'), 'Bearer refresh-secret');
   assert.equal(refreshHeaders.get('user-agent'), 'GitHubCopilotChat/0.35.0');
-  const modelHeaders = new Headers(requests[1].init?.headers);
+  const modelHeaders = new Headers(requests[1]!.init?.headers);
   assert.equal(modelHeaders.get('authorization'), 'Bearer tid=refreshed;proxy-ep=proxy.individual.githubcopilot.com');
   assert.equal(modelHeaders.get('x-github-api-version'), '2026-06-01');
   assert.ok(requests.every((request) => request.init?.signal instanceof AbortSignal));

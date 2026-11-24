@@ -46,7 +46,7 @@ test('WindowsTypeperfGpuProvider: child emitting exit(1) after stop/kill does no
   assert.equal(spawnCount, 1);
 
   provider.stop();
-  assert.equal(spawnedChildren[0].killCallCount, 1);
+  assert.equal(spawnedChildren[0]!.killCallCount, 1);
 
   // Wait for microtasks / events to settle
   await new Promise<void>((resolve) => setTimeout(resolve, 50));

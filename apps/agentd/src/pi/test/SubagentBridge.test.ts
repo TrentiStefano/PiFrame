@@ -69,7 +69,7 @@ function fakePi() {
   const fire = async (name: string) => {
     for (const fn of handlers.get(name) ?? []) await fn({}, ctx);
   };
-  const last = () => JSON.parse(statuses[statuses.length - 1]);
+  const last = () => JSON.parse(statuses[statuses.length - 1]!);
   return { pi, events, commands, tools, statuses, records, fire, last, ctx };
 }
 

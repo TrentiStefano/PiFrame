@@ -9,7 +9,7 @@ import { ulid } from 'ulid';
 
 import { SideConversationManager } from '../SideConversationManager.js';
 import { SideTransport } from '../SideTransport.js';
-import { renderConversationSnapshot, renderMessageBlock, SIDE_GUARDRAIL_PREAMBLE } from '../SideSnapshotRenderer.js';
+import { renderConversationSnapshot, SIDE_GUARDRAIL_PREAMBLE } from '../SideSnapshotRenderer.js';
 import { SessionRegistry } from '../../sessions/SessionRegistry.js';
 import { Session } from '../../sessions/Session.js';
 import { ConnectionManager } from '../../server/wsServer.js';
@@ -67,7 +67,7 @@ class FakePiTransport implements PiTransport {
 
     if (cmd.command === 'get_state') {
       return {
-        id: cmd.id,
+        id: cmd.id!,
         type: 'response',
         command: 'get_state',
         success: true,
@@ -82,7 +82,7 @@ class FakePiTransport implements PiTransport {
 
     if (cmd.command === 'get_messages') {
       return {
-        id: cmd.id,
+        id: cmd.id!,
         type: 'response',
         command: 'get_messages',
         success: true,
@@ -141,7 +141,7 @@ class FakePiTransport implements PiTransport {
       }, 5);
 
       return {
-        id: cmd.id,
+        id: cmd.id!,
         type: 'response',
         command: 'prompt',
         success: true,
@@ -153,7 +153,7 @@ class FakePiTransport implements PiTransport {
       this.pushEvent({ type: 'agent_end', willRetry: false });
       this.pushEvent({ type: 'agent_settled' });
       return {
-        id: cmd.id,
+        id: cmd.id!,
         type: 'response',
         command: 'abort',
         success: true
@@ -161,7 +161,7 @@ class FakePiTransport implements PiTransport {
     }
 
     return {
-      id: cmd.id,
+      id: cmd.id!,
       type: 'response',
       command: cmd.command,
       success: true,
@@ -427,6 +427,7 @@ test('spawn args include exact read-only flags and exclude bash/edit/write', asy
     // Context file permissions
     const promptPathIdx = args.indexOf('--append-system-prompt');
     const contextFilePath = args[promptPathIdx + 1];
+    assert.ok(contextFilePath);
     assert.ok(fs.existsSync(contextFilePath));
     const stat = fs.statSync(contextFilePath);
     // On POSIX mode & 0o777 is 0o600; on Windows stat.mode contains file type bits
@@ -572,7 +573,7 @@ test('Lifecycle: close deletes temp dir and kills worker', async () => {
     await ctx.sideManager.close(sideId, 'user');
 
     assert.ok(!fs.existsSync(contextDir), 'Temp runtime context dir must be deleted on close');
-    assert.equal(ctx.fakeTransports[0].stopCalls.length, 1, 'Worker stop must be called');
+    assert.equal(ctx.fakeTransports[0]!.stopCalls.length, 1, 'Worker stop must be called');
   } finally {
     ctx.cleanup();
   }
@@ -682,7 +683,7 @@ test('Limits: max 4 total concurrent side threads', async () => {
 
     // Open 4
     for (let i = 0; i < 4; i++) {
-      await ctx.sideManager.open({ parentSessionId: parentSessions[i].id });
+      await ctx.sideManager.open({ parentSessionId: parentSessions[i]!.id });
     }
 
     assert.equal(ctx.sideManager.getActiveCount(), 4);
@@ -690,7 +691,7 @@ test('Limits: max 4 total concurrent side threads', async () => {
     // 5th must fail
     await assert.rejects(
       async () => {
-        await ctx.sideManager.open({ parentSessionId: parentSessions[4].id });
+        await ctx.sideManager.open({ parentSessionId: parentSessions[4]!.id });
       },
       (err: any) => {
         assert.equal(err.code, 'SIDE_LIMIT_REACHED');

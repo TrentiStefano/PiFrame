@@ -15,8 +15,8 @@ import { RemoteAuthManager } from '../../remote/RemoteAuthManager.js';
 class MockWebSocket extends EventEmitter {
   public sentMessages: string[] = [];
   public readyState = 1;
-  public closeCode?: number;
-  public closeReason?: string;
+  public closeCode: number | undefined;
+  public closeReason: string | undefined;
 
   send(data: string, cb?: () => void): void {
     this.sentMessages.push(data);
@@ -47,7 +47,7 @@ function createGitRepo(): { root: string; cleanup: () => void } {
 
 function getLastSent(ws: MockWebSocket): any {
   if (ws.sentMessages.length === 0) return null;
-  return JSON.parse(ws.sentMessages[ws.sentMessages.length - 1]);
+  return JSON.parse(ws.sentMessages[ws.sentMessages.length - 1]!);
 }
 
 function getSentResults(ws: MockWebSocket): any[] {

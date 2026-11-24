@@ -27,7 +27,7 @@ test('event-loop monitor reports a block that is longer than the threshold', asy
 });
 
 test('dev CPU profile is written after the requested seconds and stays off without the variable', async () => {
-  const { dir, file } = tempLogFile();
+  const { dir } = tempLogFile();
   const profile = path.join(dir, 'cpu.cpuprofile');
   try {
     assert.equal(startDevCpuProfile({}, profile), false);

@@ -75,11 +75,11 @@ function registry(checkTerminalOwner: (cwd: string) => Promise<boolean | null> =
 test('SessionIndex parses canonical IDs, names, nested content and active branch', async () => {
   const index = new SessionIndex({ sessionsDir, cachePath: path.join(root, 'index.json') });
   const result = await index.scan(new Set(['external']));
-  assert.equal(result[0].id, 'external');
-  assert.equal(result[0].name, 'Terminal session');
-  assert.equal(result[0].messageCount, 3);
-  assert.equal(result[0].lastMessagePreview, 'Current answer');
-  assert.equal((await index.scan(new Set(['external'])))[0].isActive, true);
+  assert.equal(result[0]!.id, 'external');
+  assert.equal(result[0]!.name, 'Terminal session');
+  assert.equal(result[0]!.messageCount, 3);
+  assert.equal(result[0]!.lastMessagePreview, 'Current answer');
+  assert.equal((await index.scan(new Set(['external'])))[0]!.isActive, true);
   const transcript = index.readTranscript(sourceFile);
   assert.deepEqual(
     transcript.map((e) => e.id),
@@ -260,7 +260,7 @@ test('snapshots retain execution start times and compute missing tool durations'
   const session = new Session({ id: 'timed-execution', cwd: root });
   t.after(() => session.close());
   const [started] = session.dispatchPiEvent({ type: 'agent_start' });
-  assert.equal(started.payload.startedAt, 10000);
+  assert.equal(started!.payload.startedAt, 10000);
   assert.equal(session.getSnapshot().runtime.runStartedAt, 10000);
 
   session.dispatchPiEvent({
@@ -277,7 +277,7 @@ test('snapshots retain execution start times and compute missing tool durations'
     toolName: 'bash',
     args: { command: 'test', timeout: 1800 }
   });
-  assert.equal(toolStarted.payload.startedAt, 12000);
+  assert.equal(toolStarted!.payload.startedAt, 12000);
   t.mock.timers.setTime(19000);
   session.dispatchPiEvent({
     type: 'tool_execution_update',
@@ -287,8 +287,8 @@ test('snapshots retain execution start times and compute missing tool durations'
   });
   const snapshot = session.getSnapshot();
   assert.equal(snapshot.runtime.runStartedAt, 10000);
-  assert.equal(snapshot.activeTools[0].startedAt, 12000);
-  assert.equal((snapshot.activeTools[0].args as any).timeout, 1800);
+  assert.equal(snapshot.activeTools[0]!.startedAt, 12000);
+  assert.equal((snapshot.activeTools[0]!.args as any).timeout, 1800);
 
   t.mock.timers.setTime(20000);
   const [completed] = session.dispatchPiEvent({
@@ -297,8 +297,8 @@ test('snapshots retain execution start times and compute missing tool durations'
     toolName: 'bash',
     result: 'done'
   });
-  assert.equal(completed.payload.durationMs, 8000);
-  assert.equal(session.getSnapshot().activeTools[0].durationMs, 8000);
+  assert.equal(completed!.payload.durationMs, 8000);
+  assert.equal(session.getSnapshot().activeTools[0]!.durationMs, 8000);
   session.dispatchPiEvent({
     type: 'message_end',
     message: { role: 'toolResult', toolCallId: 'cmd', content: [{ type: 'text', text: 'done' }] }
@@ -307,7 +307,7 @@ test('snapshots retain execution start times and compute missing tool durations'
   const settledSnapshot = session.getSnapshot();
   assert.equal(settledSnapshot.runtime.runStartedAt, null);
   assert.equal(settledSnapshot.activeTools.length, 0);
-  const savedCall = (settledSnapshot.transcript.entries[0].content as any[])[0];
+  const savedCall = (settledSnapshot.transcript.entries[0]!.content as any[])[0];
   assert.equal(savedCall.startedAt, 12000);
   assert.equal(savedCall.durationMs, 8000);
   t.mock.timers.setTime(30000);
@@ -344,7 +344,7 @@ test('crash and recovery snapshots cannot revive running timers', async (t) => {
   assert.equal(snapshot.runtime.status, 'settled');
   assert.equal(snapshot.runtime.runStartedAt, null);
   assert.deepEqual(snapshot.activeTools, []);
-  assert.equal((snapshot.transcript.entries[0].content as any[])[0].durationMs, 3000);
+  assert.equal((snapshot.transcript.entries[0]!.content as any[])[0].durationMs, 3000);
 });
 
 test('full snapshot preserves live text, thinking, tools, queue and UI requests', async () => {
@@ -373,7 +373,7 @@ test('full snapshot preserves live text, thinking, tools, queue and UI requests'
   assert.equal((snapshot.liveMessage as any).content[1].thinking, 'Thinking');
   assert.equal(snapshot.activeTools?.length, 1);
   assert.deepEqual(snapshot.runtime.queue?.steering, ['next']);
-  assert.equal(snapshot.pendingUiRequests[0].timeoutMs, 5000);
+  assert.equal(snapshot.pendingUiRequests[0]!.timeoutMs, 5000);
   assert.equal(snapshot.runtime.status, 'awaiting_user');
   s.dispatchPiEvent({ type: 'agent_settled' });
   assert.equal(s.getSnapshot().activeTools?.length, 0);
@@ -410,11 +410,11 @@ test('subsessions are hidden from listSessions by default and discoverable via g
 
     const subs = await r.getSubagents('external');
     assert.equal(subs.length, 1);
-    assert.equal(subs[0].id, 'subagent_01');
-    assert.equal(subs[0].name, 'reviewer#123');
-    assert.equal(subs[0].model, 'gpt-6-luna');
-    assert.equal(subs[0].cost, 0.015);
-    assert.equal(subs[0].output, 'Subagent finding report');
+    assert.equal(subs[0]!.id, 'subagent_01');
+    assert.equal(subs[0]!.name, 'reviewer#123');
+    assert.equal(subs[0]!.model, 'gpt-6-luna');
+    assert.equal(subs[0]!.cost, 0.015);
+    assert.equal(subs[0]!.output, 'Subagent finding report');
   } finally {
     if (fs.existsSync(subFile)) fs.unlinkSync(subFile);
     await r.closeAll();

@@ -14,7 +14,7 @@ test('PiEventAdapter: maps agent_start and text_delta', () => {
   const startEvt = { type: 'agent_start' };
   const startPcp = adaptPiEvent(startEvt, ctx);
   assert.equal(startPcp.length, 1);
-  assert.equal(startPcp[0].type, 'run.started');
+  assert.equal(startPcp[0]!.type, 'run.started');
 
   const updateEvt = {
     type: 'message_update',
@@ -26,9 +26,9 @@ test('PiEventAdapter: maps agent_start and text_delta', () => {
   };
   const updatePcp = adaptPiEvent(updateEvt, ctx);
   assert.equal(updatePcp.length, 1);
-  assert.equal(updatePcp[0].type, 'text.delta');
-  assert.equal(updatePcp[0].payload.delta, 'Hello world');
-  assert.equal(updatePcp[0].payload.contentIndex, 0);
+  assert.equal(updatePcp[0]!.type, 'text.delta');
+  assert.equal(updatePcp[0]!.payload.delta, 'Hello world');
+  assert.equal(updatePcp[0]!.payload.contentIndex, 0);
 });
 
 test('PiEventAdapter: settles only on agent_settled, not agent_end', () => {
@@ -36,8 +36,8 @@ test('PiEventAdapter: settles only on agent_settled, not agent_end', () => {
   const endEvt = { type: 'agent_end', willRetry: false };
   const endPcp = adaptPiEvent(endEvt, ctx);
   assert.equal(endPcp.length, 1);
-  assert.equal(endPcp[0].type, 'run.ended');
-  assert.equal(adaptPiEvent({ type: 'agent_settled' }, ctx)[0].type, 'run.settled');
+  assert.equal(endPcp[0]!.type, 'run.ended');
+  assert.equal(adaptPiEvent({ type: 'agent_settled' }, ctx)[0]!.type, 'run.settled');
 });
 
 test('PiEventAdapter: processes real fixture file text-only.jsonl', () => {

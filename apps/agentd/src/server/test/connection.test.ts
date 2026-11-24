@@ -26,7 +26,7 @@ test('Connection: closes with 4003 if token is invalid', () => {
   const ws = new MockWebSocket();
   let closed = false;
 
-  const conn = new Connection({
+  new Connection({
     ws: ws as any,
     expectedToken: 'secret_valid_token',
     daemonVersion: '0.1.0',
@@ -105,7 +105,7 @@ test('Connection: authenticates successfully and sends welcome frame', () => {
 
   assert.equal(conn.state, 'ready');
   assert.ok(ws.sentMessages.length >= 1);
-  const welcome = JSON.parse(ws.sentMessages[0]);
+  const welcome = JSON.parse(ws.sentMessages[0]!);
   assert.equal(welcome.kind, 'welcome');
   assert.equal(welcome.payload.daemon.version, '0.1.0');
   assert.equal(welcome.payload.pi.version, '0.85.1');

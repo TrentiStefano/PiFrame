@@ -46,16 +46,16 @@ test('Strict D16 Telemetry Ban: No remote analytics or external network calls in
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      const trimmed = line.trim();
+      const trimmed = line!.trim();
       if (trimmed.startsWith('//') || trimmed.startsWith('/*')) continue;
 
       for (const kw of bannedKeywords) {
-        if (line.toLowerCase().includes(kw)) {
+        if (line!.toLowerCase().includes(kw)) {
           violations.push(`${file}:${i + 1}: Found banned keyword "${kw}": ${line}`);
         }
       }
 
-      const match = line.match(remoteUrlRegex);
+      const match = line!.match(remoteUrlRegex);
       if (match) {
         violations.push(`${file}:${i + 1}: Found remote external URL "${match.join(', ')}": ${line}`);
       }
