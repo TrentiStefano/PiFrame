@@ -29,7 +29,7 @@ Options (they work for both commands; with `pnpm` they go after `--`):
 
 `check` never installs dependencies. After a dependency change (one you made, or one you pulled, such as the `@google/design.md` and `yaml` packages the design checks use), run `pnpm install` first; otherwise the step that needs the missing package fails with `Cannot find package`.
 
-1. the escape-hatch audit (see [below](#escape-hatch-ratchet)), the doc link check (see [below](#doc-link-check)), the agent map check (see [below](#agent-map-check)), the import-boundary check (see [below](#import-boundaries)), the design lint (see [below](#design-lint)) and the design token check (see [below](#design-token-check))
+1. the escape-hatch audit (see [below](#escape-hatch-ratchet)), the doc link check (see [below](#doc-link-check)), the named-timer check (see [below](#named-timers)), the agent map check (see [below](#agent-map-check)), the import-boundary check (see [below](#import-boundaries)), the design lint (see [below](#design-lint)) and the design token check (see [below](#design-token-check))
 2. `pnpm -r run build` (agentd and the e2e tests type-check against the other packages' built `.d.ts`; a fresh or stale `dist/` would give false errors)
 3. `pnpm -r run lint` (`tsc --noEmit` for every TypeScript package)
 4. `node tools/scripts/sync-changelog.mjs` (what `pnpm run sync:changelog` runs): generates the in-app changelog, which the app's `pubspec.yaml` lists, so `flutter analyze` and the Flutter tests find it
@@ -208,6 +208,16 @@ The rules, the daemon table and the **baseline** are in `tools/guardrails/bounda
 A baseline entry that matches no violation any more fails too, and names the entry to delete, so the baseline only shrinks. To fix a violation, move the I/O into a service in `data/`, read it through a provider and test the feature with a fake of that service. An exception needs the `human-approved` label (the config is a guarded path): add the `{ "file", "import" }` entry to `baseline` and say why in the PR; a new daemon edge goes into `daemonAllowedDependencies` and is recorded in `docs/adr/`.
 
 The logic is `checkBoundaries` in `tools/guardrails/src/boundary.mjs` (pure, tested with in-memory fixtures in `tools/guardrails/test/boundary.test.mjs`); the script only reads the files and the config.
+
+## Named timers
+
+`node tools/scripts/check-timers.mjs` (in `check`, `verify` and CI) enforces that every timer in the Flutter app (`apps/pi_frame/lib/`) and the daemon (`apps/agentd/src/`) has a named reason. A timer call fails when its duration is a numeric literal, or arithmetic that contains one: `Timer(`, `Timer.periodic(` and `Future.delayed(` (the first argument, in Dart), and `setTimeout(` and `setInterval(` (the second argument, in TypeScript). A named constant or a variable passes. Test code (`*_test.dart`, `*.test.ts`, anything under a `test/` folder), comments, and identifiers that only contain a digit are not counted.
+
+Name the delay with a constant next to its use, named for why the wait exists (for example `_copiedFeedbackDuration` or `PONG_TIMEOUT_MS`), and pass that name to the timer. There are no exceptions: a literal duration fails the gate.
+
+The Dart design-literals ratchet (`apps/pi_frame/test/design_literals_lint_test.dart`) is separate and unchanged: a millisecond timer constant there still needs an entry in its `_allowedTimerConstants`, so a named Dart timer in seconds or hours passes both checks without one.
+
+The logic is `checkTimers` in `tools/guardrails/src/timers.mjs` (pure, tested with in-memory sources in `tools/guardrails/test/timers.test.mjs`); the script only reads the files.
 
 ## Design lint
 
