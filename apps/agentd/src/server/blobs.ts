@@ -67,7 +67,7 @@ export function safeBlobName(rawHeader: string | undefined, contentType: string 
     .replace(/^\.+/, '')
     .trim()
     .slice(0, 100);
-  const mime = (contentType ?? '').split(';')[0].trim().toLowerCase();
+  const mime = (contentType ?? '').split(';')[0]?.trim().toLowerCase() ?? '';
   if (!name) name = 'file';
   if (!/\.[A-Za-z0-9]{1,8}$/.test(name) && EXT_BY_MIME[mime]) name += EXT_BY_MIME[mime];
   return name;

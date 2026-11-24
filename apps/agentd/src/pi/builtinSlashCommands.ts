@@ -30,5 +30,5 @@ export const PI_BUILTIN_SLASH_COMMANDS = [
 export function parsePiBuiltinCommand(text: string): { name: string; args: string } | undefined {
   const match = /^\s*\/([a-z][a-z0-9-]*)(?:\s+([\s\S]*?))?\s*$/iu.exec(text);
   if (!match || !PI_BUILTIN_SLASH_COMMANDS.some((command) => command.name === match[1])) return undefined;
-  return { name: match[1], args: match[2]?.trim() ?? '' };
+  return { name: match[1] ?? '', args: match[2]?.trim() ?? '' };
 }

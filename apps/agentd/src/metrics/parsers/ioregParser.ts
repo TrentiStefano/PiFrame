@@ -14,7 +14,7 @@ export function parseIoregOutput(output: string): {
   const utilizations: number[] = [];
   let match: RegExpExecArray | null;
   while ((match = utilRegex.exec(output)) !== null) {
-    const val = parseInt(match[1], 10);
+    const val = parseInt(match[1] ?? '', 10);
     if (!isNaN(val) && val >= 0) {
       utilizations.push(Math.min(100, Math.max(0, val)));
     }
@@ -22,7 +22,7 @@ export function parseIoregOutput(output: string): {
 
   const memories: number[] = [];
   while ((match = memRegex.exec(output)) !== null) {
-    const val = parseInt(match[1], 10);
+    const val = parseInt(match[1] ?? '', 10);
     if (!isNaN(val) && val >= 0) {
       memories.push(val);
     }

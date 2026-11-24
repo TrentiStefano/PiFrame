@@ -72,10 +72,15 @@ export function enableDevFileLog(
   devWrite = write;
   write('start', `--- daemon pid=${process.pid} ---`);
   const levels = ['log', 'info', 'warn', 'error'] as const;
-  const originals = levels.map((level) => console[level]);
-  levels.forEach((level, index) => {
+  const originals = {
+    log: console.log,
+    info: console.info,
+    warn: console.warn,
+    error: console.error
+  } satisfies Record<(typeof levels)[number], unknown>;
+  levels.forEach((level) => {
     console[level] = (...args: unknown[]) => {
-      originals[index].apply(console, args);
+      originals[level].apply(console, args);
       write(level, format(...args));
     };
   });
@@ -83,8 +88,8 @@ export function enableDevFileLog(
   return () => {
     stopMonitor();
     devWrite = null;
-    levels.forEach((level, index) => {
-      console[level] = originals[index];
+    levels.forEach((level) => {
+      console[level] = originals[level];
     });
   };
 }

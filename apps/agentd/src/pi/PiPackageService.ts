@@ -160,7 +160,11 @@ export class PiPackageService implements PiPackageOperations {
     ) {
       throw new Error(`npm returned no valid version for ${source}.`);
     }
-    return rsort(versions)[0];
+    const [latest] = rsort(versions);
+    if (latest === undefined) {
+      throw new Error(`npm returned no valid version for ${source}.`);
+    }
+    return latest;
   }
 
   private async checkNpmCompatibility(source: string, target: string): Promise<string | undefined> {

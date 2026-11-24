@@ -462,7 +462,7 @@ export class SessionRegistry {
     });
 
     // Pi RPC has no terminal attach API. Protect session files owned by interactive Pi.
-    const terminalOwner = await this.refreshTerminalOwnership(session);
+    await this.refreshTerminalOwnership(session);
     const text = await this.index.readSessionText(found.sessionFile);
     session.entries = this.index.readTranscript(found.sessionFile, text);
     if (found.sessionFile) {

@@ -1,5 +1,3 @@
-import type { PcpEvent } from '@piframe/pcp-ts';
-
 export interface PendingUiRequest {
   requestId: string;
   method: string;
@@ -19,12 +17,10 @@ export interface UiRequestBrokerOptions {
 }
 
 export class UiRequestBroker {
-  private sessionId: string;
   private onEmitEvent: (event: { type: string; payload: Record<string, any> }) => void;
   private requests = new Map<string, PendingUiRequest>();
 
   constructor(opts: UiRequestBrokerOptions) {
-    this.sessionId = opts.sessionId;
     this.onEmitEvent = opts.onEmitEvent;
   }
 

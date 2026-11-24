@@ -45,8 +45,8 @@ export function parseWslPath(cwd: string): WslPathInfo | null {
     .replace(/\/+$/, '');
   const match = normalized.match(/^\/\/(wsl(?:\.localhost|\$))\/([^\/]+)(?:\/(.*))?$/i);
   if (!match) return null;
-  const host = match[1];
-  const distro = match[2];
+  const host = match[1] ?? '';
+  const distro = match[2] ?? '';
   const rest = match[3] || '';
   const linuxPath = ('/' + rest).replace(/\/+/g, '/').replace(/(.)\/$/, '$1');
   const uncPrefix = `\\\\${host}\\${distro}`;
@@ -186,13 +186,14 @@ function parseNumstatZ(output: string): Numstat[] {
   const entries = output.split('\0');
   const result: Numstat[] = [];
   for (let index = 0; index < entries.length; index++) {
-    if (!entries[index]) continue;
-    const firstTab = entries[index].indexOf('\t');
-    const secondTab = entries[index].indexOf('\t', firstTab + 1);
+    const entry = entries[index];
+    if (!entry) continue;
+    const firstTab = entry.indexOf('\t');
+    const secondTab = entry.indexOf('\t', firstTab + 1);
     if (firstTab < 0 || secondTab < 0) continue;
-    const additions = parseNumstatCount(entries[index].slice(0, firstTab));
-    const deletions = parseNumstatCount(entries[index].slice(firstTab + 1, secondTab));
-    let filePath = entries[index].slice(secondTab + 1);
+    const additions = parseNumstatCount(entry.slice(0, firstTab));
+    const deletions = parseNumstatCount(entry.slice(firstTab + 1, secondTab));
+    let filePath = entry.slice(secondTab + 1);
     if (!filePath) {
       const oldPath = entries[++index];
       const newPath = entries[++index];
@@ -201,16 +202,6 @@ function parseNumstatZ(output: string): Numstat[] {
     if (filePath) result.push({ path: filePath, additions, deletions });
   }
   return result;
-}
-
-function parseNumstat(output: string): { additions: number; deletions: number } {
-  const firstTab = output.indexOf('\t');
-  const secondTab = output.indexOf('\t', firstTab + 1);
-  if (firstTab < 0 || secondTab < 0) return { additions: 0, deletions: 0 };
-  return {
-    additions: parseNumstatCount(output.slice(0, firstTab)),
-    deletions: parseNumstatCount(output.slice(firstTab + 1, secondTab))
-  };
 }
 
 async function hasHead(cwd: string): Promise<boolean> {
@@ -249,10 +240,7 @@ async function getNoIndexNumstats(cwd: string, filePaths: string[]): Promise<Num
   return numstats;
 }
 
-function parseStatus(
-  cwd: string,
-  statusOutput: string
-): {
+function parseStatus(statusOutput: string): {
   changes: Map<string, GitFileChange>;
   renameSources: Map<string, string>;
 } {
@@ -262,8 +250,8 @@ function parseStatus(
   for (let index = 0; index < entries.length; index++) {
     const entry = entries[index];
     if (!entry || entry.length < 4) continue;
-    const indexCode = entry[0];
-    const worktreeCode = entry[1];
+    const indexCode = entry.charAt(0);
+    const worktreeCode = entry.charAt(1);
     const filePath = entry.slice(3);
     const staged = indexCode !== ' ' && indexCode !== '?';
     const unstaged = worktreeCode !== ' ' || indexCode === '?';
@@ -296,9 +284,9 @@ export function parseBranchHeader(output: string): { length: number; branch: str
   const text = output.slice(3, end < 0 ? undefined : end);
   const length = end < 0 ? output.length : end + 1;
   const unbornMatch = text.match(/^(?:No commits yet on|Initial commit on) (.+)$/);
-  if (unbornMatch) return { length, branch: unbornMatch[1], unborn: true };
+  if (unbornMatch) return { length, branch: unbornMatch[1] ?? '', unborn: true };
   if (text.startsWith('HEAD (no branch)')) return { length, branch: null, unborn: false };
-  return { length, branch: text.split('...')[0].split(' [')[0], unborn: false };
+  return { length, branch: (text.split('...')[0] ?? '').split(' [')[0] ?? '', unborn: false };
 }
 
 export async function getGitStatus(cwd: string): Promise<GitStatusResult> {
@@ -312,7 +300,7 @@ export async function getGitStatus(cwd: string): Promise<GitStatusResult> {
   const statusOutput =
     (await runGit(['status', '--porcelain=v1', '-z', '-b', '--untracked-files=all'], cwd, false)) ?? '';
   const header = parseBranchHeader(statusOutput);
-  const { changes } = parseStatus(cwd, header ? statusOutput.slice(header.length) : statusOutput);
+  const { changes } = parseStatus(header ? statusOutput.slice(header.length) : statusOutput);
   const branch = header?.branch ?? (await getCurrentBranch(cwd));
   const headExists = header ? !header.unborn : await hasHead(cwd);
   let numstats: Numstat[] = [];
@@ -367,13 +355,13 @@ export async function getGitDiff(cwd: string, filePath?: string): Promise<string
       cwd,
       false
     )) ?? '';
-  let { changes, renameSources } = parseStatus(cwd, statusOutput);
+  let { changes, renameSources } = parseStatus(statusOutput);
   let change = changes.get(normalizedPath);
   const headExists = await hasHead(cwd);
   if (headExists && change?.stagedStatus === 'A') {
     const fullStatusOutput =
       (await runGit(['status', '--porcelain=v1', '-z', '--untracked-files=all'], cwd, false)) ?? '';
-    ({ changes, renameSources } = parseStatus(cwd, fullStatusOutput));
+    ({ changes, renameSources } = parseStatus(fullStatusOutput));
     change = changes.get(normalizedPath) ?? change;
   }
   const args = ['diff', ...(headExists ? ['HEAD'] : [])];
@@ -529,11 +517,11 @@ export async function listGitBranches(cwd: string): Promise<WorkspaceListBranche
     for (const line of lines) {
       const parts = line.split('\0');
       if (parts.length < 5) continue;
-      const name = parts[0];
-      const headFlag = parts[1].trim();
-      const upstreamRaw = parts[2].trim();
-      const trackRaw = parts[3].trim();
-      const dateRaw = parts[4].trim();
+      const name = parts[0] ?? '';
+      const headFlag = (parts[1] ?? '').trim();
+      const upstreamRaw = (parts[2] ?? '').trim();
+      const trackRaw = (parts[3] ?? '').trim();
+      const dateRaw = (parts[4] ?? '').trim();
 
       const isCurrent = currentBranch !== null && (name === currentBranch || headFlag === '*');
       const upstream = upstreamRaw.length > 0 ? upstreamRaw : null;
@@ -547,8 +535,8 @@ export async function listGitBranches(cwd: string): Promise<WorkspaceListBranche
         } else {
           const aheadMatch = trackRaw.match(/ahead\s+(\d+)/);
           const behindMatch = trackRaw.match(/behind\s+(\d+)/);
-          ahead = aheadMatch ? parseInt(aheadMatch[1], 10) : 0;
-          behind = behindMatch ? parseInt(behindMatch[1], 10) : 0;
+          ahead = aheadMatch ? parseInt(aheadMatch[1] ?? '', 10) : 0;
+          behind = behindMatch ? parseInt(behindMatch[1] ?? '', 10) : 0;
         }
       }
 
@@ -590,8 +578,8 @@ async function resolveStashRefBySha(cwd: string, targetSha: string): Promise<str
   for (const line of lines) {
     const parts = line.split('\0');
     if (parts.length >= 2) {
-      const ref = parts[0].trim();
-      const sha = parts[1].trim();
+      const ref = (parts[0] ?? '').trim();
+      const sha = (parts[1] ?? '').trim();
       if (sha === targetSha) {
         return ref;
       }
@@ -647,8 +635,8 @@ export async function switchGitBranch(
       for (const line of lines) {
         const parts = line.split('\0');
         if (parts.length >= 3) {
-          const sha = parts[1].trim();
-          const subject = parts[2].trim();
+          const sha = (parts[1] ?? '').trim();
+          const subject = (parts[2] ?? '').trim();
           if (sha === stashSha && subject.includes(stashMessage)) {
             createdStashSha = stashSha;
             effectiveStashMessage = stashMessage;

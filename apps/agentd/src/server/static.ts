@@ -82,7 +82,7 @@ function webBuildTime(dir: string): number {
 }
 
 export function newestWebDir(dirs: string[]): string {
-  let best = dirs[0];
+  let best = dirs[0] ?? '';
   let bestTime = webBuildTime(best);
   for (const d of dirs.slice(1)) {
     const t = webBuildTime(d);

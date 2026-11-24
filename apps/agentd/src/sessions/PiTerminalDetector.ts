@@ -134,8 +134,10 @@ async function macPiProcesses(): Promise<PiProcessInfo[] | null> {
     });
     const processes = stdout.split(/\r?\n/).flatMap((line) => {
       const match = line.trim().match(/^(\d+)\s+(.*)$/);
-      if (!match || !PI_CLI.test(match[2]) || /(?:^|\s)--mode\s+rpc(?:\s|$)/.test(match[2])) return [];
-      return [{ pid: match[1], sessionRef: sessionReference(match[2]) }];
+      if (!match) return [];
+      const [, pid = '', args = ''] = match;
+      if (!PI_CLI.test(args) || /(?:^|\s)--mode\s+rpc(?:\s|$)/.test(args)) return [];
+      return [{ pid, sessionRef: sessionReference(args) }];
     });
     const cwds = await Promise.all(
       processes.map(async (process) => {

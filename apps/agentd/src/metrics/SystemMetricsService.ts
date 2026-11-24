@@ -248,8 +248,8 @@ export class SystemMetricsService {
         const totalMatch = meminfo.match(/^MemTotal:\s*(\d+)\s*kB/m);
         const availMatch = meminfo.match(/^MemAvailable:\s*(\d+)\s*kB/m);
         if (totalMatch && availMatch) {
-          const totalKb = parseInt(totalMatch[1], 10);
-          const availKb = parseInt(availMatch[1], 10);
+          const totalKb = parseInt(totalMatch[1] ?? '', 10);
+          const availKb = parseInt(availMatch[1] ?? '', 10);
           if (!isNaN(totalKb) && !isNaN(availKb) && totalKb > 0) {
             const totalBytes = totalKb * 1024;
             const availableBytes = availKb * 1024;
