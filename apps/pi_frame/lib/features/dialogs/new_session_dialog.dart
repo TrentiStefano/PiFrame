@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +8,8 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_shell.dart';
+import '../../data/platform/file_dialog_service.dart';
+import '../../data/platform/file_system_service.dart';
 import '../../domain/session/session_labels.dart';
 import '../../ui/frame_dialog.dart';
 import '../../ui/frame_icon_action.dart';
@@ -40,7 +41,7 @@ class _NewSessionDialog extends ConsumerStatefulWidget {
 
 class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
   late final TextEditingController _controller = TextEditingController(text: widget.initialDirectory);
-  late FolderProbe _probe = probeFolder(widget.initialDirectory);
+  late FolderProbe _probe = probeFolder(widget.initialDirectory, ref.read(fileSystemServiceProvider));
   // The text that [_probe] describes. Create stays disabled until they match.
   late String _probedText = widget.initialDirectory.trim();
   Timer? _debounce;
@@ -57,7 +58,7 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
   bool get _canCreate => _probe.isValid && _probedText == _path;
 
   void _runProbe(String text) {
-    final probe = probeFolder(text);
+    final probe = probeFolder(text, ref.read(fileSystemServiceProvider));
     setState(() {
       _probe = probe;
       _probedText = text.trim();
@@ -80,7 +81,7 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
 
   void _submit() {
     _debounce?.cancel();
-    final probe = probeFolder(_path);
+    final probe = probeFolder(_path, ref.read(fileSystemServiceProvider));
     setState(() {
       _probe = probe;
       _probedText = _path;
@@ -90,7 +91,7 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
 
   Future<void> _pickDirectory() async {
     try {
-      final directory = await getDirectoryPath();
+      final directory = await ref.read(fileDialogServiceProvider).pickDirectory();
       if (!mounted || directory == null) return;
       _debounce?.cancel();
       _controller.text = directory;

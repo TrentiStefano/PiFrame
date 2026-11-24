@@ -12,31 +12,36 @@ import 'package:pi_frame/features/composer/composer_draft.dart';
 import 'package:pi_frame/features/workspace/repository_workspace.dart';
 import 'package:pi_frame/data/daemon/daemon_providers.dart';
 import 'package:pi_frame/data/daemon/pcp_client.dart';
+import 'package:pi_frame/data/platform/http_service.dart';
 
-class _FakeHttpBaseClient extends http.BaseClient {
-  final Map<String, http.Response> responses;
-  _FakeHttpBaseClient(this.responses);
+import 'support/fake_platform_services.dart';
 
-  @override
-  Future<http.StreamedResponse> send(http.BaseRequest request) async {
-    final urlStr = request.url.toString();
+/// A [FakeHttpService] that answers each request with the first entry whose key the URL contains.
+/// Unmatched URLs answer 404 with a small HTML page.
+FakeHttpService _fakeHttp(Map<String, http.Response> responses) {
+  final fake = FakeHttpService();
+  fake.respond = (uri) {
+    final urlStr = uri.toString();
     http.Response? matched;
-
     for (final entry in responses.entries) {
       if (urlStr.contains(entry.key) || entry.key == urlStr) {
         matched = entry.value;
         break;
       }
     }
-
     matched ??= http.Response(
       '<html><head><title>Not Found</title></head><body>Page not found.</body></html>',
       404,
       headers: {'content-type': 'text/html; charset=utf-8'},
     );
-
-    return http.StreamedResponse(Stream.value(matched.bodyBytes), matched.statusCode, headers: matched.headers);
-  }
+    return HttpResponse(
+      statusCode: matched.statusCode,
+      bodyBytes: matched.bodyBytes,
+      reasonPhrase: matched.reasonPhrase,
+      url: uri,
+    );
+  };
+  return fake;
 }
 
 class _FakeWorkspaceClient extends PcpClient {
@@ -109,11 +114,11 @@ void main() {
 ''';
 
   group('WebBrowserService Unit Tests', () {
-    late _FakeHttpBaseClient fakeClient;
+    late FakeHttpService fakeClient;
     late WebBrowserService service;
 
     setUp(() {
-      fakeClient = _FakeHttpBaseClient({
+      fakeClient = _fakeHttp({
         'https://flutter.dev/guide': http.Response(
           sampleArticleHtml,
           200,
@@ -126,7 +131,7 @@ void main() {
         ),
         'https://error.example.com': http.Response('Server Error', 500, headers: {'content-type': 'text/plain'}),
       });
-      service = WebBrowserService(client: fakeClient);
+      service = WebBrowserService(http: fakeClient);
     });
 
     test('normalizeUrl handles full URLs, domains, and search queries', () {
@@ -169,10 +174,10 @@ void main() {
   });
 
   group('WebBrowserNotifier Controller Tests', () {
-    late _FakeHttpBaseClient fakeClient;
+    late FakeHttpService fakeClient;
 
     setUp(() {
-      fakeClient = _FakeHttpBaseClient({
+      fakeClient = _fakeHttp({
         'https://flutter.dev/guide': http.Response(
           sampleArticleHtml,
           200,
@@ -182,7 +187,7 @@ void main() {
     });
 
     test('Starts with initial home tab and default bookmarks', () {
-      final container = ProviderContainer(overrides: [browserClientProvider.overrideWithValue(fakeClient)]);
+      final container = ProviderContainer(overrides: [httpServiceProvider.overrideWithValue(fakeClient)]);
       addTearDown(container.dispose);
 
       final state = container.read(webBrowserProvider);
@@ -193,7 +198,7 @@ void main() {
     });
 
     test('Navigates to URL and tracks history', () async {
-      final container = ProviderContainer(overrides: [browserClientProvider.overrideWithValue(fakeClient)]);
+      final container = ProviderContainer(overrides: [httpServiceProvider.overrideWithValue(fakeClient)]);
       addTearDown(container.dispose);
 
       final notifier = container.read(webBrowserProvider.notifier);
@@ -219,7 +224,7 @@ void main() {
     });
 
     test('Multi-tab management: newTab, switchTab, closeTab', () async {
-      final container = ProviderContainer(overrides: [browserClientProvider.overrideWithValue(fakeClient)]);
+      final container = ProviderContainer(overrides: [httpServiceProvider.overrideWithValue(fakeClient)]);
       addTearDown(container.dispose);
 
       final notifier = container.read(webBrowserProvider.notifier);
@@ -249,7 +254,7 @@ void main() {
     });
 
     test('setSearchEngine and toggleBookmark updates state', () {
-      final container = ProviderContainer(overrides: [browserClientProvider.overrideWithValue(fakeClient)]);
+      final container = ProviderContainer(overrides: [httpServiceProvider.overrideWithValue(fakeClient)]);
       addTearDown(container.dispose);
 
       final notifier = container.read(webBrowserProvider.notifier);
@@ -270,10 +275,10 @@ void main() {
   });
 
   group('WebBrowserPane Widget Tests', () {
-    late _FakeHttpBaseClient fakeClient;
+    late FakeHttpService fakeClient;
 
     setUp(() {
-      fakeClient = _FakeHttpBaseClient({
+      fakeClient = _fakeHttp({
         'https://flutter.dev/guide': http.Response(
           sampleArticleHtml,
           200,
@@ -290,7 +295,7 @@ void main() {
     testWidgets('Renders home dashboard with omnibox, engine selector, and quick search buttons', (tester) async {
       await tester.pumpWidget(
         _buildTestApp(
-          overrides: [browserClientProvider.overrideWithValue(fakeClient)],
+          overrides: [httpServiceProvider.overrideWithValue(fakeClient)],
           child: const SizedBox(width: 480, height: 700, child: WebBrowserPane(sessionId: 'test-session')),
         ),
       );
@@ -307,7 +312,7 @@ void main() {
     testWidgets('Submitting query in omnibox loads content and shows reader view', (tester) async {
       await tester.pumpWidget(
         _buildTestApp(
-          overrides: [browserClientProvider.overrideWithValue(fakeClient)],
+          overrides: [httpServiceProvider.overrideWithValue(fakeClient)],
           child: const SizedBox(width: 480, height: 700, child: WebBrowserPane(sessionId: 'test-session')),
         ),
       );
@@ -327,7 +332,7 @@ void main() {
     });
 
     testWidgets('Clicking "Invia a Chat Composer" updates composerDraftProvider', (tester) async {
-      final container = ProviderContainer(overrides: [browserClientProvider.overrideWithValue(fakeClient)]);
+      final container = ProviderContainer(overrides: [httpServiceProvider.overrideWithValue(fakeClient)]);
       addTearDown(container.dispose);
 
       await tester.pumpWidget(
@@ -360,7 +365,7 @@ void main() {
     testWidgets('Header chip switcher toggles rightPaneModeProvider between git and browser', (tester) async {
       final fakePcp = _FakeWorkspaceClient();
       final container = ProviderContainer(
-        overrides: [pcpClientProvider.overrideWithValue(fakePcp), browserClientProvider.overrideWithValue(fakeClient)],
+        overrides: [pcpClientProvider.overrideWithValue(fakePcp), httpServiceProvider.overrideWithValue(fakeClient)],
       );
       addTearDown(container.dispose);
 
@@ -413,7 +418,7 @@ void main() {
     });
 
     testWidgets('Tab management UI: adds new tab and closes tab', (tester) async {
-      final container = ProviderContainer(overrides: [browserClientProvider.overrideWithValue(fakeClient)]);
+      final container = ProviderContainer(overrides: [httpServiceProvider.overrideWithValue(fakeClient)]);
       addTearDown(container.dispose);
 
       await tester.pumpWidget(
@@ -449,9 +454,9 @@ void main() {
     });
 
     testWidgets('Error state renders retry button and error details', (tester) async {
-      final errorClient = _FakeHttpBaseClient({'https://broken.link': http.Response('Internal Server Error', 500)});
+      final errorClient = _fakeHttp({'https://broken.link': http.Response('Internal Server Error', 500)});
 
-      final container = ProviderContainer(overrides: [browserClientProvider.overrideWithValue(errorClient)]);
+      final container = ProviderContainer(overrides: [httpServiceProvider.overrideWithValue(errorClient)]);
       addTearDown(container.dispose);
 
       await tester.pumpWidget(
@@ -475,7 +480,7 @@ void main() {
     });
 
     testWidgets('Bookmark button in omnibox toggles bookmark', (tester) async {
-      final container = ProviderContainer(overrides: [browserClientProvider.overrideWithValue(fakeClient)]);
+      final container = ProviderContainer(overrides: [httpServiceProvider.overrideWithValue(fakeClient)]);
       addTearDown(container.dispose);
 
       await tester.pumpWidget(

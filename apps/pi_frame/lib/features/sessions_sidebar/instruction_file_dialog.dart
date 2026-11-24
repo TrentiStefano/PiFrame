@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
@@ -11,6 +9,9 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 import '../workspace/repository_workspace.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_shell.dart';
+import '../../data/platform/file_system_service.dart';
+import '../../data/platform/host_environment_service.dart';
+import '../../data/platform/process_service.dart';
 import '../../ui/frame_activity_indicator.dart';
 import '../../ui/frame_snack_bar.dart';
 
@@ -88,10 +89,9 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
     });
 
     try {
+      final files = ref.read(fileSystemServiceProvider);
       for (final f in standardFiles) {
-        final path = _fullPath(f);
-        final file = File(path);
-        _fileExists[f] = file.existsSync();
+        _fileExists[f] = files.fileExistsSync(_fullPath(f));
       }
 
       // Pick first file that exists, or default to AGENTS.md
@@ -141,15 +141,11 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
 
   void _loadFileContent(String fileName) {
     final path = _fullPath(fileName);
-    final file = File(path);
+    final files = ref.read(fileSystemServiceProvider);
 
     String content = '';
-    if (file.existsSync()) {
-      try {
-        content = file.readAsStringSync();
-      } catch (_) {
-        content = '';
-      }
+    if (files.fileExistsSync(path)) {
+      content = files.readTextSync(path) ?? '';
     } else {
       content = _getStarterTemplate(fileName);
     }
@@ -220,13 +216,7 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
 
     try {
       final path = _fullPath(_selectedFile);
-      final file = File(path);
-
-      if (!file.parent.existsSync()) {
-        file.parent.createSync(recursive: true);
-      }
-
-      file.writeAsStringSync(_contentController.text);
+      ref.read(fileSystemServiceProvider).writeTextSync(path, _contentController.text);
 
       _initialContent = _contentController.text;
       _fileExists[_selectedFile] = true;
@@ -265,19 +255,22 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
       String? generated;
 
       // In real runtime, attempt running Pi CLI if available
-      if (!Platform.environment.containsKey('FLUTTER_TEST')) {
+      if (ref.read(hostEnvironmentServiceProvider).variable('FLUTTER_TEST') == null) {
         try {
           final prompt = strings.generateInstructionsPrompt(_selectedFile);
-          final result = await Process.run(
-            'pi',
-            ['--tools', 'read,grep,find,ls', '-p', prompt],
-            workingDirectory: widget.folder,
-            runInShell: true,
-          ).timeout(const Duration(seconds: 10));
+          final result = await ref
+              .read(processServiceProvider)
+              .run(
+                'pi',
+                ['--tools', 'read,grep,find,ls', '-p', prompt],
+                workingDirectory: widget.folder,
+                runInShell: true,
+                timeout: const Duration(seconds: 10),
+              );
 
           if (result.exitCode == 0) {
-            final out = (result.stdout as String?)?.trim();
-            if (out != null && out.isNotEmpty && out.length > 50) {
+            final out = result.stdout.trim();
+            if (out.isNotEmpty && out.length > 50) {
               generated = out;
             }
           }
@@ -308,17 +301,17 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
   }
 
   String _generateRepositoryInstructions(String folderPath, String targetFileName) {
-    final dir = Directory(folderPath);
+    final files = ref.read(fileSystemServiceProvider);
     final folderName = _folderName(folderPath);
     final targetUpper = targetFileName.split('/').last.toUpperCase();
 
     // Scan project files
-    final hasPubspec = File('$folderPath/pubspec.yaml').existsSync();
-    final hasPackageJson = File('$folderPath/package.json').existsSync();
-    final hasCargo = File('$folderPath/Cargo.toml').existsSync();
-    final hasPyproject =
-        File('$folderPath/pyproject.toml').existsSync() || File('$folderPath/requirements.txt').existsSync();
-    final hasGo = File('$folderPath/go.mod').existsSync();
+    bool has(String name) => files.fileExistsSync('$folderPath/$name');
+    final hasPubspec = has('pubspec.yaml');
+    final hasPackageJson = has('package.json');
+    final hasCargo = has('Cargo.toml');
+    final hasPyproject = has('pyproject.toml') || has('requirements.txt');
+    final hasGo = has('go.mod');
 
     final techStack = <String>[];
     final buildCommands = <String>[];
@@ -359,14 +352,9 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
     // Top-level structure inspection
     final subdirs = <String>[];
     try {
-      if (dir.existsSync()) {
-        for (final entity in dir.listSync()) {
-          if (entity is Directory) {
-            final name = entity.path.replaceAll('\\', '/').split('/').last;
-            if (!name.startsWith('.') && name != 'node_modules' && name != 'build') {
-              subdirs.add(name);
-            }
-          }
+      for (final name in files.subdirectoryNamesSync(folderPath)) {
+        if (!name.startsWith('.') && name != 'node_modules' && name != 'build') {
+          subdirs.add(name);
         }
       }
     } catch (_) {}

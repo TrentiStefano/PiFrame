@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:http/http.dart' as http;
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
-import 'package:pi_frame/features/browser/browser_controller.dart';
+import 'package:pi_frame/data/platform/http_service.dart';
 import 'package:pi_frame/features/browser/web_browser_pane.dart';
 import 'package:pi_frame/features/transcript/todo_panel.dart';
 import 'package:pi_frame/features/transcript/todo_provider.dart';
@@ -22,19 +21,11 @@ import 'package:pi_frame/app/app_shell.dart';
 import 'package:pi_frame/features/workspace/repository_workspace.dart';
 import 'package:pi_frame/features/transcript/transcript_view.dart';
 
+import 'support/fake_platform_services.dart';
+
 /// Narrow widths that every companion/transcript widget must survive without
 /// a RenderFlex overflow (audit P1-4, R1, R2; plan task 1.2).
 const List<double> kNarrowWidths = [280, 320];
-
-class _EmptyHttpClient extends http.BaseClient {
-  @override
-  Future<http.StreamedResponse> send(http.BaseRequest request) async {
-    return http.StreamedResponse(
-      Stream.value('<html><head><title>Empty</title></head><body></body></html>'.codeUnits),
-      404,
-    );
-  }
-}
 
 Widget _themed({required Widget child, List<Override> overrides = const []}) {
   return ProviderScope(
@@ -57,7 +48,7 @@ void main() {
       testWidgets('toolbar and header do not overflow at ${width.toInt()} px', (tester) async {
         await tester.pumpWidget(
           _themed(
-            overrides: [browserClientProvider.overrideWithValue(_EmptyHttpClient())],
+            overrides: [httpServiceProvider.overrideWithValue(FakeHttpService())],
             child: SizedBox(
               width: width,
               height: 700,
@@ -75,7 +66,7 @@ void main() {
     testWidgets('narrow companion moves home and bookmark into the toolbar menu', (tester) async {
       await tester.pumpWidget(
         _themed(
-          overrides: [browserClientProvider.overrideWithValue(_EmptyHttpClient())],
+          overrides: [httpServiceProvider.overrideWithValue(FakeHttpService())],
           child: const SizedBox(width: 280, height: 700, child: WebBrowserPane(sessionId: 'test-session')),
         ),
       );
@@ -91,7 +82,7 @@ void main() {
     testWidgets('wide companion keeps home and bookmark in the toolbar', (tester) async {
       await tester.pumpWidget(
         _themed(
-          overrides: [browserClientProvider.overrideWithValue(_EmptyHttpClient())],
+          overrides: [httpServiceProvider.overrideWithValue(FakeHttpService())],
           child: const SizedBox(width: 480, height: 700, child: WebBrowserPane(sessionId: 'test-session')),
         ),
       );

@@ -11,6 +11,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/platform/file_dialog_service.dart';
+import '../../data/platform/widget_test_binding.dart';
 import '../../data/platform/window_service.dart';
 
 import '../../data/daemon/daemon_providers.dart';
@@ -1586,6 +1587,7 @@ class _ComposerState extends ConsumerState<Composer> {
         margin: EdgeInsets.fromLTRB(horizontalMargin, 4, horizontalMargin, bottomMargin),
         child: ShimmerBorder(
           isActive: isShimmerActive,
+          animate: !isWidgetTestBinding,
           borderRadius: _composerRadius(tokens),
           child: _ComposerSizeAnimator(
             child: AnimatedSwitcher(

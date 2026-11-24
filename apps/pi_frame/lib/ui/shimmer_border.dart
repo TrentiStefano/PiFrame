@@ -4,19 +4,18 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
-import '../data/platform/widget_test_binding.dart';
-
 /// Accent ring around an active composer.
 ///
 /// Normal motion: an animated light beam sweeps around the ring, with a visible
 /// atmospheric glow halo that surrounds the composer box while the agent is active.
 ///
-/// Reduced motion, phone-web, and tests: a static accent ring with no loop.
+/// Reduced motion, phone-web, and [animate] false (the caller's test-environment check): a static accent ring with no loop.
 class ShimmerBorder extends StatefulWidget {
   final bool isActive;
   final Widget child;
   final BorderRadius borderRadius;
   final double strokeWidth;
+  final bool animate;
 
   const ShimmerBorder({
     super.key,
@@ -24,6 +23,7 @@ class ShimmerBorder extends StatefulWidget {
     required this.child,
     required this.borderRadius,
     this.strokeWidth = 2.0,
+    this.animate = true,
   });
 
   @override
@@ -54,7 +54,7 @@ class _ShimmerBorderState extends State<ShimmerBorder> with SingleTickerProvider
     _syncAnimation();
   }
 
-  bool get _animates => widget.isActive && !isWidgetTestBinding && !_lite && !_reduced;
+  bool get _animates => widget.isActive && widget.animate && !_lite && !_reduced;
 
   void _syncAnimation() {
     if (_animates) {

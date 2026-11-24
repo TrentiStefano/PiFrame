@@ -134,10 +134,9 @@ void main() {
       expect(String.fromCharCodes(bytes.sublist(36, 40)), 'data');
     });
 
-    test('StartupAudio play methods do not crash in test environment', () {
-      expect(() => StartupAudio.playCiak(), returnsNormally);
-      expect(() => StartupAudio.playHum(), returnsNormally);
-      expect(() => StartupAudio.dispose(), returnsNormally);
+    test('wavFor returns the clip of each startup sound', () {
+      expect(StartupAudio.wavFor(StartupSound.ciak), StartupAudio.generateCiakWav());
+      expect(StartupAudio.wavFor(StartupSound.hum), StartupAudio.generateHumWav());
     });
   });
 
@@ -149,13 +148,14 @@ void main() {
       );
     }
 
-    testWidgets('renders child and finishes immediately in test mode or on tap', (tester) async {
+    testWidgets('renders child and finishes immediately when the intro is skipped', (tester) async {
       var completed = false;
 
       await tester.pumpWidget(
         wrapWithTheme(
           StartupAssembleOverlay(
             autoStart: true,
+            skipIntro: true,
             onAnimationComplete: () => completed = true,
             child: const Text('Main App Content'),
           ),
@@ -167,6 +167,18 @@ void main() {
       // The main content is always in the tree
       expect(find.text('Main App Content'), findsOneWidget);
       expect(completed, isTrue);
+    });
+
+    testWidgets('reports the ciak and hum cues to onSound as the intro plays', (tester) async {
+      final sounds = <StartupSound>[];
+
+      await tester.pumpWidget(
+        wrapWithTheme(StartupAssembleOverlay(onSound: sounds.add, child: const Text('Main App Content'))),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 3));
+
+      expect(sounds, [StartupSound.ciak, StartupSound.hum]);
     });
 
     testWidgets('can be tapped to dismiss overlay', (tester) async {

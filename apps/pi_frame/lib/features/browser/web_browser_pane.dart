@@ -1,17 +1,14 @@
 import '../../data/errors/user_facing_error_mapping.dart';
 
-import 'dart:io' show Platform;
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
-import 'package:url_launcher/url_launcher.dart';
-import 'package:webview_win_floating/webview.dart';
 
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_workspace.dart';
+import '../../data/platform/embedded_browser_service.dart';
+import '../../data/platform/link_service.dart';
 import '../../ui/frame_activity_indicator.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../../ui/motion.dart';
@@ -20,7 +17,6 @@ import '../workspace/repository_workspace.dart';
 import 'browser_controller.dart';
 import 'browser_models.dart';
 import '../../ui/precision.dart';
-import '../../data/platform/widget_test_binding.dart';
 
 /// Companion width below which header and toolbar actions move into
 /// overflow menus so the single toolbar row always fits (audit P1-4).
@@ -70,13 +66,9 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
   late final TextEditingController _homeSearchController;
   final FocusNode _urlFocusNode = FocusNode();
   String? _lastSyncedUrl;
-  WinWebViewController? _winController;
+  EmbeddedWebView? _webView;
 
-  bool get _isNativeWebViewSupported =>
-      !kIsWeb &&
-      defaultTargetPlatform == TargetPlatform.windows &&
-      !Platform.environment.containsKey('FLUTTER_TEST') &&
-      !isWidgetTestBinding;
+  bool get _isNativeWebViewSupported => ref.read(embeddedBrowserServiceProvider).isNativeSupported;
 
   @override
   void initState() {
@@ -87,56 +79,57 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
     _lastSyncedUrl = activeTab.url;
 
     if (_isNativeWebViewSupported) {
-      _initWinWebView();
+      _initWebView();
     }
   }
 
-  void _initWinWebView() {
-    final controller = WinWebViewController();
-    _winController = controller;
-    controller.setNavigationDelegate(
-      WinNavigationDelegate(
-        onPageStarted: (url) {
-          if (!mounted) return;
-          ref.read(webBrowserProvider.notifier).updateCurrentTab(url: url, isLoading: true);
-        },
-        onPageFinished: (url) async {
-          if (!mounted) return;
-          final title = await controller.getTitle();
-          ref.read(webBrowserProvider.notifier).updateCurrentTab(url: url, title: title, isLoading: false);
-        },
-        onUrlChange: (change) {
-          if (!mounted) return;
-          final url = change.url;
-          if (url != null && url.isNotEmpty) {
-            ref.read(webBrowserProvider.notifier).updateCurrentTab(url: url);
-          }
-        },
-        onPageTitleChanged: (title) {
-          if (!mounted) return;
-          final activeTab = ref.read(webBrowserProvider).activeTab;
-          ref.read(webBrowserProvider.notifier).updateCurrentTab(url: activeTab.url, title: title);
-        },
-        onWebResourceError: (error) {
-          if (!mounted) return;
-          ref
-              .read(webBrowserProvider.notifier)
-              .updateCurrentTab(
-                url: ref.read(webBrowserProvider).activeTab.url,
-                isLoading: false,
-                errorMessage: error.description,
-              );
-        },
-      ),
-    );
+  void _initWebView() {
+    EmbeddedWebView? view;
+    view = ref
+        .read(embeddedBrowserServiceProvider)
+        .createWebView(
+          EmbeddedWebViewEvents(
+            onPageStarted: (url) {
+              if (!mounted) return;
+              ref.read(webBrowserProvider.notifier).updateCurrentTab(url: url, isLoading: true);
+            },
+            onPageFinished: (url) async {
+              if (!mounted) return;
+              final title = await view?.getTitle();
+              ref.read(webBrowserProvider.notifier).updateCurrentTab(url: url, title: title, isLoading: false);
+            },
+            onUrlChange: (url) {
+              if (!mounted) return;
+              if (url != null && url.isNotEmpty) {
+                ref.read(webBrowserProvider.notifier).updateCurrentTab(url: url);
+              }
+            },
+            onTitleChanged: (title) {
+              if (!mounted) return;
+              final activeTab = ref.read(webBrowserProvider).activeTab;
+              ref.read(webBrowserProvider.notifier).updateCurrentTab(url: activeTab.url, title: title);
+            },
+            onLoadError: (description) {
+              if (!mounted) return;
+              ref
+                  .read(webBrowserProvider.notifier)
+                  .updateCurrentTab(
+                    url: ref.read(webBrowserProvider).activeTab.url,
+                    isLoading: false,
+                    errorMessage: description,
+                  );
+            },
+          ),
+        );
+    _webView = view;
     final activeTab = ref.read(webBrowserProvider).activeTab;
     if (!activeTab.isHome && activeTab.url.isNotEmpty) {
       final uri = Uri.tryParse(activeTab.url);
       if (uri != null) {
-        controller.loadRequest(uri);
+        view.loadRequest(uri);
       }
     } else {
-      controller.setVisibility(false);
+      view.setVisibility(false);
     }
   }
 
@@ -145,20 +138,20 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
     super.activate();
     final activeTab = ref.read(webBrowserProvider).activeTab;
     if (!activeTab.isHome && _isNativeWebViewSupported) {
-      _winController?.setVisibility(true);
+      _webView?.setVisibility(true);
     }
   }
 
   @override
   void deactivate() {
-    _winController?.setVisibility(false);
+    _webView?.setVisibility(false);
     super.deactivate();
   }
 
   @override
   void dispose() {
-    _winController?.dispose();
-    _winController = null;
+    _webView?.dispose();
+    _webView = null;
     _urlController.dispose();
     _homeSearchController.dispose();
     _urlFocusNode.dispose();
@@ -185,14 +178,14 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
     _urlFocusNode.unfocus();
 
     final normalized = await ref.read(webBrowserProvider.notifier).navigate(text);
-    if (_isNativeWebViewSupported && _winController != null) {
+    if (_isNativeWebViewSupported && _webView != null) {
       if (normalized == 'about:home') {
-        await _winController!.setVisibility(false);
+        await _webView!.setVisibility(false);
       } else {
-        await _winController!.setVisibility(true);
+        await _webView!.setVisibility(true);
         final uri = Uri.tryParse(normalized);
         if (uri != null) {
-          await _winController!.loadRequest(uri);
+          await _webView!.loadRequest(uri);
         }
       }
     }
@@ -214,16 +207,16 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
   Future<void> _switchTab(String tabId) async {
     ref.read(webBrowserProvider.notifier).switchTab(tabId);
     final targetTab = ref.read(webBrowserProvider).tabs.firstWhere((t) => t.id == tabId);
-    if (_isNativeWebViewSupported && _winController != null) {
+    if (_isNativeWebViewSupported && _webView != null) {
       if (targetTab.isHome) {
-        await _winController!.setVisibility(false);
+        await _webView!.setVisibility(false);
       } else {
-        await _winController!.setVisibility(true);
-        final currentUrl = await _winController!.currentUrl();
+        await _webView!.setVisibility(true);
+        final currentUrl = await _webView!.currentUrl();
         if (currentUrl != targetTab.url) {
           final uri = Uri.tryParse(targetTab.url);
           if (uri != null) {
-            await _winController!.loadRequest(uri);
+            await _webView!.loadRequest(uri);
           }
         }
       }
@@ -232,24 +225,24 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
 
   Future<void> _newTab() async {
     ref.read(webBrowserProvider.notifier).newTab();
-    if (_isNativeWebViewSupported && _winController != null) {
-      await _winController!.setVisibility(false);
+    if (_isNativeWebViewSupported && _webView != null) {
+      await _webView!.setVisibility(false);
     }
   }
 
   Future<void> _closeTab(String tabId) async {
     ref.read(webBrowserProvider.notifier).closeTab(tabId);
     final activeTab = ref.read(webBrowserProvider).activeTab;
-    if (_isNativeWebViewSupported && _winController != null) {
+    if (_isNativeWebViewSupported && _webView != null) {
       if (activeTab.isHome) {
-        await _winController!.setVisibility(false);
+        await _webView!.setVisibility(false);
       } else {
-        await _winController!.setVisibility(true);
-        final currentUrl = await _winController!.currentUrl();
+        await _webView!.setVisibility(true);
+        final currentUrl = await _webView!.currentUrl();
         if (currentUrl != activeTab.url) {
           final uri = Uri.tryParse(activeTab.url);
           if (uri != null) {
-            await _winController!.loadRequest(uri);
+            await _webView!.loadRequest(uri);
           }
         }
       }
@@ -259,11 +252,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
   Future<void> _openExternal(String url) async {
     try {
       final uri = Uri.parse(url);
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        await launchUrl(uri);
-      }
+      await ref.read(linkServiceProvider).openExternal(uri);
     } catch (e) {
       if (mounted) {
         final strings = _getReadStrings();
@@ -361,7 +350,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                                   isSelected: false,
                                   tokens: tokens,
                                   onTap: () {
-                                    _winController?.setVisibility(false);
+                                    _webView?.setVisibility(false);
                                     ref.read(rightPaneModeProvider.notifier).state = RightPaneMode.git;
                                   },
                                 ),
@@ -472,7 +461,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                           constraints: const BoxConstraints(),
                           tooltip: strings.collapseBrowserPanelTooltip,
                           onPressed: () {
-                            _winController?.setVisibility(false);
+                            _webView?.setVisibility(false);
                             widget.onCollapse?.call();
                           },
                           icon: const Icon(Icons.chevron_right_outlined, size: FrameSize.icon),
@@ -636,8 +625,8 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                 constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
                 onPressed: activeTab.canGoBack
                     ? () async {
-                        if (_isNativeWebViewSupported && _winController != null && await _winController!.canGoBack()) {
-                          await _winController!.goBack();
+                        if (_isNativeWebViewSupported && _webView != null && await _webView!.canGoBack()) {
+                          await _webView!.goBack();
                         }
                         ref.read(webBrowserProvider.notifier).goBack();
                       }
@@ -652,10 +641,8 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                 constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
                 onPressed: activeTab.canGoForward
                     ? () async {
-                        if (_isNativeWebViewSupported &&
-                            _winController != null &&
-                            await _winController!.canGoForward()) {
-                          await _winController!.goForward();
+                        if (_isNativeWebViewSupported && _webView != null && await _webView!.canGoForward()) {
+                          await _webView!.goForward();
                         }
                         ref.read(webBrowserProvider.notifier).goForward();
                       }
@@ -669,8 +656,8 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
                 onPressed: () async {
-                  if (_isNativeWebViewSupported && _winController != null && !activeTab.isHome) {
-                    await _winController!.reload();
+                  if (_isNativeWebViewSupported && _webView != null && !activeTab.isHome) {
+                    await _webView!.reload();
                   }
                   ref.read(webBrowserProvider.notifier).reload();
                 },
@@ -844,7 +831,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
 
   // --- Shared actions (used by inline buttons and overflow menus) ---
 
-  void _openDevTools() => _winController?.openDevTools();
+  void _openDevTools() => _webView?.openDevTools();
 
   void _sendActiveTabToComposer() => _sendToComposer(ref.read(webBrowserProvider).activeTab);
 
@@ -856,8 +843,8 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
   }
 
   Future<void> _goHome() async {
-    if (_isNativeWebViewSupported && _winController != null) {
-      await _winController!.setVisibility(false);
+    if (_isNativeWebViewSupported && _webView != null) {
+      await _webView!.setVisibility(false);
     }
     ref.read(webBrowserProvider.notifier).goHome();
   }
@@ -921,17 +908,17 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
 
   Widget _buildBody(FrameTokens tokens, WebBrowserTab activeTab) {
     if (activeTab.isHome) {
-      if (_isNativeWebViewSupported && _winController != null) {
-        _winController!.setVisibility(false);
+      if (_isNativeWebViewSupported && _webView != null) {
+        _webView!.setVisibility(false);
       }
       return _buildHomeDashboard(tokens);
     }
 
-    if (_isNativeWebViewSupported && _winController != null) {
-      _winController!.setVisibility(true);
+    if (_isNativeWebViewSupported && _webView != null) {
+      _webView!.setVisibility(true);
       return Stack(
         children: [
-          Positioned.fill(child: WinWebViewWidget(controller: _winController!)),
+          Positioned.fill(child: _webView!.view),
           if (activeTab.isLoading) Positioned(top: 0, left: 0, right: 0, child: _loadingBar(tokens)),
         ],
       );

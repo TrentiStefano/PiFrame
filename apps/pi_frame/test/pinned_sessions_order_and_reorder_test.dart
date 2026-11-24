@@ -9,6 +9,8 @@ import 'package:pi_frame/features/sessions_sidebar/pinned_sessions_provider.dart
 import 'package:pi_frame/features/sessions_sidebar/sessions_sidebar.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+import 'support/fake_platform_services.dart';
+
 class _TestPinnedNotifier extends PinnedSessionsNotifier {
   _TestPinnedNotifier(super.initial);
 }
@@ -38,11 +40,23 @@ void main() {
     });
 
     test('a notifier built from a list never writes the stored pins file', () {
-      final notifier = PinnedSessionsNotifier(['sess_alpha', 'sess_beta']);
+      final storage = FakeUserDataService();
+      final notifier = PinnedSessionsNotifier(['sess_alpha', 'sess_beta'], storage);
       notifier.reorder(0, 2);
       notifier.togglePin('sess_gamma');
       notifier.unpin('sess_alpha');
-      expect(notifier.storageFileForTesting, isNull);
+      expect(notifier.persists, isFalse);
+      expect(storage.writes, isEmpty);
+    });
+
+    test('pins load from and save to the user data file', () {
+      final storage = FakeUserDataService()..files['pinned_sessions.json'] = '["sess_b","sess_a","sess_b"]';
+      final notifier = PinnedSessionsNotifier(null, storage);
+      expect(notifier.state, ['sess_b', 'sess_a']);
+
+      notifier.togglePin('sess_c');
+      expect(storage.writes, ['pinned_sessions.json']);
+      expect(storage.files['pinned_sessions.json'], '["sess_b","sess_a","sess_c"]');
     });
   });
 

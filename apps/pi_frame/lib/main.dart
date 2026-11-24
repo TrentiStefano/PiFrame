@@ -12,11 +12,14 @@ import 'app/router.dart';
 import 'data/language/language_settings.dart';
 import 'data/theme/theme_providers.dart';
 import 'data/notifications/desktop_notification_service.dart';
+import 'data/platform/host_environment_service.dart';
+import 'data/platform/native_audio_service.dart';
 import 'data/window/window_state_service.dart';
 import 'data/motion/reduced_motion_settings.dart';
 import 'data/motion/startup_animation_settings.dart';
 import 'ui/motion.dart';
 import 'ui/startup_assemble_animation.dart';
+import 'ui/startup_audio.dart';
 
 Future<void> main() => runPiFrame();
 
@@ -91,7 +94,14 @@ class PiFrameApp extends ConsumerWidget {
               // "Animazione di avvio" setting is on; other launches get the
               // 620 ms reveal alone.
               child: playStartupIntro
-                  ? StartupAssembleOverlay(child: child ?? const SizedBox.shrink())
+                  ? StartupAssembleOverlay(
+                      // The intro is skipped in the browser and under the test runner.
+                      skipIntro:
+                          ref.read(hostEnvironmentServiceProvider).isWeb ||
+                          ref.read(hostEnvironmentServiceProvider).variable('FLUTTER_TEST') != null,
+                      onSound: (sound) => ref.read(nativeAudioServiceProvider).playWav(StartupAudio.wavFor(sound)),
+                      child: child ?? const SizedBox.shrink(),
+                    )
                   : (child ?? const SizedBox.shrink()),
             ),
           );

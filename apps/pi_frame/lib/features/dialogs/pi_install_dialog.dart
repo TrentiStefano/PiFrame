@@ -1,7 +1,4 @@
 import 'dart:async';
-import 'dart:io';
-
-import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +9,7 @@ import '../../ui/frame_dialog.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_composer.dart';
 import '../../data/pi_install/pi_install_service.dart';
+import '../../data/platform/host_environment_service.dart';
 import '../../ui/precision.dart';
 
 class PiInstallDialog extends ConsumerStatefulWidget {
@@ -234,7 +232,9 @@ class _PiInstallDialogState extends ConsumerState<PiInstallDialog> {
         ),
         const SizedBox(height: 8),
         Text(
-          kIsWeb || !Platform.isWindows ? strings.piInstallCommandUnix : strings.piInstallCommandWindows,
+          ref.read(hostEnvironmentServiceProvider).isWindows
+              ? strings.piInstallCommandWindows
+              : strings.piInstallCommandUnix,
           style: FrameText.of(context).caption.copyWith(fontFamily: tokens.monoFontFamily, color: tokens.textMuted),
         ),
       ],

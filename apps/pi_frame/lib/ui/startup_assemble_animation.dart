@@ -1,6 +1,3 @@
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
@@ -11,7 +8,20 @@ class StartupAssembleOverlay extends StatefulWidget {
   final bool autoStart;
   final VoidCallback? onAnimationComplete;
 
-  const StartupAssembleOverlay({super.key, required this.child, this.autoStart = true, this.onAnimationComplete});
+  /// Skips the intro at once (web build, widget tests): the caller decides, the overlay does not look at the host.
+  final bool skipIntro;
+
+  /// Receives each sound of the intro, at its cue. Null plays nothing.
+  final ValueChanged<StartupSound>? onSound;
+
+  const StartupAssembleOverlay({
+    super.key,
+    required this.child,
+    this.autoStart = true,
+    this.onAnimationComplete,
+    this.skipIntro = false,
+    this.onSound,
+  });
 
   static CustomPainter createAssemblePainter({required double progress, required FrameTokens tokens}) =>
       _AssemblePainter(progress: progress, tokens: tokens);
@@ -29,11 +39,7 @@ class _StartupAssembleOverlayState extends State<StartupAssembleOverlay> with Si
   @override
   void initState() {
     super.initState();
-    final isTest = !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
-    _controller = AnimationController(
-      vsync: this,
-      duration: isTest ? const Duration(milliseconds: 50) : FrameMotionTokens.pulseLoop,
-    );
+    _controller = AnimationController(vsync: this, duration: FrameMotionTokens.pulseLoop);
 
     _controller.addListener(_onProgressChanged);
     _controller.addStatusListener((status) {
@@ -47,7 +53,7 @@ class _StartupAssembleOverlayState extends State<StartupAssembleOverlay> with Si
         if (!mounted) return;
         // The brand intro overlays the live UI for 1.4s with shaders and audio: skip it in the
         // browser, where it only delays and janks the first interactive frame.
-        if (MediaQuery.disableAnimationsOf(context) || isTest || kIsWeb) {
+        if (MediaQuery.disableAnimationsOf(context) || widget.skipIntro) {
           _finish();
         } else {
           _controller.forward();
@@ -61,12 +67,12 @@ class _StartupAssembleOverlayState extends State<StartupAssembleOverlay> with Si
     // Ciak sound plays exactly at framing lock (~0.52)
     if (v >= 0.52 && !_ciakPlayed) {
       _ciakPlayed = true;
-      StartupAudio.playCiak();
+      widget.onSound?.call(StartupSound.ciak);
     }
     // Hum sound plays softly during radiant glow phase (~0.68)
     if (v >= 0.68 && !_humPlayed) {
       _humPlayed = true;
-      StartupAudio.playHum();
+      widget.onSound?.call(StartupSound.hum);
     }
   }
 

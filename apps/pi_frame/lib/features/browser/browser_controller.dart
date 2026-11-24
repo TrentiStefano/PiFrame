@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:http/http.dart' as http;
 
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_workspace.dart';
+import '../../data/platform/http_service.dart';
 import 'browser_models.dart';
 import 'browser_service.dart';
 
@@ -15,14 +15,8 @@ final rightPaneModeProvider = StateProvider<RightPaneMode>((ref) => RightPaneMod
 /// available), so every browser entry point is hidden there.
 final browserPaneSupportedProvider = Provider<bool>((ref) => !kIsWeb);
 
-final browserClientProvider = Provider<http.Client>((ref) {
-  final client = http.Client();
-  ref.onDispose(client.close);
-  return client;
-});
-
 final browserServiceProvider = Provider<WebBrowserService>((ref) {
-  return WebBrowserService(client: ref.watch(browserClientProvider));
+  return WebBrowserService(http: ref.watch(httpServiceProvider));
 });
 
 final webBrowserProvider = StateNotifierProvider<WebBrowserNotifier, WebBrowserState>((ref) {

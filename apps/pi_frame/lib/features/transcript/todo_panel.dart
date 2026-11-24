@@ -7,6 +7,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_transcript.dart';
+import '../../data/platform/widget_test_binding.dart';
 import '../../ui/frame_text_shimmer.dart';
 import '../../ui/motion.dart';
 import 'todo_provider.dart';
@@ -352,6 +353,7 @@ class _TodoPopDownState extends ConsumerState<TodoPopDown> {
                                       child: task.isInProgress
                                           ? FrameTextShimmer(
                                               key: ValueKey<String>('todo-shimmer-${task.id}'),
+                                              animate: !isWidgetTestBinding,
                                               text: task.subject.endsWith('...') ? task.subject : '${task.subject}...',
                                               baseColor: tokens.textMuted,
                                               highlightColor: tokens.textPrimary,

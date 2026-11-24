@@ -43,6 +43,7 @@ abstract class ProcessService {
     String executable,
     List<String> arguments, {
     Duration? timeout,
+    String? workingDirectory,
     bool runInShell = false,
     Map<String, String>? environment,
   });
@@ -90,12 +91,14 @@ class IoProcessService implements ProcessService {
     String executable,
     List<String> arguments, {
     Duration? timeout,
+    String? workingDirectory,
     bool runInShell = false,
     Map<String, String>? environment,
   }) async {
     final future = Process.run(
       executable,
       arguments,
+      workingDirectory: workingDirectory,
       environment: environment ?? PlatformEnvironment.environment,
       runInShell: runInShell,
     );

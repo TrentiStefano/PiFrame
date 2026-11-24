@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
-import 'package:http/http.dart' as http;
 import 'package:pi_frame/data/platform/drop_target_service.dart';
 import 'package:pi_frame/data/platform/embedded_browser_service.dart';
 import 'package:pi_frame/data/platform/file_dialog_service.dart';
@@ -12,6 +11,7 @@ import 'package:pi_frame/data/platform/host_environment_service.dart';
 import 'package:pi_frame/data/platform/http_service.dart';
 import 'package:pi_frame/data/platform/link_service.dart';
 import 'package:pi_frame/data/platform/process_service.dart';
+import 'package:pi_frame/data/platform/user_data_service.dart';
 import 'package:pi_frame/data/platform/window_service.dart';
 
 // Test doubles for the platform services in lib/data/platform. Each records
@@ -137,22 +137,84 @@ class FakeEmbeddedBrowserService implements EmbeddedBrowserService {
 
   @override
   final bool isNativeSupported;
+
+  /// The web views the browser pane asked for, in order.
+  final List<FakeEmbeddedWebView> webViews = [];
+
+  @override
+  EmbeddedWebView createWebView(EmbeddedWebViewEvents events) {
+    final view = FakeEmbeddedWebView(events);
+    webViews.add(view);
+    return view;
+  }
+}
+
+/// Records what the browser pane asks a web view to do. Tests call [events] to simulate navigation.
+class FakeEmbeddedWebView implements EmbeddedWebView {
+  FakeEmbeddedWebView(this.events);
+
+  final EmbeddedWebViewEvents events;
+  final List<Uri> loads = [];
+  final List<bool> visibility = [];
+  final List<String> calls = [];
+  String? url;
+  String? title;
+  bool canBack = false;
+  bool canForward = false;
+  bool disposed = false;
+
+  @override
+  Widget get view => const SizedBox(key: ValueKey('fake-web-view'));
+
+  @override
+  Future<void> loadRequest(Uri uri) async => loads.add(uri);
+
+  @override
+  Future<void> setVisibility(bool visible) async => visibility.add(visible);
+
+  @override
+  Future<String?> currentUrl() async => url;
+
+  @override
+  Future<String?> getTitle() async => title;
+
+  @override
+  Future<bool> canGoBack() async => canBack;
+
+  @override
+  Future<void> goBack() async => calls.add('back');
+
+  @override
+  Future<bool> canGoForward() async => canForward;
+
+  @override
+  Future<void> goForward() async => calls.add('forward');
+
+  @override
+  Future<void> reload() async => calls.add('reload');
+
+  @override
+  Future<void> openDevTools() async => calls.add('devTools');
+
+  @override
+  Future<void> dispose() async => disposed = true;
 }
 
 class FakeHttpService implements HttpService {
   final List<Uri> getRequests = [];
   final List<Uri> postRequests = [];
-  http.Response Function(Uri uri) respond = (_) => http.Response('{}', 200);
+  HttpResponse Function(Uri uri) respond = (uri) =>
+      HttpResponse(statusCode: 200, bodyBytes: Uint8List.fromList(utf8.encode('{}')), url: uri);
   bool closed = false;
 
   @override
-  Future<http.Response> get(Uri uri, {Map<String, String>? headers, Duration? timeout}) async {
+  Future<HttpResponse> get(Uri uri, {Map<String, String>? headers, Duration? timeout}) async {
     getRequests.add(uri);
     return respond(uri);
   }
 
   @override
-  Future<http.Response> post(Uri uri, {Map<String, String>? headers, Object? body, Duration? timeout}) async {
+  Future<HttpResponse> post(Uri uri, {Map<String, String>? headers, Object? body, Duration? timeout}) async {
     postRequests.add(uri);
     return respond(uri);
   }
@@ -188,6 +250,24 @@ class FakeFileSystemService implements FileSystemService {
   Future<void> writeText(String path, String contents) async => files[path] = contents;
 
   @override
+  bool fileExistsSync(String path) => files.containsKey(path);
+
+  @override
+  bool directoryExistsSync(String path) => directories.contains(path);
+
+  @override
+  String? readTextSync(String path) => files[path];
+
+  @override
+  void writeTextSync(String path, String contents) => files[path] = contents;
+
+  @override
+  List<String> subdirectoryNamesSync(String path) => [
+    for (final dir in directories)
+      if (dir.startsWith('$path/') && !dir.substring(path.length + 1).contains('/')) dir.substring(path.length + 1),
+  ];
+
+  @override
   Widget imageFile(
     String path, {
     double? width,
@@ -197,6 +277,21 @@ class FakeFileSystemService implements FileSystemService {
   }) {
     imagesShown.add(path);
     return SizedBox(key: ValueKey('fake-image:$path'), width: width, height: height);
+  }
+}
+
+/// The user's small data files (`~/.piframe/*.json`) held in memory. [writes] records every save, in order.
+class FakeUserDataService implements UserDataService {
+  final Map<String, String> files = {};
+  final List<String> writes = [];
+
+  @override
+  String? read(String name) => files[name];
+
+  @override
+  void write(String name, String contents) {
+    writes.add(name);
+    files[name] = contents;
   }
 }
 
@@ -212,6 +307,7 @@ class FakeProcessService implements ProcessService {
     String executable,
     List<String> arguments, {
     Duration? timeout,
+    String? workingDirectory,
     bool runInShell = false,
     Map<String, String>? environment,
   }) async {

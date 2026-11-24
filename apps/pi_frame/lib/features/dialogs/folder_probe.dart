@@ -1,6 +1,6 @@
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
+
+import '../../data/platform/file_system_service.dart';
 
 /// What the new-session dialog knows about the typed folder.
 enum FolderStatus {
@@ -38,19 +38,19 @@ class FolderProbe {
 ///
 /// The daemon has no command that checks a path, so this runs in the app. When the
 /// app and the daemon run on different hosts, the result describes the app's filesystem.
-FolderProbe probeFolder(String path) {
+FolderProbe probeFolder(String path, FileSystemService files) {
   final trimmed = path.trim();
   if (trimmed.isEmpty) return const FolderProbe(FolderStatus.empty);
   if (kIsWeb) return const FolderProbe(FolderStatus.unverified);
   try {
-    if (!Directory(trimmed).existsSync()) {
+    if (!files.directoryExistsSync(trimmed)) {
       return const FolderProbe(FolderStatus.notFound);
     }
-    final marker = '$trimmed${Platform.pathSeparator}.git';
-    if (!FileSystemEntity.isDirectorySync(marker) && !FileSystemEntity.isFileSync(marker)) {
+    final marker = '$trimmed/.git';
+    if (!files.directoryExistsSync(marker) && !files.fileExistsSync(marker)) {
       return const FolderProbe(FolderStatus.folder);
     }
-    return FolderProbe(FolderStatus.gitRepo, branch: _readBranch(marker));
+    return FolderProbe(FolderStatus.gitRepo, branch: _readBranch(marker, files));
   } catch (_) {
     return const FolderProbe(FolderStatus.notFound);
   }
@@ -58,18 +58,19 @@ FolderProbe probeFolder(String path) {
 
 /// Reads the branch from `HEAD`. A `.git` file (worktrees, submodules) points to
 /// the real git directory with `gitdir: <path>`.
-String? _readBranch(String gitMarker) {
+String? _readBranch(String gitMarker, FileSystemService files) {
   try {
     var gitDir = gitMarker;
-    if (FileSystemEntity.isFileSync(gitMarker)) {
-      final pointer = File(gitMarker).readAsStringSync().trim();
+    if (files.fileExistsSync(gitMarker)) {
+      final pointer = (files.readTextSync(gitMarker) ?? '').trim();
       if (!pointer.startsWith('gitdir:')) return null;
       final target = pointer.substring('gitdir:'.length).trim();
-      gitDir = File(target).isAbsolute ? target : '${File(gitMarker).parent.path}${Platform.pathSeparator}$target';
+      final absolute = target.startsWith('/') || RegExp(r'^[A-Za-z]:[\\/]').hasMatch(target);
+      gitDir = absolute ? target : '${_parentOf(gitMarker)}/$target';
     }
-    final headFile = File('$gitDir${Platform.pathSeparator}HEAD');
-    if (!headFile.existsSync()) return null;
-    final head = headFile.readAsStringSync().trim();
+    final headPath = '$gitDir/HEAD';
+    if (!files.fileExistsSync(headPath)) return null;
+    final head = (files.readTextSync(headPath) ?? '').trim();
     const prefix = 'ref: refs/heads/';
     if (!head.startsWith(prefix)) return null;
     final branch = head.substring(prefix.length).trim();
@@ -77,4 +78,12 @@ String? _readBranch(String gitMarker) {
   } catch (_) {
     return null;
   }
+}
+
+/// The folder that holds [path], for both `/` and `\` separators.
+String _parentOf(String path) {
+  final slash = path.lastIndexOf('/');
+  final backslash = path.lastIndexOf('\\');
+  final index = slash > backslash ? slash : backslash;
+  return index <= 0 ? path : path.substring(0, index);
 }

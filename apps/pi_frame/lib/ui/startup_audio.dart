@@ -1,11 +1,6 @@
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
-
-import 'startup_audio_stub.dart' if (dart.library.io) 'startup_audio_io.dart';
-
 class StartupAudio {
   StartupAudio._();
 
@@ -113,25 +108,12 @@ class StartupAudio {
     return createWav(samples, sampleRate);
   }
 
-  static void playCiak() {
-    _play(generateCiakWav());
-  }
-
-  static void playHum() {
-    _play(generateHumWav());
-  }
-
-  static void _play(Uint8List wavBytes) {
-    if (kIsWeb) {
-      SystemSound.play(SystemSoundType.click);
-      return;
-    }
-    playWavNative(wavBytes);
-  }
-
-  static void dispose() {
-    if (!kIsWeb) {
-      disposeNativeAudio();
-    }
-  }
+  /// The clip for [sound]. The caller plays it through the native audio service.
+  static Uint8List wavFor(StartupSound sound) => switch (sound) {
+    StartupSound.ciak => generateCiakWav(),
+    StartupSound.hum => generateHumWav(),
+  };
 }
+
+/// The two sounds of the startup intro.
+enum StartupSound { ciak, hum }

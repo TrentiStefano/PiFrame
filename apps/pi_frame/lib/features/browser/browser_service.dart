@@ -1,15 +1,14 @@
 import 'dart:convert';
 
-import 'package:http/http.dart' as http;
-
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_workspace.dart';
+import '../../data/platform/http_service.dart';
 import 'browser_models.dart';
 
 class WebBrowserService {
-  final http.Client _client;
+  final HttpService http;
 
-  WebBrowserService({http.Client? client}) : _client = client ?? http.Client();
+  WebBrowserService({required this.http});
 
   static const _tlds = {
     'com',
@@ -104,20 +103,15 @@ class WebBrowserService {
       'Upgrade-Insecure-Requests': '1',
     };
 
-    final response = await _client.get(uri, headers: headers).timeout(const Duration(seconds: 15));
+    final response = await http.get(uri, headers: headers, timeout: const Duration(seconds: 15));
 
     if (response.statusCode >= 400) {
       throw Exception('HTTP ${response.statusCode}: ${response.reasonPhrase}');
     }
 
-    String html;
-    try {
-      html = utf8.decode(response.bodyBytes, allowMalformed: true);
-    } catch (_) {
-      html = response.body;
-    }
+    final html = utf8.decode(response.bodyBytes, allowMalformed: true);
 
-    final finalUri = response.request?.url ?? uri;
+    final finalUri = response.url;
     final finalUrl = finalUri.toString();
     final domain = finalUri.host.isNotEmpty ? finalUri.host : finalUrl;
     final title =

@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import 'motion.dart';
-import '../data/platform/widget_test_binding.dart';
 
 /// A text widget with an animated luminous shimmer gradient sweeping across it,
 /// inspired by loading-ui TextShimmer (https://www.loading-ui.com/docs/components/text-shimmer).
 ///
-/// Under reduced motion or in widget test environments, the animation stops
+/// Under reduced motion, or when [animate] is false (the caller's test-environment check), the animation stops
 /// and renders static high-contrast text.
 class FrameTextShimmer extends StatefulWidget {
   final String text;
@@ -17,6 +16,7 @@ class FrameTextShimmer extends StatefulWidget {
   final Duration duration;
   final int? maxLines;
   final TextOverflow? overflow;
+  final bool animate;
 
   const FrameTextShimmer({
     super.key,
@@ -27,6 +27,7 @@ class FrameTextShimmer extends StatefulWidget {
     this.duration = FrameMotion.textShimmerLoop,
     this.maxLines = 1,
     this.overflow = TextOverflow.ellipsis,
+    this.animate = true,
   });
 
   @override
@@ -35,14 +36,12 @@ class FrameTextShimmer extends StatefulWidget {
 
 class _FrameTextShimmerState extends State<FrameTextShimmer> with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
-  late final bool _isTest;
 
   @override
   void initState() {
     super.initState();
-    _isTest = isWidgetTestBinding;
     _controller = AnimationController(vsync: this, duration: widget.duration);
-    if (!_isTest) {
+    if (widget.animate) {
       _controller.repeat();
     }
   }
@@ -59,7 +58,7 @@ class _FrameTextShimmerState extends State<FrameTextShimmer> with SingleTickerPr
     final base = widget.baseColor ?? tokens.textMuted;
     final highlight = widget.highlightColor ?? tokens.textPrimary;
 
-    if (_isTest || FrameMotion.reduced(context)) {
+    if (!widget.animate || FrameMotion.reduced(context)) {
       return Text(
         widget.text,
         maxLines: widget.maxLines,

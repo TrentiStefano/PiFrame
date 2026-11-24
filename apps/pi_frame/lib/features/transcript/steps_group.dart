@@ -10,6 +10,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_transcript.dart';
+import '../../data/platform/widget_test_binding.dart';
 import '../../data/transcript/step_grouping_settings.dart';
 import '../../domain/session/session_state.dart';
 import '../../domain/session/transcript_grouping.dart';
@@ -481,6 +482,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
                     child: isRunning
                         ? FrameTextShimmer(
                             key: ValueKey<String>('${widget.block.steps.length}_$headerLabel'),
+                            animate: !isWidgetTestBinding,
                             text: headerLabel,
                             baseColor: tokens.textMuted,
                             highlightColor: tokens.textPrimary,

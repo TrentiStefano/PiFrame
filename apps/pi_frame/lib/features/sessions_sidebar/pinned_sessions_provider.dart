@@ -1,64 +1,49 @@
 import 'dart:convert';
-import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class PinnedSessionsNotifier extends StateNotifier<List<String>> {
-  // A notifier built from an explicit list is in memory only: tests must never rewrite the user's real pins.
-  final bool _persists;
+import '../../data/platform/user_data_service.dart';
 
-  PinnedSessionsNotifier([Iterable<String>? initial])
-    : _persists = initial == null,
+const _fileName = 'pinned_sessions.json';
+
+class PinnedSessionsNotifier extends StateNotifier<List<String>> {
+  // Saved through [_storage] only when built without an explicit list. A notifier
+  // built from a list is in memory only: tests must never rewrite the user's real pins.
+  final UserDataService? _storage;
+
+  PinnedSessionsNotifier([Iterable<String>? initial, UserDataService? storage])
+    : _storage = initial == null ? storage : null,
       super(initial != null ? initial.toList() : const <String>[]) {
     if (initial == null) {
       _load();
     }
   }
 
-  @visibleForTesting
-  File? get storageFileForTesting => _getStorageFile();
-
-  File? _getStorageFile() {
-    if (kIsWeb || !_persists) return null;
-    try {
-      final env = Platform.environment;
-      final home = Platform.isWindows ? (env['USERPROFILE'] ?? 'C:\\Users\\Default') : (env['HOME'] ?? '/tmp');
-      final dir = Directory('$home/.piframe');
-      if (!dir.existsSync()) {
-        dir.createSync(recursive: true);
-      }
-      return File('${dir.path}/pinned_sessions.json');
-    } catch (_) {
-      return null;
-    }
-  }
+  /// True when pins are saved to the user's data folder.
+  bool get persists => _storage != null;
 
   void _load() {
-    final file = _getStorageFile();
-    if (file != null && file.existsSync()) {
-      try {
-        final content = file.readAsStringSync();
-        final list = (jsonDecode(content) as List?)?.cast<String>() ?? [];
-        final seen = <String>{};
-        final ordered = <String>[];
-        for (final id in list) {
-          if (seen.add(id)) {
-            ordered.add(id);
-          }
+    final content = _storage?.read(_fileName);
+    if (content == null) return;
+    try {
+      final list = (jsonDecode(content) as List?)?.cast<String>() ?? [];
+      final seen = <String>{};
+      final ordered = <String>[];
+      for (final id in list) {
+        if (seen.add(id)) {
+          ordered.add(id);
         }
-        state = ordered;
-      } catch (_) {}
-    }
+      }
+      state = ordered;
+    } catch (_) {}
   }
 
   void _save() {
-    final file = _getStorageFile();
-    if (file != null) {
-      try {
-        file.writeAsStringSync(jsonEncode(state));
-      } catch (_) {}
-    }
+    final storage = _storage;
+    if (storage == null) return;
+    try {
+      storage.write(_fileName, jsonEncode(state));
+    } catch (_) {}
   }
 
   void togglePin(String sessionId) {
@@ -105,5 +90,5 @@ class PinnedSessionsNotifier extends StateNotifier<List<String>> {
 }
 
 final pinnedSessionsProvider = StateNotifierProvider<PinnedSessionsNotifier, List<String>>((ref) {
-  return PinnedSessionsNotifier();
+  return PinnedSessionsNotifier(null, ref.read(userDataServiceProvider));
 });
