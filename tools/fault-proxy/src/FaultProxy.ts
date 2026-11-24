@@ -93,9 +93,13 @@ export class FaultProxy {
         }
       };
       // Each frame is relayed on its own, so injected latency delays one frame without holding back later ones.
-      // relayFrame does not reject, so the promise it returns is voided.
+      // A send can throw, so a failed relay is logged and closes both sides rather than leaving a rejection unhandled.
       upstreamWs.on('message', (data, isBinary) => {
-        void relayFrame(data, isBinary);
+        relayFrame(data, isBinary).catch((err: unknown) => {
+          console.error('RELAY ERROR:', err);
+          clientWs.terminate();
+          upstreamWs.terminate();
+        });
       });
 
       clientWs.on('close', () => {
