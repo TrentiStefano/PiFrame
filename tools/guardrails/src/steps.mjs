@@ -44,7 +44,7 @@ const TS_LINT = { job: 'node', name: 'TypeScript lint (tsc --noEmit)', command: 
 const FLUTTER_ANALYZE = {
   job: 'flutter',
   name: 'Flutter analyze (all projects)',
-  command: ['node', 'tools/scripts/lint-flutter.js']
+  command: ['node', 'tools/scripts/lint-flutter.mjs']
 };
 
 // DESIGN.md: Google's linter (errors and warnings fail) and its tokens against the shipped theme.

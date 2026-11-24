@@ -72,7 +72,7 @@ test('a change to a guarded path needs approval, whichever way it goes', () => {
     '.claude/hooks/guard-command.mjs',
     '.pi/extensions/guard-command.ts',
     '.codex/rules/guard.rules',
-    'tools/scripts/lint-flutter.js',
+    'tools/scripts/lint-flutter.mjs',
     'tools/scripts/test-flutter.js',
     'tools/scripts/setup-flutter.js',
     'tools/scripts/check-version-sync.mjs',
@@ -252,7 +252,7 @@ function scriptsRunByTheGate() {
 
 test('every script a gate step runs is guarded, so making it exit 0 needs approval', () => {
   const scripts = scriptsRunByTheGate();
-  assert.ok(scripts.includes('tools/scripts/lint-flutter.js'), scripts.join(', '));
+  assert.ok(scripts.includes('tools/scripts/lint-flutter.mjs'), scripts.join(', '));
   assert.ok(scripts.includes('tools/recon/verify.ts'), scripts.join(', '));
   for (const path of scripts) {
     const result = approvalStatus({
@@ -264,4 +264,32 @@ test('every script a gate step runs is guarded, so making it exit 0 needs approv
     });
     assert.equal(result.status, 'needed', `expected ${path} to need approval`);
   }
+});
+
+const diagnosticsBaseline = (count) => ({ 'dart-analyze': { 'apps/pi_frame': { avoid_print: count } } });
+
+test('a raised diagnostics count needs approval; a lowered one, or the baseline file itself, does not', () => {
+  const input = {
+    baseBaseline: baseline(40),
+    headBaseline: baseline(40),
+    labelEvents: [],
+    ciRunTimes: ['2026-11-20T10:00:00Z'],
+    changedPaths: ['tools/guardrails/diagnostics-baseline.json']
+  };
+  const raised = approvalStatus({
+    ...input,
+    diagnosticsBaseBaseline: diagnosticsBaseline(1),
+    diagnosticsHeadBaseline: diagnosticsBaseline(2)
+  });
+  assert.equal(raised.status, 'needed');
+  assert.deepEqual(raised.reasons, ['dart-analyze apps/pi_frame `avoid_print` 1 → 2']);
+  assert.match(raised.comment, /human-approved/);
+
+  const lowered = approvalStatus({
+    ...input,
+    diagnosticsBaseBaseline: diagnosticsBaseline(2),
+    diagnosticsHeadBaseline: diagnosticsBaseline(1)
+  });
+  assert.equal(lowered.status, 'not-needed');
+  assert.deepEqual(lowered.reasons, []);
 });

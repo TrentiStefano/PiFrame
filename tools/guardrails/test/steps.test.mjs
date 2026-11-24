@@ -27,7 +27,7 @@ test('verify runs the full gate in order, including codegen parity and an explic
     'node tools/scripts/setup-flutter.js',
     'node tools/scripts/check-version-sync.mjs',
     'node tools/scripts/format.mjs --check dart',
-    'node tools/scripts/lint-flutter.js',
+    'node tools/scripts/lint-flutter.mjs',
     'node tools/scripts/test-flutter.js'
   ]);
 });
@@ -74,7 +74,7 @@ test('ci runs exactly the verify gate, split into the node and flutter jobs', ()
     'node tools/scripts/setup-flutter.js',
     'node tools/scripts/check-version-sync.mjs',
     'node tools/scripts/format.mjs --check dart',
-    'node tools/scripts/lint-flutter.js',
+    'node tools/scripts/lint-flutter.mjs',
     'node tools/scripts/test-flutter.js'
   ]);
   assert.equal(byJob('node').length + byJob('flutter').length, ci.length);
@@ -104,7 +104,7 @@ test('check is the inner loop: escape-hatch audit, doc link, agent map and DESIG
     'pnpm -r run lint',
     // The app's pubspec lists the untracked in-app changelog: analyze and the Flutter tests both need it.
     'node tools/scripts/sync-changelog.mjs',
-    'node tools/scripts/lint-flutter.js'
+    'node tools/scripts/lint-flutter.mjs'
   ]);
 });
 

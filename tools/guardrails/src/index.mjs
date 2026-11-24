@@ -7,6 +7,7 @@ export { approvalStatus, APPROVAL_LABEL, APPROVAL_MARKER } from './approval.mjs'
 export { checkDocLinks, inDocLinkScope } from './doc-links.mjs';
 export { checkAgentMap, AGENT_MAP_PATH, AGENT_MAP_MAX_LINES } from './agent-map.mjs';
 export { checkBoundaries, BOUNDARY_CONFIG_PATH } from './boundary.mjs';
+export { checkDiagnostics, parseDartAnalyzeMachine, DIAGNOSTICS_BASELINE_PATH } from './diagnostics.mjs';
 export {
   checkDesignTokens,
   designTokenMatch,

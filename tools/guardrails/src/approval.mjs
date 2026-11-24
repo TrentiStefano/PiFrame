@@ -12,6 +12,7 @@
  */
 import { AGENT_MAP_PATH } from './agent-map.mjs';
 import { BASELINE_PATH } from './escape-hatches.mjs';
+import { DIAGNOSTICS_BASELINE_PATH } from './diagnostics.mjs';
 import { APPROVAL_LABEL } from './label.mjs';
 import { basename, SCRIPT_FILE, toPosix } from './paths.mjs';
 import { stepList } from './steps.mjs';
@@ -50,7 +51,8 @@ const AGENT_GUARD_DIRS = ['.claude/hooks/', '.pi/extensions/', '.codex/rules/'];
 
 /** Why a path is guarded, or undefined when changing it needs no approval. */
 function guardedKind(path) {
-  if (path === BASELINE_PATH) return undefined; // only its increases need approval, see baselineIncreases
+  // Only the increases of these two baselines need approval, see baselineIncreases.
+  if (path === BASELINE_PATH || path === DIAGNOSTICS_BASELINE_PATH) return undefined;
   const name = basename(path);
   if (name === 'analysis_options.yaml') return 'Dart analyzer options';
   if (/^tsconfig.*\.json$/.test(name)) return 'TypeScript config';
@@ -124,6 +126,8 @@ const NOT_NEEDED_ANY_MORE =
  * @param {object} input
  * @param {object} input.baseBaseline escape-hatch baseline on the PR's base
  * @param {object} input.headBaseline escape-hatch baseline on the PR's head
+ * @param {object} [input.diagnosticsBaseBaseline] diagnostics ratchet baseline on the PR's base (tool → package → rule)
+ * @param {object} [input.diagnosticsHeadBaseline] diagnostics ratchet baseline on the PR's head
  * @param {string[]} input.changedPaths paths the PR changes (renames as both old and new path)
  * @param {{ action: 'labeled' | 'unlabeled', label: string, at: string, actor?: string }[]} input.labelEvents the
  *   PR's label events, with the time GitHub recorded them (ISO 8601)
@@ -138,6 +142,8 @@ const NOT_NEEDED_ANY_MORE =
 export function approvalStatus({
   baseBaseline,
   headBaseline,
+  diagnosticsBaseBaseline,
+  diagnosticsHeadBaseline,
   changedPaths = [],
   labelEvents = [],
   eventAction,
@@ -145,7 +151,11 @@ export function approvalStatus({
   ciRunTimes = [],
   previousComment = null
 }) {
-  const reasons = [...baselineIncreases(baseBaseline, headBaseline), ...guardedChanges(changedPaths)];
+  const reasons = [
+    ...baselineIncreases(baseBaseline, headBaseline),
+    ...baselineIncreases(diagnosticsBaseBaseline, diagnosticsHeadBaseline),
+    ...guardedChanges(changedPaths)
+  ];
   const latestPushAt = latestPush({ eventAction, runCreatedAt, ciRunTimes });
   if (reasons.length === 0) {
     // An earlier push needed approval and this one does not: say so instead of leaving an outdated comment.
