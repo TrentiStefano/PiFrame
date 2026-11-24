@@ -7,7 +7,7 @@
       "@ts-expect-error": 0,
       "@ts-nocheck": 0,
       "eslint-disable": 0,
-      "as any": 44,
+      "as any": 43,
       ": any": 165,
       "as unknown as": 0,
       "// coverage:ignore": 0
@@ -19,7 +19,7 @@
       "@ts-expect-error": 0,
       "@ts-nocheck": 0,
       "eslint-disable": 0,
-      "as any": 158,
+      "as any": 152,
       ": any": 131,
       "as unknown as": 11,
       "// coverage:ignore": 0
