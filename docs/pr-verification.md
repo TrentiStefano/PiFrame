@@ -29,7 +29,7 @@ Options (they work for both commands; with `pnpm` they go after `--`):
 
 `check` never installs dependencies. After a dependency change (one you made, or one you pulled, such as the `@google/design.md` and `yaml` packages the design checks use), run `pnpm install` first; otherwise the step that needs the missing package fails with `Cannot find package`.
 
-1. the escape-hatch audit (see [below](#escape-hatch-ratchet)), the doc link check (see [below](#doc-link-check)), the agent map check (see [below](#agent-map-check)), the design lint (see [below](#design-lint)) and the design token check (see [below](#design-token-check))
+1. the escape-hatch audit (see [below](#escape-hatch-ratchet)), the doc link check (see [below](#doc-link-check)), the agent map check (see [below](#agent-map-check)), the import-boundary check (see [below](#import-boundaries)), the design lint (see [below](#design-lint)) and the design token check (see [below](#design-token-check))
 2. `pnpm -r run build` (agentd and the e2e tests type-check against the other packages' built `.d.ts`; a fresh or stale `dist/` would give false errors)
 3. `pnpm -r run lint` (`tsc --noEmit` for every TypeScript package)
 4. `node tools/scripts/sync-changelog.mjs` (what `pnpm run sync:changelog` runs): generates the in-app changelog, which the app's `pubspec.yaml` lists, so `flutter analyze` and the Flutter tests find it
@@ -44,19 +44,20 @@ Any other path fails before anything runs, with a message naming the supported k
 ```text
 # (each step's own output omitted)
 $ pnpm run check -- apps/pi_frame/test/changelog_test.dart apps/agentd/src/pi/test/PiEventAdapter.test.ts tools/guardrails/test/steps.test.mjs
-[1/12] Escape-hatch audit (baseline ratchet) ... ok (1.8s)
-[2/12] Doc links (relative links and anchors resolve) ... ok (0.3s)
-[3/12] AGENTS.md map check (length, paths, scripts) ... ok (0.2s)
-[4/12] DESIGN.md lint (@google/design.md) ... ok (0.4s)
-[5/12] DESIGN.md tokens match the theme ... ok (0.2s)
-[6/12] Build TypeScript packages ... ok (9.4s)
-[7/12] TypeScript lint (tsc --noEmit) ... ok (4.8s)
-[8/12] Generate the in-app changelog ... ok (0.1s)
-[9/12] Flutter analyze (all projects) ... ok (30.4s)
-[10/12] Flutter test apps/pi_frame/test/changelog_test.dart ... ok (11.4s)
-[11/12] Node test apps/agentd/dist/pi/test/PiEventAdapter.test.js (compiled from apps/agentd/src/pi/test/PiEventAdapter.test.ts) ... ok (0.2s)
-[12/12] Node test tools/guardrails/test/steps.test.mjs ... ok (0.3s)
-✔ check: all 12 steps passed in 59.2s.
+[1/13] Escape-hatch audit (baseline ratchet) ... ok (1.8s)
+[2/13] Doc links (relative links and anchors resolve) ... ok (0.3s)
+[3/13] AGENTS.md map check (length, paths, scripts) ... ok (0.2s)
+[4/13] Import boundaries (layers, daemon table, baseline) ... ok (0.4s)
+[5/13] DESIGN.md lint (@google/design.md) ... ok (0.4s)
+[6/13] DESIGN.md tokens match the theme ... ok (0.2s)
+[7/13] Build TypeScript packages ... ok (9.4s)
+[8/13] TypeScript lint (tsc --noEmit) ... ok (4.8s)
+[9/13] Generate the in-app changelog ... ok (0.1s)
+[10/13] Flutter analyze (all projects) ... ok (30.4s)
+[11/13] Flutter test apps/pi_frame/test/changelog_test.dart ... ok (11.4s)
+[12/13] Node test apps/agentd/dist/pi/test/PiEventAdapter.test.js (compiled from apps/agentd/src/pi/test/PiEventAdapter.test.ts) ... ok (0.2s)
+[13/13] Node test tools/guardrails/test/steps.test.mjs ... ok (0.3s)
+✔ check: all 13 steps passed in 59.8s.
 ```
 
 The `check` tier is local only: `ci.yml` follows the `ci` tier, so adding a step to `check` does not change the workflow. `check` passing does not mean "ready for a PR"; only `verify` does.
@@ -69,7 +70,7 @@ The steps come from one shared step list, `tools/guardrails/src/steps.mjs`. `ver
 
 1. `pnpm install --frozen-lockfile`
 2. TypeScript/Node formatting (Prettier `--check`)
-3. the escape-hatch audit (see [below](#escape-hatch-ratchet)), the doc link check (see [below](#doc-link-check)), the agent map check (see [below](#agent-map-check)), the design lint (see [below](#design-lint)) and the design token check (see [below](#design-token-check))
+3. the escape-hatch audit (see [below](#escape-hatch-ratchet)), the doc link check (see [below](#doc-link-check)), the agent map check (see [below](#agent-map-check)), the import-boundary check (see [below](#import-boundaries)), the design lint (see [below](#design-lint)) and the design token check (see [below](#design-token-check))
 4. `node tools/recon/verify.ts`
 5. PCP schema validation
 6. `pnpm -r run build` (including the daemon bundle build)
@@ -186,6 +187,27 @@ The logic is `checkDocLinks` in `tools/guardrails/src/doc-links.mjs` (pure, test
 - runs `pnpm run <script>` where the root `package.json` has no such script.
 
 Each message names the line, for example ``AGENTS.md:11 names `scratch/release_ui_screenshots/*.png`, which matches no tracked file or folder. Fix the path or remove the mention.`` The logic is `checkAgentMap` in `tools/guardrails/src/agent-map.mjs` (pure, tested with in-memory fixtures in `tools/guardrails/test/agent-map.test.mjs`); the script only reads `AGENTS.md`, `git ls-files` and the root `package.json`.
+
+## Import boundaries
+
+`node tools/scripts/check-boundaries.mjs` (in `check`, `verify` and CI) enforces the layer rules on the sources as they are on disk (tracked plus untracked, not ignored). It reads Dart `import`/`export` lines and TypeScript `import`/`export ... from` and literal `import()`, and resolves relative imports and `package:pi_frame/` imports to the same file.
+
+- **Flutter** (`apps/pi_frame/lib/`): `domain/` imports no `package:flutter/`, no raw I/O and nothing from `data/`, `features/`, `ui/` or `app/`; `data/` imports nothing from `features/`, `ui/` or `app/`; `ui/` imports nothing from `features/`, `app/` or `data/`; `features/` and `ui/` use no raw I/O or platform plugins (`dart:io`, `dart:ffi`, `ffi`, `http`, `web_socket_channel`, `win32`, `url_launcher`, `file_selector`, `desktop_drop`, `window_manager`, `local_notifier`, `webview_win_floating`). A feature may import another feature. `harness/` is imported only from `app/` and the entry points (`lib/main*.dart`).
+- **Daemon** (`apps/agentd/src/`): a module imports only the modules its row in `daemonAllowedDependencies` names, and the module graph has no cycles.
+- **Packages** (`packages/`) never import `apps/`.
+- Test files (`*_test.dart`, `*.test.ts`, anything under a `test/` folder) are not checked.
+
+The rules, the daemon table and the **baseline** are in `tools/guardrails/boundary.json`. The baseline lists each violation that exists today as `{ "file", "import" }`; a daemon cycle is listed by its loop (`remote -> server -> remote`). A baselined violation passes. Any other violation fails, with the file and line, the import, the rule and how to fix it:
+
+```text
+✖ import boundaries: 1 problem(s):
+
+- [raw-io] apps/pi_frame/lib/features/boundary_probe.dart:1 imports 'dart:io' in features/, which must not use raw I/O or platform plugins. Move that call into a service in data/, read it in this file through a provider, and test the feature with a fake of the service (docs/pr-verification.md, "Import boundaries").
+```
+
+A baseline entry that matches no violation any more fails too, and names the entry to delete, so the baseline only shrinks. To fix a violation, move the I/O into a service in `data/`, read it through a provider and test the feature with a fake of that service. An exception needs the `human-approved` label (the config is a guarded path): add the `{ "file", "import" }` entry to `baseline` and say why in the PR; a new daemon edge goes into `daemonAllowedDependencies` and is recorded in `docs/adr/`.
+
+The logic is `checkBoundaries` in `tools/guardrails/src/boundary.mjs` (pure, tested with in-memory fixtures in `tools/guardrails/test/boundary.test.mjs`); the script only reads the files and the config.
 
 ## Design lint
 
