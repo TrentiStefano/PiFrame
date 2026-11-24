@@ -26,14 +26,14 @@ ToolExecutionState _tool(Map<String, dynamic> tool) => ToolExecutionState(
   startedAt: (tool['startedAt'] as num?)?.toInt(),
 );
 
-List<SessionEntry> parseSessionEntries(Iterable<Map> rawList) {
+List<SessionEntry> parseSessionEntries(Iterable<Map<String, dynamic>> rawList) {
   final entries = <SessionEntry>[];
 
   // Pre-collect outputs from toolResult messages keyed by toolCallId
   final toolResults = <String, String>{};
   final toolErrors = <String, bool>{};
   for (final raw in rawList) {
-    final message = raw['message'] is Map ? raw['message'] as Map : raw;
+    final message = raw['message'] is Map ? raw['message'] as Map<String, dynamic> : raw;
     final role = message['role']?.toString() ?? '';
     if (role == 'toolResult' || role == 'tool') {
       final callId = (message['toolCallId'] ?? message['tool_call_id'] ?? raw['toolCallId'])?.toString();
@@ -47,7 +47,7 @@ List<SessionEntry> parseSessionEntries(Iterable<Map> rawList) {
   }
 
   for (final raw in rawList) {
-    final message = raw['message'] is Map ? raw['message'] as Map : raw;
+    final message = raw['message'] is Map ? raw['message'] as Map<String, dynamic> : raw;
     final role = message['role']?.toString() ?? 'assistant';
     if (role == 'system' || role == 'toolResult' || role == 'tool') continue;
 
@@ -92,7 +92,7 @@ List<SessionEntry> parseSessionEntries(Iterable<Map> rawList) {
 
     if (role == 'compactionSummary') {
       final summary = (message['summary'] ?? message['text'])?.toString() ?? '';
-      final tokensBefore = (message['tokensBefore'] ?? message['tokens_before'] as num?)?.toInt();
+      final tokensBefore = ((message['tokensBefore'] ?? message['tokens_before']) as num?)?.toInt();
       entries.add(
         SessionEntry(
           id: entryId,
@@ -113,7 +113,7 @@ List<SessionEntry> parseSessionEntries(Iterable<Map> rawList) {
         customText = message['content'] as String;
       } else if (message['content'] is List) {
         customText = (message['content'] as List)
-            .whereType<Map>()
+            .whereType<Map<String, dynamic>>()
             .where((b) => b['type'] == 'text')
             .map((b) => b['text']?.toString() ?? '')
             .join();
@@ -136,7 +136,7 @@ List<SessionEntry> parseSessionEntries(Iterable<Map> rawList) {
     // Extract image blocks into ChatAttachment tags if present
     if (message['content'] is List) {
       final attachments = <ChatAttachment>[];
-      for (final block in (message['content'] as List).whereType<Map>()) {
+      for (final block in (message['content'] as List).whereType<Map<String, dynamic>>()) {
         if (block['type'] == 'image') {
           final data = block['data']?.toString() ?? '';
           final mimeType = block['mimeType']?.toString() ?? 'image/png';
@@ -160,12 +160,12 @@ List<SessionEntry> parseSessionEntries(Iterable<Map> rawList) {
     // Extract tool calls from message
     final entryToolCalls = <ToolExecutionState>[];
     if (message['toolCalls'] is List) {
-      for (final t in (message['toolCalls'] as List).whereType<Map>()) {
+      for (final t in (message['toolCalls'] as List).whereType<Map<String, dynamic>>()) {
         entryToolCalls.add(_tool(Map<String, dynamic>.from(t)));
       }
     }
     if (message['content'] is List) {
-      for (final b in (message['content'] as List).whereType<Map>()) {
+      for (final b in (message['content'] as List).whereType<Map<String, dynamic>>()) {
         if (b['type'] == 'toolCall' || b['type'] == 'tool_call' || b['type'] == 'tool_use') {
           final callId = (b['id'] ?? b['toolCallId'])?.toString() ?? '';
           final name = (b['name'] ?? b['toolName'])?.toString() ?? '';
@@ -239,9 +239,9 @@ SessionState applySessionSnapshot(String sessionId, int seq, Map<String, dynamic
   final transcript = payload['transcript'] as Map? ?? {};
   final live = payload['liveMessage'] as Map? ?? {};
   final queue = runtime['queue'] as Map? ?? {};
-  final entries = parseSessionEntries((transcript['entries'] as List? ?? []).whereType<Map>());
+  final entries = parseSessionEntries((transcript['entries'] as List? ?? []).whereType<Map<String, dynamic>>());
   final tools = <String, ToolExecutionState>{};
-  for (final raw in (payload['activeTools'] as List? ?? []).whereType<Map>()) {
+  for (final raw in (payload['activeTools'] as List? ?? []).whereType<Map<String, dynamic>>()) {
     final tool = _tool(Map<String, dynamic>.from(raw));
     tools[tool.toolCallId] = tool;
   }
@@ -266,8 +266,8 @@ SessionState applySessionSnapshot(String sessionId, int seq, Map<String, dynamic
   int aggregatedOutputTokens = 0;
   bool foundEntryTokens = false;
 
-  for (final raw in (transcript['entries'] as List? ?? []).whereType<Map>()) {
-    final message = raw['message'] is Map ? raw['message'] as Map : raw;
+  for (final raw in (transcript['entries'] as List? ?? []).whereType<Map<String, dynamic>>()) {
+    final message = raw['message'] is Map ? raw['message'] as Map<String, dynamic> : raw;
     final u = message['usage'] is Map ? message['usage'] as Map : (raw['usage'] is Map ? raw['usage'] as Map : null);
     if (u != null) {
       if (u['cost'] != null) {
@@ -309,8 +309,7 @@ SessionState applySessionSnapshot(String sessionId, int seq, Map<String, dynamic
   Map<String, dynamic>? initialStats;
   if (rawUsage.isNotEmpty) {
     initialStats = {
-      if (rawUsage['cost'] != null)
-        'cost': rawUsage['cost'] is Map ? (rawUsage['cost']['total'] ?? rawUsage['cost']['amount']) : rawUsage['cost'],
+      if (rawUsage['cost'] != null) 'cost': _costValue(rawUsage['cost']),
       if (rawUsage['totalTokens'] != null)
         'tokens': {
           'total': rawUsage['totalTokens'],
@@ -335,7 +334,7 @@ SessionState applySessionSnapshot(String sessionId, int seq, Map<String, dynamic
     steeringQueue: (queue['steering'] as List? ?? []).map((e) => e.toString()).toList(),
     followUpQueue: (queue['followUp'] as List? ?? []).map((e) => e.toString()).toList(),
     pendingUiRequests: (payload['pendingUiRequests'] as List? ?? [])
-        .whereType<Map>()
+        .whereType<Map<String, dynamic>>()
         .map((e) => Map<String, dynamic>.from(e))
         .toList(),
     currentModel: model is Map
@@ -356,3 +355,6 @@ SessionState applySessionSnapshot(String sessionId, int seq, Map<String, dynamic
     totalTranscriptEntries: (transcript['totalEntries'] as num?)?.toInt(),
   );
 }
+
+/// The cost of a usage entry: its `total` or `amount` when `cost` is a map, otherwise the value itself.
+Object? _costValue(Object? cost) => cost is Map ? (cost['total'] ?? cost['amount']) : cost;

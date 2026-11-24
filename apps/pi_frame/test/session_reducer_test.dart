@@ -738,16 +738,16 @@ void main() {
 
       expect(state.usage?['cost'], 0.0845);
       expect(state.sessionStats?['cost'], 0.0845);
-      expect(state.sessionStats?['tokens']['total'], 15000);
-      expect(state.sessionStats?['tokens']['input'], 12000);
-      expect(state.sessionStats?['tokens']['output'], 3000);
+      expect(((state.sessionStats?['tokens']) as Map<String, dynamic>?)?['total'], 15000);
+      expect(((state.sessionStats?['tokens']) as Map<String, dynamic>?)?['input'], 12000);
+      expect(((state.sessionStats?['tokens']) as Map<String, dynamic>?)?['output'], 3000);
     });
 
     test('aggregates session cost and tokens from transcript entries when payload usage is empty', () {
       final state = applySessionSnapshot('session-fallback', 10, {
         'session': {'id': 'session-fallback', 'name': 'Fallback Session', 'cwd': '/workspace'},
         'runtime': {'status': 'settled', 'model': 'claude-3-5-sonnet'},
-        'usage': {},
+        'usage': <String, dynamic>{},
         'transcript': {
           'entries': [
             {
@@ -775,7 +775,7 @@ void main() {
       // Total cost should be 0.025 + 0.035 = 0.060
       expect(state.usage?['cost'], closeTo(0.060, 0.0001));
       expect(state.sessionStats?['cost'], closeTo(0.060, 0.0001));
-      expect(state.sessionStats?['tokens']['total'], 12000);
+      expect(((state.sessionStats?['tokens']) as Map<String, dynamic>?)?['total'], 12000);
     });
 
     test('extracts contextWindowOverride from snapshot runtime meta', () {
@@ -787,7 +787,7 @@ void main() {
           'contextWindowOverride': 100000,
           'compactionReservePercent': 5,
         },
-        'transcript': {'entries': []},
+        'transcript': {'entries': <dynamic>[]},
       });
 
       expect(state.contextWindowOverride, 100000);
@@ -798,7 +798,7 @@ void main() {
       final state = applySessionSnapshot('session-reset', 1, {
         'session': {'id': 'session-reset', 'contextWindowOverride': 100000},
         'runtime': {'status': 'idle', 'contextWindowOverride': null},
-        'transcript': {'entries': []},
+        'transcript': {'entries': <dynamic>[]},
       });
 
       expect(state.contextWindowOverride, isNull);

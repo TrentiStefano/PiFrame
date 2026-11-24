@@ -17,7 +17,7 @@ class MockSteerQueueClient extends PcpClient {
   @override
   Future<Map<String, dynamic>> sendCommand(PcpCommand command) async {
     commands.add(command);
-    return {'data': {}};
+    return {'data': <String, dynamic>{}};
   }
 }
 

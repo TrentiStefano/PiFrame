@@ -36,7 +36,7 @@ class _MockRemoteClient extends PcpClient {
             'enabled': false,
             'state': 'stopped',
             'tunnelProvider': 'cloudflared',
-            'devices': [],
+            'devices': <dynamic>[],
             'options': {'defaultMode': 'view'},
           },
     };
@@ -141,7 +141,7 @@ void main() {
     'enabled': enabled,
     'state': 'stopped',
     'tunnelProvider': 'tailscale',
-    'devices': [],
+    'devices': <dynamic>[],
     'options': {'defaultMode': 'view'},
     'tailscale': {'installed': false, 'running': false},
   };
@@ -201,7 +201,7 @@ void main() {
         'tunnelProvider': 'cloudflared',
         'localPort': 54321,
         'options': {'defaultMode': 'view'},
-        'devices': [],
+        'devices': <dynamic>[],
       },
     );
     await tester.pumpWidget(

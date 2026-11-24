@@ -26,8 +26,8 @@ class TerminalTabSession {
   RunningProcess? process;
   bool isRunning = false;
   int? exitCode;
-  StreamSubscription? _stdoutSub;
-  StreamSubscription? _stderrSub;
+  StreamSubscription<String>? _stdoutSub;
+  StreamSubscription<String>? _stderrSub;
   final List<String> _pendingPowerShellEchoes = [];
   String _stdoutBuffer = '';
   bool _lastOutputEndedWithCr = false;

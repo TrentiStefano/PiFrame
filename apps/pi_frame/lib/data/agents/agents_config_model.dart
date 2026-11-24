@@ -440,14 +440,14 @@ class PiAgentsConfig {
   factory PiAgentsConfig.fromJson(Map<String, dynamic> json) {
     final pkgs =
         (json['packages'] as List?)
-            ?.whereType<Map>()
+            ?.whereType<Map<String, dynamic>>()
             .map((e) => PiSubagentPackageInfo.fromJson(Map<String, dynamic>.from(e)))
             .toList() ??
         const [];
 
     final ags =
         (json['agents'] as List?)
-            ?.whereType<Map>()
+            ?.whereType<Map<String, dynamic>>()
             .map((e) => PiAgentInfo.fromJson(Map<String, dynamic>.from(e)))
             .toList() ??
         const [];
@@ -464,7 +464,7 @@ class PiAgentsConfig {
 
     final models =
         (json['availableModels'] as List?)
-            ?.whereType<Map>()
+            ?.whereType<Map<String, dynamic>>()
             .map((e) => PiAvailableModel.fromJson(Map<String, dynamic>.from(e)))
             .toList() ??
         const [];

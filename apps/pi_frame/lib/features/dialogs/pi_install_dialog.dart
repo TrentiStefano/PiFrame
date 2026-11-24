@@ -75,7 +75,7 @@ class _PiInstallDialogState extends ConsumerState<PiInstallDialog> {
           });
           _scrollToBottom();
         },
-        onError: (err) {
+        onError: (Object err) {
           if (!mounted) return;
           setState(() {
             _logOutput += '\n[ERROR] $err\n';

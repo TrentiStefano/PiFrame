@@ -171,7 +171,7 @@ class _SessionTreeDialogState extends ConsumerState<SessionTreeDialog> {
       if (id != null) parentOf[id] = entry['parentId']?.toString();
     }
     final nodes = (_treeData?['tree'] as List<dynamic>? ?? _treeData?['nodes'] as List<dynamic>? ?? const [])
-        .whereType<Map>()
+        .whereType<Map<String, dynamic>>()
         .map((node) => Map<String, dynamic>.from(node))
         .toList();
     final rows = flattenSessionTree(nodes, parentOf);

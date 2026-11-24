@@ -39,7 +39,7 @@ Future<String> _loadDiffText(WidgetRef ref, String sessionId, String path) async
   final client = ref.read(pcpClientProvider);
   if (client == null) throw StateError('daemon not connected');
   final result = await client.getWorkspaceDiff(sessionId, filePath: path);
-  return (result['data']?['diff'] ?? result['diff'])?.toString() ?? '';
+  return ((result['data'] as Map<String, dynamic>?)?['diff'] ?? result['diff'])?.toString() ?? '';
 }
 
 /// "Open in window": the diff of [path] in a dialog. The width follows the

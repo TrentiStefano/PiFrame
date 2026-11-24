@@ -140,8 +140,8 @@ final sideSessionFamily = StateNotifierProvider.family<SideSessionNotifier, Sess
 class SideSessionNotifier extends StateNotifier<SessionState> {
   final String parentSessionId;
   final Ref ref;
-  StreamSubscription? _eventSub;
-  StreamSubscription? _snapSub;
+  StreamSubscription<PcpEvent>? _eventSub;
+  StreamSubscription<PcpSnapshot>? _snapSub;
   String? _streamId;
 
   SideSessionNotifier(this.parentSessionId, this.ref)
@@ -188,8 +188,8 @@ class SideSessionNotifier extends StateNotifier<SessionState> {
 class SideThreadNotifier extends StateNotifier<SideThreadState> {
   final String parentSessionId;
   final Ref ref;
-  StreamSubscription? _streamEventSub;
-  StreamSubscription? _parentEventSub;
+  StreamSubscription<PcpEvent>? _streamEventSub;
+  StreamSubscription<PcpEvent>? _parentEventSub;
 
   SideThreadNotifier(this.parentSessionId, this.ref) : super(SideThreadState(parentSessionId: parentSessionId));
 

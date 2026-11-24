@@ -5,11 +5,14 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_frame/data/daemon/pcp_client.dart';
 
+/// The payload of a recorded PCP command, typed once at this boundary.
+Map<String, dynamic> payloadOf(Map<String, dynamic> command) => command['payload'] as Map<String, dynamic>;
+
 void main() {
   late HttpServer server;
   late PcpClient client;
   late WebSocket socket;
-  late StreamSubscription subscription;
+  late StreamSubscription<HttpRequest> subscription;
   final commands = <Map<String, dynamic>>[];
 
   setUp(() async {
@@ -71,7 +74,7 @@ void main() {
           'commandId': command['commandId'],
           'payload': {
             'state': 'completed',
-            'data': {'sessions': []},
+            'data': {'sessions': <dynamic>[]},
           },
         }),
       );
@@ -108,14 +111,14 @@ void main() {
         jsonEncode({
           'kind': 'result',
           'commandId': commands[index]['commandId'],
-          'payload': {'state': 'completed', 'data': {}},
+          'payload': {'state': 'completed', 'data': <String, dynamic>{}},
         }),
       );
     }
     await Future.wait(requests);
-    expect(commands[1]['payload']['path'], 'lib/main.dart');
-    expect(commands[2]['payload']['revision'], List.filled(64, 'a').join());
-    expect(commands[3]['payload']['expectedStagedPaths'], ['lib/main.dart']);
+    expect(payloadOf(commands[1])['path'], 'lib/main.dart');
+    expect(payloadOf(commands[2])['revision'], List.filled(64, 'a').join());
+    expect(payloadOf(commands[3])['expectedStagedPaths'], ['lib/main.dart']);
   });
 
   test('context settings serialize backend command payloads', () async {
@@ -128,7 +131,7 @@ void main() {
       'agent.setCompactionReservePercent',
     ]);
     expect(commands[0]['payload'], {'limit': 195000});
-    expect(commands[1]['payload'], {'percent': 5.0});
+    expect(payloadOf(commands[1]), {'percent': 5.0});
     for (final command in commands) {
       socket.add(
         jsonEncode({
@@ -150,7 +153,7 @@ void main() {
     await Future<void>.delayed(const Duration(milliseconds: 20));
 
     expect(commands.map((command) => command['type']).toList(), ['agent.authLogin', 'agent.authLogout']);
-    expect(commands.every((command) => command['payload'].isEmpty), isTrue);
+    expect(commands.every((command) => payloadOf(command).isEmpty), isTrue);
     expect(commands.every((command) => command['sessionId'] == 'session-a'), isTrue);
     for (final command in commands) {
       socket.add(
@@ -219,7 +222,7 @@ void main() {
         'payload': {
           'state': 'completed',
           'data': {
-            'subagents': const [],
+            'subagents': const <dynamic>[],
             'live': {'anyRunning': false, 'idleSince': 5, 'workerAlive': true},
           },
         },
@@ -252,7 +255,7 @@ void main() {
       jsonEncode({
         'kind': 'result',
         'commandId': commands.single['commandId'],
-        'payload': {'state': 'completed', 'data': {}},
+        'payload': {'state': 'completed', 'data': <String, dynamic>{}},
       }),
     );
     await assertion;
@@ -286,7 +289,7 @@ void main() {
     final startFuture = client.startRemoteTunnel(tunnelProvider: 'cloudflared', customUrl: null);
     await Future<void>.delayed(const Duration(milliseconds: 20));
     expect(commands.last['type'], 'remote.start');
-    expect(commands.last['payload']['tunnelProvider'], 'cloudflared');
+    expect(payloadOf(commands.last)['tunnelProvider'], 'cloudflared');
     socket.add(
       jsonEncode({
         'kind': 'result',
@@ -302,7 +305,7 @@ void main() {
     final pairFuture = client.generateRemotePairing(ttlMs: 300000);
     await Future<void>.delayed(const Duration(milliseconds: 20));
     expect(commands.last['type'], 'remote.generatePairing');
-    expect(commands.last['payload']['ttlMs'], 300000);
+    expect(payloadOf(commands.last)['ttlMs'], 300000);
     socket.add(
       jsonEncode({
         'kind': 'result',
@@ -320,12 +323,12 @@ void main() {
     final optFuture = client.setRemoteOptions(defaultMode: 'control');
     await Future<void>.delayed(const Duration(milliseconds: 20));
     expect(commands.last['type'], 'remote.setOptions');
-    expect(commands.last['payload']['defaultMode'], 'control');
+    expect(payloadOf(commands.last)['defaultMode'], 'control');
     socket.add(
       jsonEncode({
         'kind': 'result',
         'commandId': commands.last['commandId'],
-        'payload': {'state': 'completed', 'data': {}},
+        'payload': {'state': 'completed', 'data': <String, dynamic>{}},
       }),
     );
     await optFuture;
@@ -333,8 +336,8 @@ void main() {
     final modeFuture = client.setRemoteDeviceMode(deviceId: 'dev_test_123', mode: 'control');
     await Future<void>.delayed(const Duration(milliseconds: 20));
     expect(commands.last['type'], 'remote.setDeviceMode');
-    expect(commands.last['payload']['deviceId'], 'dev_test_123');
-    expect(commands.last['payload']['mode'], 'control');
+    expect(payloadOf(commands.last)['deviceId'], 'dev_test_123');
+    expect(payloadOf(commands.last)['mode'], 'control');
     socket.add(
       jsonEncode({
         'kind': 'result',
@@ -350,7 +353,7 @@ void main() {
     final revFuture = client.revokeRemoteDevice('dev_test_123');
     await Future<void>.delayed(const Duration(milliseconds: 20));
     expect(commands.last['type'], 'remote.revokeDevice');
-    expect(commands.last['payload']['deviceId'], 'dev_test_123');
+    expect(payloadOf(commands.last)['deviceId'], 'dev_test_123');
     socket.add(
       jsonEncode({
         'kind': 'result',
@@ -387,7 +390,7 @@ void main() {
     expect(commands.map((c) => c['type']).toList(), ['workspace.listBranches', 'workspace.switchBranch']);
     expect(commands[0]['sessionId'], 'session-b');
     expect(commands[1]['sessionId'], 'session-b');
-    expect(commands[1]['payload'], {'branch': 'feature/test', 'onDirty': 'stash'});
+    expect(payloadOf(commands[1]), {'branch': 'feature/test', 'onDirty': 'stash'});
 
     // Reply to listBranches
     socket.add(
@@ -532,8 +535,8 @@ void main() {
 
     expect(commands.last['type'], 'side.open');
     expect(commands.last['sessionId'], 'session-1');
-    expect(commands.last['payload']['sessionId'], 'session-1');
-    expect(commands.last['payload']['question'], 'explain this');
+    expect(payloadOf(commands.last)['sessionId'], 'session-1');
+    expect(payloadOf(commands.last)['question'], 'explain this');
 
     socket.add(
       jsonEncode({
@@ -555,8 +558,8 @@ void main() {
 
     expect(commands.last['type'], 'side.prompt');
     expect(commands.last['sessionId'], 'side-123');
-    expect(commands.last['payload']['sideId'], 'side-123');
-    expect(commands.last['payload']['text'], 'follow up question');
+    expect(payloadOf(commands.last)['sideId'], 'side-123');
+    expect(payloadOf(commands.last)['text'], 'follow up question');
 
     socket.add(
       jsonEncode({
@@ -577,7 +580,7 @@ void main() {
 
     expect(commands.last['type'], 'side.abort');
     expect(commands.last['sessionId'], 'side-123');
-    expect(commands.last['payload']['sideId'], 'side-123');
+    expect(payloadOf(commands.last)['sideId'], 'side-123');
 
     socket.add(
       jsonEncode({
@@ -598,7 +601,7 @@ void main() {
 
     expect(commands.last['type'], 'side.close');
     expect(commands.last['sessionId'], 'side-123');
-    expect(commands.last['payload']['sideId'], 'side-123');
+    expect(payloadOf(commands.last)['sideId'], 'side-123');
 
     socket.add(
       jsonEncode({

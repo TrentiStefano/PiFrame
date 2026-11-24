@@ -611,7 +611,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     var diff = '';
     try {
       final result = await client.getWorkspaceDiff(widget.sessionId, filePath: path);
-      diff = (result['data']?['diff'] ?? result['diff'])?.toString() ?? '';
+      diff = ((result['data'] as Map<String, dynamic>?)?['diff'] ?? result['diff'])?.toString() ?? '';
     } catch (_) {}
     if (!mounted) return;
     final strings = ref.read(appStringsProvider);

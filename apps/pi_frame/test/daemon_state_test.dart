@@ -370,7 +370,7 @@ void main() {
     expect(state.pendingUiRequests.single['options'], ['Yes']);
     expect(state.lastAppliedSeq, 42);
     final empty = applySessionSnapshot('test', 0, {
-      'transcript': {'entries': []},
+      'transcript': {'entries': <dynamic>[]},
     });
     expect(empty.entries, isEmpty);
     expect(empty.currentStreamingText, isEmpty);

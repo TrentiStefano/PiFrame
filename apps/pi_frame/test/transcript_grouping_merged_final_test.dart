@@ -142,7 +142,7 @@ void main() {
         {
           'id': 'a2',
           'role': 'assistant',
-          'content': <Map>[],
+          'content': <Map<String, dynamic>>[],
           'stopReason': 'error',
           'errorMessage': 'Provider returned 500',
           'timestamp': 3000,
@@ -292,7 +292,7 @@ void main() {
           'message': {
             'id': 'a2',
             'role': 'assistant',
-            'content': <Map>[],
+            'content': <Map<String, dynamic>>[],
             'stopReason': 'error',
             'errorMessage': 'boom',
           },
@@ -307,7 +307,7 @@ void main() {
     const errorMessage = {
       'id': 'a1',
       'role': 'assistant',
-      'content': <Map>[],
+      'content': <Map<String, dynamic>>[],
       'stopReason': 'error',
       'errorMessage': '429 rate limit',
     };

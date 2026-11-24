@@ -198,7 +198,7 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
               output = msg['content'] as String;
             } else if (msg['content'] is List) {
               output = (msg['content'] as List)
-                  .whereType<Map>()
+                  .whereType<Map<String, dynamic>>()
                   .where((b) => b['type'] == 'text')
                   .map((b) => b['text']?.toString() ?? '')
                   .join();
@@ -291,7 +291,7 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
 
       if (role == 'compactionSummary') {
         final summary = (msg['summary'] ?? msg['text'])?.toString() ?? '';
-        final tokensBefore = (msg['tokensBefore'] ?? msg['tokens_before'] as num?)?.toInt();
+        final tokensBefore = ((msg['tokensBefore'] ?? msg['tokens_before']) as num?)?.toInt();
         final entry = SessionEntry(
           id: (msg['id'] ?? 'compact_${current.entries.length}').toString(),
           role: 'compactionSummary',
@@ -315,7 +315,7 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
           text = msg['content'] as String;
         } else if (msg['content'] is List) {
           text = (msg['content'] as List)
-              .whereType<Map>()
+              .whereType<Map<String, dynamic>>()
               .where((b) => b['type'] == 'text')
               .map((b) => b['text']?.toString() ?? '')
               .join();
@@ -353,7 +353,7 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
       // If content has image blocks, convert to ChatAttachment:
       if (msg['content'] is List) {
         final attachments = <ChatAttachment>[];
-        for (final block in (msg['content'] as List).whereType<Map>()) {
+        for (final block in (msg['content'] as List).whereType<Map<String, dynamic>>()) {
           if (block['type'] == 'image') {
             final data = block['data']?.toString() ?? '';
             final mimeType = block['mimeType']?.toString() ?? 'image/png';
@@ -380,7 +380,7 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
           : (msg['thinking']?.toString().trim().isNotEmpty == true ? msg['thinking'].toString().trim() : null);
       if (thinking == null && msg['content'] is List) {
         final tb = (msg['content'] as List)
-            .whereType<Map>()
+            .whereType<Map<String, dynamic>>()
             .where((b) => b['type'] == 'thinking' || b['type'] == 'thought')
             .map((b) => (b['thinking'] ?? b['thought'] ?? b['text'])?.toString() ?? '')
             .join()
@@ -399,7 +399,7 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
           if (!recordedIds.contains(tool.toolCallId)) tool.toolCallId: tool,
       };
       if (msg['content'] is List) {
-        for (final b in (msg['content'] as List).whereType<Map>()) {
+        for (final b in (msg['content'] as List).whereType<Map<String, dynamic>>()) {
           if (b['type'] == 'toolCall' || b['type'] == 'tool_call' || b['type'] == 'tool_use') {
             final callId = (b['id'] ?? b['toolCallId'])?.toString() ?? 'tc_${turnTools.length}';
             final name = (b['name'] ?? b['toolName'])?.toString() ?? '';
@@ -417,7 +417,7 @@ SessionState reduceSessionState(SessionState current, PcpEvent event) {
         }
       }
       if (msg['toolCalls'] is List) {
-        for (final b in (msg['toolCalls'] as List).whereType<Map>()) {
+        for (final b in (msg['toolCalls'] as List).whereType<Map<String, dynamic>>()) {
           final callId = (b['id'] ?? b['toolCallId'])?.toString() ?? 'tc_${turnTools.length}';
           final name = (b['name'] ?? b['toolName'])?.toString() ?? '';
           final args = Map<String, dynamic>.from((b['arguments'] ?? b['args'] ?? b['input']) as Map? ?? {});

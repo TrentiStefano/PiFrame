@@ -1385,7 +1385,7 @@ class _TreeLinePainter extends CustomPainter {
       old.line != line ||
       old.color != color ||
       old.guides.length != guides.length ||
-      !Iterable.generate(guides.length).every((i) => old.guides[i] == guides[i]);
+      !Iterable<int>.generate(guides.length).every((i) => old.guides[i] == guides[i]);
 }
 
 /// Round agent badge; a running agent gets an orbiting arc.

@@ -187,7 +187,7 @@ curl -fsSL https://pi.dev/install.sh | sh
             }
             controller.close();
           })
-          .catchError((err) {
+          .catchError((Object err) {
             controller.add('\n[ERROR] $err\n');
             controller.close();
           });
