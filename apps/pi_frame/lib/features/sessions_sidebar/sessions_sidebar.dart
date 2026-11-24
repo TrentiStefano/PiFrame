@@ -4,7 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
-import '../../app/row_context_menu.dart';
+import '../../ui/row_context_menu.dart';
 import 'instruction_file_dialog.dart';
 import 'session_actions.dart';
 import 'session_titles.dart';

@@ -186,3 +186,19 @@ test('a stale baseline entry fails, naming the entry to delete', () => {
   assert.match(stale.message, /delete/);
   assert.match(stale.message, new RegExp(lib('features/gone.dart')));
 });
+
+test('a domain file importing flutter_riverpod or riverpod fails: domain/ stays free of state management', () => {
+  const result = run([
+    file(lib('domain/x.dart'), "import 'package:flutter_riverpod/flutter_riverpod.dart';"),
+    file(lib('domain/y.dart'), "import 'package:riverpod/riverpod.dart';")
+  ]);
+  assert.deepEqual(rules(result), [
+    `${lib('domain/x.dart')} package:flutter_riverpod/flutter_riverpod.dart domain-riverpod`,
+    `${lib('domain/y.dart')} package:riverpod/riverpod.dart domain-riverpod`
+  ]);
+});
+
+test('a feature file importing app fails: app/ is the shell, not a library for features', () => {
+  const result = run([file(lib('features/workspace/pane.dart'), "import '../../app/row_context_menu.dart';")]);
+  assert.deepEqual(rules(result), [`${lib('features/workspace/pane.dart')} ../../app/row_context_menu.dart layer`]);
+});

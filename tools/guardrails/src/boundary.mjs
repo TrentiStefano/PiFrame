@@ -38,8 +38,14 @@ const FORBIDDEN_LAYERS = {
   domain: ['data', 'features', 'ui', 'app'],
   data: ['features', 'ui', 'app'],
   ui: ['features', 'app', 'data'],
-  features: []
+  features: ['app']
 };
+/** Framework packages domain/ must not import: domain holds plain models, not Flutter widgets or Riverpod state. */
+const DOMAIN_FRAMEWORK_RULES = [
+  { prefix: 'package:flutter/', rule: 'domain-flutter' },
+  { prefix: 'package:flutter_riverpod/', rule: 'domain-riverpod' },
+  { prefix: 'package:riverpod/', rule: 'domain-riverpod' }
+];
 /**
  * Folders a layer may import although their layer is forbidden to it. Shared widgets show user-facing text, and all
  * user-facing text comes from the translation tables in data/language/ (presentation, not I/O).
@@ -111,8 +117,9 @@ function dartViolations(path, contents) {
     const target = resolveDart(path, spec);
     const to = target?.startsWith(APP_LIB) ? appLayer(target) : undefined;
     const at = { file: path, import: spec, line };
-    if (from === 'domain' && spec.startsWith('package:flutter/')) {
-      out.push({ ...at, rule: 'domain-flutter', message: rawMessage(at, 'domain') });
+    const framework = from === 'domain' ? DOMAIN_FRAMEWORK_RULES.find((r) => spec.startsWith(r.prefix)) : undefined;
+    if (framework) {
+      out.push({ ...at, rule: framework.rule, message: rawMessage(at, 'domain') });
     } else if (NO_RAW_IO.includes(from) && RAW_IO.has(rawKey(spec))) {
       out.push({ ...at, rule: 'raw-io', message: rawMessage(at, from) });
     }
@@ -130,8 +137,8 @@ function dartViolations(path, contents) {
 }
 
 function rawMessage({ file, import: spec, line }, from) {
-  if (from === 'domain' && spec.startsWith('package:flutter/')) {
-    return `${file}:${line} imports '${spec}': domain/ must stay pure Dart. Move the Flutter-dependent code into features/ or ui/ and keep only the plain model here.`;
+  if (from === 'domain' && DOMAIN_FRAMEWORK_RULES.some((r) => spec.startsWith(r.prefix))) {
+    return `${file}:${line} imports '${spec}': domain/ must stay pure Dart. Move the Flutter- or Riverpod-dependent code into data/, features/ or ui/ and keep only the plain model here.`;
   }
   return (
     `${file}:${line} imports '${spec}' in ${from}/, which must not use raw I/O or platform plugins. ` +
