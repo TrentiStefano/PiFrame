@@ -26,14 +26,14 @@ class MockInterruptClient extends PcpClient {
       };
     }
     if (command.type == 'agent.clearQueue') {
-      return {'data': {}};
+      return {'data': <String, dynamic>{}};
     }
     if (command.type == 'agent.prompt') {
       return {
         'data': {'runId': 'run_1'},
       };
     }
-    return {'data': {}};
+    return {'data': <String, dynamic>{}};
   }
 }
 

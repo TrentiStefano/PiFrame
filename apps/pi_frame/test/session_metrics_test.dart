@@ -98,7 +98,7 @@ void main() {
     );
     await pumpEventQueue();
     expect(client.statsCalls, 1);
-    expect(notifier.state.sessionStats?['contextUsage']['tokens'], 30000);
+    expect(((notifier.state.sessionStats?['contextUsage']) as Map<String, dynamic>?)?['tokens'], 30000);
   });
 
   test('session notifier exposes Pi cumulative stats without reshaping them when no override is set', () async {
@@ -112,9 +112,9 @@ void main() {
 
     await notifier.refreshSessionStats();
     expect(notifier.state.sessionStats?['cost'], 0.42);
-    expect(notifier.state.sessionStats?['tokens']['total'], 42000);
-    expect(notifier.state.sessionStats?['contextUsage']['percent'], closeTo(55.2, 0.1));
-    expect(notifier.state.sessionStats?['contextUsage']['contextWindow'], 128000);
+    expect(((notifier.state.sessionStats?['tokens']) as Map<String, dynamic>?)?['total'], 42000);
+    expect(((notifier.state.sessionStats?['contextUsage']) as Map<String, dynamic>?)?['percent'], closeTo(55.2, 0.1));
+    expect(((notifier.state.sessionStats?['contextUsage']) as Map<String, dynamic>?)?['contextWindow'], 128000);
   });
 
   test('refreshSessionStats recalculates contextUsage using contextWindowOverride when set', () async {
@@ -132,9 +132,9 @@ void main() {
     });
 
     await notifier.refreshSessionStats();
-    expect(notifier.state.sessionStats?['contextUsage']['contextWindow'], 100000);
+    expect(((notifier.state.sessionStats?['contextUsage']) as Map<String, dynamic>?)?['contextWindow'], 100000);
     // 70,000 / 100,000 = 70.0%
-    expect(notifier.state.sessionStats?['contextUsage']['percent'], 70.0);
+    expect(((notifier.state.sessionStats?['contextUsage']) as Map<String, dynamic>?)?['percent'], 70.0);
   });
 
   test('setContextWindow updates state after backend success without local compaction', () async {

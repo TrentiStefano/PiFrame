@@ -25,7 +25,7 @@ class _CostClient extends PcpClient {
 
   // Session names now come from the session list; answer it so no 8 s timeout stays pending.
   @override
-  Future<Map<String, dynamic>> listSessions({String? query, int? limit}) async => {'sessions': []};
+  Future<Map<String, dynamic>> listSessions({String? query, int? limit}) async => {'sessions': <dynamic>[]};
 
   @override
   Future<({List<Map<String, dynamic>> subagents, Map<String, dynamic> live})> getSubagentsWithLive(
@@ -60,7 +60,7 @@ class _SlowSubagentsClient extends PcpClient {
   DaemonConnectionState get state => DaemonConnectionState.connected;
 
   @override
-  Future<Map<String, dynamic>> listSessions({String? query, int? limit}) async => {'sessions': []};
+  Future<Map<String, dynamic>> listSessions({String? query, int? limit}) async => {'sessions': <dynamic>[]};
 
   @override
   Future<({List<Map<String, dynamic>> subagents, Map<String, dynamic> live})> getSubagentsWithLive(

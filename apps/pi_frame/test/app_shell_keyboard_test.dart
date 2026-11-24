@@ -32,7 +32,7 @@ class _InterruptRecordingClient extends PcpClient {
         },
       };
     }
-    return {'data': {}};
+    return {'data': <String, dynamic>{}};
   }
 }
 

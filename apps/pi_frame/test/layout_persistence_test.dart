@@ -257,7 +257,10 @@ void main() {
       await tester.pumpAndSettle();
       final dragged = tester.getSize(repo).width;
       expect(dragged, lessThan(before));
-      expect((jsonDecode(layoutFile.readAsStringSync()) as Map)['paneWeights'], isA<Map>());
+      expect(
+        (jsonDecode(layoutFile.readAsStringSync()) as Map<String, dynamic>)['paneWeights'],
+        isA<Map<String, dynamic>>(),
+      );
 
       await tester.pumpWidget(const SizedBox());
       await pumpShell(tester, container);
@@ -277,7 +280,7 @@ void main() {
       expect(saved['collapsedPanes'], contains('git'));
       expect(saved['compactPane'], isA<String>());
       expect(saved['companionPane'], isA<String>());
-      expect(saved['paneWeights'], isA<Map>());
+      expect(saved['paneWeights'], isA<Map<String, dynamic>>());
     });
 
     testWidgets('restored collapsed pane stays collapsed after restart', (tester) async {
@@ -353,7 +356,10 @@ void main() {
       await tester.pumpAndSettle();
       final wider = tester.getSize(repo).width;
       expect(wider, greaterThan(before));
-      expect((jsonDecode(layoutFile.readAsStringSync()) as Map)['paneWeights'], isA<Map>());
+      expect(
+        (jsonDecode(layoutFile.readAsStringSync()) as Map<String, dynamic>)['paneWeights'],
+        isA<Map<String, dynamic>>(),
+      );
 
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);

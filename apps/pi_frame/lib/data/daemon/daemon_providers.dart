@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pi_frame_protocol/pi_frame_protocol.dart';
 
 import '../../domain/session/agent_status.dart';
 import '../../domain/session/session_labels.dart';
@@ -108,8 +109,8 @@ final sessionStateFamily = StateNotifierProvider.family<SessionStateNotifier, Se
 class SessionStateNotifier extends StateNotifier<SessionState> {
   final String sessionId;
   final PcpClient? client;
-  StreamSubscription? _sub;
-  StreamSubscription? _snapSub;
+  StreamSubscription<PcpEvent>? _sub;
+  StreamSubscription<PcpSnapshot>? _snapSub;
 
   SessionStateNotifier(this.sessionId, this.client) : super(SessionState(sessionId: sessionId, cwd: '')) {
     _init();
@@ -151,7 +152,7 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
           .getHistory(sessionId, beforeId: beforeId, limit: limit)
           .timeout(const Duration(seconds: 10));
       final data = res['data'] as Map<String, dynamic>? ?? res;
-      final rawEntries = (data['entries'] as List?)?.whereType<Map>() ?? [];
+      final rawEntries = (data['entries'] as List?)?.whereType<Map<String, dynamic>>() ?? [];
       final olderEntries = parseSessionEntries(rawEntries);
       final hasMore = data['hasMore'] == true;
       final totalEntries = (data['totalEntries'] as num?)?.toInt();

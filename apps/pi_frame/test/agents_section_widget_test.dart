@@ -13,7 +13,7 @@ class _MockAgentsClient extends PcpClient {
   _MockAgentsClient({required this.config}) : super(port: 1, token: 'test');
 
   PiAgentsConfig config;
-  List<Map>? lastUpdateChanges;
+  List<Map<String, dynamic>>? lastUpdateChanges;
 
   @override
   Future<PiAgentsConfig> getAgentsConfig({String? cwd}) async {
@@ -21,7 +21,7 @@ class _MockAgentsClient extends PcpClient {
   }
 
   @override
-  Future<PiAgentsConfig> updateAgentsConfig(List<Map> changes) async {
+  Future<PiAgentsConfig> updateAgentsConfig(List<Map<String, dynamic>> changes) async {
     lastUpdateChanges = changes;
     return config;
   }
