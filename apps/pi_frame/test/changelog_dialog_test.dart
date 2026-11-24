@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -69,18 +67,14 @@ void main() {
   });
 
   testWidgets('StartupChangelogWatcher displays dialog when update detected', (tester) async {
-    final tempDir = Directory.systemTemp.createTempSync('cl_dialog_test_');
-    final stateFile = File('${tempDir.path}/changelog_state.json');
-    final firstRunFile = File('${tempDir.path}/app_first_run.json');
-    firstRunFile.writeAsStringSync('{"introPlayed":true}');
-    ChangelogStore.instance.setStorageFileForTesting(stateFile);
-    ChangelogStore.instance.setFirstRunFileForTesting(firstRunFile);
+    final files = FakeFileSystemService()..files['/fake/home/.piframe/app_first_run.json'] = '{"introPlayed":true}';
+    ChangelogStore.instance.setStorageForTesting(
+      files: files,
+      statePath: '/fake/home/.piframe/changelog_state.json',
+      firstRunPath: '/fake/home/.piframe/app_first_run.json',
+    );
     addTearDown(() {
-      ChangelogStore.instance.setStorageFileForTesting(null);
-      ChangelogStore.instance.setFirstRunFileForTesting(null);
-      try {
-        tempDir.deleteSync(recursive: true);
-      } catch (_) {}
+      ChangelogStore.instance.setStorageForTesting();
     });
 
     final mockService = ChangelogService(
@@ -149,17 +143,14 @@ void main() {
   });
 
   testWidgets('StartupChangelogWatcher stays quiet on a test host unless enabled', (tester) async {
-    final tempDir = Directory.systemTemp.createTempSync('cl_quiet_test_');
-    ChangelogStore.instance.setStorageFileForTesting(File('${tempDir.path}/changelog_state.json'));
-    ChangelogStore.instance.setFirstRunFileForTesting(
-      File('${tempDir.path}/app_first_run.json')..writeAsStringSync('{"introPlayed":true}'),
+    final files = FakeFileSystemService()..files['/fake/home/.piframe/app_first_run.json'] = '{"introPlayed":true}';
+    ChangelogStore.instance.setStorageForTesting(
+      files: files,
+      statePath: '/fake/home/.piframe/changelog_state.json',
+      firstRunPath: '/fake/home/.piframe/app_first_run.json',
     );
     addTearDown(() {
-      ChangelogStore.instance.setStorageFileForTesting(null);
-      ChangelogStore.instance.setFirstRunFileForTesting(null);
-      try {
-        tempDir.deleteSync(recursive: true);
-      } catch (_) {}
+      ChangelogStore.instance.setStorageForTesting();
     });
 
     final mockService = ChangelogService(

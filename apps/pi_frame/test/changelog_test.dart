@@ -1,9 +1,9 @@
-import 'dart:io';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_frame/data/changelog/changelog_service.dart';
 import 'package:pi_frame/data/changelog/changelog_store.dart';
 import 'package:pi_frame/domain/changelog/changelog_models.dart';
+
+import 'support/fake_platform_services.dart';
 
 void main() {
   group('ChangelogParser', () {
@@ -103,25 +103,18 @@ void main() {
   });
 
   group('ChangelogStore', () {
-    late Directory tempDir;
-    late File stateFile;
-    late File firstRunFile;
+    const statePath = '/fake/home/.piframe/changelog_state.json';
+    const firstRunPath = '/fake/home/.piframe/app_first_run.json';
+    late FakeFileSystemService files;
     final store = ChangelogStore.instance;
 
     setUp(() {
-      tempDir = Directory.systemTemp.createTempSync('piframe_cl_test_');
-      stateFile = File('${tempDir.path}/changelog_state.json');
-      firstRunFile = File('${tempDir.path}/app_first_run.json');
-      store.setStorageFileForTesting(stateFile);
-      store.setFirstRunFileForTesting(firstRunFile);
+      files = FakeFileSystemService();
+      store.setStorageForTesting(files: files, statePath: statePath, firstRunPath: firstRunPath);
     });
 
     tearDown(() {
-      store.setStorageFileForTesting(null);
-      store.setFirstRunFileForTesting(null);
-      try {
-        tempDir.deleteSync(recursive: true);
-      } catch (_) {}
+      store.setStorageForTesting();
     });
 
     test('fresh install without firstRun file does not show changelog and marks version', () {
@@ -130,7 +123,7 @@ void main() {
     });
 
     test('existing user upgrading version shows changelog', () {
-      firstRunFile.writeAsStringSync('{"introPlayed":true}');
+      files.files[firstRunPath] = '{"introPlayed":true}';
       expect(store.shouldShowChangelog('1.5.0'), isTrue);
 
       store.setLastSeenVersion('1.5.0');

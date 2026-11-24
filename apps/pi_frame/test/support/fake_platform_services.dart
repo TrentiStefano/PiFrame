@@ -302,6 +302,9 @@ class FakeProcessService implements ProcessService {
   /// Every process started with [start], in order. Tests push output into it and finish it.
   final List<FakeRunningProcess> started = [];
 
+  /// The environment each call passed, in call order (null when the caller let the service default it).
+  final List<Map<String, String>?> environments = [];
+
   @override
   Future<ProcessOutput> run(
     String executable,
@@ -312,6 +315,7 @@ class FakeProcessService implements ProcessService {
     Map<String, String>? environment,
   }) async {
     commands.add([executable, ...arguments].join(' '));
+    environments.add(environment);
     return output;
   }
 
@@ -324,6 +328,7 @@ class FakeProcessService implements ProcessService {
     Map<String, String>? environment,
   }) async {
     commands.add([executable, ...arguments].join(' '));
+    environments.add(environment);
     final process = FakeRunningProcess(startArguments: [executable, ...arguments], workingDirectory: workingDirectory);
     started.add(process);
     return process;

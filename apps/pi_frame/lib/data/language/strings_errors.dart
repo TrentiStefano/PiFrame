@@ -1,7 +1,7 @@
 import 'language_settings.dart';
 
 /// Localized titles and hints for user-facing error descriptions.
-/// See `domain/errors/user_facing_error.dart` for the mapping.
+/// See `data/errors/user_facing_error_mapping.dart` for the mapping.
 extension ErrorStrings on AppStrings {
   String get errorUnknownTitle => isItalian ? 'Operazione non riuscita' : 'Operation failed';
 
