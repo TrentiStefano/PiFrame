@@ -84,7 +84,14 @@ class IoRunningProcess implements RunningProcess {
 }
 
 class IoProcessService implements ProcessService {
-  const IoProcessService();
+  /// [defaultEnvironment] supplies the environment used when a call passes none. It defaults to
+  /// the augmented environment from [PlatformEnvironment]; tests inject their own.
+  IoProcessService({Map<String, String> Function()? defaultEnvironment})
+    : _defaultEnvironment = defaultEnvironment ?? _augmentedEnvironment;
+
+  final Map<String, String> Function() _defaultEnvironment;
+
+  static Map<String, String> _augmentedEnvironment() => PlatformEnvironment.environment;
 
   @override
   Future<ProcessOutput> run(
@@ -99,7 +106,7 @@ class IoProcessService implements ProcessService {
       executable,
       arguments,
       workingDirectory: workingDirectory,
-      environment: environment ?? PlatformEnvironment.environment,
+      environment: environment ?? _defaultEnvironment(),
       runInShell: runInShell,
     );
     final result = await (timeout == null ? future : future.timeout(timeout));
@@ -118,11 +125,11 @@ class IoProcessService implements ProcessService {
       executable,
       arguments,
       workingDirectory: workingDirectory,
-      environment: environment,
+      environment: environment ?? _defaultEnvironment(),
       runInShell: runInShell,
     );
     return IoRunningProcess(process);
   }
 }
 
-final processServiceProvider = Provider<ProcessService>((ref) => const IoProcessService());
+final processServiceProvider = Provider<ProcessService>((ref) => IoProcessService());
