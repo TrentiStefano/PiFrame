@@ -116,7 +116,7 @@ export class AgentsService {
     const checkModelAvailable = (modelStr: string | null): boolean | null => {
       if (!modelStr) return null;
       if (availableModels.length === 0) return null;
-      const base = modelStr.split(':')[0];
+      const base = modelStr.split(':')[0] ?? modelStr;
       return modelMap.has(base) || availableModels.some((m) => m.id === base || m.id === modelStr);
     };
 
@@ -368,7 +368,7 @@ export class AgentsService {
 
           // Validate model if given
           if (change.model !== undefined && change.model !== null) {
-            const baseModel = change.model.split(':')[0];
+            const baseModel = change.model.split(':')[0] ?? change.model;
             if (
               current.availableModels.length > 0 &&
               !availableModelMap.has(baseModel) &&
@@ -426,7 +426,7 @@ export class AgentsService {
         } else if (change.kind === 'subagentDefaults') {
           // Validate model
           if (change.model !== undefined && change.model !== null) {
-            const baseModel = change.model.split(':')[0];
+            const baseModel = change.model.split(':')[0] ?? change.model;
             if (
               current.availableModels.length > 0 &&
               !availableModelMap.has(baseModel) &&
@@ -486,7 +486,7 @@ export class AgentsService {
                 message: "Session default model must be in 'provider/id' format"
               });
             } else {
-              const baseModel = change.model.split(':')[0];
+              const baseModel = change.model.split(':')[0] ?? change.model;
               if (
                 current.availableModels.length > 0 &&
                 !availableModelMap.has(baseModel) &&

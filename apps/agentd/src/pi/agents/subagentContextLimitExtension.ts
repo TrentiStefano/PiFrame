@@ -52,6 +52,7 @@ export function subagentContextLimitExtension(pi: any): void {
     const match = prompt.match(/<active_agent\s+name=["']([^"']+)["']/);
     if (!match) return;
     const agentName = match[1];
+    if (agentName === undefined) return;
 
     const limits = getContextLimits();
     const limit = limits[agentName];
@@ -107,6 +108,7 @@ export default function subagentContextLimitExtension(pi) {
     const match = prompt.match(/<active_agent\\s+name=["']([^"']+)["']/);
     if (!match) return;
     const agentName = match[1];
+    if (agentName === undefined) return;
 
     const limits = getContextLimits();
     const limit = limits[agentName];

@@ -1,4 +1,3 @@
-import * as path from 'node:path';
 import { PIFRAME_SUBAGENTS_STATUS_KEY, parseLiveSubagents, type LiveSubagentState } from './liveSubagents.js';
 import { EventJournal } from '../journal/EventJournal.js';
 import { SnapshotBuilder, type SnapshotContext } from '../journal/SnapshotBuilder.js';
@@ -216,9 +215,20 @@ export class Session {
     return event;
   }
 
+  private settleRun(): void {
+    this.finishActiveTools();
+    this.status = 'settled';
+    this.runStartedAt = null;
+    this.isStreaming = false;
+    this.liveMessage = null;
+    this.activeTools.clear();
+  }
+
   private recordToolTiming(tool: any): void {
     for (let i = this.entries.length - 1; i >= 0; i--) {
-      const message: any = this.entries[i].message || this.entries[i];
+      const entry = this.entries[i];
+      if (!entry) continue;
+      const message: any = entry.message || entry;
       for (const calls of [message.toolCalls, message.content]) {
         if (!Array.isArray(calls)) continue;
         const call = calls.find((c: any) => c && (c.id ?? c.toolCallId) === tool.toolCallId);
@@ -295,15 +305,14 @@ export class Session {
         break;
 
       case 'session.status':
-        if (payload.status !== 'settled' && payload.status !== 'idle') break;
-      // Recovery must settle the same execution state as a normal stop.
+        // Recovery must settle the same execution state as a normal stop.
+        if (payload.status === 'settled' || payload.status === 'idle') {
+          this.settleRun();
+        }
+        break;
+
       case 'run.settled':
-        this.finishActiveTools();
-        this.status = 'settled';
-        this.runStartedAt = null;
-        this.isStreaming = false;
-        this.liveMessage = null;
-        this.activeTools.clear();
+        this.settleRun();
         break;
 
       case 'retry.started':

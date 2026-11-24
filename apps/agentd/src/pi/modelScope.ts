@@ -20,7 +20,7 @@ export function readEnabledModelPatterns(
 function globRegex(pattern: string): RegExp {
   let source = '^';
   for (let index = 0; index < pattern.length; index++) {
-    const character = pattern[index];
+    const character = pattern[index] ?? '';
     if (character === '*') source += '.*';
     else if (character === '?') source += '.';
     else if (character === '[') {
@@ -67,7 +67,8 @@ function resolvePattern(pattern: string, models: Array<Record<string, any>>): Ar
   if (matches.length === 0) return [];
   const aliases = matches.filter((model) => !/-\d{8}$/.test(String(model.id)));
   const preferred = aliases.length > 0 ? aliases : matches;
-  return [[...preferred].sort((a, b) => String(b.id).localeCompare(String(a.id)))[0]];
+  const best = [...preferred].sort((a, b) => String(b.id).localeCompare(String(a.id)))[0];
+  return best ? [best] : [];
 }
 
 /** Match Pi's enabledModels scope against models already filtered by Pi authentication. */
