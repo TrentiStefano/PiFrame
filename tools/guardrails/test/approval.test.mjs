@@ -49,7 +49,7 @@ test('a change to a guarded path needs approval, whichever way it goes', () => {
   const guarded = [
     'apps/pi_frame/analysis_options.yaml',
     'tsconfig.base.json',
-    'apps/agentd/tsconfig.build.json',
+    'apps/agentd/tsconfig.json',
     '.prettierrc.json',
     '.prettierignore',
     'apps/agentd/eslint.config.mjs',
@@ -67,8 +67,7 @@ test('a change to a guarded path needs approval, whichever way it goes', () => {
     'tools/scripts/flutter-projects.json',
     'tools/scripts/typescript-projects.json',
     'tsconfig.base.json',
-    'tsconfig.build.base.json',
-    'apps/agentd/tsconfig.build.json',
+    'apps/agentd/tsconfig.json',
     'eslint.config.mjs',
     'tools/scripts/audit-escape-hatches.mjs',
     'tools/scripts/check-doc-links.mjs',
