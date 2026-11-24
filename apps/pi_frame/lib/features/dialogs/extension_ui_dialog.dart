@@ -43,6 +43,9 @@ class ExtensionUiDialog extends ConsumerStatefulWidget {
   ConsumerState<ExtensionUiDialog> createState() => _ExtensionUiDialogState();
 }
 
+/// One tick of the dialog countdown, which counts the timeout down in whole seconds.
+const _countdownTickInterval = Duration(seconds: 1);
+
 class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
   // Another client holds the lease. Any other claim failure (offline, timeout, stale) must not lock the user out:
   // the daemon still arbitrates the final answer.
@@ -169,7 +172,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
     final timeoutMs = widget.request['timeoutMs'] as int?;
     if (timeoutMs != null && timeoutMs > 0) {
       _secondsRemaining = (timeoutMs / 1000).ceil();
-      _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      _countdownTimer = Timer.periodic(_countdownTickInterval, (timer) {
         if (_secondsRemaining > 1) {
           setState(() => _secondsRemaining--);
         } else {

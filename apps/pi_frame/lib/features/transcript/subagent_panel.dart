@@ -1662,6 +1662,9 @@ class _WorkflowDetails extends ConsumerStatefulWidget {
   ConsumerState<_WorkflowDetails> createState() => _WorkflowDetailsState();
 }
 
+/// How often the subagent panel re-reads its journal while a run is in progress.
+const _journalPollInterval = Duration(seconds: 2);
+
 class _WorkflowDetailsState extends ConsumerState<_WorkflowDetails> {
   List<_JournalEntry> _journal = const [];
   Timer? _timer;
@@ -1688,7 +1691,7 @@ class _WorkflowDetailsState extends ConsumerState<_WorkflowDetails> {
 
   void _syncTimer() {
     if (widget.run.isRunning && !widget.hasChildren && !kIsWeb && !isWidgetTestBinding) {
-      _timer ??= Timer.periodic(const Duration(seconds: 2), (_) => _readJournal());
+      _timer ??= Timer.periodic(_journalPollInterval, (_) => _readJournal());
     } else {
       _timer?.cancel();
       _timer = null;

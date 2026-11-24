@@ -30,6 +30,9 @@ class RemoteSection extends ConsumerStatefulWidget {
   ConsumerState<RemoteSection> createState() => _RemoteSectionState();
 }
 
+/// One tick of the pairing-code countdown, which counts the code expiry down in whole seconds.
+const _pairingCountdownTickInterval = Duration(seconds: 1);
+
 class _RemoteSectionState extends ConsumerState<RemoteSection> {
   /// Keeps [e] as a mapped error for the callout. [title] is its context line.
   void _showError(Object e, {String? title}) {
@@ -80,7 +83,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
 
   void _startCountdownIfNeeded() {
     if (_countdownTimer != null || _pairingExpiresAt == null) return;
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+    _countdownTimer = Timer.periodic(_pairingCountdownTickInterval, (_) {
       if (!mounted) return;
       if (_pairingExpiresAt != null) {
         setState(() {});

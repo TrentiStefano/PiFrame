@@ -138,6 +138,9 @@ final subagentLiveStateFamily = StateProvider.family<SubagentLiveState, String>(
   (ref, sessionId) => const SubagentLiveState(),
 );
 
+/// How often the subagent list refreshes while any subagent is active.
+const _subagentRefreshInterval = Duration(seconds: 5);
+
 class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
   final Ref ref;
   final String sessionId;
@@ -177,7 +180,7 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
     final hasActive =
         state.any((s) => s.isRunning) || (state.isNotEmpty && ref.read(sessionStateFamily(sessionId)).isStreaming);
     if (hasActive) {
-      _refreshTimer ??= Timer.periodic(const Duration(seconds: 5), (_) {
+      _refreshTimer ??= Timer.periodic(_subagentRefreshInterval, (_) {
         _syncFromSessionState();
         _fetchFromDaemon();
         _readOutputFiles();

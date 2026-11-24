@@ -17,6 +17,9 @@ class DiffBlock extends StatefulWidget {
   State<DiffBlock> createState() => _DiffBlockState();
 }
 
+/// How long the "copied" feedback stays on the copy button.
+const _copiedFeedbackDuration = Duration(seconds: 2);
+
 class _DiffBlockState extends State<DiffBlock> {
   bool _copied = false;
   String? _cachedDiffText;
@@ -50,7 +53,7 @@ class _DiffBlockState extends State<DiffBlock> {
     await Clipboard.setData(ClipboardData(text: widget.diffText));
     if (mounted) {
       setState(() => _copied = true);
-      Future.delayed(const Duration(seconds: 2), () {
+      Future.delayed(_copiedFeedbackDuration, () {
         if (mounted) setState(() => _copied = false);
       });
     }

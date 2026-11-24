@@ -17,6 +17,9 @@ class CodeBlock extends StatefulWidget {
   State<CodeBlock> createState() => _CodeBlockState();
 }
 
+/// How long the "copied" feedback stays on the copy button.
+const _copiedFeedbackDuration = Duration(seconds: 2);
+
 class _CodeBlockState extends State<CodeBlock> {
   bool _copied = false;
   String? _cachedCode;
@@ -28,7 +31,7 @@ class _CodeBlockState extends State<CodeBlock> {
     await Clipboard.setData(ClipboardData(text: widget.code));
     if (mounted) {
       setState(() => _copied = true);
-      Future.delayed(const Duration(seconds: 2), () {
+      Future.delayed(_copiedFeedbackDuration, () {
         if (mounted) setState(() => _copied = false);
       });
     }

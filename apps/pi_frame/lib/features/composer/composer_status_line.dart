@@ -94,6 +94,9 @@ class _ComposerRunStatusRow extends StatefulWidget {
   State<_ComposerRunStatusRow> createState() => _ComposerRunStatusRowState();
 }
 
+/// How often the status line redraws its elapsed time while a run is in progress.
+const _statusLineRefreshInterval = Duration(seconds: 1);
+
 class _ComposerRunStatusRowState extends State<_ComposerRunStatusRow> {
   late final int _fallbackStart = DateTime.now().millisecondsSinceEpoch;
   Timer? _ticker;
@@ -101,7 +104,7 @@ class _ComposerRunStatusRowState extends State<_ComposerRunStatusRow> {
   @override
   void initState() {
     super.initState();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+    _ticker = Timer.periodic(_statusLineRefreshInterval, (_) {
       if (mounted) setState(() {});
     });
   }

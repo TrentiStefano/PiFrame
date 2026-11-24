@@ -12,6 +12,9 @@ class UpdatesPeriodicWatcher extends ConsumerStatefulWidget {
   ConsumerState<UpdatesPeriodicWatcher> createState() => _UpdatesPeriodicWatcherState();
 }
 
+/// How often the updates watcher checks whether an update check is due.
+const _updateDueCheckInterval = Duration(hours: 1);
+
 class _UpdatesPeriodicWatcherState extends ConsumerState<UpdatesPeriodicWatcher> {
   Timer? _timer;
 
@@ -22,7 +25,7 @@ class _UpdatesPeriodicWatcherState extends ConsumerState<UpdatesPeriodicWatcher>
       _checkIfDue();
     });
     // Check every hour if periodic interval is due
-    _timer = Timer.periodic(const Duration(hours: 1), (_) {
+    _timer = Timer.periodic(_updateDueCheckInterval, (_) {
       _checkIfDue();
     });
   }

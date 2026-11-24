@@ -153,6 +153,9 @@ class ToolCard extends StatefulWidget {
   State<ToolCard> createState() => _ToolCardState();
 }
 
+/// How often a running tool card redraws its elapsed time.
+const _liveElapsedTickInterval = Duration(seconds: 1);
+
 class _ToolCardState extends State<ToolCard> {
   bool _isExpanded = false;
   bool _initializedExpansion = false;
@@ -181,7 +184,7 @@ class _ToolCardState extends State<ToolCard> {
 
   void _startLiveTimer() {
     _liveTimer?.cancel();
-    _liveTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+    _liveTimer = Timer.periodic(_liveElapsedTickInterval, (_) {
       if (mounted && widget.tool.isRunning) {
         setState(() {});
       }

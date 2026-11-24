@@ -128,6 +128,9 @@ const double kStepListMaxHeightFraction = 0.5;
 /// Below this window width the steps block is minimized by default.
 const double kCompactStepsWidth = 600;
 
+/// How often a running step group redraws its elapsed time.
+const _liveElapsedTickInterval = Duration(seconds: 1);
+
 class _StepsGroupState extends ConsumerState<StepsGroup> {
   Timer? _liveTimer;
 
@@ -166,7 +169,7 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
 
   void _startLiveTimer() {
     _liveTimer?.cancel();
-    _liveTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+    _liveTimer = Timer.periodic(_liveElapsedTickInterval, (_) {
       if (mounted && widget.block.isRunning) {
         setState(() {});
       }

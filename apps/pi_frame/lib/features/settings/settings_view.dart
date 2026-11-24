@@ -48,6 +48,9 @@ class SettingsView extends ConsumerStatefulWidget {
   ConsumerState<SettingsView> createState() => _SettingsViewState();
 }
 
+/// How long the "saved" status message stays on screen after a settings change.
+const _configStatusVisibleDuration = Duration(seconds: 3);
+
 class _SettingsViewState extends ConsumerState<SettingsView> {
   /// From this width the navigation is a left column; below it, a tab row.
   static const double _wideNavBreakpoint = 900;
@@ -511,7 +514,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
         setState(() {
           _configStatusMessage = strings.timeoutUpdatedStatus;
         });
-        Future.delayed(const Duration(seconds: 3), () {
+        Future.delayed(_configStatusVisibleDuration, () {
           if (mounted) {
             setState(() => _configStatusMessage = null);
           }

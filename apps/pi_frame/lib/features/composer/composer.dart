@@ -106,6 +106,9 @@ class Composer extends ConsumerStatefulWidget {
   ConsumerState<Composer> createState() => _ComposerState();
 }
 
+/// How long the pointer must rest over a minimized composer before it expands.
+const _minimizedHoverExpandDelay = Duration(seconds: 5);
+
 class _ComposerState extends ConsumerState<Composer> {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
@@ -1545,7 +1548,7 @@ class _ComposerState extends ConsumerState<Composer> {
         _hoverGraceTimer = null;
         if (shouldMinimize) {
           _expand5sTimer?.cancel();
-          _expand5sTimer = Timer(const Duration(seconds: 5), () {
+          _expand5sTimer = Timer(_minimizedHoverExpandDelay, () {
             if (mounted && _isPointerOver) {
               setState(() {
                 _isManuallyExpanded = true;
@@ -1557,7 +1560,7 @@ class _ComposerState extends ConsumerState<Composer> {
       },
       onHover: (event) {
         if (shouldMinimize && _expand5sTimer == null && _isPointerOver) {
-          _expand5sTimer = Timer(const Duration(seconds: 5), () {
+          _expand5sTimer = Timer(_minimizedHoverExpandDelay, () {
             if (mounted && _isPointerOver) {
               setState(() {
                 _isManuallyExpanded = true;
@@ -2701,6 +2704,9 @@ class _MinimizedElapsedTimer extends StatefulWidget {
   State<_MinimizedElapsedTimer> createState() => _MinimizedElapsedTimerState();
 }
 
+/// How often the elapsed-time label redraws while a run is in progress.
+const _elapsedRefreshInterval = Duration(seconds: 1);
+
 class _MinimizedElapsedTimerState extends State<_MinimizedElapsedTimer> {
   late final int _fallbackStart = DateTime.now().millisecondsSinceEpoch;
   Timer? _ticker;
@@ -2708,7 +2714,7 @@ class _MinimizedElapsedTimerState extends State<_MinimizedElapsedTimer> {
   @override
   void initState() {
     super.initState();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+    _ticker = Timer.periodic(_elapsedRefreshInterval, (_) {
       if (mounted) setState(() {});
     });
   }

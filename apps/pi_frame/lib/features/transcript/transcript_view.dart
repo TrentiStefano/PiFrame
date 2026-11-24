@@ -2663,6 +2663,9 @@ class _LiveTurnTimerWidget extends StatefulWidget {
   State<_LiveTurnTimerWidget> createState() => _LiveTurnTimerWidgetState();
 }
 
+/// How often the transcript elapsed-time label redraws while a run is in progress.
+const _elapsedRefreshInterval = Duration(seconds: 1);
+
 class _LiveTurnTimerWidgetState extends State<_LiveTurnTimerWidget> {
   Timer? _timer;
 
@@ -2683,7 +2686,7 @@ class _LiveTurnTimerWidgetState extends State<_LiveTurnTimerWidget> {
   void _startTimer() {
     _timer?.cancel();
     if (widget.startTime != null) {
-      _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      _timer = Timer.periodic(_elapsedRefreshInterval, (_) {
         if (mounted) setState(() {});
       });
     }
