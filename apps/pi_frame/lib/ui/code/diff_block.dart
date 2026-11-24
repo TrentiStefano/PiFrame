@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -53,9 +55,11 @@ class _DiffBlockState extends State<DiffBlock> {
     await Clipboard.setData(ClipboardData(text: widget.diffText));
     if (mounted) {
       setState(() => _copied = true);
-      Future.delayed(_copiedFeedbackDuration, () {
-        if (mounted) setState(() => _copied = false);
-      });
+      unawaited(
+        Future<void>.delayed(_copiedFeedbackDuration, () {
+          if (mounted) setState(() => _copied = false);
+        }),
+      );
     }
   }
 

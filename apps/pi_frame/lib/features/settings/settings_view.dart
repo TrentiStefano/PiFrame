@@ -514,11 +514,13 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
         setState(() {
           _configStatusMessage = strings.timeoutUpdatedStatus;
         });
-        Future.delayed(_configStatusVisibleDuration, () {
-          if (mounted) {
-            setState(() => _configStatusMessage = null);
-          }
-        });
+        unawaited(
+          Future<void>.delayed(_configStatusVisibleDuration, () {
+            if (mounted) {
+              setState(() => _configStatusMessage = null);
+            }
+          }),
+        );
       }
     } catch (e) {
       if (mounted) {
