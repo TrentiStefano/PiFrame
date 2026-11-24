@@ -63,8 +63,8 @@ export abstract class BaseTunnelProvider extends EventEmitter implements TunnelP
   }
 }
 
-// Extra time after the grace period before the stop gives up waiting for the tunnel process to exit.
-const GIVE_UP_SLACK_MS = 1500;
+// How long after the SIGKILL escalation the stop waits for the tunnel process to exit before it gives up waiting.
+const EXIT_WAIT_AFTER_SIGKILL_MS = 1500;
 
 /**
  * Terminates a child process AND its descendants.
@@ -103,7 +103,7 @@ export function killProcessTree(proc: child_process.ChildProcess, graceMs = 3000
 
     signal('SIGTERM');
     const forceTimer = setTimeout(() => signal('SIGKILL'), graceMs);
-    const giveUpTimer = setTimeout(finish, graceMs + GIVE_UP_SLACK_MS);
+    const giveUpTimer = setTimeout(finish, graceMs + EXIT_WAIT_AFTER_SIGKILL_MS);
     forceTimer.unref?.();
     giveUpTimer.unref?.();
   });
