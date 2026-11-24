@@ -177,20 +177,22 @@ curl -fsSL https://pi.dev/install.sh | sh
         controller.add(utf8.decode(bytes, allowMalformed: true));
       });
 
-      process.exitCode
-          .then((code) {
-            PlatformEnvironment.resetCache();
-            if (code == 0) {
-              controller.add('\n[SUCCESS] Pi Coding Agent installed successfully!\n');
-            } else {
-              controller.add('\n[ERROR] Install process exited with code: $code\n');
-            }
-            controller.close();
-          })
-          .catchError((err) {
-            controller.add('\n[ERROR] $err\n');
-            controller.close();
-          });
+      unawaited(
+        process.exitCode
+            .then((code) {
+              PlatformEnvironment.resetCache();
+              if (code == 0) {
+                controller.add('\n[SUCCESS] Pi Coding Agent installed successfully!\n');
+              } else {
+                controller.add('\n[ERROR] Install process exited with code: $code\n');
+              }
+              unawaited(controller.close());
+            })
+            .catchError((err) {
+              controller.add('\n[ERROR] $err\n');
+              unawaited(controller.close());
+            }),
+      );
 
       yield* controller.stream;
     } catch (e) {

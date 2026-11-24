@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -34,8 +36,8 @@ class _DesktopCaptionButtonsState extends State<DesktopCaptionButtons> with Wind
   void initState() {
     super.initState();
     windowManager.addListener(this);
-    windowManager.setPreventClose(widget.onCloseRequested != null);
-    _refresh();
+    unawaited(windowManager.setPreventClose(widget.onCloseRequested != null));
+    unawaited(_refresh());
   }
 
   @override

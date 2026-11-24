@@ -64,7 +64,7 @@ class IndexEventClient extends StartupRaceClient {
 
   @override
   void dispose() {
-    indexEvents.close();
+    unawaited(indexEvents.close());
     super.dispose();
   }
 }
@@ -95,7 +95,7 @@ class StartupRaceClient extends ListClient {
 
   @override
   void dispose() {
-    changes.close();
+    unawaited(changes.close());
     super.dispose();
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -250,7 +252,7 @@ class AgentsConfigController extends StateNotifier<AgentsConfigState> {
 
   AgentsConfigController(this._client) : super(const AgentsConfigState()) {
     if (_client != null) {
-      load();
+      unawaited(load());
     }
   }
 

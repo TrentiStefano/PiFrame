@@ -31,7 +31,7 @@ class UpdateSettingsNotifier extends StateNotifier<UpdateSettings> {
   bool _userModified = false;
 
   UpdateSettingsNotifier(this._storage) : super(const UpdateSettings()) {
-    _load();
+    unawaited(_load());
   }
 
   Future<void> _load() async {

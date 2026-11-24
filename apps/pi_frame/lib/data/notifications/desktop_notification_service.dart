@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
@@ -113,8 +114,8 @@ class DesktopNotificationService {
       notification.onClick = () {
         if (!isHarnessMode) {
           try {
-            windowManager.show();
-            windowManager.focus();
+            unawaited(windowManager.show());
+            unawaited(windowManager.focus());
           } catch (_) {}
         }
         if (sessionId != null) {

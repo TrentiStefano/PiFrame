@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
 
@@ -45,10 +46,10 @@ class IoNativeAudioService implements NativeAudioService {
 
         playSound(ptr.cast<Void>(), 0, _sndMemory | _sndAsync);
       } catch (_) {
-        SystemSound.play(SystemSoundType.click);
+        unawaited(SystemSound.play(SystemSoundType.click));
       }
     } else {
-      SystemSound.play(SystemSoundType.click);
+      unawaited(SystemSound.play(SystemSoundType.click));
     }
   }
 
