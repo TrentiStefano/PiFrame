@@ -22,6 +22,9 @@ export function startEventLoopMonitor(
   return () => clearInterval(timer);
 }
 
+// Milliseconds in one second, to turn the profile length (in seconds) into a timer delay.
+const MS_PER_SECOND = 1000;
+
 /**
  * Dev-only: samples the CPU for `seconds` from daemon start and writes a .cpuprofile file, so a blocked
  * event loop can be matched to the functions that ran. Off unless PIFRAME_DEV_PROFILE_SECONDS is set.
@@ -43,7 +46,7 @@ export function startDevCpuProfile(
       session.disconnect();
       onDone(file);
     });
-  }, seconds * 1000).unref();
+  }, seconds * MS_PER_SECOND).unref();
   return true;
 }
 

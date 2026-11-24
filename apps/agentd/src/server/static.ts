@@ -137,6 +137,9 @@ export function setSecurityHeaders(
   res.setHeader('X-Content-Type-Options', 'nosniff');
 }
 
+// Delay before the pairing page reloads after a device is paired, so the success message can be read.
+const PAIR_RELOAD_DELAY_MS = 1500;
+
 export function serveStaticFile(
   req: http.IncomingMessage,
   res: http.ServerResponse,
@@ -318,7 +321,7 @@ export function serveStaticFile(
           statusEl.textContent = '✓ Device paired! (Permissions: ' + (res.device ? res.device.mode : 'view') + ')';
           statusEl.className = 'pair-status success';
           if (formEl) formEl.style.display = 'none';
-          setTimeout(function() { window.location.reload(); }, 1500);
+          setTimeout(function() { window.location.reload(); }, ${PAIR_RELOAD_DELAY_MS});
         } else {
           statusEl.textContent = 'Error: ' + (res.error || 'Invalid code');
           statusEl.className = 'pair-status error';

@@ -114,6 +114,12 @@ interface SocketUpgradeMetadata {
   rateLimitKey: string;
 }
 
+// How often the failed-hello rate limiter drops expired entries.
+const FAILED_HELLO_PRUNE_INTERVAL_MS = 60_000;
+
+// How often a still-authenticating connection is checked, so its authentication slot is released once it is ready.
+const AUTH_SLOT_RELEASE_POLL_MS = 100;
+
 export function createWsServer(opts: WsServerOptions): { wss: WebSocketServer; manager: ConnectionManager } {
   const {
     httpServer,
@@ -204,7 +210,7 @@ export function createWsServer(opts: WsServerOptions): { wss: WebSocketServer; m
         failedHelloPerKey.set(key, active);
       }
     }
-  }, 60_000);
+  }, FAILED_HELLO_PRUNE_INTERVAL_MS);
   pruneTimer.unref?.();
 
   // Concurrency cap on unauthenticated connections arriving over remote listener
@@ -345,7 +351,7 @@ export function createWsServer(opts: WsServerOptions): { wss: WebSocketServer; m
         releaseAuthSlot();
         clearInterval(checkReadyInterval);
       }
-    }, 100);
+    }, AUTH_SLOT_RELEASE_POLL_MS);
     checkReadyInterval.unref?.();
 
     manager.add(conn);

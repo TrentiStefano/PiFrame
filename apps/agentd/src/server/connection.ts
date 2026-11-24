@@ -23,6 +23,15 @@ export interface ConnectionOptions {
   onClose: (conn: Connection) => void;
 }
 
+// How long a new connection may take to send its hello before it is closed.
+const HANDSHAKE_TIMEOUT_MS = 5000;
+
+// How often the daemon sends a heartbeat ping to each connected client.
+const HEARTBEAT_INTERVAL_MS = 15_000;
+
+// How long the daemon waits for a heartbeat pong before it closes the connection.
+const PONG_TIMEOUT_MS = 10_000;
+
 export class Connection {
   public readonly id: string;
   public state: ConnectionState = 'authenticating';
@@ -93,7 +102,7 @@ export class Connection {
           this.close(4001, 'Handshake timeout (no hello within 5s)');
         }
       });
-    }, 5000);
+    }, HANDSHAKE_TIMEOUT_MS);
 
     this.ws.on('message', (data: Buffer | string) => {
       this.handleIncoming(data.toString());
@@ -297,9 +306,9 @@ export class Connection {
         setImmediate(() => {
           if (this.pongTimeout === timer) this.close(4008, 'Heartbeat timeout: no pong received within 10s');
         });
-      }, 10000);
+      }, PONG_TIMEOUT_MS);
       this.pongTimeout = timer;
-    }, 15000);
+    }, HEARTBEAT_INTERVAL_MS);
   }
 
   public send(msg: ServerMessage | PcpEnvelope<any>): boolean {

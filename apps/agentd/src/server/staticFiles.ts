@@ -216,6 +216,9 @@ export async function sendStaticFile(
   res.end(isHead ? undefined : body);
 }
 
+// Delay before static assets are pre-compressed in the background, so startup is not slowed.
+const BROTLI_WARMUP_DELAY_MS = 1500;
+
 /** Pre-compresses the heavy startup files so the first phone to connect does not pay for it. */
 export function warmStaticCache(staticDir: string | undefined): void {
   if (!staticDir) return;
@@ -241,5 +244,5 @@ export function warmStaticCache(staticDir: string | undefined): void {
         }
       }
     })();
-  }, 1500).unref?.();
+  }, BROTLI_WARMUP_DELAY_MS).unref?.();
 }

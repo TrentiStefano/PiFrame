@@ -46,6 +46,12 @@ export interface SessionRegistryOptions {
   checkTerminalOwner?: (cwd: string, sessionFile?: string | null, sessionId?: string) => Promise<boolean | null>;
 }
 
+// How long the fast session scan may run before the registry falls back to the full index.
+const FAST_SCAN_TIMEOUT_MS = 250;
+
+// Delay before an index-refresh progress event is broadcast; at most one is sent per delay.
+const INDEX_PROGRESS_EVENT_DELAY_MS = 1500;
+
 export class SessionRegistry {
   private sessions = new Map<string, Session>();
   private index: SessionIndex;
@@ -118,7 +124,7 @@ export class SessionRegistry {
         const fastResult = await Promise.race([
           fastScan,
           new Promise<undefined>((resolve) => {
-            timer = setTimeout(() => resolve(undefined), 250);
+            timer = setTimeout(() => resolve(undefined), FAST_SCAN_TIMEOUT_MS);
             timer.unref();
           })
         ]);
@@ -236,7 +242,7 @@ export class SessionRegistry {
           type: 'session.indexChanged',
           payload: { refreshing: true }
         } as any);
-      }, 1500);
+      }, INDEX_PROGRESS_EVENT_DELAY_MS);
       progressTimer.unref();
     };
     this.indexRefresh = this.index

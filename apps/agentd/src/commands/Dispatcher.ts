@@ -62,6 +62,12 @@ const SHARED_READ_COMMANDS = new Set([
   'agent.getCommands'
 ]);
 
+// How long a queued message waits for a running compaction to finish before it is delivered anyway.
+const COMPACTION_WAIT_MS = 10 * 60_000;
+
+// How often the queued message re-checks whether the compaction has ended.
+const COMPACTION_POLL_MS = 200;
+
 export class Dispatcher {
   private registry: SessionRegistry;
   private connectionManager: ConnectionManager;
@@ -991,8 +997,8 @@ export class Dispatcher {
         }
 
         // Pi refuses prompts while a compaction runs; deliver the message once it ends instead of failing it.
-        for (const deadline = Date.now() + 10 * 60_000; session.isCompacting && Date.now() < deadline;) {
-          await new Promise((resolve) => setTimeout(resolve, 200));
+        for (const deadline = Date.now() + COMPACTION_WAIT_MS; session.isCompacting && Date.now() < deadline;) {
+          await new Promise((resolve) => setTimeout(resolve, COMPACTION_POLL_MS));
         }
 
         const worker = await this.registry.ensureWorkerForSession(sessionId);
