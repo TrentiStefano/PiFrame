@@ -11,6 +11,7 @@ test('verify runs the full gate in order, including codegen parity and an explic
     'node tools/scripts/audit-escape-hatches.mjs',
     'node tools/scripts/check-doc-links.mjs',
     'node tools/scripts/check-agent-map.mjs',
+    'node tools/scripts/check-boundaries.mjs',
     'node tools/scripts/lint-design.mjs',
     'node tools/scripts/check-design-tokens.mjs',
     'node tools/recon/verify.ts',
@@ -96,6 +97,7 @@ test('check is the inner loop: escape-hatch audit, doc link, agent map and DESIG
     'node tools/scripts/audit-escape-hatches.mjs',
     'node tools/scripts/check-doc-links.mjs',
     'node tools/scripts/check-agent-map.mjs',
+    'node tools/scripts/check-boundaries.mjs',
     'node tools/scripts/lint-design.mjs',
     'node tools/scripts/check-design-tokens.mjs',
     'pnpm -r run build',
@@ -106,7 +108,7 @@ test('check is the inner loop: escape-hatch audit, doc link, agent map and DESIG
   ]);
 });
 
-const ANALYSIS_STEPS = 9;
+const ANALYSIS_STEPS = 10;
 
 test('check never installs, creates a worktree or merges', () => {
   const steps = check(['apps/pi_frame/test/a_test.dart', 'tools/guardrails/test/steps.test.mjs']);

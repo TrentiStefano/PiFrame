@@ -31,6 +31,12 @@ const AGENT_MAP_CHECK = {
   command: ['node', 'tools/scripts/check-agent-map.mjs']
 };
 /** @type {Step} */
+const BOUNDARY_CHECK = {
+  job: 'node',
+  name: 'Import boundaries (layers, daemon table, baseline)',
+  command: ['node', 'tools/scripts/check-boundaries.mjs']
+};
+/** @type {Step} */
 const TS_BUILD = { job: 'node', name: 'Build TypeScript packages', command: ['pnpm', '-r', 'run', 'build'] };
 /** @type {Step} */
 const TS_LINT = { job: 'node', name: 'TypeScript lint (tsc --noEmit)', command: ['pnpm', '-r', 'run', 'lint'] };
@@ -66,6 +72,7 @@ const GATE = [
   ESCAPE_HATCH_AUDIT,
   DOC_LINKS,
   AGENT_MAP_CHECK,
+  BOUNDARY_CHECK,
   DESIGN_LINT,
   DESIGN_TOKENS,
   { job: 'node', name: 'Verify Pi target recon', command: ['node', 'tools/recon/verify.ts'] },
@@ -171,6 +178,7 @@ const CHECK = [
   DOC_LINKS,
   // Node only and under a second too: AGENTS.md stays short and names only paths and scripts that exist.
   AGENT_MAP_CHECK,
+  BOUNDARY_CHECK,
   DESIGN_LINT,
   DESIGN_TOKENS,
   // agentd and e2e type-check against the other workspace packages' dist/*.d.ts, so they must be built first. The
