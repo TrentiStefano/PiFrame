@@ -4,12 +4,13 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
-import '../../app/app_version.dart';
+import '../runtime/app_version.dart';
 import '../../domain/update/semver.dart';
 import '../../domain/update/update_models.dart';
 import '../language/language_settings.dart';
 import '../language/strings_settings.dart';
 import 'github_update_client.dart';
+import 'release_platform.dart';
 import 'installer_launcher.dart';
 import 'update_storage.dart';
 
@@ -101,7 +102,7 @@ class UpdateController extends StateNotifier<UpdateState> {
       final releaseSemVer = release.semVer;
 
       if (releaseSemVer != null && currentSemVer != null && releaseSemVer > currentSemVer) {
-        final asset = release.findPlatformAsset();
+        final asset = release.findPlatformAsset(platform: currentReleasePlatform(), arch: currentReleaseArch());
         state = state.copyWith(status: UpdateStatus.updateAvailable, latestRelease: release, selectedAsset: asset);
       } else {
         state = state.copyWith(status: UpdateStatus.upToDate, latestRelease: release);
@@ -113,7 +114,10 @@ class UpdateController extends StateNotifier<UpdateState> {
 
   Future<void> downloadUpdate({ReleaseAsset? assetOverride}) async {
     final release = state.latestRelease;
-    final asset = assetOverride ?? state.selectedAsset ?? release?.findPlatformAsset();
+    final asset =
+        assetOverride ??
+        state.selectedAsset ??
+        release?.findPlatformAsset(platform: currentReleasePlatform(), arch: currentReleaseArch());
 
     if (release == null || asset == null) {
       state = state.copyWith(status: UpdateStatus.error, errorMessage: _strings.updateNoAssetForPlatform);

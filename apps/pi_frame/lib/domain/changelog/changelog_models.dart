@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:meta/meta.dart';
 
 /// Single item within a changelog release (either a feature or a bug fix).
 @immutable
@@ -57,8 +57,8 @@ class ChangelogRelease {
           runtimeType == other.runtimeType &&
           version == other.version &&
           date == other.date &&
-          listEquals(features, other.features) &&
-          listEquals(fixes, other.fixes);
+          _sameItems(features, other.features) &&
+          _sameItems(fixes, other.fixes);
 
   @override
   int get hashCode => Object.hash(version, date, Object.hashAll(features), Object.hashAll(fixes));
@@ -275,4 +275,13 @@ class ChangelogParser {
       isFeature: isFeature,
     );
   }
+}
+
+/// Element-wise equality for the item lists of a release.
+bool _sameItems<T>(List<T> a, List<T> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
 }

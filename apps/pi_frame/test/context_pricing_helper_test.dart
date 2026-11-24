@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_frame/data/language/language_settings.dart';
 import 'package:pi_frame/domain/session/context_pricing_helper.dart';
+import 'package:pi_frame/features/context_panel/context_size_label.dart';
 
 const it = AppStrings(AppLanguage.it);
 const en = AppStrings(AppLanguage.en);

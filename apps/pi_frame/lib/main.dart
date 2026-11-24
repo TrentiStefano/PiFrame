@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app/desktop_chrome.dart';
-import 'app/harness_mode.dart';
+import 'data/runtime/harness_mode.dart';
 import 'ui/precision.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';

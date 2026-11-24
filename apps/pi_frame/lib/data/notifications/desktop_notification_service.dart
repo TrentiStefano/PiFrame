@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:local_notifier/local_notifier.dart';
 import 'package:window_manager/window_manager.dart';
 
-import '../../app/harness_mode.dart';
+import '../runtime/harness_mode.dart';
 import '../platform/widget_test_binding.dart';
 // The real taskbar calls Win32 through dart:ffi, which the web build lacks.
 import 'windows_taskbar_stub.dart' if (dart.library.ffi) 'windows_taskbar.dart';

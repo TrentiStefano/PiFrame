@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 
-import '../../app/app_version.dart';
+import '../runtime/app_version.dart';
 import '../../domain/update/semver.dart';
 import 'web_token_stub.dart' if (dart.library.html) 'web_token_html.dart';
 

@@ -1,5 +1,7 @@
 import '../../domain/errors/user_facing_error.dart';
 
+import '../../data/errors/user_facing_error_mapping.dart';
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';

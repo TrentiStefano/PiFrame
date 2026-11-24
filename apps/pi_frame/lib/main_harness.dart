@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'app/harness_mode.dart';
+import 'data/runtime/harness_mode.dart';
 import 'harness/harness_extensions.dart';
 import 'harness/harness_window.dart';
 import 'main.dart' show runPiFrame;

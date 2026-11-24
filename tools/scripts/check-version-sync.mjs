@@ -20,7 +20,10 @@ const EXTRA_FILES = {
   'apps/pi_frame/pubspec.yaml': { type: 'yaml', path: 'apps/pi_frame/pubspec.yaml', jsonpath: '$.version' },
   'apps/agentd/package.json': { type: 'json', path: 'apps/agentd/package.json', jsonpath: '$.version' },
   'apps/agentd/src/main.ts': { type: 'generic', path: 'apps/agentd/src/main.ts' },
-  'apps/pi_frame/lib/app/app_version.dart': { type: 'generic', path: 'apps/pi_frame/lib/app/app_version.dart' }
+  'apps/pi_frame/lib/data/runtime/app_version.dart': {
+    type: 'generic',
+    path: 'apps/pi_frame/lib/data/runtime/app_version.dart'
+  }
 };
 for (const [path, entry] of Object.entries(EXTRA_FILES)) {
   if (!packageConfig['extra-files'].some((file) => file.path === path)) {
@@ -41,7 +44,7 @@ const rootPackage = JSON.parse(await read('package.json'));
 const agentPackage = JSON.parse(await read('apps/agentd/package.json'));
 const pubspec = await read('apps/pi_frame/pubspec.yaml');
 const daemon = await read('apps/agentd/src/main.ts');
-const dartVersion = await read('apps/pi_frame/lib/app/app_version.dart');
+const dartVersion = await read('apps/pi_frame/lib/data/runtime/app_version.dart');
 const versions = [
   ['package.json', '"version"', rootPackage.version],
   ['apps/agentd/package.json', '"version"', agentPackage.version],
@@ -56,7 +59,7 @@ const versions = [
     daemon.match(/const VERSION = '([^']+)';\s*\/\/ x-release-please-version/)?.[1]
   ],
   [
-    'apps/pi_frame/lib/app/app_version.dart',
+    'apps/pi_frame/lib/data/runtime/app_version.dart',
     "`const piFrameVersionDefault = '...'; // x-release-please-version`",
     dartVersion.match(/const piFrameVersionDefault = '([^']+)';\s*\/\/ x-release-please-version/)?.[1]
   ]

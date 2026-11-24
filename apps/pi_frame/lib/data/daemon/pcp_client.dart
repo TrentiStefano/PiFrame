@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:pi_frame_protocol/pi_frame_protocol.dart';
 
-import '../../app/app_version.dart';
+import '../runtime/app_version.dart';
 import '../agents/agents_config_model.dart';
 
 enum DaemonConnectionState { disconnected, connecting, authenticating, connected, reconnecting }

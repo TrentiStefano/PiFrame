@@ -21,7 +21,7 @@
         },
         {
           "type": "generic",
-          "path": "apps/pi_frame/lib/app/app_version.dart"
+          "path": "apps/pi_frame/lib/data/runtime/app_version.dart"
         }
       ]
     }

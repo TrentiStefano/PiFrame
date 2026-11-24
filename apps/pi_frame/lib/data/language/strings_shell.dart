@@ -1,4 +1,4 @@
-import '../../domain/errors/user_facing_error.dart';
+import '../errors/user_facing_error_mapping.dart';
 import '../../domain/session/agent_status.dart';
 import 'language_settings.dart';
 

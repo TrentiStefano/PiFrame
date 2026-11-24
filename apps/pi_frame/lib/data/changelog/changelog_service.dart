@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 
-import '../../app/app_version.dart';
+import '../runtime/app_version.dart';
 import '../../domain/changelog/changelog_models.dart';
 
 typedef ChangelogLoader = Future<String?> Function();

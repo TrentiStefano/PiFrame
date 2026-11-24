@@ -1,4 +1,4 @@
-import '../../domain/errors/user_facing_error.dart';
+import '../../data/errors/user_facing_error_mapping.dart';
 import '../../ui/frame_activity_indicator.dart';
 import '../../ui/frame_dialog.dart';
 import '../../ui/frame_error_callout.dart';
@@ -10,9 +10,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
-import '../../app/app_version.dart';
+import '../../data/runtime/app_version.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_settings.dart';
+import '../../data/update/release_platform.dart';
 import '../../data/update/update_providers.dart';
 import '../../data/changelog/changelog_service.dart';
 import '../changelog/changelog_dialog.dart';
@@ -261,7 +262,9 @@ class UpdatesSection extends ConsumerWidget {
   ) {
     final text = FrameText.of(context);
     final release = state.latestRelease!;
-    final asset = state.selectedAsset ?? release.findPlatformAsset();
+    final asset =
+        state.selectedAsset ??
+        release.findPlatformAsset(platform: currentReleasePlatform(), arch: currentReleaseArch());
     final isDownloading = state.status == UpdateStatus.downloading;
     final isReady = state.status == UpdateStatus.readyToInstall;
     final isInstalling = state.status == UpdateStatus.installing;
