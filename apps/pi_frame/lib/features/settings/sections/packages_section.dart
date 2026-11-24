@@ -5,7 +5,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 import '../../../data/language/language_settings.dart';
 import '../../../data/language/strings_settings.dart';
 import '../../../data/update/startup_updates_provider.dart';
-import '../../../domain/errors/user_facing_error.dart';
+import '../../../data/errors/user_facing_error_mapping.dart';
 import '../../../ui/frame_error_callout.dart';
 import '../../../ui/frame_linear_progress.dart';
 import '../../../ui/frame_section.dart';

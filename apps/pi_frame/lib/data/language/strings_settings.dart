@@ -1,4 +1,4 @@
-import '../../domain/errors/user_facing_error.dart';
+import '../errors/user_facing_error_mapping.dart';
 import '../../domain/update/update_models.dart';
 import '../update/github_update_client.dart';
 import 'language_settings.dart';

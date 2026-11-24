@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:pi_frame/app/harness_mode.dart';
+import 'package:pi_frame/data/runtime/harness_mode.dart';
 import 'package:pi_frame/harness/harness_extensions.dart';
 
 void main() {

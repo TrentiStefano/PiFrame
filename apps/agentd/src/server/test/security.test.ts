@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import * as assert from 'node:assert';
 import * as http from 'node:http';
 import WebSocket from 'ws';
-import { timingSafeEqualStrings } from '../auth.js';
+import { timingSafeEqualStrings } from '../../auth/auth.js';
 import { isOriginAllowed } from '../origin.js';
 import { createHttpServer } from '../httpServer.js';
 import { createWsServer } from '../wsServer.js';

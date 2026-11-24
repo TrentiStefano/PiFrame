@@ -5,14 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../domain/session/agent_status.dart';
 import '../../domain/session/session_state.dart';
-import '../daemon/daemon_providers.dart';
-import '../language/language_settings.dart';
-import '../language/strings_shell.dart';
-import '../../features/sessions_sidebar/pinned_sessions_provider.dart';
-import '../../features/transcript/subagents_provider.dart';
-import '../../features/transcript/workflows_provider.dart';
-import 'desktop_notification_service.dart';
-import 'notification_providers.dart';
+import '../../data/daemon/daemon_providers.dart';
+import '../../data/language/language_settings.dart';
+import '../../data/language/strings_shell.dart';
+import '../sessions_sidebar/pinned_sessions_provider.dart';
+import '../transcript/subagents_provider.dart';
+import '../transcript/workflows_provider.dart';
+import '../../data/notifications/desktop_notification_service.dart';
+import '../../data/notifications/notification_providers.dart';
 
 /// How long a session must stay finished before its answer counts as the
 /// final one. The status reads "settled" for a moment between steps of one

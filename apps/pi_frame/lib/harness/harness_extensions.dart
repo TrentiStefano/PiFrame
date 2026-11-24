@@ -11,7 +11,7 @@ import 'package:flutter/services.dart';
 
 import 'harness_window.dart';
 
-import '../app/harness_mode.dart';
+import '../data/runtime/harness_mode.dart';
 
 // Harness-only pacing for synthetic touch input. Non-visual; listed on the
 // allow-list in test/design_literals_lint_test.dart.

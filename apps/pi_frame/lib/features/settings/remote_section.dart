@@ -1,4 +1,5 @@
 import '../../domain/errors/user_facing_error.dart';
+import '../../data/errors/user_facing_error_mapping.dart';
 import '../../ui/frame_activity_indicator.dart';
 import '../../ui/frame_callout.dart';
 import '../../ui/frame_dialog.dart';

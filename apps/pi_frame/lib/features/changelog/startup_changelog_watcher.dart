@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../app/app_version.dart';
+import '../../data/runtime/app_version.dart';
 import '../../data/changelog/changelog_service.dart';
 import '../../data/platform/host_environment_service.dart';
 import '../../data/changelog/changelog_store.dart';

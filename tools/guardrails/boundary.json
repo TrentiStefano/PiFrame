@@ -1,40 +1,20 @@
 {
   "daemonAllowedDependencies": {
+    "auth": [],
     "main": ["commands","config","pi","remote","server","sessions"],
     "commands": ["config","journal","metrics","pi","remote","server","sessions","side","workspace"],
     "config": [],
     "journal": ["config"],
     "metrics": ["server"],
     "pi": ["config","workspace"],
-    "remote": ["config","server"],
-    "server": ["config","remote"],
+    "remote": ["auth","config"],
+    "server": ["auth","config","remote"],
     "sessions": ["config","journal","pi","server","ui"],
     "side": ["config","pi","server","sessions"],
     "ui": [],
     "workspace": []
   },
   "baseline": [
-    { "file": "apps/pi_frame/lib/data/changelog/changelog_service.dart", "import": "../../app/app_version.dart" },
-    { "file": "apps/pi_frame/lib/data/daemon/daemon_locator.dart", "import": "../../app/app_version.dart" },
-    { "file": "apps/pi_frame/lib/data/daemon/pcp_client.dart", "import": "../../app/app_version.dart" },
-    { "file": "apps/pi_frame/lib/data/notifications/desktop_notification_service.dart", "import": "../../app/harness_mode.dart" },
-    { "file": "apps/pi_frame/lib/data/notifications/session_notification_watcher.dart", "import": "../../features/sessions_sidebar/pinned_sessions_provider.dart" },
-    { "file": "apps/pi_frame/lib/data/notifications/session_notification_watcher.dart", "import": "../../features/transcript/subagents_provider.dart" },
-    { "file": "apps/pi_frame/lib/data/notifications/session_notification_watcher.dart", "import": "../../features/transcript/workflows_provider.dart" },
-    { "file": "apps/pi_frame/lib/data/update/update_providers.dart", "import": "../../app/app_version.dart" },
-    { "file": "apps/pi_frame/lib/data/window/window_state_service.dart", "import": "../../app/harness_mode.dart" },
-    { "file": "apps/pi_frame/lib/domain/changelog/changelog_models.dart", "import": "package:flutter/foundation.dart" },
-    { "file": "apps/pi_frame/lib/domain/errors/user_facing_error.dart", "import": "dart:io" },
-    { "file": "apps/pi_frame/lib/domain/errors/user_facing_error.dart", "import": "../../data/daemon/attachment_upload.dart" },
-    { "file": "apps/pi_frame/lib/domain/errors/user_facing_error.dart", "import": "../../data/daemon/pcp_client.dart" },
-    { "file": "apps/pi_frame/lib/domain/errors/user_facing_error.dart", "import": "../../data/language/language_settings.dart" },
-    { "file": "apps/pi_frame/lib/domain/errors/user_facing_error.dart", "import": "../../data/language/strings_errors.dart" },
-    { "file": "apps/pi_frame/lib/domain/errors/user_facing_error.dart", "import": "../../data/language/strings_workspace.dart" },
-    { "file": "apps/pi_frame/lib/domain/errors/user_facing_error.dart", "import": "../../data/update/github_update_client.dart" },
-    { "file": "apps/pi_frame/lib/domain/session/context_pricing_helper.dart", "import": "../../data/language/language_settings.dart" },
-    { "file": "apps/pi_frame/lib/domain/session/context_pricing_helper.dart", "import": "../../data/language/strings_composer.dart" },
-    { "file": "apps/pi_frame/lib/domain/update/update_models.dart", "import": "dart:io" },
-    { "file": "apps/pi_frame/lib/domain/update/update_models.dart", "import": "package:flutter/foundation.dart" },
     { "file": "apps/pi_frame/lib/features/browser/browser_controller.dart", "import": "package:http/http.dart" },
     { "file": "apps/pi_frame/lib/features/browser/browser_service.dart", "import": "package:http/http.dart" },
     { "file": "apps/pi_frame/lib/features/browser/web_browser_pane.dart", "import": "dart:io" },
@@ -73,7 +53,6 @@
     { "file": "apps/pi_frame/lib/ui/startup_assemble_animation.dart", "import": "dart:io" },
     { "file": "apps/pi_frame/lib/ui/startup_audio_io.dart", "import": "dart:ffi" },
     { "file": "apps/pi_frame/lib/ui/startup_audio_io.dart", "import": "dart:io" },
-    { "file": "apps/pi_frame/lib/ui/startup_audio_io.dart", "import": "package:ffi/ffi.dart" },
-    { "file": "apps/agentd/src/remote", "import": "remote -> server -> remote" }
+    { "file": "apps/pi_frame/lib/ui/startup_audio_io.dart", "import": "package:ffi/ffi.dart" }
   ]
 }

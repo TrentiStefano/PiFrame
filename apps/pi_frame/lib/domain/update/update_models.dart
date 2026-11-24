@@ -1,8 +1,8 @@
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
-
 import 'semver.dart';
+
+/// The platform a release installer is chosen for. The app maps the platform
+/// it runs on to one of these (data/update/release_platform.dart).
+enum ReleasePlatform { windows, macOS, linux, web, other }
 
 class ReleaseAsset {
   final String name;
@@ -94,17 +94,14 @@ class AppRelease {
     'assets': assets.map((a) => a.toJson()).toList(),
   };
 
-  ReleaseAsset? findPlatformAsset({TargetPlatform? platformOverride, String? archOverride}) {
-    if (kIsWeb) return null;
-
-    final platform = platformOverride ?? _detectPlatform();
-    final arch = archOverride ?? _detectArch();
+  ReleaseAsset? findPlatformAsset({required ReleasePlatform platform, String arch = 'x64'}) {
+    if (platform == ReleasePlatform.web) return null;
 
     ReleaseAsset? matched;
-    if (platform == TargetPlatform.windows) {
+    if (platform == ReleasePlatform.windows) {
       // Find Inno Setup exe
       matched = assets.cast<ReleaseAsset?>().firstWhere((a) => a != null && a.isWindowsInstaller, orElse: () => null);
-    } else if (platform == TargetPlatform.macOS) {
+    } else if (platform == ReleasePlatform.macOS) {
       // Try matching architecture first
       final isArm = arch.contains('arm') || arch.contains('aarch');
       if (isArm) {
@@ -114,7 +111,7 @@ class AppRelease {
       }
       // Fallback to any DMG
       matched ??= assets.cast<ReleaseAsset?>().firstWhere((a) => a != null && a.isMacDmg, orElse: () => null);
-    } else if (platform == TargetPlatform.linux) {
+    } else if (platform == ReleasePlatform.linux) {
       // Debian installer package
       matched = assets.cast<ReleaseAsset?>().firstWhere((a) => a != null && a.isLinuxDeb, orElse: () => null);
     }
@@ -122,27 +119,6 @@ class AppRelease {
     // Fallback: if no platform-specific installer matched, but an asset is available,
     // return it so single-asset releases and test mocks work cross-platform.
     return matched ?? (assets.isNotEmpty ? assets.first : null);
-  }
-
-  static TargetPlatform _detectPlatform() {
-    try {
-      if (Platform.environment.containsKey('FLUTTER_TEST')) {
-        return defaultTargetPlatform;
-      }
-      if (Platform.isWindows) return TargetPlatform.windows;
-      if (Platform.isMacOS) return TargetPlatform.macOS;
-      if (Platform.isLinux) return TargetPlatform.linux;
-    } catch (_) {}
-    return defaultTargetPlatform;
-  }
-
-  static String _detectArch() {
-    try {
-      final v = Platform.version.toLowerCase();
-      if (v.contains('arm64') || v.contains('aarch64')) return 'arm64';
-      if (v.contains('x64') || v.contains('x86_64')) return 'x64';
-    } catch (_) {}
-    return 'x64';
   }
 }
 

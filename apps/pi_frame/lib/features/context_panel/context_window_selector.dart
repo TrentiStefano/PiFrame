@@ -7,6 +7,7 @@ import '../../data/language/language_settings.dart';
 import '../../data/language/strings_composer.dart';
 import '../../domain/session/context_pricing_helper.dart';
 import '../../domain/session/agent_status.dart';
+import 'context_size_label.dart';
 import '../../ui/frame_snack_bar.dart';
 
 final customContextModeProvider = StateProvider.family<bool?, String>((ref, id) => null);

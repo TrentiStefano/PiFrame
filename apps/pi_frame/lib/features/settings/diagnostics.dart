@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
-import '../../app/app_version.dart';
+import '../../data/runtime/app_version.dart';
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/daemon/pcp_client.dart';
 import '../../data/language/language_settings.dart';

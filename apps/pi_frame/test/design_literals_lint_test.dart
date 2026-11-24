@@ -27,9 +27,9 @@ const _allowedTimerConstants = <String>{
   // lib/harness/harness_extensions.dart: synthetic touch pacing (harness only).
   'lib/harness/harness_extensions.dart#_harnessDoubleTapGap',
   'lib/harness/harness_extensions.dart#_harnessLongPressHold',
-  // lib/data/notifications/session_notification_watcher.dart: how long a
+  // lib/features/notifications/session_notification_watcher.dart: how long a
   // run must stay settled before its answer counts as final.
-  'lib/data/notifications/session_notification_watcher.dart#finalAnswerQuietPeriod',
+  'lib/features/notifications/session_notification_watcher.dart#finalAnswerQuietPeriod',
   // lib/harness/harness_window.dart: polling the view size after a resize.
   'lib/harness/harness_window.dart#_resizePollInterval',
   'lib/harness/harness_window.dart#_resizeSettleDelay',
