@@ -1,0 +1,10 @@
+name: pi_frame_lints
+description: "Shared Dart analyzer options for the PiFrame apps and packages (strict modes and lints)."
+version: 0.0.1
+publish_to: none
+
+environment:
+  sdk: ^3.13.2
+
+dependencies:
+  flutter_lints: ^6.0.0
