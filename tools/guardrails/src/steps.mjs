@@ -45,7 +45,11 @@ const TIMER_CHECK = {
 /** @type {Step} */
 const TS_BUILD = { job: 'node', name: 'Build TypeScript packages', command: ['pnpm', '-r', 'run', 'build'] };
 /** @type {Step} */
-const TS_LINT = { job: 'node', name: 'TypeScript lint (tsc --noEmit)', command: ['pnpm', '-r', 'run', 'lint'] };
+const TS_LINT = {
+  job: 'node',
+  name: 'TypeScript and ESLint ratchet (strict tsc, type-aware ESLint)',
+  command: ['node', 'tools/scripts/lint-typescript.mjs']
+};
 /** @type {Step} */
 const FLUTTER_ANALYZE = {
   job: 'flutter',

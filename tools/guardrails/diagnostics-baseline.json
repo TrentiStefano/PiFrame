@@ -18,5 +18,54 @@
       "strict_raw_type": 47,
       "unawaited_futures": 0
     }
+  },
+  "tsc": {
+    "apps/agentd": {
+      "TS18048": 26,
+      "TS2322": 14,
+      "TS2339": 4,
+      "TS2345": 44,
+      "TS2375": 18,
+      "TS2379": 19,
+      "TS2412": 61,
+      "TS2532": 173,
+      "TS2538": 1,
+      "TS2684": 1,
+      "TS2769": 4,
+      "TS6133": 25,
+      "TS6196": 2,
+      "TS7006": 3,
+      "TS7029": 1
+    },
+    "packages/pcp-ts": {
+      "TS6196": 1
+    },
+    "test/e2e": {
+      "TS6133": 2
+    },
+    "tools/fake-pi": {
+      "TS2345": 1,
+      "TS2532": 3
+    }
+  },
+  "eslint": {
+    "apps/agentd": {
+      "@typescript-eslint/await-thenable": 1,
+      "@typescript-eslint/no-floating-promises": 1,
+      "@typescript-eslint/no-unnecessary-type-assertion": 10,
+      "@typescript-eslint/switch-exhaustiveness-check": 3
+    },
+    "packages/pcp-ts": {
+      "@typescript-eslint/no-unnecessary-type-assertion": 1
+    },
+    "test/e2e": {
+      "@typescript-eslint/no-floating-promises": 1
+    },
+    "tools/fake-pi": {
+      "@typescript-eslint/no-unnecessary-type-assertion": 2
+    },
+    "tools/fault-proxy": {
+      "@typescript-eslint/no-misused-promises": 1
+    }
   }
 }

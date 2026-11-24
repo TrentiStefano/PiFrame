@@ -7,8 +7,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
-    "build": "tsc",
-    "lint": "tsc --noEmit",
+    "build": "tsc -p tsconfig.build.json",
     "test": "node dist/test/index.test.js"
   },
   "dependencies": {

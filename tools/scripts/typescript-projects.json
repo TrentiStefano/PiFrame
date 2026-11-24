@@ -1,0 +1,7 @@
+[
+  "apps/agentd",
+  "packages/pcp-ts",
+  "test/e2e",
+  "tools/fake-pi",
+  "tools/fault-proxy"
+]

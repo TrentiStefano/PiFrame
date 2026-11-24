@@ -54,8 +54,8 @@ apps/agentd  --one `pi --mode rpc` worker per session-->  Pi  --history-->  ~/.p
 | all tests / end-to-end tests | `pnpm run test` / `pnpm run test:e2e` |
 
 `check` runs in the working tree: the escape-hatch audit, the doc link and map checks, the DESIGN.md lint and token
-match, TypeScript build and types, and the Dart analysis under the diagnostics ratchet. It never installs: run `pnpm install` after a dependency
-change (yours or pulled). `*_test.dart` files run with `flutter test`, `*.test.mjs` with `node --test`, and
+match, the TypeScript build, the TypeScript and ESLint ratchet, and the Dart analysis under the diagnostics ratchet. It
+never installs: run `pnpm install` after a dependency change (yours or pulled). `*_test.dart` files run with `flutter test`, `*.test.mjs` with `node --test`, and
 `apps/agentd/src/**/*.test.ts` from its compiled copy under dist. `verify` runs the CI steps on the committed
 HEAD merged with origin/main. Tests regenerate screenshots under `docs/design-evidence/` and
 `website/assets/`: restore them with `git checkout -- docs/design-evidence website/assets` instead of committing.
@@ -69,8 +69,8 @@ Details: `docs/pr-verification.md`.
   hardcoded colours); user-facing text goes through `apps/pi_frame/lib/data/language/`.
 - **Design**: `DESIGN.md` (Google's DESIGN.md format) is the design system: tokens, components, states, the anti-slop
   gate and the definition of done for UI work. Its tokens must match `themes/` and `packages/pi_frame_theme/` (gate).
-- **Dart analysis**: strict modes and async lints live once in `packages/pi_frame_lints/lib/analysis_options.yaml`. The
-  diagnostics ratchet (`tools/guardrails/diagnostics-baseline.json`) only lets counts go down; raising one needs approval.
+- **Dart and TypeScript analysis**: strict modes and async lints live in `packages/pi_frame_lints/lib/analysis_options.yaml`,
+  `tsconfig.base.json` and `eslint.config.mjs`. The diagnostics ratchet (`tools/guardrails/diagnostics-baseline.json`) only lets counts go down; raising one needs approval.
 - **Daemon**: one folder per module in `apps/agentd/src/` (commands, journal, pi, server, sessions, side, workspace,
   ...); tests sit in each module's own test folder as `*.test.ts`, for example `apps/agentd/src/journal/test/`.
 - **Protocol**: change `packages/pcp-spec/schema/` first, then `pnpm run codegen`; the gate fails on drift

@@ -54,7 +54,12 @@ for (const dir of projects) {
   }
 }
 
-const { ok, problems } = checkDiagnostics({ diagnostics, baseline, changedFiles: changedFiles() });
+// The baseline file is shared with the TypeScript step: this step judges the Dart analyzer only.
+const { ok, problems } = checkDiagnostics({
+  diagnostics,
+  baseline: { 'dart-analyze': baseline['dart-analyze'] ?? {} },
+  changedFiles: changedFiles()
+});
 for (const dir of projects) {
   const mine = diagnostics.filter((d) => d.package === dir);
   const count = (severity) => mine.filter((d) => d.severity === severity).length;

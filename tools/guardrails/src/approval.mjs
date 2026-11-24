@@ -38,6 +38,7 @@ const GATE_SCRIPTS = new Set(
 /** Guarded single files that are not caught by a name or folder rule below. */
 const TOOLING_FILES = new Set([
   'tools/scripts/flutter-projects.json',
+  'tools/scripts/typescript-projects.json',
   'tools/scripts/guardrails-approval.mjs',
   'tools/scripts/verify-ci.mjs',
   'tools/scripts/check.mjs',

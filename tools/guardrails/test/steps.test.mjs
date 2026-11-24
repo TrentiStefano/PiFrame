@@ -18,7 +18,7 @@ test('verify runs the full gate in order, including codegen parity and an explic
     'node tools/recon/verify.ts',
     'pnpm --filter @piframe/pcp-spec run test',
     'pnpm -r run build',
-    'pnpm -r run lint',
+    'node tools/scripts/lint-typescript.mjs',
     'node tools/codegen/generate.js',
     'pnpm -r run test',
     'pnpm run check:notices',
@@ -103,7 +103,7 @@ test('check is the inner loop: escape-hatch audit, doc link, agent map and DESIG
     'node tools/scripts/lint-design.mjs',
     'node tools/scripts/check-design-tokens.mjs',
     'pnpm -r run build',
-    'pnpm -r run lint',
+    'node tools/scripts/lint-typescript.mjs',
     // The app's pubspec lists the untracked in-app changelog: analyze and the Flutter tests both need it.
     'node tools/scripts/sync-changelog.mjs',
     'node tools/scripts/lint-flutter.mjs'
