@@ -64,8 +64,8 @@ jobs:
       - name: Build TypeScript packages
         run: pnpm -r run build
 
-      - name: TypeScript lint (tsc --noEmit)
-        run: pnpm -r run lint
+      - name: TypeScript and ESLint ratchet (strict tsc, type-aware ESLint)
+        run: node tools/scripts/lint-typescript.mjs
 
       - name: Codegen parity (schema, TypeScript, Dart)
         run: node tools/codegen/generate.js

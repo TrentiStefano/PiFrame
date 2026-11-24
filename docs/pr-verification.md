@@ -31,7 +31,7 @@ Options (they work for both commands; with `pnpm` they go after `--`):
 
 1. the escape-hatch audit (see [below](#escape-hatch-ratchet)), the doc link check (see [below](#doc-link-check)), the named-timer check (see [below](#named-timers)), the agent map check (see [below](#agent-map-check)), the import-boundary check (see [below](#import-boundaries)), the design lint (see [below](#design-lint)) and the design token check (see [below](#design-token-check))
 2. `pnpm -r run build` (agentd and the e2e tests type-check against the other packages' built `.d.ts`; a fresh or stale `dist/` would give false errors)
-3. `pnpm -r run lint` (`tsc --noEmit` for every TypeScript package)
+3. the TypeScript and ESLint ratchet (`tsc --noEmit` for every TypeScript package and type-aware ESLint, see [TypeScript ratchet](#typescript-ratchet)), after the build
 4. `node tools/scripts/sync-changelog.mjs` (what `pnpm run sync:changelog` runs): generates the in-app changelog, which the app's `pubspec.yaml` lists, so the Dart analysis and the Flutter tests find it
 5. Dart analysis (`dart analyze --format=machine`) on `pi_frame_protocol`, `pi_frame_theme` and `pi_frame`, compared with the diagnostics ratchet
 6. each test file passed as an argument, routed by its path:
@@ -51,7 +51,7 @@ $ pnpm run check -- apps/pi_frame/test/changelog_test.dart apps/agentd/src/pi/te
 [5/13] DESIGN.md lint (@google/design.md) ... ok (0.4s)
 [6/13] DESIGN.md tokens match the theme ... ok (0.2s)
 [7/13] Build TypeScript packages ... ok (9.4s)
-[8/13] TypeScript lint (tsc --noEmit) ... ok (4.8s)
+[8/13] TypeScript and ESLint ratchet ... ok (4.8s)
 [9/13] Generate the in-app changelog ... ok (0.1s)
 [10/13] Flutter analyze (all projects) ... ok (30.4s)
 [11/13] Flutter test apps/pi_frame/test/changelog_test.dart ... ok (11.4s)
@@ -74,7 +74,7 @@ The steps come from one shared step list, `tools/guardrails/src/steps.mjs`. `ver
 4. `node tools/recon/verify.ts`
 5. PCP schema validation
 6. `pnpm -r run build` (including the daemon bundle build)
-7. `pnpm -r run lint` (`tsc --noEmit` for every TypeScript package)
+7. the TypeScript and ESLint ratchet (see [TypeScript ratchet](#typescript-ratchet))
 8. codegen parity (`tools/codegen/generate.js`: schema, TypeScript and Dart command/event types match)
 9. `pnpm -r run test` (including the step-list and parity tests)
 10. `pnpm run check:notices`
@@ -170,10 +170,20 @@ The logic is `auditEscapeHatches` in `tools/guardrails/src/escape-hatches.mjs` (
 - **Absent entries count from zero**: a new rule or package with a diagnostic fails.
 - **A count went up**: the message lists the diagnostics of that rule in the package (files changed on this branch first, at most ten, then `... and N more`) and the fix for the rule. Do not raise the baseline; a raise needs the `human-approved` label (see [Guardrail approval](#guardrail-approval)).
 - **A count went down**: the message gives the exact edit to the baseline, made in the same commit.
-- **The tool is part of the key** (`dart-analyze` today). The planned `tsc` and ESLint parsers add their own tool names to the same baseline.
+- **The tool is part of the key** (`dart-analyze`, `tsc`, `eslint`). Each adapter passes only its own tools' slice of the shared baseline, so one step never judges another's counts.
 - **Analyzer exit codes** 0 to 3 (no issues, infos, warnings, errors) are the data the ratchet judges; any other code fails the step.
 
 The logic is `checkDiagnostics` and `parseDartAnalyzeMachine` in `tools/guardrails/src/diagnostics.mjs` (pure, tested on fixture text in `tools/guardrails/test/diagnostics-ratchet.test.mjs`); the adapter reads the analyzer output and the changed files.
+
+## TypeScript ratchet
+
+`node tools/scripts/lint-typescript.mjs` (the gate step "TypeScript and ESLint ratchet", in `check`, `verify` and CI; `pnpm run lint` runs it too) runs `tsc --noEmit -p tsconfig.json` in every package listed in `tools/scripts/typescript-projects.json` (`apps/agentd`, `packages/pcp-ts`, `test/e2e`, `tools/fake-pi`, `tools/fault-proxy`), then ESLint once over the packages' `src` folders. Both feed the diagnostics ratchet under the tool names `tsc` and `eslint`, with the baseline counts per package and rule.
+
+- **Compiler flags.** `tsconfig.base.json` sets `strict` plus `noUnusedLocals`, `noUnusedParameters`, `noUncheckedIndexedAccess`, `noImplicitOverride`, `noFallthroughCasesInSwitch` and `exactOptionalPropertyTypes`. Every package `tsconfig.json` extends it.
+- **Build.** `pnpm -r run build` compiles with `tsconfig.build.json` (one per package), which extends `tsconfig.build.base.json`: the base flags with the five strict-only flags switched off. The build emits, and the ratchet holds the strict counts, so a build does not fail on the existing diagnostics. The build is not the checker: never judge a change by the build alone.
+- **ESLint.** `eslint.config.mjs` (flat config, type-aware via `projectService`) enables exactly `no-floating-promises`, `no-misused-promises`, `await-thenable`, `switch-exhaustiveness-check` and `no-unnecessary-type-assertion`. `node:test`'s `test` and `describe` are declared safe for `no-floating-promises` (`allowForKnownSafeCalls`), since they return promises the runner awaits. `eslint` and `typescript-eslint` are pinned exactly in the root `package.json`.
+- **Build first.** The checks read the other workspace packages' `dist/*.d.ts`, so the build step runs before this one, as it does in `check`, `verify` and CI.
+- **Parsers.** `parseTscOutput` reads `path(line,col): error TSnnnn: message` lines (the rule is the code); `parseEslintJson` reads ESLint's `--format json` report (the rule is `ruleId`, `parse-error` when there is none, and the package is the one that contains the file). Both are pure and tested on fixtures in `tools/guardrails/test/typescript-ratchet.test.mjs`.
 
 ## Doc link check
 
@@ -254,7 +264,7 @@ The logic is `checkDesignTokens` in `tools/guardrails/src/design-tokens.mjs` (pu
 `.github/workflows/guardrails-approval.yml` runs on every pull-request event (`opened`, `synchronize`, `reopened`, `labeled`, `unlabeled`). It is a separate workflow, not a `ci.yml` job, because `ci.yml`'s jobs must equal the step list's `ci` tier. It fails while the PR changes a guardrail without a current `human-approved` label:
 
 - **A raised baseline number**: any count in `tools/guardrails/escape-hatch-baseline.json` that is higher on the PR head than at its merge base. Lowering is free.
-- **A guarded path changed**, in either direction: every `analysis_options.yaml`, `tsconfig*.json`, `.prettierrc.json` and `.prettierignore`, any ESLint config (`.eslintrc*`, `.eslintignore`, `eslint.config.*`), `tools/guardrails/**` (except the two baseline files, see above), `tools/codegen/**`, **every script a gate step runs** (derived from the step list, all tiers: for example `tools/scripts/format.mjs`, `audit-escape-hatches.mjs`, `check-doc-links.mjs`, `check-agent-map.mjs`, `lint-design.mjs`, `check-design-tokens.mjs`, `lint-flutter.mjs`, `test-flutter.js`, `setup-flutter.js`, `check-version-sync.mjs`, `sync-changelog.mjs`, `tools/recon/verify.ts`, `tools/remote-e2e/remote-iphone-e2e.mjs`), the gate runners `tools/scripts/verify-ci.mjs` and `tools/scripts/check.mjs`, the adapters' file listing `tools/scripts/repo-files.mjs`, `tools/scripts/flutter-projects.json`, `tools/scripts/guardrails-approval.mjs`, every `package.json` (the root one and each workspace package's: the `build`, `lint` and `test` scripts and the Prettier pin live there) and `pnpm-workspace.yaml`, `.github/workflows/**`, and the agent guards: `.claude/settings.json`, `.claude/hooks/**`, `.pi/extensions/**`, `.codex/rules/**`, and the agents' map `AGENTS.md`.
+- **A guarded path changed**, in either direction: every `analysis_options.yaml`, `tsconfig*.json`, `.prettierrc.json` and `.prettierignore`, any ESLint config (`.eslintrc*`, `.eslintignore`, `eslint.config.*`), `tools/guardrails/**` (except the two baseline files, see above), `tools/codegen/**`, **every script a gate step runs** (derived from the step list, all tiers: for example `tools/scripts/format.mjs`, `audit-escape-hatches.mjs`, `check-doc-links.mjs`, `check-agent-map.mjs`, `lint-design.mjs`, `check-design-tokens.mjs`, `lint-flutter.mjs`, `test-flutter.js`, `setup-flutter.js`, `check-version-sync.mjs`, `sync-changelog.mjs`, `tools/recon/verify.ts`, `tools/remote-e2e/remote-iphone-e2e.mjs`), the gate runners `tools/scripts/verify-ci.mjs` and `tools/scripts/check.mjs`, the adapters' file listing `tools/scripts/repo-files.mjs`, `tools/scripts/flutter-projects.json`, `tools/scripts/typescript-projects.json`, `tsconfig.base.json` and `tsconfig.build.base.json` (every `tsconfig*.json`), `eslint.config.mjs`, `tools/scripts/guardrails-approval.mjs`, every `package.json` (the root one and each workspace package's: the `build`, `lint` and `test` scripts and the Prettier pin live there) and `pnpm-workspace.yaml`, `.github/workflows/**`, and the agent guards: `.claude/settings.json`, `.claude/hooks/**`, `.pi/extensions/**`, `.codex/rules/**`, and the agents' map `AGENTS.md`.
 
 When approval is needed, the job posts **one** comment (found again by a hidden `<!-- guardrails-approval -->` marker and edited, never duplicated) listing each reason, for example ``agentd lib `as any` 44 → 45`` or ``CI workflow changed: `.github/workflows/ci.yml` ``. To approve, review the PR and add the label in the GitHub UI: the `labeled` event re-runs the job, which turns green and updates the comment; no push is needed. A PR that needs nothing passes silently, without a comment (if an earlier commit needed approval and no longer does, the existing comment says so).
 

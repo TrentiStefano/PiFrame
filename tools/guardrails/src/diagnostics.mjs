@@ -54,6 +54,70 @@ export function parseDartAnalyzeMachine(text, { package: pkg, tool = 'dart-analy
   return out;
 }
 
+/** `tsc` diagnostic lines: `path(line,col): error TSnnnn: message`. Continuation lines are indented and ignored. */
+const TSC_LINE = /^(.+?)\((\d+),\d+\): (error|warning) (TS\d+): (.*)$/;
+
+/**
+ * Parses `tsc --noEmit --pretty false` output. The rule is the diagnostic code (`TS2532`); the file is as tsc printed
+ * it (relative to the package folder the check ran in).
+ *
+ * @param {string} text the compiler's standard output
+ * @param {{ package: string, tool?: string }} options the package the check ran in; the tool name (default `tsc`) is
+ *   part of the ratchet key
+ * @returns {{ tool: string, package: string, rule: string, severity: string, file: string, line: number, message: string }[]}
+ */
+export function parseTscOutput(text, { package: pkg, tool = 'tsc' }) {
+  const out = [];
+  for (const line of text.split(/\r?\n/)) {
+    const match = line.match(TSC_LINE);
+    if (!match) continue;
+    const [, file, lineNo, severity, code, message] = match;
+    out.push({
+      tool,
+      package: pkg,
+      rule: code,
+      severity: severity.toUpperCase(),
+      file: file.replace(/\\/g, '/'),
+      line: Number(lineNo),
+      message
+    });
+  }
+  return out;
+}
+
+/**
+ * Parses ESLint's `--format json` report. Each message becomes one diagnostic: the rule is `ruleId` (`parse-error`
+ * for a fatal message without one). Messages of severity 1 are WARNING, 2 are ERROR. The package is the longest of
+ * `packages` that contains the file, so one ESLint run over every package still counts per package.
+ *
+ * @param {string} text the JSON report
+ * @param {{ repoRoot: string, packages: string[], tool?: string }} options the repository root the file paths are
+ *   absolute to, the package folders (repository-relative), and the tool name (default `eslint`)
+ * @returns {{ tool: string, package: string, rule: string, severity: string, file: string, line: number, message: string }[]}
+ */
+export function parseEslintJson(text, { repoRoot, packages, tool = 'eslint' }) {
+  const norm = (p) => p.replace(/\\/g, '/').replace(/\/+$/, '');
+  const root = norm(repoRoot);
+  const owners = [...packages].sort((a, b) => b.length - a.length);
+  const out = [];
+  for (const report of JSON.parse(text)) {
+    const file = norm(report.filePath).slice(root.length + 1);
+    const pkg = owners.find((dir) => file === dir || file.startsWith(`${dir}/`)) ?? 'repository';
+    for (const message of report.messages) {
+      out.push({
+        tool,
+        package: pkg,
+        rule: message.ruleId ?? 'parse-error',
+        severity: message.severity === 2 ? 'ERROR' : 'WARNING',
+        file,
+        line: message.line,
+        message: message.message
+      });
+    }
+  }
+  return out;
+}
+
 /** Counts diagnostics as tool → package → rule → count. */
 function countByKey(diagnostics) {
   const counts = {};

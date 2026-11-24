@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "noUncheckedIndexedAccess": false,
+    "noImplicitOverride": false,
+    "noFallthroughCasesInSwitch": false,
+    "exactOptionalPropertyTypes": false
+  }
+}
