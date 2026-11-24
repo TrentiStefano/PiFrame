@@ -12,6 +12,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pi_frame_protocol/pi_frame_protocol.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -69,7 +70,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
   List<Map<String, dynamic>> _devices = [];
 
   Timer? _countdownTimer;
-  StreamSubscription? _eventSub;
+  StreamSubscription<PcpEvent>? _eventSub;
 
   final _customUrlController = TextEditingController();
   final _customCommandController = TextEditingController();

@@ -101,9 +101,10 @@ ParsedToolOutput parseToolOutput(ToolExecutionState tool) {
     final decoded = jsonDecode(raw);
     if (decoded is Map<String, dynamic>) {
       // Content array
-      if (decoded['content'] is List) {
+      final content = decoded['content'];
+      if (content is List) {
         final parts = <String>[];
-        for (final item in decoded['content']) {
+        for (final item in content) {
           if (item is Map && item['type'] == 'text' && item['text'] != null) {
             parts.add(item['text'].toString());
           }

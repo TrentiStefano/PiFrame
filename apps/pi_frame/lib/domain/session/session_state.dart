@@ -106,7 +106,7 @@ class SessionEntry {
 
 /// Returns the turn-ending metadata (`stopReason`, `errorMessage`) of an
 /// assistant [message] that ended in error or was aborted, or null.
-Map<String, dynamic>? terminalStopMetadata(Map message) {
+Map<String, dynamic>? terminalStopMetadata(Map<String, dynamic> message) {
   final stopReason = message['stopReason']?.toString();
   if (stopReason != 'error' && stopReason != 'aborted') return null;
   final errorMessage = message['errorMessage']?.toString();

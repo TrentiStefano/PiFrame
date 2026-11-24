@@ -1,21 +1,21 @@
 {
   "dart-analyze": {
     "packages/pi_frame_protocol": {
-      "strict_raw_type": 1
+      "strict_raw_type": 0
     },
     "packages/pi_frame_theme": {
       "discarded_futures": 0
     },
     "apps/pi_frame": {
-      "argument_type_not_assignable": 6,
-      "avoid_dynamic_calls": 43,
+      "argument_type_not_assignable": 0,
+      "avoid_dynamic_calls": 0,
       "discarded_futures": 0,
-      "for_in_of_invalid_type": 1,
-      "inference_failure_on_collection_literal": 39,
-      "inference_failure_on_instance_creation": 1,
-      "inference_failure_on_untyped_parameter": 2,
-      "return_of_invalid_type_from_closure": 1,
-      "strict_raw_type": 47,
+      "for_in_of_invalid_type": 0,
+      "inference_failure_on_collection_literal": 0,
+      "inference_failure_on_instance_creation": 0,
+      "inference_failure_on_untyped_parameter": 0,
+      "return_of_invalid_type_from_closure": 0,
+      "strict_raw_type": 0,
       "unawaited_futures": 0
     }
   },

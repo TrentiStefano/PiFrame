@@ -162,7 +162,8 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
       final tokensBefore = res['tokensBefore'] ?? '?';
       final tokensAfter = res['estimatedTokensAfter'] ?? res['tokensAfter'] ?? '?';
       final usage = res['usage'] as Map?;
-      final cost = usage?['cost'] is Map ? '\$${usage!['cost']['total']}' : '';
+      final usageCost = usage?['cost'];
+      final cost = usageCost is Map ? '\$${usageCost['total']}' : '';
 
       await _closeDrawer();
       if (!mounted) return;
