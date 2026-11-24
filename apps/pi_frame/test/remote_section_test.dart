@@ -8,7 +8,10 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:pi_frame/data/daemon/daemon_providers.dart';
 import 'package:pi_frame/data/daemon/pcp_client.dart';
+import 'package:pi_frame/data/platform/link_service.dart';
 import 'package:pi_frame/features/settings/remote_section.dart';
+
+import 'support/fake_platform_services.dart';
 
 class _MockRemoteClient extends PcpClient {
   _MockRemoteClient({this.initialData}) : super(port: 1, token: 'test');
@@ -185,5 +188,34 @@ void main() {
     );
     expect(icon.color, FrameTokens.dark.warning);
     expect(icon.color, isNot(FrameTokens.dark.danger));
+  });
+
+  testWidgets('open-in-browser button asks the link service to open the tunnel URL', (tester) async {
+    const url = 'https://test-phone-tunnel.trycloudflare.com';
+    final links = FakeLinkService();
+    final client = _MockRemoteClient(
+      initialData: {
+        'enabled': true,
+        'state': 'running',
+        'url': url,
+        'tunnelProvider': 'cloudflared',
+        'localPort': 54321,
+        'options': {'defaultMode': 'view'},
+        'devices': [],
+      },
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [pcpClientProvider.overrideWithValue(client), linkServiceProvider.overrideWithValue(links)],
+        child: const MaterialApp(home: Scaffold(body: RemoteSection())),
+      ),
+    );
+    await tester.pump();
+    await tester.pump();
+
+    await tester.tap(find.byIcon(Icons.open_in_browser_outlined));
+    await tester.pump();
+
+    expect(links.opened, [Uri.parse(url)]);
   });
 }

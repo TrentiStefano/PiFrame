@@ -1,10 +1,11 @@
-import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../../data/language/language_settings.dart';
 import '../../../data/language/strings_settings.dart';
+import '../../../data/platform/file_dialog_service.dart';
+import '../../../data/platform/file_system_service.dart';
 import '../../../data/metrics/nerd_stats_settings.dart';
 import '../../../data/motion/reduced_motion_settings.dart';
 import '../../../data/motion/startup_animation_settings.dart';
@@ -267,15 +268,17 @@ class AppearanceSection extends ConsumerWidget {
                       label: Text(strings.importThemeBtn, style: text.label.copyWith(color: tokens.textPrimary)),
                       onPressed: () async {
                         try {
-                          final file = await openFile(
-                            acceptedTypeGroups: [
-                              XTypeGroup(label: strings.themeJsonFilterLabel, extensions: const ['json']),
-                            ],
-                          );
-                          if (file == null || !context.mounted) {
+                          final picked = await ref
+                              .read(fileDialogServiceProvider)
+                              .pickFiles(
+                                label: strings.themeJsonFilterLabel,
+                                extensions: const ['json'],
+                                multiple: false,
+                              );
+                          if (picked.isEmpty || !context.mounted) {
                             return;
                           }
-                          final content = await file.readAsString();
+                          final content = await ref.read(fileSystemServiceProvider).readText(picked.first);
                           final importedSpec = await ref
                               .read(activeThemeSpecProvider.notifier)
                               .importThemeFromJson(content);

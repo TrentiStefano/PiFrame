@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
@@ -10,7 +9,9 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_settings.dart';
+import '../../data/platform/host_environment_service.dart';
 import '../../data/platform/platform_environment.dart';
+import '../../data/platform/process_service.dart';
 
 import 'mcp_servers_dialog.dart';
 import '../../ui/frame_activity_indicator.dart';
@@ -106,7 +107,7 @@ List<PiCommandItem> getBuiltinPiCommands(AppStrings strings) => [
   ),
 ];
 
-class PiCliSection extends StatefulWidget {
+class PiCliSection extends ConsumerStatefulWidget {
   final FrameTokens tokens;
   final VoidCallback? onRecheck;
   final AppStrings? strings;
@@ -115,14 +116,14 @@ class PiCliSection extends StatefulWidget {
   const PiCliSection({super.key, required this.tokens, this.onRecheck, this.strings, this.onPackagesChanged});
 
   @override
-  State<PiCliSection> createState() => _PiCliSectionState();
+  ConsumerState<PiCliSection> createState() => _PiCliSectionState();
 }
 
 /// Narrowest MCP row that keeps its two buttons beside the text; below it the
 /// buttons move under the description.
 const double _kMcpRowInlineMinWidth = 420;
 
-class _PiCliSectionState extends State<PiCliSection> {
+class _PiCliSectionState extends ConsumerState<PiCliSection> {
   AppStrings get _strings {
     if (widget.strings != null) return widget.strings!;
     try {
@@ -141,7 +142,7 @@ class _PiCliSectionState extends State<PiCliSection> {
   int? _exitCode;
   DateTime? _startTime;
   Duration? _executionDuration;
-  Process? _activeProcess;
+  RunningProcess? _activeProcess;
 
   @override
   void dispose() {
@@ -198,20 +199,16 @@ class _PiCliSectionState extends State<PiCliSection> {
     _revealConsole();
 
     try {
-      final Process process;
+      final RunningProcess process;
+      final processes = ref.read(processServiceProvider);
       final piExe = PlatformEnvironment.findExecutable('pi');
-      if (Platform.isWindows) {
-        process = await Process.start(
-          'cmd.exe',
-          ['/c', piExe ?? 'pi', ...args],
-          environment: PlatformEnvironment.environment,
-          runInShell: true,
-        );
+      if (ref.read(hostEnvironmentServiceProvider).isWindows) {
+        process = await processes.start('cmd.exe', ['/c', piExe ?? 'pi', ...args], runInShell: true);
       } else {
         if (piExe != null) {
-          process = await Process.start(piExe, args, environment: PlatformEnvironment.environment, runInShell: false);
+          process = await processes.start(piExe, args, runInShell: false);
         } else {
-          process = await Process.start('pi', args, environment: PlatformEnvironment.environment, runInShell: true);
+          process = await processes.start('pi', args, runInShell: true);
         }
       }
 

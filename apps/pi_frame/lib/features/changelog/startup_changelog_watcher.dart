@@ -1,11 +1,9 @@
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app/app_version.dart';
 import '../../data/changelog/changelog_service.dart';
+import '../../data/platform/host_environment_service.dart';
 import '../../data/changelog/changelog_store.dart';
 import 'changelog_dialog.dart';
 
@@ -38,7 +36,8 @@ class _StartupChangelogWatcherState extends ConsumerState<StartupChangelogWatche
     if (_checked) return;
     _checked = true;
 
-    final inTest = !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
+    final host = ref.read(hostEnvironmentServiceProvider);
+    final inTest = !host.isWeb && host.variable('FLUTTER_TEST') != null;
     if (inTest && !widget.enableInTests) {
       return;
     }

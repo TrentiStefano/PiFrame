@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 import 'package:pi_frame/data/platform/drop_target_service.dart';
@@ -14,11 +17,14 @@ import 'package:pi_frame/data/platform/window_service.dart';
 // what the feature asked for, so tests assert the interaction, not the plugin.
 
 class FakeHostEnvironmentService implements HostEnvironmentService {
-  FakeHostEnvironmentService({this.isWeb = false, Map<String, String> variables = const {}})
+  FakeHostEnvironmentService({this.isWeb = false, this.isWindows = false, Map<String, String> variables = const {}})
     : _variables = Map.of(variables);
 
   @override
   final bool isWeb;
+
+  @override
+  final bool isWindows;
 
   final Map<String, String> _variables;
 
@@ -41,11 +47,13 @@ class FakeFileDialogService implements FileDialogService {
   List<String> files = const [];
   String? directory;
   final List<List<String>> fileRequestedExtensions = [];
+  final List<bool> fileRequestedMultiple = [];
   int directoryRequests = 0;
 
   @override
-  Future<List<String>> pickFiles({String? label, List<String> extensions = const []}) async {
+  Future<List<String>> pickFiles({String? label, List<String> extensions = const [], bool multiple = true}) async {
     fileRequestedExtensions.add(extensions);
+    fileRequestedMultiple.add(multiple);
     return files;
   }
 
@@ -132,6 +140,9 @@ class FakeFileSystemService implements FileSystemService {
   final Set<String> directories = {};
 
   @override
+  String currentDirectory = '/fake/cwd';
+
+  @override
   Future<bool> fileExists(String path) async => files.containsKey(path);
 
   @override
@@ -152,6 +163,9 @@ class FakeProcessService implements ProcessService {
   final List<String> commands = [];
   ProcessOutput output = const ProcessOutput(exitCode: 0);
 
+  /// Every process started with [start], in order. Tests push output into it and finish it.
+  final List<FakeRunningProcess> started = [];
+
   @override
   Future<ProcessOutput> run(
     String executable,
@@ -162,5 +176,56 @@ class FakeProcessService implements ProcessService {
   }) async {
     commands.add([executable, ...arguments].join(' '));
     return output;
+  }
+
+  @override
+  Future<RunningProcess> start(
+    String executable,
+    List<String> arguments, {
+    bool runInShell = false,
+    Map<String, String>? environment,
+  }) async {
+    commands.add([executable, ...arguments].join(' '));
+    final process = FakeRunningProcess(startArguments: [executable, ...arguments]);
+    started.add(process);
+    return process;
+  }
+}
+
+/// A process the test controls: it emits stdout and stderr on demand and exits when told.
+class FakeRunningProcess implements RunningProcess {
+  FakeRunningProcess({required this.startArguments});
+
+  final List<String> startArguments;
+  final StreamController<List<int>> _stdout = StreamController<List<int>>();
+  final StreamController<List<int>> _stderr = StreamController<List<int>>();
+  final Completer<int> _exit = Completer<int>();
+  bool killed = false;
+
+  @override
+  Stream<List<int>> get stdout => _stdout.stream;
+
+  @override
+  Stream<List<int>> get stderr => _stderr.stream;
+
+  @override
+  Future<int> get exitCode => _exit.future;
+
+  @override
+  bool kill() {
+    if (_exit.isCompleted) return false;
+    killed = true;
+    return true;
+  }
+
+  void writeStdout(String text) => _stdout.add(utf8.encode(text));
+
+  void writeStderr(String text) => _stderr.add(utf8.encode(text));
+
+  /// Ends the process with [code] and closes its output streams.
+  Future<void> exit(int code) async {
+    if (!_exit.isCompleted) _exit.complete(code);
+    await _stdout.close();
+    await _stderr.close();
   }
 }

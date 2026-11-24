@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/language/language_settings.dart';
+import '../../data/platform/link_service.dart';
 import '../../domain/changelog/changelog_models.dart';
 import '../../ui/frame_dialog.dart';
 import '../../ui/precision.dart';
@@ -20,6 +20,7 @@ class ChangelogDialog extends ConsumerWidget {
     final tokens = context.tokens;
     final text = FrameText.of(context);
     final strings = ref.watch(appStringsProvider);
+    final links = ref.read(linkServiceProvider);
 
     return FrameDialog<void>(
       title: strings.changelogTitle(release.version),
@@ -59,7 +60,13 @@ class ChangelogDialog extends ConsumerWidget {
               ),
               const SizedBox(height: FrameSpace.x2),
               ...release.features.map(
-                (item) => _buildItemRow(context: context, tokens: tokens, item: item, accentColor: tokens.accent),
+                (item) => _buildItemRow(
+                  context: context,
+                  links: links,
+                  tokens: tokens,
+                  item: item,
+                  accentColor: tokens.accent,
+                ),
               ),
               const SizedBox(height: FrameSpace.x4),
             ],
@@ -76,8 +83,13 @@ class ChangelogDialog extends ConsumerWidget {
               ),
               const SizedBox(height: FrameSpace.x2),
               ...release.fixes.map(
-                (item) =>
-                    _buildItemRow(context: context, tokens: tokens, item: item, accentColor: tokens.textSecondary),
+                (item) => _buildItemRow(
+                  context: context,
+                  links: links,
+                  tokens: tokens,
+                  item: item,
+                  accentColor: tokens.textSecondary,
+                ),
               ),
               const SizedBox(height: FrameSpace.x4),
             ],
@@ -137,6 +149,7 @@ class ChangelogDialog extends ConsumerWidget {
 
   Widget _buildItemRow({
     required BuildContext context,
+    required LinkService links,
     required FrameTokens tokens,
     required ChangelogItem item,
     required Color accentColor,
@@ -187,7 +200,7 @@ class ChangelogDialog extends ConsumerWidget {
                 onTap: () async {
                   final uri = Uri.tryParse(item.commitUrl!);
                   if (uri != null) {
-                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    await links.openExternal(uri);
                   }
                 },
                 child: Container(

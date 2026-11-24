@@ -8,6 +8,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 abstract class HostEnvironmentService {
   bool get isWeb;
 
+  /// True on the Windows desktop build; false on the web build.
+  bool get isWindows;
+
   /// The value of environment variable [name], or null when it is not set.
   String? variable(String name);
 }
@@ -17,6 +20,9 @@ class PlatformHostEnvironmentService implements HostEnvironmentService {
 
   @override
   bool get isWeb => kIsWeb;
+
+  @override
+  bool get isWindows => !kIsWeb && Platform.isWindows;
 
   @override
   String? variable(String name) => kIsWeb ? null : Platform.environment[name];

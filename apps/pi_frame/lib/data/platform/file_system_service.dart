@@ -11,10 +11,16 @@ abstract class FileSystemService {
   Future<String> readText(String path);
 
   Future<void> writeText(String path, String contents);
+
+  /// The directory the app was started in.
+  String get currentDirectory;
 }
 
 class IoFileSystemService implements FileSystemService {
   const IoFileSystemService();
+
+  @override
+  String get currentDirectory => Directory.current.path;
 
   @override
   Future<bool> fileExists(String path) => File(path).exists();

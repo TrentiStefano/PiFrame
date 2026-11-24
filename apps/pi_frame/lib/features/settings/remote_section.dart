@@ -13,12 +13,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_errors.dart';
 import '../../data/language/strings_settings.dart';
+import '../../data/platform/link_service.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../../ui/precision.dart';
 
@@ -634,7 +634,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                             IconButton(
                               icon: const Icon(Icons.open_in_browser_outlined, size: FrameSize.iconLg),
                               tooltip: strings.remoteOpenInBrowserTooltip,
-                              onPressed: () => launchUrl(Uri.parse(_url!)),
+                              onPressed: () => ref.read(linkServiceProvider).openExternal(Uri.parse(_url!)),
                             ),
                           ],
                         ),
