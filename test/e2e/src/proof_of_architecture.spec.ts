@@ -43,7 +43,7 @@ test('M1 Proof of Architecture: GUI disconnect does not abort agent execution; c
   let registry!: SessionRegistry;
   let dispatcher!: Dispatcher;
 
-  const { wss, manager } = createWsServer({
+  const { manager } = createWsServer({
     httpServer,
     config: DEFAULT_CONFIG,
     token,

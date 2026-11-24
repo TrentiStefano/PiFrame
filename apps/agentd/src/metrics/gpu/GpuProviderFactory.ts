@@ -61,6 +61,7 @@ export class GpuProviderFactory {
       case 'ioreg':
         this.cachedProvider = new MacIoregGpuProvider();
         break;
+      case 'none':
       default:
         this.cachedProvider = new NullGpuProvider();
         break;

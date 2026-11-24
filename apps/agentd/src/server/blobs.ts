@@ -88,7 +88,7 @@ export function receiveBlob(req: http.IncomingMessage, res: http.ServerResponse)
     return;
   }
 
-  const contentType = (req.headers['content-type'] as string | undefined) || 'application/octet-stream';
+  const contentType = req.headers['content-type'] || 'application/octet-stream';
   const name = safeBlobName(req.headers['x-file-name'] as string | undefined, contentType);
   const blobId = `blob_${crypto.randomBytes(16).toString('hex')}`;
   const dir = path.join(getBlobsDir(), blobId);

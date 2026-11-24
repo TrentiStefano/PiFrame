@@ -50,7 +50,7 @@ test('a prompt longer than the limit is cut to FIRST_PROMPT_MAX_LENGTH', async (
   const [session] = await index.scan(new Set());
   assert.equal(FIRST_PROMPT_MAX_LENGTH, 120);
   assert.equal(session.firstUserPrompt?.length, FIRST_PROMPT_MAX_LENGTH);
-  assert.ok(long.startsWith(session.firstUserPrompt!));
+  assert.ok(long.startsWith(session.firstUserPrompt));
 });
 
 test('a session with no user message has an empty first prompt, not a missing one', async () => {

@@ -38,34 +38,34 @@
       "TS7029": 1
     },
     "packages/pcp-ts": {
-      "TS6196": 1
+      "TS6196": 0
     },
     "test/e2e": {
-      "TS6133": 2
+      "TS6133": 0
     },
     "tools/fake-pi": {
-      "TS2345": 1,
-      "TS2532": 3
+      "TS2345": 0,
+      "TS2532": 0
     }
   },
   "eslint": {
     "apps/agentd": {
-      "@typescript-eslint/await-thenable": 1,
-      "@typescript-eslint/no-floating-promises": 1,
-      "@typescript-eslint/no-unnecessary-type-assertion": 10,
-      "@typescript-eslint/switch-exhaustiveness-check": 3
+      "@typescript-eslint/await-thenable": 0,
+      "@typescript-eslint/no-floating-promises": 0,
+      "@typescript-eslint/no-unnecessary-type-assertion": 0,
+      "@typescript-eslint/switch-exhaustiveness-check": 0
     },
     "packages/pcp-ts": {
-      "@typescript-eslint/no-unnecessary-type-assertion": 1
+      "@typescript-eslint/no-unnecessary-type-assertion": 0
     },
     "test/e2e": {
-      "@typescript-eslint/no-floating-promises": 1
+      "@typescript-eslint/no-floating-promises": 0
     },
     "tools/fake-pi": {
-      "@typescript-eslint/no-unnecessary-type-assertion": 2
+      "@typescript-eslint/no-unnecessary-type-assertion": 0
     },
     "tools/fault-proxy": {
-      "@typescript-eslint/no-misused-promises": 1
+      "@typescript-eslint/no-misused-promises": 0
     }
   }
 }

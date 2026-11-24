@@ -74,7 +74,7 @@ test('Fault Injection Suite: proxy drops, duplicate frames, and corrupted frames
   dispatcher = new Dispatcher(registry, manager);
 
   t.after(async () => {
-    registry.closeAll();
+    await registry.closeAll();
     wss.close();
     await new Promise<void>((resolve) => httpServer.close(() => resolve()));
   });
@@ -108,7 +108,6 @@ test('Fault Injection Suite: proxy drops, duplicate frames, and corrupted frames
       );
 
       // Collect frames
-      const receivedSeqs: number[] = [];
       const receivedKinds: string[] = [];
 
       await new Promise<void>((resolve, reject) => {

@@ -16,6 +16,13 @@ function sendRaw(str: string): void {
   process.stdout.write(str + '\n');
 }
 
+/** The value after `flag` in argv, or undefined when the flag is absent or has no (non-empty) value. */
+function flagValue(args: string[], flag: string): string | undefined {
+  const idx = args.indexOf(flag);
+  if (idx === -1) return undefined;
+  return args[idx + 1] || undefined;
+}
+
 async function main() {
   const args = process.argv.slice(2);
 
@@ -30,18 +37,15 @@ async function main() {
   }
 
   // Parse key flags for RPC reflection
-  const toolsIdx = args.indexOf('--tools');
-  const toolList =
-    toolsIdx !== -1 && args[toolsIdx + 1]
-      ? args[toolsIdx + 1]
-          .split(',')
-          .map((s) => s.trim())
-          .filter(Boolean)
-      : undefined;
-  const modelIdx = args.indexOf('--model');
-  const passedModelPattern = modelIdx !== -1 && args[modelIdx + 1] ? args[modelIdx + 1] : undefined;
-  const thinkingIdx = args.indexOf('--thinking');
-  const passedThinking = thinkingIdx !== -1 && args[thinkingIdx + 1] ? args[thinkingIdx + 1] : undefined;
+  const toolArg = flagValue(args, '--tools');
+  const toolList = toolArg
+    ? toolArg
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : undefined;
+  const passedModelPattern = flagValue(args, '--model');
+  const passedThinking = flagValue(args, '--thinking');
 
   if (args.includes('--version') || args.includes('-v')) {
     console.log('0.85.1');
@@ -49,9 +53,9 @@ async function main() {
   }
 
   // Check for replay mode
-  const replayIdx = args.indexOf('--replay');
-  if (replayIdx !== -1 && args[replayIdx + 1]) {
-    const replayPath = path.resolve(process.cwd(), args[replayIdx + 1]);
+  const replayArg = flagValue(args, '--replay');
+  if (replayArg) {
+    const replayPath = path.resolve(process.cwd(), replayArg);
     if (!fs.existsSync(replayPath)) {
       console.error(`Replay file not found: ${replayPath}`);
       process.exit(1);

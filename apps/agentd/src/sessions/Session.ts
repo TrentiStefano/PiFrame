@@ -359,6 +359,37 @@ export class Session {
         this.status = 'worker_error';
         this.isStreaming = false;
         break;
+
+      // Events this state does not track: they leave the session state unchanged.
+      case 'bash.output':
+      case 'daemon.configChanged':
+      case 'extension.error':
+      case 'journal.gap':
+      case 'remote.statusChanged':
+      case 'retry.ended':
+      case 'session.indexChanged':
+      case 'side.closed':
+      case 'side.opened':
+      case 'summarization.retry':
+      case 'system.metrics':
+      case 'text.completed':
+      case 'text.started':
+      case 'thinking.completed':
+      case 'thinking.started':
+      case 'toolcall.argsDelta':
+      case 'toolcall.completed':
+      case 'toolcall.started':
+      case 'turn.ended':
+      case 'turn.started':
+      case 'ui.claimed':
+      case 'ui.editorText':
+      case 'ui.notify':
+      case 'ui.status':
+      case 'ui.title':
+      case 'ui.widget':
+      case 'worker.diagnostic':
+      case 'workspace.changed':
+        break;
     }
   }
 

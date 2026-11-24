@@ -799,7 +799,7 @@ test('Dispatcher: remote view mode forbidden for open/prompt, allowed for abort/
     remoteControlConn.deviceId = 'dev_ctrl_01';
     remoteControlConn.state = 'ready';
     ctx.connManager.add(remoteControlConn);
-    mockAuthManager.getDevice = (id: string) => ({ id, mode: 'control' }) as any;
+    mockAuthManager.getDevice = (id: string) => ({ id, mode: 'control' });
 
     const ctrlOpenRes = await send(remoteControlConn, remoteCtrlWs, 'side.open', { sessionId: parentSession.id });
     assert.equal(ctrlOpenRes.result?.state, 'completed');

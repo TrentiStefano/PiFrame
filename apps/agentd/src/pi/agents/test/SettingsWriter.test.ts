@@ -387,7 +387,7 @@ test('hold lock across entire read-modify-write: concurrent modification between
     );
 
     let writer2Started = false;
-    let writer2Promise: Promise<any> | null = null;
+    const writers: { second?: Promise<unknown> } = {};
 
     // Writer 1 updates worker thinking to 'high'
     // While Writer 1 holds the lock across read-modify-write, hookAfterRead triggers Writer 2
@@ -405,7 +405,7 @@ test('hold lock across entire read-modify-write: concurrent modification between
         hookAfterRead: async () => {
           writer2Started = true;
           // Writer 2 updates worker model to 'model-b'
-          writer2Promise = applyAgentSettingsChanges(
+          writers.second = applyAgentSettingsChanges(
             agentDir,
             piframeDir,
             [
@@ -425,8 +425,8 @@ test('hold lock across entire read-modify-write: concurrent modification between
 
     await writer1Promise;
     assert.ok(writer2Started);
-    assert.ok(writer2Promise);
-    await writer2Promise;
+    assert.ok(writers.second);
+    await writers.second;
 
     // Both updates must be preserved: NO LOST UPDATE!
     const finalSettings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));

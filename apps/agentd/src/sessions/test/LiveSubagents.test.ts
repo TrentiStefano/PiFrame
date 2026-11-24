@@ -68,7 +68,7 @@ test('once the worker is gone nothing it ran is running', () => {
 });
 
 test('Session keeps the bridge report as live state, never as a status line', () => {
-  const session = new Session({ id: 's_live', cwd: process.cwd() } as any);
+  const session = new Session({ id: 's_live', cwd: process.cwd() });
   const emitted = session.dispatchPiEvent({
     type: 'extension_ui_request',
     method: 'setStatus',

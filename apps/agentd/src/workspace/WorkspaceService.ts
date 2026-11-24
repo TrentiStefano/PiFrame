@@ -440,7 +440,7 @@ export class WorkspaceService {
     const current = previous.catch(() => {}).then(task);
     this.mutationQueues.set(root, current);
     try {
-      return (await current) as T;
+      return await current;
     } finally {
       if (this.mutationQueues.get(root) === current) this.mutationQueues.delete(root);
     }

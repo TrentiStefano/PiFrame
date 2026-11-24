@@ -44,7 +44,7 @@ export function readAgentFileOriginals(piframeDir: string): AgentFileOriginals {
       const entry: Partial<Record<AgentFileField, string | null>> = {};
       for (const field of ['model', 'thinking'] as const) {
         if (field in fields) {
-          const v = (fields as any)[field];
+          const v = fields[field];
           if (v === null || typeof v === 'string') entry[field] = v;
         }
       }
