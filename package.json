@@ -6,7 +6,7 @@
   "scripts": {
     "setup": "pnpm install && node tools/scripts/setup-flutter.js",
     "codegen": "node tools/codegen/generate.js",
-    "lint": "pnpm -r --stream run lint && node tools/scripts/lint-flutter.js",
+    "lint": "pnpm -r --stream run lint && node tools/scripts/lint-flutter.mjs",
     "format": "node tools/scripts/format.mjs",
     "format:check": "node tools/scripts/format.mjs --check",
     "test": "pnpm -r --stream run test && node tools/scripts/test-flutter.js",

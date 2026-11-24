@@ -106,7 +106,7 @@ jobs:
         run: node tools/scripts/format.mjs --check dart
 
       - name: Flutter analyze (all projects)
-        run: node tools/scripts/lint-flutter.js
+        run: node tools/scripts/lint-flutter.mjs
 
       - name: Flutter tests (all projects)
         run: node tools/scripts/test-flutter.js

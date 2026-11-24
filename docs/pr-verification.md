@@ -5,7 +5,7 @@
 ## Commands
 
 ```bash
-pnpm run check             # inner loop: escape-hatch audit, doc link, agent map, design lint and design token checks, type checking, flutter analyze (+ the test files you pass)
+pnpm run check             # inner loop: escape-hatch audit, doc link, agent map, design lint and design token checks, type checking, the Dart analysis under the diagnostics ratchet (+ the test files you pass)
 pnpm run verify            # CI checks + release validation
 pnpm run pr                # verify + push the branch + open the PR (gh pr create)
 ```
@@ -32,8 +32,8 @@ Options (they work for both commands; with `pnpm` they go after `--`):
 1. the escape-hatch audit (see [below](#escape-hatch-ratchet)), the doc link check (see [below](#doc-link-check)), the named-timer check (see [below](#named-timers)), the agent map check (see [below](#agent-map-check)), the import-boundary check (see [below](#import-boundaries)), the design lint (see [below](#design-lint)) and the design token check (see [below](#design-token-check))
 2. `pnpm -r run build` (agentd and the e2e tests type-check against the other packages' built `.d.ts`; a fresh or stale `dist/` would give false errors)
 3. `pnpm -r run lint` (`tsc --noEmit` for every TypeScript package)
-4. `node tools/scripts/sync-changelog.mjs` (what `pnpm run sync:changelog` runs): generates the in-app changelog, which the app's `pubspec.yaml` lists, so `flutter analyze` and the Flutter tests find it
-5. `flutter analyze` on `pi_frame_protocol`, `pi_frame_theme` and `pi_frame`
+4. `node tools/scripts/sync-changelog.mjs` (what `pnpm run sync:changelog` runs): generates the in-app changelog, which the app's `pubspec.yaml` lists, so the Dart analysis and the Flutter tests find it
+5. Dart analysis (`dart analyze --format=machine`) on `pi_frame_protocol`, `pi_frame_theme` and `pi_frame`, compared with the diagnostics ratchet
 6. each test file passed as an argument, routed by its path:
    - `*_test.dart` inside one of the Flutter projects → `flutter test <path>` in that project
    - `*.test.mjs`, `*.test.cjs`, `*.test.js` → `node --test <path>` from the repository root
@@ -83,13 +83,13 @@ The steps come from one shared step list, `tools/guardrails/src/steps.mjs`. `ver
 13. Flutter dependencies (`tools/scripts/setup-flutter.js`; it also generates the in-app changelog)
 14. `node tools/scripts/check-version-sync.mjs` (synchronized versions, and the in-app changelog in check mode)
 15. Dart formatting (`dart format --set-exit-if-changed`)
-16. `flutter analyze` and `flutter test` (which first regenerates the in-app changelog) on `pi_frame_protocol`, `pi_frame_theme` and `pi_frame`
+16. Dart analysis (diagnostics ratchet) and `flutter test` (which first regenerates the in-app changelog) on `pi_frame_protocol`, `pi_frame_theme` and `pi_frame`
 17. with `--release`: `flutter build web` and `flutter build <desktop>`
 18. with `--e2e`: emulated-iPhone test
 
 ## Formatting
 
-`pnpm run format` formats everything; `pnpm run format -- dart` or `-- ts` does one language, and `pnpm run format:check` only checks (what steps 2 and 15 run). Dart uses `dart format` with page width 120 (set in each Dart project's `analysis_options.yaml`); TypeScript and Node tooling (`apps/agentd`, `packages/pcp-*`, `test/e2e`, `tools`) use Prettier with `.prettierrc.json`. `tools/recon/reference/` holds verbatim upstream files and is excluded; `.prettierignore` also lists Markdown, YAML, JSON, the website and the Flutter app so an editor running Prettier agrees with the gate. Prettier uses `endOfLine: "auto"`: Windows checkouts (`core.autocrlf`) have CRLF files while git stores LF, so line endings are left to git. The Dart check covers each project's `lib/` and `test/` (the only Dart folders today); a new Dart folder such as `bin/` or `integration_test/` must be added to `tools/scripts/format.mjs`, and a new Dart project to `tools/scripts/flutter-projects.json`.
+`pnpm run format` formats everything; `pnpm run format -- dart` or `-- ts` does one language, and `pnpm run format:check` only checks (what steps 2 and 15 run). Dart uses `dart format` with page width 120 (set in each Dart project's `analysis_options.yaml`, which includes the shared `packages/pi_frame_lints`); TypeScript and Node tooling (`apps/agentd`, `packages/pcp-*`, `test/e2e`, `tools`) use Prettier with `.prettierrc.json`. `tools/recon/reference/` holds verbatim upstream files and is excluded; `.prettierignore` also lists Markdown, YAML, JSON, the website and the Flutter app so an editor running Prettier agrees with the gate. Prettier uses `endOfLine: "auto"`: Windows checkouts (`core.autocrlf`) have CRLF files while git stores LF, so line endings are left to git. The Dart check covers each project's `lib/` and `test/` (the only Dart folders today); a new Dart folder such as `bin/` or `integration_test/` must be added to `tools/scripts/format.mjs`, and a new Dart project to `tools/scripts/flutter-projects.json`.
 
 The one-time reformat commit is listed in `.git-blame-ignore-revs`: GitHub skips it in blame views automatically; locally run `git config blame.ignoreRevsFile .git-blame-ignore-revs` once. **Other branches** that existed before the reformat: run `pnpm run format` on them and commit before merging, and most conflicts disappear.
 
@@ -160,6 +160,20 @@ Merged origin/main (2 commit(s)) into the verification worktree.
 - **A count went down**: the message gives the exact edit, for example `"agentd" → "lib": change "as any": 44 to "as any": 43`. Make it in the same commit.
 
 The logic is `auditEscapeHatches` in `tools/guardrails/src/escape-hatches.mjs` (pure, tested with in-memory fixtures in `tools/guardrails/test/escape-hatches.test.mjs`); the script only reads the files (tracked plus untracked, not ignored, as they are on disk) and the baseline.
+
+## Diagnostics ratchet
+
+`node tools/scripts/lint-flutter.mjs` (the gate step "Flutter analyze (all projects)", in `check`, `verify` and CI) runs `dart analyze --format=machine` in every Dart project and counts the diagnostics per tool × package × rule. It compares them with the committed baseline `tools/guardrails/diagnostics-baseline.json`, as the escape-hatch ratchet does: a difference fails.
+
+- **Rules.** `packages/pi_frame_lints/lib/analysis_options.yaml` (included by the app and both Dart packages): strict casts, inference and raw types; `discarded_futures`, `unawaited_futures`, `avoid_dynamic_calls`, `always_declare_return_types`, `avoid_print`; page width 120; the platform folders excluded.
+- **Every severity counts**: errors, warnings and infos. The step does not pass `--fatal-warnings`: the baseline holds today's warnings, so a new warning fails the ratchet instead. Each fix ticket lowers its counts to zero.
+- **Absent entries count from zero**: a new rule or package with a diagnostic fails.
+- **A count went up**: the message lists the diagnostics of that rule in the package (files changed on this branch first, at most ten, then `... and N more`) and the fix for the rule. Do not raise the baseline; a raise needs the `human-approved` label (see [Guardrail approval](#guardrail-approval)).
+- **A count went down**: the message gives the exact edit to the baseline, made in the same commit.
+- **The tool is part of the key** (`dart-analyze` today). The planned `tsc` and ESLint parsers add their own tool names to the same baseline.
+- **Analyzer exit codes** 0 to 3 (no issues, infos, warnings, errors) are the data the ratchet judges; any other code fails the step.
+
+The logic is `checkDiagnostics` and `parseDartAnalyzeMachine` in `tools/guardrails/src/diagnostics.mjs` (pure, tested on fixture text in `tools/guardrails/test/diagnostics-ratchet.test.mjs`); the adapter reads the analyzer output and the changed files.
 
 ## Doc link check
 
@@ -240,7 +254,7 @@ The logic is `checkDesignTokens` in `tools/guardrails/src/design-tokens.mjs` (pu
 `.github/workflows/guardrails-approval.yml` runs on every pull-request event (`opened`, `synchronize`, `reopened`, `labeled`, `unlabeled`). It is a separate workflow, not a `ci.yml` job, because `ci.yml`'s jobs must equal the step list's `ci` tier. It fails while the PR changes a guardrail without a current `human-approved` label:
 
 - **A raised baseline number**: any count in `tools/guardrails/escape-hatch-baseline.json` that is higher on the PR head than at its merge base. Lowering is free.
-- **A guarded path changed**, in either direction: every `analysis_options.yaml`, `tsconfig*.json`, `.prettierrc.json` and `.prettierignore`, any ESLint config (`.eslintrc*`, `.eslintignore`, `eslint.config.*`), `tools/guardrails/**` (except the baseline file, see above), `tools/codegen/**`, **every script a gate step runs** (derived from the step list, all tiers: for example `tools/scripts/format.mjs`, `audit-escape-hatches.mjs`, `check-doc-links.mjs`, `check-agent-map.mjs`, `lint-design.mjs`, `check-design-tokens.mjs`, `lint-flutter.js`, `test-flutter.js`, `setup-flutter.js`, `check-version-sync.mjs`, `sync-changelog.mjs`, `tools/recon/verify.ts`, `tools/remote-e2e/remote-iphone-e2e.mjs`), the gate runners `tools/scripts/verify-ci.mjs` and `tools/scripts/check.mjs`, the adapters' file listing `tools/scripts/repo-files.mjs`, `tools/scripts/flutter-projects.json`, `tools/scripts/guardrails-approval.mjs`, every `package.json` (the root one and each workspace package's: the `build`, `lint` and `test` scripts and the Prettier pin live there) and `pnpm-workspace.yaml`, `.github/workflows/**`, and the agent guards: `.claude/settings.json`, `.claude/hooks/**`, `.pi/extensions/**`, `.codex/rules/**`, and the agents' map `AGENTS.md`.
+- **A guarded path changed**, in either direction: every `analysis_options.yaml`, `tsconfig*.json`, `.prettierrc.json` and `.prettierignore`, any ESLint config (`.eslintrc*`, `.eslintignore`, `eslint.config.*`), `tools/guardrails/**` (except the two baseline files, see above), `tools/codegen/**`, **every script a gate step runs** (derived from the step list, all tiers: for example `tools/scripts/format.mjs`, `audit-escape-hatches.mjs`, `check-doc-links.mjs`, `check-agent-map.mjs`, `lint-design.mjs`, `check-design-tokens.mjs`, `lint-flutter.mjs`, `test-flutter.js`, `setup-flutter.js`, `check-version-sync.mjs`, `sync-changelog.mjs`, `tools/recon/verify.ts`, `tools/remote-e2e/remote-iphone-e2e.mjs`), the gate runners `tools/scripts/verify-ci.mjs` and `tools/scripts/check.mjs`, the adapters' file listing `tools/scripts/repo-files.mjs`, `tools/scripts/flutter-projects.json`, `tools/scripts/guardrails-approval.mjs`, every `package.json` (the root one and each workspace package's: the `build`, `lint` and `test` scripts and the Prettier pin live there) and `pnpm-workspace.yaml`, `.github/workflows/**`, and the agent guards: `.claude/settings.json`, `.claude/hooks/**`, `.pi/extensions/**`, `.codex/rules/**`, and the agents' map `AGENTS.md`.
 
 When approval is needed, the job posts **one** comment (found again by a hidden `<!-- guardrails-approval -->` marker and edited, never duplicated) listing each reason, for example ``agentd lib `as any` 44 → 45`` or ``CI workflow changed: `.github/workflows/ci.yml` ``. To approve, review the PR and add the label in the GitHub UI: the `labeled` event re-runs the job, which turns green and updates the comment; no push is needed. A PR that needs nothing passes silently, without a comment (if an earlier commit needed approval and no longer does, the existing comment says so).
 

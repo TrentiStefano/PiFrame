@@ -18,7 +18,13 @@
 import { spawnSync } from 'node:child_process';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { approvalStatus, APPROVAL_LABEL, APPROVAL_MARKER, BASELINE_PATH } from '../guardrails/src/index.mjs';
+import {
+  approvalStatus,
+  APPROVAL_LABEL,
+  APPROVAL_MARKER,
+  BASELINE_PATH,
+  DIAGNOSTICS_BASELINE_PATH
+} from '../guardrails/src/index.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -28,9 +34,9 @@ function git(...args) {
   return result.stdout;
 }
 
-function baselineAt(rev) {
+function baselineAt(rev, file = BASELINE_PATH) {
   try {
-    return JSON.parse(git('show', `${rev}:${BASELINE_PATH}`));
+    return JSON.parse(git('show', `${rev}:${file}`));
   } catch {
     return {}; // no baseline at that commit: every count on the other side is new
   }
@@ -51,6 +57,8 @@ const mergeBase = git('merge-base', baseRev, headRev).trim();
 const changedPaths = git('diff', '--name-only', '--no-renames', '-z', mergeBase, headRev).split('\0').filter(Boolean);
 const baseBaseline = baselineAt(mergeBase);
 const headBaseline = baselineAt(headRev);
+const diagnosticsBaseBaseline = baselineAt(mergeBase, DIAGNOSTICS_BASELINE_PATH);
+const diagnosticsHeadBaseline = baselineAt(headRev, DIAGNOSTICS_BASELINE_PATH);
 
 const api = async (method, route, body) => {
   const res = await fetch(`${env.GITHUB_API_URL || 'https://api.github.com'}${route}`, {
@@ -117,6 +125,8 @@ if (ci) {
 const result = approvalStatus({
   baseBaseline,
   headBaseline,
+  diagnosticsBaseBaseline,
+  diagnosticsHeadBaseline,
   changedPaths,
   labelEvents,
   eventAction: env.EVENT_ACTION,

@@ -1,17 +1,6 @@
-include: package:flutter_lints/flutter.yaml
-
-analyzer:
-  exclude:
-    - build/**
-    - android/**
-    - ios/**
-    - web/**
-    - windows/**
-    - macos/**
-    - linux/**
-
-# Additional information about this file can be found at
-# https://dart.dev/guides/language/analysis-options
+# The analyzer options come from the shared package (packages/pi_frame_lints): strict modes, the async and typing
+# lints, the excludes and the page width. See that file before adding a project-only setting here.
+include: package:pi_frame_lints/analysis_options.yaml
 
 formatter:
   page_width: 120
