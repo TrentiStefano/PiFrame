@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../platform/platform_environment.dart';
+import '../platform/runtime_mode.dart';
 
 abstract class PiInstallService {
   Future<bool> isFirstRun();
@@ -40,7 +41,7 @@ class DefaultPiInstallService implements PiInstallService {
     // The browser never installs the Pi CLI: dart:io Platform throws there.
     if (kIsWeb) return false;
     // Avoid showing first-run dialog automatically in automated test environments unless overridden
-    if (Platform.environment.containsKey('FLUTTER_TEST')) {
+    if (isRunningUnderTests) {
       return false;
     }
     final file = _resolveFirstRunFile();

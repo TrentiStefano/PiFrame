@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../platform/runtime_mode.dart';
+
 /// User preference for reduced motion. It is combined with the OS
 /// "remove animations" setting in `PiFrameApp` (see `main.dart`), so every
 /// `MediaQuery.disableAnimationsOf` check in the app honours both.
@@ -42,7 +44,7 @@ class ReducedMotionSettingsNotifier extends StateNotifier<ReducedMotionSettings>
 
   File? _storageFile() {
     if (_customStorageFile != null) return _customStorageFile;
-    if (kIsWeb || Platform.environment.containsKey('FLUTTER_TEST')) return null;
+    if (!usesHomeDirectoryStorage) return null;
     try {
       final env = Platform.environment;
       final home = Platform.isWindows ? (env['USERPROFILE'] ?? 'C:\\Users\\Default') : (env['HOME'] ?? '/tmp');

@@ -1,3 +1,4 @@
+import '../platform/runtime_mode.dart';
 import '../errors/user_facing_error_mapping.dart';
 
 import 'dart:convert';
@@ -53,7 +54,7 @@ class LanguageSettingsStore {
 
   /// ~/.piframe on desktop; null (no storage) on the web and under tests.
   factory LanguageSettingsStore.standard() {
-    if (kIsWeb || Platform.environment.containsKey('FLUTTER_TEST')) {
+    if (!usesHomeDirectoryStorage) {
       return const LanguageSettingsStore(directory: null);
     }
     final env = Platform.environment;

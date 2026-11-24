@@ -95,10 +95,8 @@ class PiFrameApp extends ConsumerWidget {
               // 620 ms reveal alone.
               child: playStartupIntro
                   ? StartupAssembleOverlay(
-                      // The intro is skipped in the browser and under the test runner.
-                      skipIntro:
-                          ref.read(hostEnvironmentServiceProvider).isWeb ||
-                          ref.read(hostEnvironmentServiceProvider).variable('FLUTTER_TEST') != null,
+                      // The intro is skipped under the test runner only; the web build plays it.
+                      skipIntro: ref.read(hostEnvironmentServiceProvider).variable('FLUTTER_TEST') != null,
                       onSound: (sound) => ref.read(nativeAudioServiceProvider).playWav(StartupAudio.wavFor(sound)),
                       child: child ?? const SizedBox.shrink(),
                     )

@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import 'runtime_mode.dart';
+
 /// Centralized utility for resolving system environments, augmented PATHs,
 /// and CLI executables across macOS, Linux, and Windows.
 ///
@@ -35,7 +37,7 @@ class PlatformEnvironment {
     final separator = Platform.isWindows ? ';' : ':';
 
     // 1. On macOS desktop, if PATH is the bare launchd minimal set, probe login shell PATH
-    if (Platform.isMacOS && !Platform.environment.containsKey('FLUTTER_TEST')) {
+    if (Platform.isMacOS && !isRunningUnderTests) {
       try {
         final shell = Platform.environment['SHELL'] ?? '/bin/zsh';
         final res = Process.runSync(shell, ['-l', '-c', 'printf "%s" "\$PATH"'], runInShell: false);

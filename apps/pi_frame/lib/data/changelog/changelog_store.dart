@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../platform/runtime_mode.dart';
+
 /// Remembers the last PiFrame version for which the user has seen the changelog popup.
 /// Stored as `~/.piframe/changelog_state.json`.
 class ChangelogStore {
@@ -21,7 +23,7 @@ class ChangelogStore {
 
   File? _storageFile() {
     if (_customFile != null) return _customFile;
-    if (kIsWeb || Platform.environment.containsKey('FLUTTER_TEST')) return null;
+    if (!usesHomeDirectoryStorage) return null;
     try {
       final env = Platform.environment;
       final home = Platform.isWindows ? (env['USERPROFILE'] ?? 'C:\\Users\\Default') : (env['HOME'] ?? '/tmp');
@@ -35,7 +37,7 @@ class ChangelogStore {
 
   File? _resolveFirstRunFile() {
     if (_customFirstRunFile != null) return _customFirstRunFile;
-    if (kIsWeb || Platform.environment.containsKey('FLUTTER_TEST')) return null;
+    if (!usesHomeDirectoryStorage) return null;
     try {
       final env = Platform.environment;
       final home = Platform.isWindows ? (env['USERPROFILE'] ?? 'C:\\Users\\Default') : (env['HOME'] ?? '/tmp');

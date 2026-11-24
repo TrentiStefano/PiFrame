@@ -5,6 +5,7 @@ import 'package:ffi/ffi.dart';
 import 'package:flutter/services.dart';
 
 import 'native_audio_service.dart';
+import 'runtime_mode.dart';
 
 typedef _PlaySoundNative = Int32 Function(Pointer<Void> pszSound, IntPtr hmod, Uint32 fdwSound);
 typedef _PlaySoundDart = int Function(Pointer<Void> pszSound, int hmod, int fdwSound);
@@ -23,7 +24,7 @@ class IoNativeAudioService implements NativeAudioService {
 
   @override
   void playWav(Uint8List wavBytes) {
-    if (Platform.environment.containsKey('FLUTTER_TEST')) {
+    if (isRunningUnderTests) {
       return;
     }
 

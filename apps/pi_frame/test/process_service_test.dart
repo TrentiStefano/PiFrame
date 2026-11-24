@@ -4,9 +4,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_frame/data/platform/process_service.dart';
 
-List<String> _printEnvCommand(String name) => Platform.isWindows
-    ? ['cmd', '/c', 'echo %$name%']
-    : ['sh', '-c', 'printf "%s" "\$$name"'];
+List<String> _printEnvCommand(String name) =>
+    Platform.isWindows ? ['cmd', '/c', 'echo %$name%'] : ['sh', '-c', 'printf "%s" "\$$name"'];
 
 void main() {
   test('IoProcessService.start defaults the child environment to the augmented environment', () async {

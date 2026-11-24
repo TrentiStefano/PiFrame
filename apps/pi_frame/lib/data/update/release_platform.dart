@@ -3,12 +3,13 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 
 import '../../domain/update/update_models.dart';
+import '../platform/runtime_mode.dart';
 
 /// The platform this build runs on, as release installers are chosen for it.
 ReleasePlatform currentReleasePlatform() {
   if (kIsWeb) return ReleasePlatform.web;
   try {
-    if (Platform.environment.containsKey('FLUTTER_TEST')) {
+    if (isRunningUnderTests) {
       return _fromTarget(defaultTargetPlatform);
     }
     if (Platform.isWindows) return ReleasePlatform.windows;

@@ -289,21 +289,6 @@ class _IntegratedTerminalPanelState extends ConsumerState<IntegratedTerminalPane
     );
   }
 
-  Map<String, String>? _parseWslPath(String path) {
-    final normalized = path.trim().replaceFirst(RegExp(r'^[\\/]+'), '//').replaceAll('\\', '/');
-    final match = RegExp(r'^//(wsl(?:\.localhost|\$))/([^/]+)(?:/(.*))?$', caseSensitive: false).firstMatch(normalized);
-    if (match == null) return null;
-    final distro = match.group(2)!;
-    final rest = match.group(3) ?? '';
-    final linuxPath = '/$rest'.replaceAll(RegExp(r'/+'), '/');
-    return {
-      'distro': distro,
-      'linuxPath': linuxPath.length > 1 && linuxPath.endsWith('/')
-          ? linuxPath.substring(0, linuxPath.length - 1)
-          : linuxPath,
-    };
-  }
-
   void _createNewTab({String? preferredShell}) {
     _counter++;
     final String shellExe;
@@ -312,7 +297,7 @@ class _IntegratedTerminalPanelState extends ConsumerState<IntegratedTerminalPane
 
     final host = ref.read(hostEnvironmentServiceProvider);
     if (host.operatingSystem == 'windows') {
-      final wslInfo = _parseWslPath(widget.cwd);
+      final wslInfo = parseWslPath(widget.cwd);
       final shouldUseWsl = preferredShell == 'wsl' || (preferredShell == null && wslInfo != null);
 
       if (shouldUseWsl && wslInfo != null) {
@@ -582,7 +567,7 @@ class _IntegratedTerminalPanelState extends ConsumerState<IntegratedTerminalPane
                     }
                   },
                   itemBuilder: (context) {
-                    final wslInfo = isWindowsHost ? _parseWslPath(widget.cwd) : null;
+                    final wslInfo = isWindowsHost ? parseWslPath(widget.cwd) : null;
                     return [
                       if (wslInfo != null)
                         PopupMenuItem(

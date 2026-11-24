@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import '../platform/runtime_mode.dart';
+
 /// Stores pane visibility and the sessions sidebar width across restarts.
 /// Like the other ~/.piframe preference files, it is disabled under tests unless a file is injected.
 class LayoutStore {
@@ -16,7 +18,7 @@ class LayoutStore {
 
   File? _storageFile() {
     if (_customFile != null) return _customFile;
-    if (kIsWeb || Platform.environment.containsKey('FLUTTER_TEST')) return null;
+    if (!usesHomeDirectoryStorage) return null;
     try {
       final env = Platform.environment;
       final home = Platform.isWindows ? (env['USERPROFILE'] ?? 'C:\\Users\\Default') : (env['HOME'] ?? '/tmp');

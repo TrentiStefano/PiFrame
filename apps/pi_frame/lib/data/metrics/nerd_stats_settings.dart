@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../platform/runtime_mode.dart';
+
 @immutable
 class NerdStatsSettings {
   final bool enabled;
@@ -43,7 +45,7 @@ class NerdStatsSettingsNotifier extends StateNotifier<NerdStatsSettings> {
 
   File? _getStorageFile() {
     if (_customStorageFile != null) return _customStorageFile;
-    if (kIsWeb || Platform.environment.containsKey('FLUTTER_TEST')) return null;
+    if (!usesHomeDirectoryStorage) return null;
     try {
       final env = Platform.environment;
       final home = Platform.isWindows ? (env['USERPROFILE'] ?? 'C:\\Users\\Default') : (env['HOME'] ?? '/tmp');

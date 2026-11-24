@@ -1,10 +1,10 @@
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:webview_win_floating/webview.dart';
 
+import 'runtime_mode.dart';
 import 'widget_test_binding.dart';
 
 /// What an embedded web view reports while it navigates.
@@ -73,7 +73,7 @@ class PlatformEmbeddedBrowserService implements EmbeddedBrowserService {
   EmbeddedWebView createWebView(EmbeddedWebViewEvents events) => _WinEmbeddedWebView(events);
 }
 
-bool _isFlutterTest() => !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
+bool _isFlutterTest() => !kIsWeb && isRunningUnderTests;
 
 class _WinEmbeddedWebView implements EmbeddedWebView {
   _WinEmbeddedWebView(EmbeddedWebViewEvents events) : _controller = WinWebViewController() {
