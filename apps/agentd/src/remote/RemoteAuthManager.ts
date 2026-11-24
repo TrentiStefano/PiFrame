@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import * as crypto from 'node:crypto';
 import { ulid } from 'ulid';
 import { getPiFrameBaseDir } from '../config/config.js';
-import { timingSafeEqualStrings } from '../server/auth.js';
+import { timingSafeEqualStrings } from '../auth/auth.js';
 import type { PairedDevice, PublicPairedDevice, PairingSecret, RemoteDeviceMode } from './types.js';
 
 /** Sliding lifetime of a device credential: renewed on every authenticated use. */

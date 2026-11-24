@@ -1,13 +1,14 @@
 {
   "daemonAllowedDependencies": {
+    "auth": [],
     "main": ["commands","config","pi","remote","server","sessions"],
     "commands": ["config","journal","metrics","pi","remote","server","sessions","side","workspace"],
     "config": [],
     "journal": ["config"],
     "metrics": ["server"],
     "pi": ["config","workspace"],
-    "remote": ["config","server"],
-    "server": ["config","remote"],
+    "remote": ["auth","config"],
+    "server": ["auth","config","remote"],
     "sessions": ["config","journal","pi","server","ui"],
     "side": ["config","pi","server","sessions"],
     "ui": [],
@@ -83,7 +84,6 @@
     { "file": "apps/pi_frame/lib/ui/startup_assemble_animation.dart", "import": "dart:io" },
     { "file": "apps/pi_frame/lib/ui/startup_audio_io.dart", "import": "dart:ffi" },
     { "file": "apps/pi_frame/lib/ui/startup_audio_io.dart", "import": "dart:io" },
-    { "file": "apps/pi_frame/lib/ui/startup_audio_io.dart", "import": "package:ffi/ffi.dart" },
-    { "file": "apps/agentd/src/remote", "import": "remote -> server -> remote" }
+    { "file": "apps/pi_frame/lib/ui/startup_audio_io.dart", "import": "package:ffi/ffi.dart" }
   ]
 }

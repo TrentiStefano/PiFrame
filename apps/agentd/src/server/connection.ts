@@ -2,7 +2,7 @@ import type { WebSocket } from 'ws';
 import { ulid } from 'ulid';
 import type { ServerMessage, PcpEnvelope, PcpWelcomePayload, PcpError } from '@piframe/pcp-ts';
 import { parseIncoming, encode } from '@piframe/pcp-ts';
-import { timingSafeEqualStrings } from './auth.js';
+import { timingSafeEqualStrings } from '../auth/auth.js';
 import type { RemoteManager } from '../remote/RemoteManager.js';
 import type { RemoteDeviceMode } from '../remote/types.js';
 
