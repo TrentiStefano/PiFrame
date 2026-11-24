@@ -40,6 +40,13 @@ const FORBIDDEN_LAYERS = {
   ui: ['features', 'app', 'data'],
   features: []
 };
+/**
+ * Folders a layer may import although their layer is forbidden to it. Shared widgets show user-facing text, and all
+ * user-facing text comes from the translation tables in data/language/ (presentation, not I/O).
+ */
+const ALLOWED_INTO_FORBIDDEN = {
+  ui: [`${APP_LIB}data/language/`]
+};
 /** Layers that may import the test harness: the app shell and the entry points. */
 const HARNESS_IMPORTERS = ['app', 'entry', 'harness'];
 /** Layers that must not touch raw I/O or platform plugins directly. */
@@ -111,7 +118,11 @@ function dartViolations(path, contents) {
     }
     if (to === 'harness' && !HARNESS_IMPORTERS.includes(from)) {
       out.push({ ...at, rule: 'harness', message: harnessMessage(at, from) });
-    } else if (to && (FORBIDDEN_LAYERS[from] ?? []).includes(to)) {
+    } else if (
+      to &&
+      (FORBIDDEN_LAYERS[from] ?? []).includes(to) &&
+      !(ALLOWED_INTO_FORBIDDEN[from] ?? []).some((prefix) => target.startsWith(prefix))
+    ) {
       out.push({ ...at, rule: 'layer', message: layerMessage(at, from, to) });
     }
   }

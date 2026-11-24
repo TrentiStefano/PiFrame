@@ -54,12 +54,13 @@ test('a data file importing features, ui or app fails', () => {
   ]);
 });
 
-test('a ui file importing features, app or data fails; ui importing domain passes', () => {
+test('a ui file importing features, app or data fails; ui importing domain or the translation tables passes', () => {
   const result = run([
     file(lib('ui/a.dart'), "import '../features/chat/chat.dart';"),
     file(lib('ui/b.dart'), "import '../app/shell.dart';"),
     file(lib('ui/c.dart'), "import '../data/daemon/pcp_client.dart';"),
-    file(lib('ui/d.dart'), "import '../domain/session/model.dart';")
+    file(lib('ui/d.dart'), "import '../domain/session/model.dart';"),
+    file(lib('ui/code/e.dart'), "import '../../data/language/strings_shell.dart';")
   ]);
   assert.deepEqual(rules(result), [
     `${lib('ui/a.dart')} ../features/chat/chat.dart layer`,

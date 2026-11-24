@@ -77,7 +77,7 @@ Details: `docs/pr-verification.md`.
   script in `tools/scripts/` does the I/O. Add the step to `tools/guardrails/src/steps.mjs`, then the same step to
   `.github/workflows/ci.yml` (the parity test prints the YAML). Guarded paths (`tools/guardrails/src/approval.mjs`)
   need the human-approved label on the PR.
-- **Import boundaries**: Flutter layers (domain pure, data not features/ui/app, ui not features/app/data, no raw I/O in
+- **Import boundaries**: Flutter layers (domain pure, data not features/ui/app, ui not features/app/data except data/language, no raw I/O in
   features or ui) and daemon module edges and cycles, checked by `tools/scripts/check-boundaries.mjs` against
   `tools/guardrails/boundary.json` (rules, daemon table, baseline). Rules: [docs/pr-verification.md](docs/pr-verification.md#import-boundaries).
 
