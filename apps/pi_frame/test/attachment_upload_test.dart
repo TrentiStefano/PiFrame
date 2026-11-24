@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:file_selector/file_selector.dart' show XFile;
+import 'package:pi_frame/data/platform/file_dialog_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -89,7 +89,7 @@ void main() {
     test('desktop keeps the local path and does not upload', () async {
       var uploads = 0;
       final attachment = await ingestPickedFile(
-        XFile('/tmp/notes.txt', name: 'notes.txt'),
+        PickedFile(path: '/tmp/notes.txt', name: 'notes.txt', readBytes: () async => Uint8List(0)),
         idPrefix: 'att',
         index: 0,
         isWeb: () => false,
@@ -107,7 +107,7 @@ void main() {
       final file = File('${tmp.path}/IMG_7660.png')..writeAsBytesSync([9, 9]);
       Uint8List? sent;
       final attachment = await ingestPickedFile(
-        XFile(file.path),
+        PickedFile(path: file.path, name: 'IMG_7660.png', readBytes: () async => Uint8List.fromList([9, 9])),
         idPrefix: 'att',
         index: 1,
         isWeb: () => true,

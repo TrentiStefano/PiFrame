@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'dart:ui' show BoxWidthStyle;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
+import '../../data/platform/file_system_service.dart';
 import '../../ui/precision.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1652,17 +1652,17 @@ class _PhaseTrack extends StatelessWidget {
 
 /// Description, final result and, without child sessions, the journal of a
 /// workflow run.
-class _WorkflowDetails extends StatefulWidget {
+class _WorkflowDetails extends ConsumerStatefulWidget {
   final WorkflowItem run;
   final bool hasChildren;
   final AppStrings? strings;
   const _WorkflowDetails({required this.run, required this.hasChildren, this.strings});
 
   @override
-  State<_WorkflowDetails> createState() => _WorkflowDetailsState();
+  ConsumerState<_WorkflowDetails> createState() => _WorkflowDetailsState();
 }
 
-class _WorkflowDetailsState extends State<_WorkflowDetails> {
+class _WorkflowDetailsState extends ConsumerState<_WorkflowDetails> {
   List<_JournalEntry> _journal = const [];
   Timer? _timer;
 
@@ -1695,15 +1695,17 @@ class _WorkflowDetailsState extends State<_WorkflowDetails> {
     }
   }
 
-  void _readJournal() {
+  Future<void> _readJournal() async {
     final path = widget.run.journalPath;
     // The journal lives on the host disk; the browser build only sees the final notification.
     if (kIsWeb || path == null || widget.hasChildren) return;
     try {
-      final file = File(path);
-      if (!file.existsSync()) return;
+      final files = ref.read(fileSystemServiceProvider);
+      if (!await files.fileExists(path)) return;
+      final contents = await files.readText(path);
+      if (!mounted) return;
       final entries = <_JournalEntry>[];
-      for (final line in file.readAsLinesSync()) {
+      for (final line in const LineSplitter().convert(contents)) {
         try {
           final raw = jsonDecode(line) as Map<String, dynamic>;
           entries.add((

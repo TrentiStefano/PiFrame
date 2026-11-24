@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
-import 'package:file_selector/file_selector.dart' show XFile;
+import '../../data/platform/file_dialog_service.dart';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 
 import '../../data/daemon/attachment_upload.dart';
@@ -9,10 +10,10 @@ import '../../domain/session/attachment_model.dart';
 /// Turns a picked/dropped file into a [ChatAttachment] the agent can actually read.
 ///
 /// Desktop: the file already lives on the daemon host, so its path is used directly.
-/// Browser/phone: [XFile.path] is a `blob:` URL that only exists in the browser tab, so the bytes
+/// Browser/phone: [PickedFile.path] is a `blob:` URL that only exists in the browser tab, so the bytes
 /// are uploaded to the daemon first and the resulting absolute path on the host is referenced.
 Future<ChatAttachment> ingestPickedFile(
-  XFile file, {
+  PickedFile file, {
   required String idPrefix,
   required int index,
   bool forceImage = false,
@@ -32,7 +33,7 @@ Future<ChatAttachment> ingestPickedFile(
     );
   }
 
-  final bytes = await file.readAsBytes();
+  final bytes = await file.readBytes();
   final blob = uploader != null
       ? await uploader(name, bytes, file.mimeType)
       : await uploadAttachmentBytes(name: name, bytes: bytes, mimeType: file.mimeType);
@@ -47,8 +48,8 @@ Future<ChatAttachment> ingestPickedFile(
 
 bool _isImageMime(String? mime) => mime != null && mime.startsWith('image/');
 
-/// Plain file name: some pickers report a full path in [XFile.name].
-String _displayName(XFile file) {
+/// Plain file name: some pickers report a full path in [PickedFile.name].
+String _displayName(PickedFile file) {
   final raw = file.name.isNotEmpty ? file.name : file.path;
   return raw.split(RegExp(r'[/\\]')).last;
 }

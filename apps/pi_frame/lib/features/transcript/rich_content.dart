@@ -1,180 +1,15 @@
-import 'dart:io';
-
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_transcript.dart';
-import '../../data/terminal/terminal_settings.dart';
 import '../../ui/code/code_block.dart';
 import '../../ui/code/diff_block.dart';
 import '../../ui/frame_focus.dart';
+import 'host_file_opener.dart';
 import 'task_notification_card.dart';
-
-Future<void> _openUrl(String url) async {
-  try {
-    final uri = Uri.parse(url);
-    if (!await launchUrl(uri, mode: LaunchMode.externalApplication)) {
-      await launchUrl(uri);
-    }
-  } catch (_) {
-    if (kIsWeb) return;
-    try {
-      if (Platform.isWindows) {
-        await Process.run('rundll32', ['url.dll,FileProtocolHandler', url]);
-      } else if (Platform.isMacOS) {
-        await Process.run('open', [url]);
-      } else if (Platform.isLinux) {
-        await Process.run('xdg-open', [url]);
-      }
-    } catch (_) {}
-  }
-}
-
-String resolvePathForOsExplorer(String rawPath, {String? cwd}) {
-  // The browser has no OS file system: keep the raw reference untouched and
-  // never touch dart:io (Platform throws UnsupportedError on the web).
-  if (kIsWeb) return rawPath.trim();
-  String resolved = rawPath.trim();
-  if (resolved.startsWith('file://')) {
-    final uri = Uri.tryParse(resolved);
-    if (uri != null) {
-      if (uri.host.isNotEmpty) {
-        resolved = '\\\\${uri.host}${uri.path}'.replaceAll('/', '\\');
-      } else if (Platform.isWindows && RegExp(r'^/[a-zA-Z]:').hasMatch(uri.path)) {
-        resolved = uri.path.substring(1).replaceAll('/', '\\');
-      } else {
-        resolved = uri.path;
-      }
-    } else {
-      resolved = resolved.replaceFirst(RegExp(r'^file://+'), '');
-    }
-  }
-
-  // Remove query, anchor or line:col numbers like :42:10 or #L10-20
-  resolved = resolved.replaceAll(RegExp(r'#.*$'), '');
-  resolved = resolved.replaceAll(RegExp(r':\d+(?::\d+)?$'), '');
-
-  if (!Platform.isWindows) {
-    if (cwd != null && cwd.isNotEmpty && !resolved.startsWith('/')) {
-      final sep = cwd.endsWith('/') ? '' : '/';
-      return '$cwd$sep$resolved';
-    }
-    return resolved;
-  }
-
-  // Windows platform handling:
-  // 1. Check if resolved is already a WSL UNC path (e.g. \\wsl.localhost\... or \\wsl$\...)
-  final directWsl = parseWslPath(resolved);
-  if (directWsl != null) {
-    final host = resolved.contains(r'wsl$') ? r'wsl$' : 'wsl.localhost';
-    final p = directWsl['linuxPath'] ?? '';
-    return '\\\\$host\\${directWsl['distro']}$p'.replaceAll('/', '\\');
-  }
-
-  // 2. Check if cwd is a WSL path
-  final cwdWsl = cwd != null ? parseWslPath(cwd) : null;
-  if (cwdWsl != null) {
-    final host = cwd!.contains(r'wsl$') ? r'wsl$' : 'wsl.localhost';
-    final distro = cwdWsl['distro']!;
-    final baseLinux = cwdWsl['linuxPath']!;
-    if (resolved.startsWith('/')) {
-      return '\\\\$host\\$distro$resolved'.replaceAll('/', '\\');
-    }
-    final sep = baseLinux.endsWith('/') || resolved.startsWith('/') ? '' : '/';
-    return '\\\\$host\\$distro$baseLinux$sep$resolved'.replaceAll('/', '\\');
-  }
-
-  // 3. A pure Linux path on Windows with no known WSL distro: keep the Linux
-  // path. openInOsFileExplorer maps it with `wslpath -w` on the default distro.
-  if (cwd != null && (cwd.startsWith('/') || resolved.startsWith('/'))) {
-    return resolved.startsWith('/') ? resolved : (cwd.endsWith('/') ? '$cwd$resolved' : '$cwd/$resolved');
-  }
-
-  // 4. Standard Windows path
-  if (cwd != null && cwd.isNotEmpty) {
-    final isAbsolute = RegExp(r'^[a-zA-Z]:[/\\]').hasMatch(resolved) || resolved.startsWith(r'\\');
-    if (!isAbsolute) {
-      final separator = cwd.endsWith('\\') || cwd.endsWith('/') ? '' : '\\';
-      return '$cwd$separator$resolved'.replaceAll('/', '\\');
-    }
-  }
-
-  return resolved.replaceAll('/', '\\');
-}
-
-Future<void> openInOsFileExplorer(String rawPath, {String? cwd}) async {
-  // Remote browsers cannot reveal files in the host OS explorer.
-  if (kIsWeb) return;
-  try {
-    final targetPath = resolvePathForOsExplorer(rawPath, cwd: cwd);
-
-    if (Platform.isWindows) {
-      String winPath = targetPath.replaceAll('/', '\\');
-      var file = File(winPath);
-      var dir = Directory(winPath);
-
-      // If target does not exist and appears to be WSL, try dynamic resolution via wslpath
-      if (!file.existsSync() &&
-          !dir.existsSync() &&
-          (cwd?.contains('wsl') == true ||
-              cwd?.startsWith('/') == true ||
-              rawPath.contains('wsl') ||
-              rawPath.startsWith('/'))) {
-        try {
-          final rawClean = rawPath
-              .replaceFirst(RegExp(r'^file://+'), '')
-              .replaceAll(RegExp(r'#.*$'), '')
-              .replaceAll(RegExp(r':\d+(?::\d+)?$'), '');
-          final targetLinux = rawClean.startsWith('/')
-              ? rawClean
-              : (cwd != null ? '${parseWslPath(cwd)?['linuxPath'] ?? cwd}/$rawClean' : rawClean);
-          final res = await Process.run('wsl.exe', ['wslpath', '-w', targetLinux]).timeout(const Duration(seconds: 1));
-          if (res.exitCode == 0) {
-            final out = (res.stdout as String).trim();
-            if (out.isNotEmpty && (File(out).existsSync() || Directory(out).existsSync())) {
-              winPath = out;
-              file = File(winPath);
-              dir = Directory(winPath);
-            }
-          }
-        } catch (_) {}
-      }
-
-      if (file.existsSync()) {
-        await Process.run('explorer.exe', ['/select,$winPath']);
-      } else if (dir.existsSync()) {
-        await Process.run('explorer.exe', [winPath]);
-      } else {
-        final parentDir = file.parent;
-        if (parentDir.existsSync()) {
-          await Process.run('explorer.exe', [parentDir.path]);
-        } else {
-          await Process.run('explorer.exe', ['/select,$winPath']);
-        }
-      }
-    } else if (Platform.isMacOS) {
-      final file = File(targetPath);
-      if (file.existsSync()) {
-        await Process.run('open', ['-R', targetPath]);
-      } else {
-        await Process.run('open', [targetPath]);
-      }
-    } else if (Platform.isLinux) {
-      final file = File(targetPath);
-      if (file.existsSync()) {
-        await Process.run('xdg-open', [file.parent.path]);
-      } else {
-        await Process.run('xdg-open', [targetPath]);
-      }
-    }
-  } catch (e) {
-    debugPrint('openInOsFileExplorer error: $e');
-  }
-}
 
 bool isLikelyFilePath(String s) {
   final clean = s.trim();
@@ -194,7 +29,7 @@ bool isLikelyFilePath(String s) {
   return false;
 }
 
-class RichContent extends StatefulWidget {
+class RichContent extends ConsumerStatefulWidget {
   final String text;
   final String? cwd;
   final Color? textColor;
@@ -202,7 +37,7 @@ class RichContent extends StatefulWidget {
   const RichContent({super.key, required this.text, this.cwd, this.textColor});
 
   @override
-  State<RichContent> createState() => _RichContentState();
+  ConsumerState<RichContent> createState() => _RichContentState();
 
   static final RegExp _fenceRegex = RegExp(r'```([a-zA-Z0-9_\-\+]*)\n([\s\S]*?)```');
   static final RegExp _numberedListRegex = RegExp(r'^(\d+)\.\s');
@@ -278,6 +113,7 @@ class RichContent extends StatefulWidget {
     String? cwd,
     AppStrings? strings,
     required TapGestureRecognizer Function(VoidCallback) createTapRecognizer,
+    required HostFileOpener opener,
   }) {
     final header = _splitTableRow(rows.first);
     final columnCount = header.length;
@@ -287,7 +123,14 @@ class RichContent extends StatefulWidget {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         child: Text.rich(
-          _parseInlineSpans(content, tokens, cwd: cwd, strings: strings, createTapRecognizer: createTapRecognizer),
+          _parseInlineSpans(
+            content,
+            tokens,
+            cwd: cwd,
+            strings: strings,
+            createTapRecognizer: createTapRecognizer,
+            opener: opener,
+          ),
           style: TextStyle(
             color: tokens.textPrimary,
             fontSize: FrameText.fromTokens(tokens).label.fontSize,
@@ -335,6 +178,7 @@ class RichContent extends StatefulWidget {
     String? cwd,
     AppStrings? strings,
     required TapGestureRecognizer Function(VoidCallback) createTapRecognizer,
+    required HostFileOpener opener,
     Color? textColor,
   }) {
     final rawLines = (text.contains('\r') ? text.replaceAll('\r\n', '\n') : text).split('\n');
@@ -356,6 +200,7 @@ class RichContent extends StatefulWidget {
                   cwd: cwd,
                   strings: strings,
                   createTapRecognizer: createTapRecognizer,
+                  opener: opener,
                 ),
                 style: TextStyle(
                   color: effectiveTextColor,
@@ -386,6 +231,7 @@ class RichContent extends StatefulWidget {
             cwd: cwd,
             strings: strings,
             createTapRecognizer: createTapRecognizer,
+            opener: opener,
           ),
         );
         i = end - 1;
@@ -460,6 +306,7 @@ class RichContent extends StatefulWidget {
                 cwd: cwd,
                 strings: strings,
                 createTapRecognizer: createTapRecognizer,
+                opener: opener,
               ),
               style: TextStyle(
                 color: tokens.textSecondary,
@@ -494,6 +341,7 @@ class RichContent extends StatefulWidget {
                       cwd: cwd,
                       strings: strings,
                       createTapRecognizer: createTapRecognizer,
+                      opener: opener,
                     ),
                     style: TextStyle(
                       color: effectiveTextColor,
@@ -538,6 +386,7 @@ class RichContent extends StatefulWidget {
                       cwd: cwd,
                       strings: strings,
                       createTapRecognizer: createTapRecognizer,
+                      opener: opener,
                     ),
                     style: TextStyle(
                       color: effectiveTextColor,
@@ -568,6 +417,7 @@ class RichContent extends StatefulWidget {
     String? cwd,
     AppStrings? strings,
     required TapGestureRecognizer Function(VoidCallback) createTapRecognizer,
+    required HostFileOpener opener,
   }) {
     final spans = <InlineSpan>[];
 
@@ -682,6 +532,7 @@ class RichContent extends StatefulWidget {
               cwd: cwd,
               strings: strings,
               createTapRecognizer: createTapRecognizer,
+              opener: opener,
             ),
           );
         } else if (m.type == _InlineType.bold) {
@@ -701,6 +552,7 @@ class RichContent extends StatefulWidget {
               cwd: cwd,
               strings: strings,
               createTapRecognizer: createTapRecognizer,
+              opener: opener,
             ),
           );
         } else if (m.type == _InlineType.link) {
@@ -715,6 +567,7 @@ class RichContent extends StatefulWidget {
                 cwd: cwd,
                 strings: strings,
                 createTapRecognizer: createTapRecognizer,
+                opener: opener,
               ),
             );
           } else {
@@ -724,6 +577,7 @@ class RichContent extends StatefulWidget {
                 targetUrl: targetUrl,
                 tokens: tokens,
                 createTapRecognizer: createTapRecognizer,
+                opener: opener,
               ),
             );
           }
@@ -748,10 +602,11 @@ class RichContent extends StatefulWidget {
     required String targetPath,
     required FrameTokens tokens,
     required TapGestureRecognizer Function(VoidCallback) createTapRecognizer,
+    required HostFileOpener opener,
     String? cwd,
     AppStrings? strings,
   }) {
-    void openFile() => openInOsFileExplorer(targetPath, cwd: cwd);
+    void openFile() => opener.openInOsFileExplorer(targetPath, cwd: cwd);
 
     return TextSpan(
       children: [
@@ -810,6 +665,7 @@ class RichContent extends StatefulWidget {
     required String targetUrl,
     required FrameTokens tokens,
     required TapGestureRecognizer Function(VoidCallback) createTapRecognizer,
+    required HostFileOpener opener,
   }) {
     return TextSpan(
       text: displayText,
@@ -819,12 +675,12 @@ class RichContent extends StatefulWidget {
         decorationColor: tokens.accent.withValues(alpha: 0.6),
         fontWeight: FontWeight.w500,
       ),
-      recognizer: createTapRecognizer(() => _openUrl(targetUrl)),
+      recognizer: createTapRecognizer(() => opener.openUrl(targetUrl)),
     );
   }
 }
 
-class _RichContentState extends State<RichContent> {
+class _RichContentState extends ConsumerState<RichContent> {
   final _tapRecognizers = <TapGestureRecognizer>[];
   String? _cachedText;
   FrameTokens? _cachedTokens;
@@ -837,6 +693,7 @@ class _RichContentState extends State<RichContent> {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final strings = safeTranscriptStrings(context);
+    final opener = ref.read(hostFileOpenerProvider);
     if (_cachedBuiltWidget != null &&
         _cachedText == widget.text &&
         _cachedCwd == widget.cwd &&
@@ -883,6 +740,7 @@ class _RichContentState extends State<RichContent> {
               cwd: widget.cwd,
               strings: strings,
               createTapRecognizer: createTapRecognizer,
+              opener: opener,
               textColor: widget.textColor,
             );
           }

@@ -5,9 +5,23 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:xterm/xterm.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 import 'package:pi_frame/data/daemon/daemon_providers.dart';
+import 'package:pi_frame/data/platform/file_system_service.dart';
+import 'package:pi_frame/data/platform/host_environment_service.dart';
+import 'package:pi_frame/data/platform/process_service.dart';
 import 'package:pi_frame/features/workspace/integrated_terminal.dart';
 import 'package:pi_frame/features/workspace/repository_workspace.dart';
 import 'package:pi_frame/domain/session/session_state.dart';
+
+import 'support/fake_platform_services.dart';
+
+/// Keeps the panel off the real shell: the fakes record the process it asks for.
+List<Override> _terminalServiceOverrides() => [
+  processServiceProvider.overrideWithValue(FakeProcessService()),
+  fileSystemServiceProvider.overrideWithValue(FakeFileSystemService()),
+  hostEnvironmentServiceProvider.overrideWithValue(
+    FakeHostEnvironmentService(operatingSystem: 'linux', variables: {'SHELL': '/bin/zsh'}),
+  ),
+];
 
 void main() {
   test('Integrated terminal preserves supplementary Unicode input', () {
@@ -76,16 +90,19 @@ void main() {
     var closed = false;
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: SizedBox(
-            height: 400,
-            width: 600,
-            child: IntegratedTerminalPanel(
-              cwd: '',
-              tokens: tokens,
-              onCollapseDownward: () => collapsed = true,
-              onClose: () => closed = true,
+      ProviderScope(
+        overrides: _terminalServiceOverrides(),
+        child: MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              height: 400,
+              width: 600,
+              child: IntegratedTerminalPanel(
+                cwd: '',
+                tokens: tokens,
+                onCollapseDownward: () => collapsed = true,
+                onClose: () => closed = true,
+              ),
             ),
           ),
         ),
@@ -188,12 +205,15 @@ void main() {
   testWidgets('TerminalView accepts user typing and sends to process', (tester) async {
     const tokens = FrameTokens.dark;
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: SizedBox(
-            height: 400,
-            width: 600,
-            child: IntegratedTerminalPanel(cwd: '', tokens: tokens, onCollapseDownward: () {}, onClose: () {}),
+      ProviderScope(
+        overrides: _terminalServiceOverrides(),
+        child: MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              height: 400,
+              width: 600,
+              child: IntegratedTerminalPanel(cwd: '', tokens: tokens, onCollapseDownward: () {}, onClose: () {}),
+            ),
           ),
         ),
       ),

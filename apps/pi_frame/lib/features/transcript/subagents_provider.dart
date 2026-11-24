@@ -1,13 +1,13 @@
 import 'dart:async';
-import 'dart:io';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/daemon/pcp_client.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_transcript.dart';
+import '../../data/platform/file_system_service.dart';
+import '../../data/platform/host_environment_service.dart';
 import '../../domain/session/session_state.dart';
 import 'task_notification_card.dart';
 
@@ -425,30 +425,27 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
 
   static int? _epochMs(Object? value) => value is num && value.isFinite ? value.toInt() : null;
 
-  void _readOutputFiles() {
+  Future<void> _readOutputFiles() async {
     // Subagent output files are read from the host disk; the browser gets the
     // streamed output from the daemon instead.
-    if (kIsWeb) return;
-    bool changed = false;
-    final updated = state.map((item) {
-      if (item.outputFile != null && item.outputFile!.isNotEmpty) {
-        try {
-          final file = File(item.outputFile!);
-          if (file.existsSync()) {
-            final content = file.readAsStringSync();
-            if (content.isNotEmpty && content != item.output) {
-              changed = true;
-              return item.copyWith(output: content);
-            }
-          }
-        } catch (_) {}
-      }
-      return item;
-    }).toList();
-
-    if (changed) {
-      state = updated;
+    if (ref.read(hostEnvironmentServiceProvider).isWeb) return;
+    final files = ref.read(fileSystemServiceProvider);
+    final fresh = <SubagentItem, String>{};
+    for (final item in state) {
+      final path = item.outputFile;
+      if (path == null || path.isEmpty) continue;
+      try {
+        if (!await files.fileExists(path)) continue;
+        final content = await files.readText(path);
+        if (content.isNotEmpty && content != item.output) fresh[item] = content;
+      } catch (_) {}
     }
+    if (!mounted || fresh.isEmpty) return;
+
+    state = [
+      for (final item in state)
+        if (fresh[item] case final content?) item.copyWith(output: content) else item,
+    ];
   }
 
   bool _isSubagentTool(ToolExecutionState tool) {

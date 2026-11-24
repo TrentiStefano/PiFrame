@@ -16,7 +16,7 @@ import '../../ui/frame_empty_state.dart';
 import '../../ui/frame_icon_action.dart';
 import '../../ui/frame_status_tag.dart';
 import '../../ui/frame_snack_bar.dart';
-import '../transcript/rich_content.dart';
+import '../transcript/host_file_opener.dart';
 
 class McpServerItem {
   final String name;
@@ -71,7 +71,7 @@ class McpServerItem {
 ///
 /// Opened from the Pi CLI section through [show]. The list and its state live
 /// in [_McpServersBody], which is the dialog body.
-class McpServersDialog extends StatefulWidget {
+class McpServersDialog extends ConsumerStatefulWidget {
   final FrameTokens tokens;
   final String? projectDir;
   final List<McpServerItem>? initialServers;
@@ -80,7 +80,7 @@ class McpServersDialog extends StatefulWidget {
   const McpServersDialog({super.key, required this.tokens, this.projectDir, this.initialServers, this.strings});
 
   @override
-  State<McpServersDialog> createState() => _McpServersDialogState();
+  ConsumerState<McpServersDialog> createState() => _McpServersDialogState();
 
   static Future<void> show(
     BuildContext context,
@@ -133,7 +133,7 @@ class McpServersDialog extends StatefulWidget {
   }
 }
 
-class _McpServersDialogState extends State<McpServersDialog> {
+class _McpServersDialogState extends ConsumerState<McpServersDialog> {
   final _bodyKey = GlobalKey<_McpServersBodyState>();
 
   @override
@@ -157,7 +157,7 @@ AppStrings _stringsFor(BuildContext context) {
   }
 }
 
-class _McpServersBody extends StatefulWidget {
+class _McpServersBody extends ConsumerStatefulWidget {
   final FrameTokens tokens;
   final String? projectDir;
   final List<McpServerItem>? initialServers;
@@ -166,10 +166,10 @@ class _McpServersBody extends StatefulWidget {
   const _McpServersBody({super.key, required this.tokens, this.projectDir, this.initialServers, this.strings});
 
   @override
-  State<_McpServersBody> createState() => _McpServersBodyState();
+  ConsumerState<_McpServersBody> createState() => _McpServersBodyState();
 }
 
-class _McpServersBodyState extends State<_McpServersBody> {
+class _McpServersBodyState extends ConsumerState<_McpServersBody> {
   AppStrings get _strings {
     if (widget.strings != null) return widget.strings!;
     try {
@@ -416,7 +416,7 @@ class _McpServersBodyState extends State<_McpServersBody> {
 
   /// Opens the folder that holds the global MCP config, with the file selected.
   void _openConfigFile() {
-    openInOsFileExplorer(_getGlobalMcpConfigPath());
+    ref.read(hostFileOpenerProvider).openInOsFileExplorer(_getGlobalMcpConfigPath());
   }
 
   @override

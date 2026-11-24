@@ -15,7 +15,27 @@ class ProcessOutput {
   bool get succeeded => exitCode == 0;
 }
 
-/// Runs short child processes (CLI tools) to completion.
+/// A child process that stays alive: output arrives as byte streams and input
+/// is written to its standard input.
+abstract class RunningProcess {
+  Stream<List<int>> get stdout;
+
+  Stream<List<int>> get stderr;
+
+  /// Completes with the exit code when the process ends.
+  Future<int> get exitCode;
+
+  /// Writes [bytes] to the process's standard input.
+  void writeBytes(List<int> bytes);
+
+  /// Writes [line] followed by a newline to the process's standard input.
+  void writeLine(String line);
+
+  /// Asks the process to stop. Returns false when it had already ended.
+  bool kill();
+}
+
+/// Runs child processes (CLI tools) to completion, or starts one that stays alive.
 abstract class ProcessService {
   /// Runs [executable] with [arguments]. The environment defaults to the
   /// augmented PATH from [PlatformEnvironment].
@@ -26,6 +46,38 @@ abstract class ProcessService {
     bool runInShell = false,
     Map<String, String>? environment,
   });
+
+  /// Starts [executable] and returns without waiting for it to finish.
+  Future<RunningProcess> start(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+    bool runInShell = false,
+  });
+}
+
+class IoRunningProcess implements RunningProcess {
+  final Process _process;
+
+  IoRunningProcess(this._process);
+
+  @override
+  Stream<List<int>> get stdout => _process.stdout;
+
+  @override
+  Stream<List<int>> get stderr => _process.stderr;
+
+  @override
+  Future<int> get exitCode => _process.exitCode;
+
+  @override
+  void writeBytes(List<int> bytes) => _process.stdin.add(bytes);
+
+  @override
+  void writeLine(String line) => _process.stdin.writeln(line);
+
+  @override
+  bool kill() => _process.kill();
 }
 
 class IoProcessService implements ProcessService {
@@ -47,6 +99,22 @@ class IoProcessService implements ProcessService {
     );
     final result = await (timeout == null ? future : future.timeout(timeout));
     return ProcessOutput(exitCode: result.exitCode, stdout: '${result.stdout}', stderr: '${result.stderr}');
+  }
+
+  @override
+  Future<RunningProcess> start(
+    String executable,
+    List<String> arguments, {
+    String? workingDirectory,
+    bool runInShell = false,
+  }) async {
+    final process = await Process.start(
+      executable,
+      arguments,
+      workingDirectory: workingDirectory,
+      runInShell: runInShell,
+    );
+    return IoRunningProcess(process);
   }
 }
 

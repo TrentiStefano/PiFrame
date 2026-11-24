@@ -1,10 +1,11 @@
 import 'dart:ui' show BoxWidthStyle;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/language/strings_transcript.dart';
-import 'rich_content.dart';
+import 'host_file_opener.dart';
 
 class TaskNotificationData {
   final String taskId;
@@ -100,17 +101,17 @@ class TaskNotificationData {
   }
 }
 
-class TaskNotificationCard extends StatefulWidget {
+class TaskNotificationCard extends ConsumerStatefulWidget {
   final TaskNotificationData data;
   final String? cwd;
 
   const TaskNotificationCard({super.key, required this.data, this.cwd});
 
   @override
-  State<TaskNotificationCard> createState() => _TaskNotificationCardState();
+  ConsumerState<TaskNotificationCard> createState() => _TaskNotificationCardState();
 }
 
-class _TaskNotificationCardState extends State<TaskNotificationCard> {
+class _TaskNotificationCardState extends ConsumerState<TaskNotificationCard> {
   bool _isResultExpanded = false;
 
   String _formatDuration(int? ms) {
@@ -425,7 +426,9 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
                     if (data.fullTranscriptPath != null && data.fullTranscriptPath!.isNotEmpty) ...[
                       InkWell(
                         onTap: () {
-                          openInOsFileExplorer(data.fullTranscriptPath!, cwd: widget.cwd);
+                          ref
+                              .read(hostFileOpenerProvider)
+                              .openInOsFileExplorer(data.fullTranscriptPath!, cwd: widget.cwd);
                         },
                         borderRadius: BorderRadius.circular(tokens.radiusSm),
                         child: Padding(

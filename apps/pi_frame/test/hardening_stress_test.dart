@@ -120,10 +120,12 @@ line 2 of code
 ''';
 
       await tester.pumpWidget(
-        MaterialApp(
-          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
-          home: const Scaffold(
-            body: SingleChildScrollView(child: RichContent(text: worstMarkdown)),
+        ProviderScope(
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+            home: const Scaffold(
+              body: SingleChildScrollView(child: RichContent(text: worstMarkdown)),
+            ),
           ),
         ),
       );

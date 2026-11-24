@@ -9,9 +9,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
-import 'package:window_manager/window_manager.dart';
 
-import 'package:file_selector/file_selector.dart';
+import '../../data/platform/file_dialog_service.dart';
+import '../../data/platform/window_service.dart';
 
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/composer/composer_settings.dart';
@@ -613,7 +613,7 @@ class _ComposerState extends ConsumerState<Composer> {
 
   Future<void> _addExternalFiles() async {
     try {
-      final files = await openFiles();
+      final files = await ref.read(fileDialogServiceProvider).pickFiles();
       if (files.isEmpty || !mounted) return;
 
       await _ingestFiles(files, idPrefix: 'att_ext');
@@ -624,7 +624,7 @@ class _ComposerState extends ConsumerState<Composer> {
 
   /// Adds picked files to the composer. In the browser the bytes are uploaded to the daemon first
   /// (a `blob:` URL means nothing to the agent); send is blocked until every upload has finished.
-  Future<void> _ingestFiles(List<XFile> files, {required String idPrefix, bool forceImage = false}) async {
+  Future<void> _ingestFiles(List<PickedFile> files, {required String idPrefix, bool forceImage = false}) async {
     if (files.isEmpty || !mounted) return;
     final strings = ref.read(appStringsProvider);
     final notifier = ref.read(composerAttachmentsProvider(widget.sessionId).notifier);
@@ -658,14 +658,12 @@ class _ComposerState extends ConsumerState<Composer> {
   Future<void> _addImageFiles() async {
     try {
       final strings = ref.read(appStringsProvider);
-      final files = await openFiles(
-        acceptedTypeGroups: [
-          XTypeGroup(
+      final files = await ref
+          .read(fileDialogServiceProvider)
+          .pickFiles(
             label: strings.composerImagesFilterLabel,
             extensions: const ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'],
-          ),
-        ],
-      );
+          );
       if (files.isEmpty || !mounted) return;
 
       await _ingestFiles(files, idPrefix: 'att_img', forceImage: true);
@@ -898,7 +896,7 @@ class _ComposerState extends ConsumerState<Composer> {
         if (!await resolveDirtyRepository(context, ref, widget.sessionId)) {
           return;
         }
-        await windowManager.close();
+        await ref.read(windowServiceProvider).close();
         return;
       default:
         FrameSnackBar.show(

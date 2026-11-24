@@ -1,12 +1,11 @@
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/daemon/attachment_upload.dart';
+import '../../data/platform/file_system_service.dart';
+import '../../data/platform/link_service.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_composer.dart';
 import '../../domain/session/attachment_model.dart';
@@ -259,6 +258,7 @@ class ImagePreviewDialog extends ConsumerWidget {
                       child: Center(
                         child: buildAttachmentImage(
                           pathOrUrl,
+                          files: ref.read(fileSystemServiceProvider),
                           fit: BoxFit.contain,
                           errorBuilder: (ctx, err, stack) => _buildError(context, tokens, strings),
                         ),
@@ -294,11 +294,11 @@ class AttachmentChip extends ConsumerWidget {
 
   const AttachmentChip({super.key, required this.attachment, this.isEditable = false, this.onRemove, this.onImageTap});
 
-  Future<void> _handleLinkTap() async {
+  Future<void> _handleLinkTap(WidgetRef ref) async {
     final uri = Uri.tryParse(attachment.pathOrUrl);
     if (uri != null) {
       try {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
+        await ref.read(linkServiceProvider).openExternal(uri);
       } catch (_) {}
     }
   }
@@ -309,11 +309,11 @@ class AttachmentChip extends ConsumerWidget {
     final strings = ref.watch(appStringsProvider);
 
     if (attachment.isImage) {
-      return _buildImageThumbnail(context, tokens, strings);
+      return _buildImageThumbnail(context, tokens, strings, ref);
     }
 
     if (attachment.isWebLink) {
-      return _buildWebLinkChip(context, tokens, strings);
+      return _buildWebLinkChip(context, tokens, strings, ref);
     }
 
     return _buildFileChip(context, tokens, strings);
@@ -370,11 +370,11 @@ class AttachmentChip extends ConsumerWidget {
     );
   }
 
-  Widget _buildWebLinkChip(BuildContext context, FrameTokens tokens, AppStrings strings) {
+  Widget _buildWebLinkChip(BuildContext context, FrameTokens tokens, AppStrings strings, WidgetRef ref) {
     return InkWell(
       key: ValueKey('attachment-link-${attachment.id}'),
       borderRadius: BorderRadius.circular(tokens.radiusSm),
-      onTap: isEditable ? null : _handleLinkTap,
+      onTap: isEditable ? null : () => _handleLinkTap(ref),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2, vertical: FrameSpace.x1),
         decoration: BoxDecoration(
@@ -410,7 +410,7 @@ class AttachmentChip extends ConsumerWidget {
     );
   }
 
-  Widget _buildImageThumbnail(BuildContext context, FrameTokens tokens, AppStrings strings) {
+  Widget _buildImageThumbnail(BuildContext context, FrameTokens tokens, AppStrings strings, WidgetRef ref) {
     return Stack(
       key: ValueKey('attachment-image-${attachment.id}'),
       clipBehavior: Clip.none,
@@ -434,6 +434,7 @@ class AttachmentChip extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(tokens.radiusSm - 1),
                 child: buildAttachmentImage(
                   attachment.pathOrUrl,
+                  files: ref.read(fileSystemServiceProvider),
                   width: 52,
                   height: 52,
                   fit: BoxFit.cover,
@@ -468,6 +469,7 @@ class AttachmentChip extends ConsumerWidget {
 
 Widget buildAttachmentImage(
   String pathOrUrl, {
+  required FileSystemService files,
   double? width,
   double? height,
   required BoxFit fit,
@@ -497,7 +499,7 @@ Widget buildAttachmentImage(
     }
   }
   if (!kIsWeb) {
-    return Image.file(File(pathOrUrl), width: width, height: height, fit: fit, errorBuilder: errorBuilder);
+    return files.imageFile(pathOrUrl, width: width, height: height, fit: fit, errorBuilder: errorBuilder);
   }
   return Builder(builder: (ctx) => errorBuilder(ctx, StateError('Unsupported image source'), null));
 }

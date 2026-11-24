@@ -1,10 +1,15 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:desktop_drop/desktop_drop.dart';
 import 'package:pi_frame/data/daemon/daemon_providers.dart';
+import 'package:pi_frame/data/platform/drop_target_service.dart';
+import 'package:pi_frame/data/platform/file_dialog_service.dart';
+
+import 'support/fake_platform_services.dart';
+
 import 'package:pi_frame/domain/session/attachment_model.dart';
 import 'package:pi_frame/domain/session/session_state.dart';
 import 'package:pi_frame/domain/session/agent_status.dart';
@@ -284,7 +289,8 @@ void main() {
 
   group('ChatDropTarget drag and drop tests', () {
     testWidgets('shows animated hover overlay on drag and attaches files on drop', (tester) async {
-      final container = ProviderContainer();
+      final dropService = FakeDropTargetService();
+      final container = ProviderContainer(overrides: [dropTargetServiceProvider.overrideWithValue(dropService)]);
       addTearDown(container.dispose);
 
       await tester.pumpWidget(
@@ -311,9 +317,8 @@ void main() {
       final AnimatedOpacity initialOpacityWidget = tester.widget(opacityFinder);
       expect(initialOpacityWidget.opacity, 0.0);
 
-      // Simulate onDragEntered on DropTarget
-      final dropTarget = tester.widget<DropTarget>(find.byType(DropTarget));
-      dropTarget.onDragEntered?.call(DropEventDetails(localPosition: Offset.zero, globalPosition: Offset.zero));
+      // A drag enters the drop target.
+      dropService.enter();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 250));
 
@@ -322,17 +327,11 @@ void main() {
       expect(activeOpacityWidget.opacity, 1.0);
       expect(find.text('Drop files here to attach'), findsOneWidget);
 
-      // Simulate onDragDone with a dropped file and an image
-      dropTarget.onDragDone?.call(
-        DropDoneDetails(
-          localPosition: Offset.zero,
-          globalPosition: Offset.zero,
-          files: [
-            DropItemFile('/path/to/script.py', name: 'script.py'),
-            DropItemFile('/path/to/diagram.png', name: 'diagram.png'),
-          ],
-        ),
-      );
+      // Files dropped with a script and an image
+      dropService.drop([
+        PickedFile(path: '/path/to/script.py', name: 'script.py', readBytes: () async => Uint8List(0)),
+        PickedFile(path: '/path/to/diagram.png', name: 'diagram.png', readBytes: () async => Uint8List(0)),
+      ]);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 250));
 

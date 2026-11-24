@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -14,6 +13,9 @@ import 'package:xterm/xterm.dart';
 
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_workspace.dart';
+import '../../data/platform/file_system_service.dart';
+import '../../data/platform/host_environment_service.dart';
+import '../../data/platform/process_service.dart';
 import '../../data/terminal/terminal_settings.dart';
 
 class TerminalTabSession {
@@ -21,7 +23,7 @@ class TerminalTabSession {
   String title;
   final String shellName;
   final Terminal terminal;
-  Process? process;
+  RunningProcess? process;
   bool isRunning = false;
   int? exitCode;
   StreamSubscription? _stdoutSub;
@@ -105,7 +107,7 @@ class TerminalTabSession {
     // Handle Ctrl+C (character code 3)
     if (data == '\x03') {
       try {
-        process?.stdin.add([3]);
+        process?.writeBytes([3]);
       } catch (_) {}
       terminal.write('^C\r\n');
       currentInput = '';
@@ -170,7 +172,7 @@ class TerminalTabSession {
         }
         historyIndex = history.length;
         try {
-          process?.stdin.writeln(lineToSend);
+          process?.writeLine(lineToSend);
         } catch (_) {}
       }
       // Tab (\t)
@@ -209,7 +211,7 @@ class TerminalTabSession {
       _pendingPowerShellEchoes.add(command);
     }
     try {
-      process?.stdin.writeln(command);
+      process?.writeLine(command);
     } catch (_) {}
   }
 }
@@ -308,7 +310,8 @@ class _IntegratedTerminalPanelState extends ConsumerState<IntegratedTerminalPane
     final List<String> shellArgs;
     final String shellName;
 
-    if (Platform.isWindows) {
+    final host = ref.read(hostEnvironmentServiceProvider);
+    if (host.operatingSystem == 'windows') {
       final wslInfo = _parseWslPath(widget.cwd);
       final shouldUseWsl = preferredShell == 'wsl' || (preferredShell == null && wslInfo != null);
 
@@ -325,13 +328,13 @@ class _IntegratedTerminalPanelState extends ConsumerState<IntegratedTerminalPane
         shellArgs = ['-NoLogo'];
         shellName = 'PowerShell';
       }
-    } else if (Platform.isMacOS) {
-      final envShell = Platform.environment['SHELL'] ?? '/bin/zsh';
+    } else if (host.operatingSystem == 'macos') {
+      final envShell = host.variable('SHELL') ?? '/bin/zsh';
       shellExe = envShell;
       shellArgs = ['-l'];
       shellName = envShell.split('/').last;
     } else {
-      final envShell = Platform.environment['SHELL'] ?? '/bin/bash';
+      final envShell = host.variable('SHELL') ?? '/bin/bash';
       shellExe = envShell;
       shellArgs = ['-i'];
       shellName = envShell.split('/').last;
@@ -373,21 +376,20 @@ class _IntegratedTerminalPanelState extends ConsumerState<IntegratedTerminalPane
 
   Future<void> _startProcessForTab(TerminalTabSession session, String executable, List<String> args) async {
     final isWsl = executable.toLowerCase() == 'wsl.exe';
-    final effectiveCwd = !isWsl && widget.cwd.isNotEmpty && Directory(widget.cwd).existsSync()
-        ? widget.cwd
-        : Directory.current.path;
+    final host = ref.read(hostEnvironmentServiceProvider);
+    final cwdExists =
+        !isWsl && widget.cwd.isNotEmpty && await ref.read(fileSystemServiceProvider).directoryExists(widget.cwd);
+    if (!mounted) return;
+    final effectiveCwd = cwdExists ? widget.cwd : host.currentDirectory;
 
     final displayDir = isWsl && widget.cwd.isNotEmpty ? widget.cwd : effectiveCwd;
     final strings = _getReadStrings();
     session.terminal.write(strings.terminalStartingSession(displayDir));
 
     try {
-      final process = await Process.start(
-        executable,
-        args,
-        workingDirectory: isWsl ? null : effectiveCwd,
-        runInShell: false,
-      );
+      final process = await ref
+          .read(processServiceProvider)
+          .start(executable, args, workingDirectory: isWsl ? null : effectiveCwd, runInShell: false);
 
       session.process = process;
       session.isRunning = true;
@@ -460,6 +462,7 @@ class _IntegratedTerminalPanelState extends ConsumerState<IntegratedTerminalPane
 
   @override
   Widget build(BuildContext context) {
+    final isWindowsHost = ref.read(hostEnvironmentServiceProvider).operatingSystem == 'windows';
     final tokens = widget.tokens;
     final strings = _getStrings();
 
@@ -580,7 +583,7 @@ class _IntegratedTerminalPanelState extends ConsumerState<IntegratedTerminalPane
                     }
                   },
                   itemBuilder: (context) {
-                    final wslInfo = Platform.isWindows ? _parseWslPath(widget.cwd) : null;
+                    final wslInfo = isWindowsHost ? _parseWslPath(widget.cwd) : null;
                     return [
                       if (wslInfo != null)
                         PopupMenuItem(
@@ -599,11 +602,11 @@ class _IntegratedTerminalPanelState extends ConsumerState<IntegratedTerminalPane
                           children: [
                             const Icon(Icons.terminal_outlined, size: FrameSize.icon),
                             const SizedBox(width: 8),
-                            Text(Platform.isWindows ? strings.terminalNewPowerShellTab : strings.terminalNewTabTooltip),
+                            Text(isWindowsHost ? strings.terminalNewPowerShellTab : strings.terminalNewTabTooltip),
                           ],
                         ),
                       ),
-                      if (Platform.isWindows)
+                      if (isWindowsHost)
                         PopupMenuItem(
                           value: 'cmd',
                           child: Row(
