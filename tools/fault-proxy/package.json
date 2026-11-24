@@ -6,8 +6,7 @@
   "type": "module",
   "description": "WebSocket fault injection proxy for resilience testing",
   "scripts": {
-    "build": "tsc",
-    "lint": "tsc --noEmit"
+    "build": "tsc -p tsconfig.build.json"
   },
   "dependencies": {
     "ws": "^8.18.0"

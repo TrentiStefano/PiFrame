@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -244,12 +246,12 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
         final folder = current.folder!;
         _setFolderExpanded(folder, !_isFolderExpanded(folder));
       } else {
-        _openSession(current.sessionId!);
+        unawaited(_openSession(current.sessionId!));
       }
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.f2 && !current.isFolder) {
-      _showRenameDialog(current.sessionId!, current.name);
+      unawaited(_showRenameDialog(current.sessionId!, current.name));
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
@@ -749,7 +751,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                                   isCursor: _showsCursor('session:$id'),
                                   onTap: () {
                                     _railFocus.requestFocus();
-                                    _openSession(id);
+                                    unawaited(_openSession(id));
                                   },
                                   onPinToggle: () => ref.read(pinnedSessionsProvider.notifier).togglePin(id),
                                   onRename: (sId, sName) => _showRenameDialog(sId, sName),
@@ -979,18 +981,20 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                                 if (!context.mounted || action == null) return;
                                 if (action == 'instructions') {
                                   final activeSid = activeFolders.contains(folder) ? activeId : null;
-                                  InstructionFileDialog.show(context, folder: folder, sessionId: activeSid);
+                                  unawaited(InstructionFileDialog.show(context, folder: folder, sessionId: activeSid));
                                 } else if (action == 'new_session') {
                                   _setFolderExpanded(folder, true);
                                   await createSession(context, ref, cwd: folder);
                                   if (mounted) widget.onSessionSelected?.call();
                                 } else if (action == 'remove_repo') {
-                                  removeRepoWithConfirmation(
-                                    context,
-                                    ref,
-                                    folder: folder,
-                                    repoName: folderNames[folder] ?? _folderName(folder),
-                                    folderSessions: folderSessions,
+                                  unawaited(
+                                    removeRepoWithConfirmation(
+                                      context,
+                                      ref,
+                                      folder: folder,
+                                      repoName: folderNames[folder] ?? _folderName(folder),
+                                      folderSessions: folderSessions,
+                                    ),
                                   );
                                 }
                               }
@@ -999,7 +1003,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                               _rowMenus.register('folder:$folder', () {
                                 final rowContext = folderRowKey.currentContext;
                                 if (rowContext == null) return;
-                                openFolderMenu(rowAnchorRect(rowContext));
+                                unawaited(openFolderMenu(rowAnchorRect(rowContext)));
                               });
                               folderTile = InkWell(
                                 key: folderRowKey,
@@ -1037,7 +1041,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                               isCursor: _showsCursor('session:$id'),
                               onTap: () {
                                 _railFocus.requestFocus();
-                                _openSession(id);
+                                unawaited(_openSession(id));
                               },
                               onPinToggle: () => ref.read(pinnedSessionsProvider.notifier).togglePin(id),
                               onRename: (sId, sName) => _showRenameDialog(sId, sName),
@@ -1443,7 +1447,7 @@ class _SessionTile extends ConsumerWidget {
 
     onMenuOpener?.call(() {
       if (!context.mounted) return;
-      _showContextMenu(context, rowAnchorRect(context), tokens, strings, id, chosenName);
+      unawaited(_showContextMenu(context, rowAnchorRect(context), tokens, strings, id, chosenName));
     });
 
     // The keyboard cursor and a working agent used the same colour (accent is

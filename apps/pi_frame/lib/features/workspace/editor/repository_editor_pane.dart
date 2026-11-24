@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -206,7 +207,7 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
   void _saveIfDirty(String path) {
     final dirty = ref.read(repositoryStateProvider(widget.sessionId)).buffers[path]?.dirty ?? false;
     if (!dirty || widget.writeBlocked) return;
-    _saveFile(path);
+    unawaited(_saveFile(path));
   }
 
   /// Closes the file. Unsaved changes ask first (Salva / Non salvare / Annulla).
@@ -287,7 +288,7 @@ class _RepositoryEditorPaneState extends ConsumerState<RepositoryEditorPane> {
         _openFileSearch();
         return KeyEventResult.handled;
       case LogicalKeyboardKey.keyG:
-        _promptGoToLine();
+        unawaited(_promptGoToLine());
         return KeyEventResult.handled;
       case LogicalKeyboardKey.keyS:
         _saveIfDirty(path);

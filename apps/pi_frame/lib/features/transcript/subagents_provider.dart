@@ -158,7 +158,7 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
 
   void _init() {
     _listenToSession();
-    _fetchFromDaemon();
+    unawaited(_fetchFromDaemon());
   }
 
   void _listenToSession() {
@@ -170,7 +170,7 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
           prev.activeToolCalls.length != next.activeToolCalls.length ||
           prev.entries.length != next.entries.length;
       if (shouldFetch) {
-        _fetchFromDaemon();
+        unawaited(_fetchFromDaemon());
       }
     }, fireImmediately: true);
   }
@@ -182,8 +182,8 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
     if (hasActive) {
       _refreshTimer ??= Timer.periodic(_subagentRefreshInterval, (_) {
         _syncFromSessionState();
-        _fetchFromDaemon();
-        _readOutputFiles();
+        unawaited(_fetchFromDaemon());
+        unawaited(_readOutputFiles());
       });
     } else {
       _refreshTimer?.cancel();

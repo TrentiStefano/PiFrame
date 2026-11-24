@@ -181,7 +181,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
           if (ref.read(pcpClientProvider) == null) {
             _dismiss();
           } else {
-            _sendResponse(cancelled: true);
+            unawaited(_sendResponse(cancelled: true));
           }
         }
       });
@@ -195,7 +195,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
         }
       }
     });
-    _attemptClaim();
+    unawaited(_attemptClaim());
   }
 
   void _dismiss() {
@@ -233,7 +233,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
   void dispose() {
     if (_isSecretInput) _textController.clear();
     _countdownTimer?.cancel();
-    _resolutionSubscription?.cancel();
+    unawaited(_resolutionSubscription?.cancel());
     _textController.dispose();
     _customAnswerFocusNode.dispose();
     super.dispose();
@@ -561,26 +561,28 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
               onPressed: !_lockedByOther && !_isResponding && canSubmit
                   ? () {
                       if (method == 'confirm') {
-                        _sendResponse(confirmed: true);
+                        unawaited(_sendResponse(confirmed: true));
                       } else if (method == 'select') {
                         if (_isCustomAnswerSelected) {
-                          _sendResponse(
-                            value: _customAnswerNeedsFollowUp(options)
-                                ? options.firstWhere(_isFreeTextOption)
-                                : _textController.text,
+                          unawaited(
+                            _sendResponse(
+                              value: _customAnswerNeedsFollowUp(options)
+                                  ? options.firstWhere(_isFreeTextOption)
+                                  : _textController.text,
+                            ),
                           );
                         } else if (_isMultiSelect) {
-                          _sendResponse(value: _selectedOptions.toList());
+                          unawaited(_sendResponse(value: _selectedOptions.toList()));
                         } else if (_opensWorkflowsMenu(_selectedOption)) {
                           // RPC cannot render pi-subagents' custom workflow dialog, so its
                           // menu would reopen forever; cancel it and show PiFrame's panel.
                           ref.read(agentActivityPanelOpenProvider(widget.sessionId).notifier).state = true;
-                          _sendResponse(cancelled: true);
+                          unawaited(_sendResponse(cancelled: true));
                         } else {
-                          _sendResponse(value: _selectedOption);
+                          unawaited(_sendResponse(value: _selectedOption));
                         }
                       } else {
-                        _sendResponse(value: _textController.text);
+                        unawaited(_sendResponse(value: _textController.text));
                       }
                     }
                   : null,

@@ -78,7 +78,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
   @override
   void initState() {
     super.initState();
-    _fetchStatus();
+    unawaited(_fetchStatus());
     _subscribeEvents();
   }
 
@@ -98,7 +98,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
   @override
   void dispose() {
     _countdownTimer?.cancel();
-    _eventSub?.cancel();
+    unawaited(_eventSub?.cancel());
     _customUrlController.dispose();
     _customCommandController.dispose();
     _tailscaleHostnameController.dispose();
@@ -631,7 +631,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                                 icon: const Icon(Icons.copy_outlined, size: FrameSize.icon),
                                 label: Text(strings.remoteCopyPairLinkBtn),
                                 onPressed: () {
-                                  Clipboard.setData(ClipboardData(text: _pairingUrl ?? _url!));
+                                  unawaited(Clipboard.setData(ClipboardData(text: _pairingUrl ?? _url!)));
                                   FrameSnackBar.show(context, message: strings.remotePairLinkCopiedSnackBar);
                                 },
                               ),
@@ -712,7 +712,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                 ],
                 selected: {_defaultMode},
                 onSelectionChanged: (set) {
-                  if (set.isNotEmpty) _updateDefaultMode(set.first);
+                  if (set.isNotEmpty) unawaited(_updateDefaultMode(set.first));
                 },
               ),
               const SizedBox(height: FrameSpace.x2),
@@ -830,7 +830,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                           ],
                           onChanged: (newMode) {
                             if (newMode != null) {
-                              _changeDeviceMode(deviceId, mode, newMode, name);
+                              unawaited(_changeDeviceMode(deviceId, mode, newMode, name));
                             }
                           },
                         ),

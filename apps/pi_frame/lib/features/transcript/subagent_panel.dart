@@ -1672,14 +1672,14 @@ class _WorkflowDetailsState extends ConsumerState<_WorkflowDetails> {
   @override
   void initState() {
     super.initState();
-    _readJournal();
+    unawaited(_readJournal());
     _syncTimer();
   }
 
   @override
   void didUpdateWidget(covariant _WorkflowDetails oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.run.status != widget.run.status) _readJournal();
+    if (oldWidget.run.status != widget.run.status) unawaited(_readJournal());
     _syncTimer();
   }
 

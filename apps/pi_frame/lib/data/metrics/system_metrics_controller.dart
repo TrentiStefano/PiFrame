@@ -42,7 +42,7 @@ class SystemMetricsController extends StateNotifier<SystemMetricsData> {
   }
 
   void _listenClientConnection(PcpClient? client) {
-    _connSub?.cancel();
+    unawaited(_connSub?.cancel());
     _connSub = client?.connectionStateStream.listen((_) => evaluate());
   }
 
@@ -115,11 +115,13 @@ class SystemMetricsController extends StateNotifier<SystemMetricsData> {
           },
         );
 
-    client.subscribeSystemMetrics().catchError((err) {
-      _isSubscribed = false;
-      if (mounted) state = state.copyWith(isStale: true);
-      return <String, dynamic>{};
-    });
+    unawaited(
+      client.subscribeSystemMetrics().catchError((err) {
+        _isSubscribed = false;
+        if (mounted) state = state.copyWith(isStale: true);
+        return <String, dynamic>{};
+      }),
+    );
   }
 
   void _unsubscribe(PcpClient? client) {
@@ -127,7 +129,7 @@ class SystemMetricsController extends StateNotifier<SystemMetricsData> {
     _cancelEventSub();
     _cancelStaleTimer();
     if (client != null && client.state == DaemonConnectionState.connected) {
-      client.unsubscribeSystemMetrics().catchError((_) => <String, dynamic>{});
+      unawaited(client.unsubscribeSystemMetrics().catchError((_) => <String, dynamic>{}));
     }
   }
 
@@ -157,7 +159,7 @@ class SystemMetricsController extends StateNotifier<SystemMetricsData> {
   }
 
   void _cancelEventSub() {
-    _eventSub?.cancel();
+    unawaited(_eventSub?.cancel());
     _eventSub = null;
   }
 
@@ -165,7 +167,7 @@ class SystemMetricsController extends StateNotifier<SystemMetricsData> {
   void dispose() {
     _cancelStaleTimer();
     _cancelEventSub();
-    _connSub?.cancel();
+    unawaited(_connSub?.cancel());
     if (_isSubscribed) {
       _unsubscribe(_currentClient);
     }

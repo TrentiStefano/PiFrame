@@ -233,9 +233,9 @@ class PcpClient {
   }
 
   void _cleanupChannel() {
-    _subscription?.cancel();
+    unawaited(_subscription?.cancel());
     _subscription = null;
-    _channel?.sink.close();
+    unawaited(_channel?.sink.close());
     _channel = null;
     _welcomePayload = null;
   }
@@ -1061,12 +1061,12 @@ class PcpClient {
     }
     _pendingCommands.clear();
     _inFlightCommands.clear();
-    _connectionStateController.close();
+    unawaited(_connectionStateController.close());
     for (final c in _eventControllers.values) {
-      c.close();
+      unawaited(c.close());
     }
     for (final c in _snapshotControllers.values) {
-      c.close();
+      unawaited(c.close());
     }
   }
 }

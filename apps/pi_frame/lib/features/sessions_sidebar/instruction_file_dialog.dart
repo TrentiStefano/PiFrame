@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 
@@ -224,7 +226,7 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
       // If active session exists, refresh workspace files
       if (widget.sessionId != null) {
         try {
-          ref.read(repositoryStateProvider(widget.sessionId!).notifier).loadFiles();
+          unawaited(ref.read(repositoryStateProvider(widget.sessionId!).notifier).loadFiles());
         } catch (_) {}
       }
 

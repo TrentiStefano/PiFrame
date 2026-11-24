@@ -1074,7 +1074,7 @@ class _ToolStepExpandedViewState extends State<_ToolStepExpandedView> {
                 InkWell(
                   borderRadius: BorderRadius.circular(context.tokens.radiusSm),
                   onTap: () {
-                    Clipboard.setData(ClipboardData(text: prettyInput));
+                    unawaited(Clipboard.setData(ClipboardData(text: prettyInput)));
                     FrameSnackBar.show(
                       context,
                       message: strings.stepsGroupInputCopied,
@@ -1160,7 +1160,7 @@ class _ToolStepExpandedViewState extends State<_ToolStepExpandedView> {
                 InkWell(
                   borderRadius: BorderRadius.circular(context.tokens.radiusSm),
                   onTap: () {
-                    Clipboard.setData(ClipboardData(text: tool.output));
+                    unawaited(Clipboard.setData(ClipboardData(text: tool.output)));
                     FrameSnackBar.show(
                       context,
                       message: strings.stepsGroupOutputCopied,

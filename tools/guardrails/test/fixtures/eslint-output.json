@@ -1,0 +1,25 @@
+[
+  {
+    "filePath": "C:\\Repo\\apps\\agentd\\src\\pi\\worker.ts",
+    "messages": [
+      { "ruleId": "@typescript-eslint/no-floating-promises", "severity": 2, "message": "Promises must be awaited.", "line": 10, "column": 3 },
+      { "ruleId": "@typescript-eslint/require-await", "severity": 1, "message": "Async function has no await.", "line": 20, "column": 1 }
+    ],
+    "errorCount": 1,
+    "warningCount": 1
+  },
+  {
+    "filePath": "C:\\Repo\\packages\\pcp-ts\\src\\index.ts",
+    "messages": [],
+    "errorCount": 0,
+    "warningCount": 0
+  },
+  {
+    "filePath": "C:\\Repo\\test\\e2e\\src\\spec.ts",
+    "messages": [
+      { "ruleId": null, "severity": 2, "message": "Parsing error: unexpected token", "line": 1, "column": 1 }
+    ],
+    "errorCount": 1,
+    "warningCount": 0
+  }
+]

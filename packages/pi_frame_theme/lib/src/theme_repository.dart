@@ -217,7 +217,7 @@ class ThemeRepository {
   void watchDirectory(Directory dir) {
     if (!dir.existsSync()) return;
     try {
-      _watcherSubscription?.cancel();
+      unawaited(_watcherSubscription?.cancel());
       _watcherSubscription = dir.watch().listen((event) {
         if (event.path.endsWith('.json')) {
           _reloadFromDirectory(dir);
@@ -241,7 +241,7 @@ class ThemeRepository {
   }
 
   void dispose() {
-    _watcherSubscription?.cancel();
-    _controller.close();
+    unawaited(_watcherSubscription?.cancel());
+    unawaited(_controller.close());
   }
 }

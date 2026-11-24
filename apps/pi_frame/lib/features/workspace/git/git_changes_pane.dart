@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../ui/precision.dart';
@@ -140,7 +142,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
   @override
   void initState() {
     super.initState();
-    _refresh();
+    unawaited(_refresh());
   }
 
   @override
@@ -150,7 +152,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
       _status = null;
       _departing.clear();
       _arrivals = {};
-      _refresh();
+      unawaited(_refresh());
     }
   }
 
@@ -682,7 +684,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     _rowMenus.register('r:$section:$path', () {
       final rowContext = rowKey.currentContext;
       if (rowContext == null) return;
-      _showRowMenu(rowAnchorRect(rowContext), path: path, isStaged: isStaged, blocked: blocked);
+      unawaited(_showRowMenu(rowAnchorRect(rowContext), path: path, isStaged: isStaged, blocked: blocked));
     });
     final row = KeyedSubtree(
       key: rowKey,
@@ -823,10 +825,10 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
       if (entry.isHeader) {
         _toggleSection(entry.section, entry.expanded);
       } else if (entry.path != null && !writesOff) {
-        _action(entry.section == 'staged' ? 'unstage' : 'stage', [entry.path!]);
+        unawaited(_action(entry.section == 'staged' ? 'unstage' : 'stage', [entry.path!]));
       }
     } else if (key == LogicalKeyboardKey.delete) {
-      if (entry.path != null && !writesOff) _discardFile(entry.path!);
+      if (entry.path != null && !writesOff) unawaited(_discardFile(entry.path!));
     } else {
       return KeyEventResult.ignored;
     }
@@ -898,11 +900,11 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
       case 'diff':
         _openDiff(path);
       case 'toggle':
-        _action(isStaged ? 'unstage' : 'stage', [path]);
+        unawaited(_action(isStaged ? 'unstage' : 'stage', [path]));
       case 'discard':
-        _discardFile(path);
+        unawaited(_discardFile(path));
       case 'copy':
-        Clipboard.setData(ClipboardData(text: path));
+        unawaited(Clipboard.setData(ClipboardData(text: path)));
         FrameSnackBar.show(context, message: strings.pathCopied(path));
       case 'chat':
         appendFileMentionToComposer(ref, widget.sessionId, path);
@@ -923,7 +925,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
 
     ref.listen<String>(sessionStateFamily(widget.sessionId).select((s) => s.cwd), (prev, next) {
       if (next.isNotEmpty && (prev == null || prev.isEmpty || _status?['error'] != null)) {
-        _refresh();
+        unawaited(_refresh());
       }
     });
 
@@ -932,13 +934,13 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
       next,
     ) {
       if (prev != null && prev != next) {
-        _refresh();
+        unawaited(_refresh());
       }
     });
 
     ref.listen<AgentStatus>(sessionStateFamily(widget.sessionId).select((s) => s.agentStatus), (prev, next) {
       if (prev != null && prev != next && next == AgentStatus.idle) {
-        _refresh();
+        unawaited(_refresh());
       }
     });
 

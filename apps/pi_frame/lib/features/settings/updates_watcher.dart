@@ -34,7 +34,7 @@ class _UpdatesPeriodicWatcherState extends ConsumerState<UpdatesPeriodicWatcher>
     if (!mounted) return;
     final settings = ref.read(updateSettingsProvider);
     if (settings.shouldCheckNow(DateTime.now())) {
-      ref.read(updateControllerProvider.notifier).checkForUpdates(isManual: false);
+      unawaited(ref.read(updateControllerProvider.notifier).checkForUpdates(isManual: false));
     }
   }
 

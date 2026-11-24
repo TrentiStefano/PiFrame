@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -640,9 +641,11 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
     if (client != null) {
       final strings = ref.read(appStringsProvider);
       final verb = newStatus == 'completed' ? strings.todoVerbCompleted : strings.todoVerbPending;
-      client
-          .sendPrompt(sessionId, strings.todoSteerPrompt(id, task.subject, verb), streamingBehavior: 'steer')
-          .catchError((_) => <String, dynamic>{});
+      unawaited(
+        client
+            .sendPrompt(sessionId, strings.todoSteerPrompt(id, task.subject, verb), streamingBehavior: 'steer')
+            .catchError((_) => <String, dynamic>{}),
+      );
     }
   }
 
@@ -660,9 +663,11 @@ class TodoNotifier extends StateNotifier<List<TodoItem>> {
 
     final client = ref.read(pcpClientProvider);
     if (client != null) {
-      client
-          .sendPrompt(sessionId, 'New task added by the user: #$newId "$trimmed".', streamingBehavior: 'steer')
-          .catchError((_) => <String, dynamic>{});
+      unawaited(
+        client
+            .sendPrompt(sessionId, 'New task added by the user: #$newId "$trimmed".', streamingBehavior: 'steer')
+            .catchError((_) => <String, dynamic>{}),
+      );
     }
   }
 

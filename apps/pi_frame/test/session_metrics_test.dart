@@ -40,7 +40,7 @@ class _StatsClient extends PcpClient {
 
   @override
   void dispose() {
-    eventsController.close();
+    unawaited(eventsController.close());
     super.dispose();
   }
 

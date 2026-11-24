@@ -267,12 +267,12 @@ class _PiCliSectionState extends ConsumerState<PiCliSection> {
     if (parts.isEmpty) return;
 
     final display = 'pi $raw';
-    _executeCommand(display, parts);
+    unawaited(_executeCommand(display, parts));
   }
 
   void _copyConsoleOutput() {
     if (_consoleOutput.isEmpty) return;
-    Clipboard.setData(ClipboardData(text: _consoleOutput));
+    unawaited(Clipboard.setData(ClipboardData(text: _consoleOutput)));
     FrameSnackBar.show(context, message: _strings.piCliOutputCopiedSnackBar, duration: const Duration(seconds: 2));
   }
 

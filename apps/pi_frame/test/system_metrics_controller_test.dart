@@ -80,10 +80,10 @@ void main() {
       );
     });
 
-    tearDown(() {
+    tearDown(() async {
       container.dispose();
-      client.daemonEvents.close();
-      client.connStream.close();
+      await client.daemonEvents.close();
+      await client.connStream.close();
     });
 
     test('OFF -> no subscribe command sent', () {

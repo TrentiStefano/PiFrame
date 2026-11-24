@@ -8,11 +8,10 @@
   "piCompat": "^0.85.0",
   "main": "dist/main.js",
   "scripts": {
-    "build": "tsc && pnpm build:bundle",
+    "build": "tsc -p tsconfig.build.json && pnpm build:bundle",
     "build:bundle": "esbuild src/main.ts --bundle --platform=node --target=node22 --outfile=dist/pi-agentd.cjs --sourcemap",
     "build:sea": "pnpm build:bundle && node --experimental-sea-config sea-config.json",
     "dev": "node --watch dist/main.js",
-    "lint": "tsc --noEmit",
     "test": "node --test dist/**/*.test.js"
   },
   "dependencies": {

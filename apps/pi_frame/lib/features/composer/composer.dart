@@ -211,7 +211,7 @@ class _ComposerState extends ConsumerState<Composer> {
             role: FrameDialogActionRole.cancel,
             key: const ValueKey('edit-steer-dialog-load'),
             onPressed: () {
-              sessionNotifier.removeSteerMessage(index);
+              unawaited(sessionNotifier.removeSteerMessage(index));
               _controller.text = textController.text;
               _focusNode.requestFocus();
               FrameSnackBar.show(context, message: strings.steerLoadedToComposer, duration: const Duration(seconds: 2));
@@ -225,7 +225,7 @@ class _ComposerState extends ConsumerState<Composer> {
             onPressed: () {
               final newText = textController.text.trim();
               if (newText.isNotEmpty) {
-                sessionNotifier.updateSteerMessage(index, newText);
+                unawaited(sessionNotifier.updateSteerMessage(index, newText));
               }
             },
           ),
@@ -243,8 +243,8 @@ class _ComposerState extends ConsumerState<Composer> {
     _controller.addListener(_onTextChanged);
     _focusNode.addListener(_onFocusChanged);
     _availableCommands = _mergeLocalCommands(const []);
-    _loadCommands();
-    _loadModels();
+    unawaited(_loadCommands());
+    unawaited(_loadModels());
   }
 
   List<Map<String, dynamic>> _mergeLocalCommands(List<Map<String, dynamic>> cmds) {
@@ -346,7 +346,7 @@ class _ComposerState extends ConsumerState<Composer> {
       if (atMatch != null) {
         final query = atMatch.group(1)!;
         final start = atMatch.start;
-        _updateFileMentions(query, start);
+        unawaited(_updateFileMentions(query, start));
       } else if (_showFileMentionMenu) {
         setState(() => _showFileMentionMenu = false);
         _focusNode.requestFocus();
@@ -567,16 +567,16 @@ class _ComposerState extends ConsumerState<Composer> {
   void _onAttachSelected(String value) {
     switch (value) {
       case 'repo':
-        _addFileToContext();
+        unawaited(_addFileToContext());
         break;
       case 'external':
-        _addExternalFiles();
+        unawaited(_addExternalFiles());
         break;
       case 'link':
-        _addWebLink();
+        unawaited(_addWebLink());
         break;
       case 'image':
-        _addImageFiles();
+        unawaited(_addImageFiles());
         break;
     }
   }
@@ -1944,7 +1944,7 @@ class _ComposerState extends ConsumerState<Composer> {
                                         // With a layer open (drawer, Review mode...), Escape
                                         // goes to the shell, which closes that layer first.
                                         if (isStreaming && !ref.read(escapeLayersProvider).isOpen) {
-                                          _interrupt();
+                                          unawaited(_interrupt());
                                           return KeyEventResult.handled;
                                         }
                                       }
@@ -1968,9 +1968,9 @@ class _ComposerState extends ConsumerState<Composer> {
 
                                       void triggerSend() {
                                         if (isStreaming) {
-                                          _send(streamingBehavior: 'steer');
+                                          unawaited(_send(streamingBehavior: 'steer'));
                                         } else {
-                                          _send();
+                                          unawaited(_send());
                                         }
                                       }
 

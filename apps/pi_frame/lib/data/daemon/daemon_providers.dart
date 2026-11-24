@@ -614,8 +614,8 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
 
   @override
   void dispose() {
-    _sub?.cancel();
-    _snapSub?.cancel();
+    unawaited(_sub?.cancel());
+    unawaited(_snapSub?.cancel());
     super.dispose();
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -76,13 +78,15 @@ bool _isFlutterTest() => !kIsWeb && isRunningUnderTests;
 
 class _WinEmbeddedWebView implements EmbeddedWebView {
   _WinEmbeddedWebView(EmbeddedWebViewEvents events) : _controller = WinWebViewController() {
-    _controller.setNavigationDelegate(
-      WinNavigationDelegate(
-        onPageStarted: events.onPageStarted,
-        onPageFinished: events.onPageFinished,
-        onUrlChange: (change) => events.onUrlChange?.call(change.url),
-        onPageTitleChanged: events.onTitleChanged,
-        onWebResourceError: (error) => events.onLoadError?.call(error.description),
+    unawaited(
+      _controller.setNavigationDelegate(
+        WinNavigationDelegate(
+          onPageStarted: events.onPageStarted,
+          onPageFinished: events.onPageFinished,
+          onUrlChange: (change) => events.onUrlChange?.call(change.url),
+          onPageTitleChanged: events.onTitleChanged,
+          onWebResourceError: (error) => events.onLoadError?.call(error.description),
+        ),
       ),
     );
   }

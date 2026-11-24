@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -174,9 +176,11 @@ void main() {
           child: _Host(
             onSettings: (context) {
               settingsCalls++;
-              showDialog<void>(
-                context: context,
-                builder: (_) => const AlertDialog(content: Text('Stacked dialog')),
+              unawaited(
+                showDialog<void>(
+                  context: context,
+                  builder: (_) => const AlertDialog(content: Text('Stacked dialog')),
+                ),
               );
             },
           ),
