@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -80,9 +82,11 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
       onClose();
       return true;
     });
-    Future.microtask(() {
-      ref.read(sessionChangesProvider(widget.sessionId).notifier).refresh(joinRunning: true);
-    });
+    unawaited(
+      Future.microtask(() {
+        unawaited(ref.read(sessionChangesProvider(widget.sessionId).notifier).refresh(joinRunning: true));
+      }),
+    );
   }
 
   @override
@@ -102,7 +106,7 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
     } else {
       notifier.state = Set<String>.from(current)..add(path);
       // Fetch diff for this file if not already loaded
-      ref.read(sessionChangesProvider(widget.sessionId).notifier).fetchFileDiff(path);
+      unawaited(ref.read(sessionChangesProvider(widget.sessionId).notifier).fetchFileDiff(path));
     }
   }
 
@@ -337,7 +341,7 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
                   icon: const Icon(Icons.refresh_outlined, size: FrameSize.icon),
                   tooltip: strings.refreshSessionChangesTooltip,
                   onPressed: () {
-                    ref.read(sessionChangesProvider(widget.sessionId).notifier).refresh();
+                    unawaited(ref.read(sessionChangesProvider(widget.sessionId).notifier).refresh());
                   },
                 ),
                 // Close Button

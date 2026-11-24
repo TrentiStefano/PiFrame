@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../ui/precision.dart';
@@ -60,7 +62,7 @@ class _BranchPickerDialogState extends ConsumerState<BranchPickerDialog> {
     _focusNode.addListener(() {
       if (mounted) setState(() {});
     });
-    _loadBranches();
+    unawaited(_loadBranches());
   }
 
   Future<void> _loadBranches() async {

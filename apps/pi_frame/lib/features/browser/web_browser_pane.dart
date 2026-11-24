@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../../data/errors/user_facing_error_mapping.dart';
 
 import 'package:flutter/material.dart';
@@ -126,10 +128,10 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
     if (!activeTab.isHome && activeTab.url.isNotEmpty) {
       final uri = Uri.tryParse(activeTab.url);
       if (uri != null) {
-        view.loadRequest(uri);
+        unawaited(view.loadRequest(uri));
       }
     } else {
-      view.setVisibility(false);
+      unawaited(view.setVisibility(false));
     }
   }
 
@@ -138,19 +140,19 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
     super.activate();
     final activeTab = ref.read(webBrowserProvider).activeTab;
     if (!activeTab.isHome && _isNativeWebViewSupported) {
-      _webView?.setVisibility(true);
+      unawaited(_webView?.setVisibility(true));
     }
   }
 
   @override
   void deactivate() {
-    _webView?.setVisibility(false);
+    unawaited(_webView?.setVisibility(false));
     super.deactivate();
   }
 
   @override
   void dispose() {
-    _webView?.dispose();
+    unawaited(_webView?.dispose());
     _webView = null;
     _urlController.dispose();
     _homeSearchController.dispose();
@@ -194,14 +196,14 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
   void _submitUrl() {
     final text = _urlController.text.trim();
     if (text.isEmpty) return;
-    _navigateTo(text);
+    unawaited(_navigateTo(text));
   }
 
   void _submitHomeSearch() {
     final text = _homeSearchController.text.trim();
     if (text.isEmpty) return;
     _homeSearchController.clear();
-    _navigateTo(text);
+    unawaited(_navigateTo(text));
   }
 
   Future<void> _switchTab(String tabId) async {
@@ -275,7 +277,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
   }
 
   void _copyUrl(String url) {
-    Clipboard.setData(ClipboardData(text: url));
+    unawaited(Clipboard.setData(ClipboardData(text: url)));
     final strings = _getReadStrings();
     FrameSnackBar.show(context, message: strings.urlCopiedToClipboard, duration: const Duration(seconds: 2));
   }
@@ -347,7 +349,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                                   isSelected: false,
                                   tokens: tokens,
                                   onTap: () {
-                                    _webView?.setVisibility(false);
+                                    unawaited(_webView?.setVisibility(false));
                                     ref.read(rightPaneModeProvider.notifier).state = RightPaneMode.git;
                                   },
                                 ),
@@ -458,7 +460,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                           constraints: const BoxConstraints(),
                           tooltip: strings.collapseBrowserPanelTooltip,
                           onPressed: () {
-                            _webView?.setVisibility(false);
+                            unawaited(_webView?.setVisibility(false));
                             widget.onCollapse?.call();
                           },
                           icon: const Icon(Icons.chevron_right_outlined, size: FrameSize.icon),
@@ -625,7 +627,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                         if (_isNativeWebViewSupported && _webView != null && await _webView!.canGoBack()) {
                           await _webView!.goBack();
                         }
-                        ref.read(webBrowserProvider.notifier).goBack();
+                        unawaited(ref.read(webBrowserProvider.notifier).goBack());
                       }
                     : null,
                 icon: const Icon(Icons.arrow_back_outlined, size: FrameSize.icon),
@@ -641,7 +643,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                         if (_isNativeWebViewSupported && _webView != null && await _webView!.canGoForward()) {
                           await _webView!.goForward();
                         }
-                        ref.read(webBrowserProvider.notifier).goForward();
+                        unawaited(ref.read(webBrowserProvider.notifier).goForward());
                       }
                     : null,
                 icon: const Icon(Icons.arrow_forward_outlined, size: FrameSize.icon),
@@ -656,7 +658,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                   if (_isNativeWebViewSupported && _webView != null && !activeTab.isHome) {
                     await _webView!.reload();
                   }
-                  ref.read(webBrowserProvider.notifier).reload();
+                  unawaited(ref.read(webBrowserProvider.notifier).reload());
                 },
                 icon: const Icon(Icons.refresh_outlined, size: FrameSize.icon),
               ),
@@ -836,14 +838,14 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
 
   void _openActiveExternal() {
     final url = ref.read(webBrowserProvider).activeTab.url;
-    if (url != 'about:home') _openExternal(url);
+    if (url != 'about:home') unawaited(_openExternal(url));
   }
 
   Future<void> _goHome() async {
     if (_isNativeWebViewSupported && _webView != null) {
       await _webView!.setVisibility(false);
     }
-    ref.read(webBrowserProvider.notifier).goHome();
+    unawaited(ref.read(webBrowserProvider.notifier).goHome());
   }
 
   void _toggleActiveBookmark() {
@@ -863,7 +865,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
       case _BrowserMenuAction.openExternal:
         _openActiveExternal();
       case _BrowserMenuAction.home:
-        _goHome();
+        unawaited(_goHome());
       case _BrowserMenuAction.bookmark:
         _toggleActiveBookmark();
     }
@@ -906,13 +908,13 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
   Widget _buildBody(FrameTokens tokens, WebBrowserTab activeTab) {
     if (activeTab.isHome) {
       if (_isNativeWebViewSupported && _webView != null) {
-        _webView!.setVisibility(false);
+        unawaited(_webView!.setVisibility(false));
       }
       return _buildHomeDashboard(tokens);
     }
 
     if (_isNativeWebViewSupported && _webView != null) {
-      _webView!.setVisibility(true);
+      unawaited(_webView!.setVisibility(true));
       return Stack(
         children: [
           Positioned.fill(child: _webView!.view),
@@ -1185,7 +1187,7 @@ class _WebBrowserPaneState extends ConsumerState<WebBrowserPane> {
                         constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
                         tooltip: strings.copyCodeTooltip,
                         onPressed: () {
-                          Clipboard.setData(ClipboardData(text: code));
+                          unawaited(Clipboard.setData(ClipboardData(text: code)));
                           FrameSnackBar.show(
                             context,
                             message: strings.codeCopiedMessage,

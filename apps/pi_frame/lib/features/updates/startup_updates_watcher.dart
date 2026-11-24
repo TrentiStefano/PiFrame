@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -25,7 +27,7 @@ class _StartupUpdatesWatcherState extends ConsumerState<StartupUpdatesWatcher> {
     _requested = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ref.read(startupUpdatesProvider.notifier).checkUpdates();
+      unawaited(ref.read(startupUpdatesProvider.notifier).checkUpdates());
     });
   }
 

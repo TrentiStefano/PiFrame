@@ -206,7 +206,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        ref.read(sessionStateFamily(widget.sessionId).notifier).refreshDefaults();
+        unawaited(ref.read(sessionStateFamily(widget.sessionId).notifier).refreshDefaults());
       }
     });
   }
@@ -226,7 +226,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       _trackedSessionId = null;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          ref.read(sessionStateFamily(widget.sessionId).notifier).refreshDefaults();
+          unawaited(ref.read(sessionStateFamily(widget.sessionId).notifier).refreshDefaults());
         }
       });
     }
@@ -356,15 +356,17 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     _userScrolledUp = false;
     final maxScroll = _scrollController.position.maxScrollExtent;
     if (animate) {
-      _scrollController
-          .animateTo(
-            maxScroll,
-            duration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : context.tokens.panelDuration,
-            curve: FrameMotion.enterCurve,
-          )
-          .whenComplete(() {
-            _isProgrammaticScroll = false;
-          });
+      unawaited(
+        _scrollController
+            .animateTo(
+              maxScroll,
+              duration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : context.tokens.panelDuration,
+              curve: FrameMotion.enterCurve,
+            )
+            .whenComplete(() {
+              _isProgrammaticScroll = false;
+            }),
+      );
     } else {
       _scrollController.jumpTo(maxScroll);
       scheduleMicrotask(() {
@@ -1777,7 +1779,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                         }
                         if (event.logicalKey == LogicalKeyboardKey.enter ||
                             event.logicalKey == LogicalKeyboardKey.numpadEnter) {
-                          _submitRename();
+                          unawaited(_submitRename());
                           return KeyEventResult.handled;
                         }
                       }
@@ -2363,7 +2365,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
               copyKey: ValueKey('entry_copy_${entry.id}'),
               copyTooltip: _currentStrings.transcriptCopyMessage,
               onCopy: () {
-                Clipboard.setData(ClipboardData(text: entry.text));
+                unawaited(Clipboard.setData(ClipboardData(text: entry.text)));
                 FrameSnackBar.show(
                   context,
                   message: _currentStrings.transcriptMessageCopied,
@@ -2478,7 +2480,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                   onPressed: () {
-                    Clipboard.setData(ClipboardData(text: output));
+                    unawaited(Clipboard.setData(ClipboardData(text: output)));
                     FrameSnackBar.show(
                       context,
                       message: _currentStrings.transcriptOutputCopied,

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -86,7 +88,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        ref.read(repositoryStateProvider(widget.sessionId).notifier).loadFiles();
+        unawaited(ref.read(repositoryStateProvider(widget.sessionId).notifier).loadFiles());
       }
     });
   }
@@ -101,7 +103,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
       _searchQuery = '';
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          ref.read(repositoryStateProvider(widget.sessionId).notifier).loadFiles();
+          unawaited(ref.read(repositoryStateProvider(widget.sessionId).notifier).loadFiles());
         }
       });
     }
@@ -254,7 +256,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                           }
                           ref.read(repoExpandedDirsProvider(widget.sessionId).notifier).state = next;
                         } else {
-                          ref.read(repositoryStateProvider(widget.sessionId).notifier).selectFile(node.path);
+                          unawaited(ref.read(repositoryStateProvider(widget.sessionId).notifier).selectFile(node.path));
                         }
                       },
                       onAddToChat: (filePath) {
@@ -280,7 +282,7 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
     ref.listen<String>(sessionStateFamily(widget.sessionId).select((s) => s.cwd), (prev, next) {
       final currentRepo = ref.read(repositoryStateProvider(widget.sessionId));
       if (next.isNotEmpty && (prev == null || prev.isEmpty || currentRepo.error != null)) {
-        ref.read(repositoryStateProvider(widget.sessionId).notifier).loadFiles();
+        unawaited(ref.read(repositoryStateProvider(widget.sessionId).notifier).loadFiles());
       }
     });
 
@@ -340,10 +342,12 @@ class _RepositoryPaneState extends ConsumerState<RepositoryPane> {
                     onPressed: () {
                       final termSettings = ref.read(terminalSettingsProvider);
                       if (termSettings.mode == TerminalMode.native) {
-                        launchNativeTerminal(
-                          cwd: repo.rootPath ?? ref.read(sessionStateFamily(widget.sessionId)).cwd,
-                          nativeApp: termSettings.nativeApp,
-                          customPath: termSettings.customPath,
+                        unawaited(
+                          launchNativeTerminal(
+                            cwd: repo.rootPath ?? ref.read(sessionStateFamily(widget.sessionId)).cwd,
+                            nativeApp: termSettings.nativeApp,
+                            customPath: termSettings.customPath,
+                          ),
                         );
                       } else {
                         _toggleTerminal();
@@ -729,19 +733,21 @@ class _TreeRowState extends ConsumerState<_TreeRow> {
         _menuItem('chat-folder', Icons.create_new_folder_outlined, tokens.accent, strings.addFolderToChat),
       _menuItem('copy', Icons.copy_outlined, tokens.textMuted, strings.copyPath),
     ];
-    showMenu<String>(context: context, position: menuPositionFor(context, anchor), items: items).then((choice) {
-      if (!mounted || choice == null) return;
-      switch (choice) {
-        case 'chat':
-        case 'chat-folder':
-          widget.onAddToChat!(node.path);
-        case 'session':
-          createSession(context, ref, cwd: _absolutePath(widget.rootPath!, node.path));
-        case 'copy':
-          Clipboard.setData(ClipboardData(text: node.path));
-          FrameSnackBar.show(context, message: strings.pathCopied(node.path));
-      }
-    });
+    unawaited(
+      showMenu<String>(context: context, position: menuPositionFor(context, anchor), items: items).then((choice) {
+        if (!mounted || choice == null) return;
+        switch (choice) {
+          case 'chat':
+          case 'chat-folder':
+            widget.onAddToChat!(node.path);
+          case 'session':
+            unawaited(createSession(context, ref, cwd: _absolutePath(widget.rootPath!, node.path)));
+          case 'copy':
+            unawaited(Clipboard.setData(ClipboardData(text: node.path)));
+            FrameSnackBar.show(context, message: strings.pathCopied(node.path));
+        }
+      }),
+    );
   }
 
   @override

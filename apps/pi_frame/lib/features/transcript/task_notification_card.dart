@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' show BoxWidthStyle;
 
 import 'package:flutter/material.dart';
@@ -426,9 +427,11 @@ class _TaskNotificationCardState extends ConsumerState<TaskNotificationCard> {
                     if (data.fullTranscriptPath != null && data.fullTranscriptPath!.isNotEmpty) ...[
                       InkWell(
                         onTap: () {
-                          ref
-                              .read(hostFileOpenerProvider)
-                              .openInOsFileExplorer(data.fullTranscriptPath!, cwd: widget.cwd);
+                          unawaited(
+                            ref
+                                .read(hostFileOpenerProvider)
+                                .openInOsFileExplorer(data.fullTranscriptPath!, cwd: widget.cwd),
+                          );
                         },
                         borderRadius: BorderRadius.circular(tokens.radiusSm),
                         child: Padding(

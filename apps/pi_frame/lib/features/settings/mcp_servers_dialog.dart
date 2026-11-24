@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -194,7 +195,7 @@ class _McpServersBodyState extends ConsumerState<_McpServersBody> {
       _servers = List.from(widget.initialServers!);
       _isLoading = false;
     } else {
-      _loadServers();
+      unawaited(_loadServers());
     }
   }
 
@@ -210,7 +211,7 @@ class _McpServersBodyState extends ConsumerState<_McpServersBody> {
   /// Re-reads the server list. Ignored while a load is already running.
   void reload() {
     if (_isLoading) return;
-    _loadServers();
+    unawaited(_loadServers());
   }
 
   Future<void> _loadServers() async {
@@ -420,7 +421,7 @@ class _McpServersBodyState extends ConsumerState<_McpServersBody> {
 
   /// Opens the folder that holds the global MCP config, with the file selected.
   void _openConfigFile() {
-    ref.read(hostFileOpenerProvider).openInOsFileExplorer(_getGlobalMcpConfigPath());
+    unawaited(ref.read(hostFileOpenerProvider).openInOsFileExplorer(_getGlobalMcpConfigPath()));
   }
 
   @override
@@ -560,7 +561,7 @@ class _McpServersBodyState extends ConsumerState<_McpServersBody> {
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm)),
                           onChanged: (val) {
                             if (val != null) {
-                              _toggleServer(server, val);
+                              unawaited(_toggleServer(server, val));
                             }
                           },
                         ),
@@ -664,7 +665,7 @@ class _McpServersBodyState extends ConsumerState<_McpServersBody> {
                       icon: Icons.copy_outlined,
                       tooltip: strings.mcpCopyCommandTooltip,
                       onPressed: () {
-                        Clipboard.setData(ClipboardData(text: server.transport));
+                        unawaited(Clipboard.setData(ClipboardData(text: server.transport)));
                         FrameSnackBar.show(
                           context,
                           message: strings.mcpCommandCopiedSnackBar,

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -39,7 +41,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
   @override
   void initState() {
     super.initState();
-    _loadParams();
+    unawaited(_loadParams());
   }
 
   @override
@@ -50,7 +52,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
       _isLoadingParams = true;
       _reserveDraft = null;
       _savingReserve = false;
-      _loadParams();
+      unawaited(_loadParams());
     }
   }
 
@@ -398,7 +400,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                             if (modelObj.isEmpty) return;
                             final provider = modelObj['provider']?.toString() ?? '';
                             final modelId = modelObj['id']?.toString() ?? newModel;
-                            _runAction(() => sessionNotifier.setModel(provider, modelId));
+                            unawaited(_runAction(() => sessionNotifier.setModel(provider, modelId)));
                           }
                         },
                 ),
@@ -428,7 +430,7 @@ class _ContextPanelState extends ConsumerState<ContextPanel> {
                 ? null
                 : (newLevel) {
                     if (newLevel != null) {
-                      _runAction(() => sessionNotifier.setThinkingLevel(newLevel));
+                      unawaited(_runAction(() => sessionNotifier.setThinkingLevel(newLevel)));
                     }
                   },
           ),

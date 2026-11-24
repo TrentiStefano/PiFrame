@@ -39,8 +39,8 @@ class TerminalTabSession {
   TerminalTabSession({required this.id, required this.title, required this.shellName, required this.terminal});
 
   void dispose() {
-    _stdoutSub?.cancel();
-    _stderrSub?.cancel();
+    unawaited(_stdoutSub?.cancel());
+    unawaited(_stderrSub?.cancel());
     try {
       process?.kill();
     } catch (_) {}
@@ -340,7 +340,7 @@ class _IntegratedTerminalPanelState extends ConsumerState<IntegratedTerminalPane
     });
     _terminalFocusNode.requestFocus();
 
-    _startProcessForTab(session, shellExe, shellArgs);
+    unawaited(_startProcessForTab(session, shellExe, shellArgs));
   }
 
   AppStrings _getStrings() {
@@ -392,14 +392,16 @@ class _IntegratedTerminalPanelState extends ConsumerState<IntegratedTerminalPane
         session.writeErrorOutput(text);
       });
 
-      process.exitCode.then((code) {
-        if (!mounted) return;
-        setState(() {
-          session.isRunning = false;
-          session.exitCode = code;
-        });
-        session.terminal.write(strings.terminalProcessTerminated(code));
-      });
+      unawaited(
+        process.exitCode.then((code) {
+          if (!mounted) return;
+          setState(() {
+            session.isRunning = false;
+            session.exitCode = code;
+          });
+          session.terminal.write(strings.terminalProcessTerminated(code));
+        }),
+      );
     } catch (e) {
       if (!mounted) return;
       session.terminal.write(strings.terminalCannotStartProcess(executable, e));
@@ -441,7 +443,9 @@ class _IntegratedTerminalPanelState extends ConsumerState<IntegratedTerminalPane
 
   void _openInNativeTerminal() {
     final termSettings = ref.read(terminalSettingsProvider);
-    launchNativeTerminal(cwd: widget.cwd, nativeApp: termSettings.nativeApp, customPath: termSettings.customPath);
+    unawaited(
+      launchNativeTerminal(cwd: widget.cwd, nativeApp: termSettings.nativeApp, customPath: termSettings.customPath),
+    );
   }
 
   @override
@@ -729,11 +733,13 @@ class _IntegratedTerminalPanelState extends ConsumerState<IntegratedTerminalPane
 
     // Ctrl+V: Paste from clipboard
     if ((isCtrl || isMeta) && event.logicalKey == LogicalKeyboardKey.keyV) {
-      Clipboard.getData('text/plain').then((clip) {
-        if (clip?.text != null && clip!.text!.isNotEmpty) {
-          activeTab.handleInput(clip.text!);
-        }
-      });
+      unawaited(
+        Clipboard.getData('text/plain').then((clip) {
+          if (clip?.text != null && clip!.text!.isNotEmpty) {
+            activeTab.handleInput(clip.text!);
+          }
+        }),
+      );
       return KeyEventResult.handled;
     }
 

@@ -40,7 +40,7 @@ class _PiInstallDialogState extends ConsumerState<PiInstallDialog> {
 
   @override
   void dispose() {
-    _logSubscription?.cancel();
+    unawaited(_logSubscription?.cancel());
     _scrollController.dispose();
     super.dispose();
   }

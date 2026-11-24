@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -467,7 +469,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
         const SingleActivator(LogicalKeyboardKey.arrowDown): () => _move(1),
         const SingleActivator(LogicalKeyboardKey.arrowUp): () => _move(-1),
         const SingleActivator(LogicalKeyboardKey.enter): () {
-          if (_actions.isNotEmpty) _execute(_actions[_selectedIndex]);
+          if (_actions.isNotEmpty) unawaited(_execute(_actions[_selectedIndex]));
         },
       },
       child: Center(
