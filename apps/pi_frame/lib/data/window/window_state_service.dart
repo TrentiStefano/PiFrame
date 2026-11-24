@@ -126,7 +126,7 @@ class WindowStateService {
     if (isHarnessMode) return;
     _saveDebounceTimer?.cancel();
     _saveDebounceTimer = Timer(_saveDebounceDelay, () {
-      recordCurrentWindowState();
+      unawaited(recordCurrentWindowState());
     });
   }
 

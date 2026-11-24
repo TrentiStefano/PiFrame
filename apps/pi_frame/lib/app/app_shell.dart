@@ -479,7 +479,7 @@ class _AppShellState extends ConsumerState<AppShell>
       }
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkFirstRunPiInstall();
+      unawaited(_checkFirstRunPiInstall());
     });
   }
 
@@ -532,22 +532,22 @@ class _AppShellState extends ConsumerState<AppShell>
 
   @override
   void onWindowEnterFullScreen() {
-    WindowStateService.instance.recordCurrentWindowState();
+    unawaited(WindowStateService.instance.recordCurrentWindowState());
   }
 
   @override
   void onWindowLeaveFullScreen() {
-    WindowStateService.instance.recordCurrentWindowState();
+    unawaited(WindowStateService.instance.recordCurrentWindowState());
   }
 
   @override
   void onWindowMaximize() {
-    WindowStateService.instance.recordCurrentWindowState();
+    unawaited(WindowStateService.instance.recordCurrentWindowState());
   }
 
   @override
   void onWindowUnmaximize() {
-    WindowStateService.instance.recordCurrentWindowState();
+    unawaited(WindowStateService.instance.recordCurrentWindowState());
   }
 
   @override
