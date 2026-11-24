@@ -47,6 +47,8 @@ jobs:
         run: node tools/scripts/check-agent-map.mjs
       - name: Import boundaries (layers, daemon table, baseline)
         run: node tools/scripts/check-boundaries.mjs
+      - name: Named timers (no literal timer durations)
+        run: node tools/scripts/check-timers.mjs
       - name: DESIGN.md lint (@google/design.md)
         run: node tools/scripts/lint-design.mjs
 

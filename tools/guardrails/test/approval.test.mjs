@@ -60,6 +60,8 @@ test('a change to a guarded path needs approval, whichever way it goes', () => {
     'tools/guardrails/src/boundary.mjs',
     'tools/guardrails/boundary.json',
     'tools/scripts/check-boundaries.mjs',
+    'tools/guardrails/src/timers.mjs',
+    'tools/scripts/check-timers.mjs',
     'AGENTS.md',
     'tools/scripts/format.mjs',
     'tools/scripts/flutter-projects.json',
