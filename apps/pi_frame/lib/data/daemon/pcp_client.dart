@@ -21,7 +21,7 @@ class PcpClient {
       '${prefix}_${DateTime.now().microsecondsSinceEpoch}_${_commandCounter++}';
 
   WebSocketChannel? _channel;
-  StreamSubscription? _subscription;
+  StreamSubscription<Object?>? _subscription;
   DaemonConnectionState _state = DaemonConnectionState.disconnected;
 
   final _connectionStateController = StreamController<DaemonConnectionState>.broadcast();
@@ -129,7 +129,7 @@ class PcpClient {
           'id': 'png_${DateTime.now().millisecondsSinceEpoch}',
           'ts': DateTime.now().millisecondsSinceEpoch,
           'type': 'heartbeat.pong',
-          'payload': {},
+          'payload': <String, dynamic>{},
         };
         _sendRaw(jsonEncode(pong));
         return;
@@ -150,7 +150,11 @@ class PcpClient {
             final code = payload['code']?.toString() ?? '';
             final details = payload['details'];
             completer.completeError(
-              PcpException(payload['error']?.toString() ?? 'Command failed', code: code, details: details ?? const {}),
+              PcpException(
+                payload['error']?.toString() ?? 'Command failed',
+                code: code,
+                details: details ?? const <String, dynamic>{},
+              ),
             );
           } else {
             completer.complete(payload);
@@ -169,7 +173,7 @@ class PcpClient {
             PcpException(
               payload['message']?.toString() ?? 'PCP Error',
               code: payload['code']?.toString() ?? '',
-              details: payload['details'] ?? const {},
+              details: payload['details'] ?? const <String, dynamic>{},
             ),
           );
         }
@@ -560,7 +564,7 @@ class PcpClient {
     return PiAgentsConfig.fromJson(map);
   }
 
-  Future<PiAgentsConfig> updateAgentsConfig(List<Map> changes) async {
+  Future<PiAgentsConfig> updateAgentsConfig(List<Map<String, dynamic>> changes) async {
     final typedChanges = changes.map((c) => c.map((k, v) => MapEntry(k.toString(), v))).toList();
     final cmd = PcpCommand.piAgentsUpdate(commandId: newCommandId('ag_upd'), changes: typedChanges);
     final res = await sendCommand(cmd);
@@ -1071,7 +1075,7 @@ class PcpException extends StateError implements Exception {
   final String code;
   final dynamic details;
 
-  PcpException(super.message, {this.code = '', this.details = const {}});
+  PcpException(super.message, {this.code = '', this.details = const <String, dynamic>{}});
 
   Map<String, dynamic> get detailsMap => details is Map<String, dynamic>
       ? details as Map<String, dynamic>
@@ -1079,7 +1083,10 @@ class PcpException extends StateError implements Exception {
 
   List<Map<String, dynamic>> get validationErrors {
     if (details is List) {
-      return (details as List).whereType<Map>().map((m) => m.map((k, v) => MapEntry(k.toString(), v))).toList();
+      return (details as List)
+          .whereType<Map<String, dynamic>>()
+          .map((m) => m.map((k, v) => MapEntry(k.toString(), v)))
+          .toList();
     }
     return const [];
   }

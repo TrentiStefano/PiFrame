@@ -18,7 +18,7 @@ class _MockPcpClient extends PcpClient {
   Stream<PcpSnapshot> snapshots(String sessionId) => const Stream.empty();
 
   @override
-  Future<Map<String, dynamic>> sendCommand(PcpCommand command) async => {'status': 'ok', 'data': {}};
+  Future<Map<String, dynamic>> sendCommand(PcpCommand command) async => {'status': 'ok', 'data': <String, dynamic>{}};
 }
 
 void main() {

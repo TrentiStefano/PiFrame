@@ -523,9 +523,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       for (final entry in map.entries) {
         final mName = entry.key.toString();
         final val = entry.value;
-        final mCost =
-            (val is Map ? (val['cost'] is Map ? (val['cost']['total'] ?? val['cost']['amount']) : val['cost']) : val)
-                as num?;
+        final mCost = (val is Map ? _costValue(val['cost']) : val) as num?;
         if (mCost != null) {
           agentModelCosts[mName] = mCost.toDouble();
         }
@@ -549,15 +547,14 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
         final m = e.metadata?['model']?.toString();
         if (m != null && m.isNotEmpty) {
           final u = e.metadata?['usage'];
-          final c = u is Map ? (u['cost'] is Map ? (u['cost']['total'] ?? u['cost']['amount']) : u['cost']) : null;
+          final c = u is Map ? _costValue(u['cost']) : null;
           final costNum = (c as num?)?.toDouble() ?? 0.0;
           if (costNum > 0) {
             agentModelCosts[m] = (agentModelCosts[m] ?? 0.0) + costNum;
           }
           if (u is Map) {
-            final t = u['tokens'] is Map
-                ? (u['tokens']['total'] as num?)
-                : (u['totalTokens'] as num? ?? u['total'] as num?);
+            final tokens = u['tokens'];
+            final t = tokens is Map ? (tokens['total'] as num?) : (u['totalTokens'] as num? ?? u['total'] as num?);
             if (t != null) {
               agentModelTokens[m] = (agentModelTokens[m] ?? 0) + t.toInt();
             }
@@ -1060,7 +1057,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     _currentStrings = ref.watch(appStringsProvider);
     final sessionState = ref.watch(sessionStateFamily(widget.sessionId));
     final stats = sessionState.sessionStats;
-    final contextUsage = stats?['contextUsage'] as Map? ?? sessionState.usage?['contextUsage'] as Map?;
+    final contextUsage =
+        stats?['contextUsage'] as Map<String, dynamic>? ?? sessionState.usage?['contextUsage'] as Map<String, dynamic>?;
     final effectiveContextWindow = sessionState.contextWindowOverride ?? contextUsage?['contextWindow'];
     // Null context tokens after a compaction mean "unknown"; the last reply's total is pre-compaction.
     final effectiveTokens = contextUsage != null ? contextUsage['tokens'] : sessionState.usage?['totalTokens'];
@@ -1091,10 +1089,9 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     final todos = ref.watch(todosFamily(widget.sessionId));
 
     final sessionStatsCost = (stats?['cost'] as num?)?.toDouble();
+    final usageCost = sessionState.usage?['cost'];
     final turnCost =
-        (sessionState.usage?['cost'] is Map
-                ? (sessionState.usage!['cost']['total'] as num? ?? sessionState.usage!['cost']['amount'] as num?)
-                : (sessionState.usage?['cost'] as num?))
+        (usageCost is Map ? (usageCost['total'] as num? ?? usageCost['amount'] as num?) : (usageCost as num?))
             ?.toDouble();
     final mainAgentCost = sessionStatsCost != null
         ? (turnCost != null && turnCost > sessionStatsCost ? turnCost : sessionStatsCost)
@@ -1698,7 +1695,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                     _metricChip(
                       tokens,
                       status.key,
-                      _cleanStatusValue(status.value),
+                      _cleanStatusValue(status.value as String),
                       leadingIcon: Icons.extension_outlined,
                       iconColor: tokens.syntaxKeyword,
                     ),
@@ -1716,8 +1713,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     FrameTokens tokens,
     bool isCompact,
     String contextLabel,
-    Map? contextUsage,
-    Map? stats,
+    Map<String, dynamic>? contextUsage,
+    Map<String, dynamic>? stats,
     num? cost,
     List<MapEntry<String, dynamic>> extensionStatuses,
     List<SubagentItem> subagents,
@@ -2736,3 +2733,6 @@ class _LiveTurnTimerWidgetState extends State<_LiveTurnTimerWidget> {
     );
   }
 }
+
+/// The cost of a usage entry: its `total` or `amount` when `cost` is a map, otherwise the value itself.
+Object? _costValue(Object? cost) => cost is Map ? (cost['total'] ?? cost['amount']) : cost;

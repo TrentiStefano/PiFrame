@@ -17,7 +17,7 @@ void main() {
   for (final variant in ['light', 'dark']) {
     test('$variant uses official PiFrame colors and readable text pairings', () {
       final bundled = File('assets/themes/piframe-$variant.json').readAsStringSync();
-      final spec = ThemeSpec.fromJson(jsonDecode(bundled));
+      final spec = ThemeSpec.fromJson(jsonDecode(bundled) as Map<String, dynamic>);
       final tokens = spec.toTokens();
       final light = variant == 'light';
 
@@ -100,7 +100,9 @@ void main() {
   });
 
   testWidgets('FrameText roles come from the theme fonts with an 11 px floor', (tester) async {
-    final spec = ThemeSpec.fromJson(jsonDecode(File('assets/themes/piframe-dark.json').readAsStringSync()));
+    final spec = ThemeSpec.fromJson(
+      jsonDecode(File('assets/themes/piframe-dark.json').readAsStringSync()) as Map<String, dynamic>,
+    );
     late FrameText text;
     await tester.pumpWidget(
       MaterialApp(

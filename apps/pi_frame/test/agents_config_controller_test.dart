@@ -10,7 +10,7 @@ class _FakeAgentsClient extends PcpClient {
   PcpException? updateError;
   PcpException? getError;
 
-  List<Map>? lastChangesReceived;
+  List<Map<String, dynamic>>? lastChangesReceived;
 
   @override
   Future<PiAgentsConfig> getAgentsConfig({String? cwd}) async {
@@ -19,7 +19,7 @@ class _FakeAgentsClient extends PcpClient {
   }
 
   @override
-  Future<PiAgentsConfig> updateAgentsConfig(List<Map> changes) async {
+  Future<PiAgentsConfig> updateAgentsConfig(List<Map<String, dynamic>> changes) async {
     lastChangesReceived = changes;
     if (updateError != null) throw updateError!;
     return initialConfig ?? const PiAgentsConfig();
@@ -56,7 +56,7 @@ PiAgentsConfig _createSampleConfig() {
         'readOnlyReason': 'external CLI runner',
         'model': {'effective': 'openai/gpt-4o', 'origin': 'default', 'available': true},
         'thinking': {'effective': 'off', 'origin': 'default'},
-        'context': {'supported': false, 'limit': null, 'options': [], 'modelContextWindow': null},
+        'context': {'supported': false, 'limit': null, 'options': <dynamic>[], 'modelContextWindow': null},
       },
     ],
     'subagentDefaults': {
@@ -81,9 +81,9 @@ PiAgentsConfig _createSampleConfig() {
         'reasoning': true,
         'tiers': [272000, 1048576],
       },
-      {'id': 'openai/gpt-4o', 'name': 'GPT-4o', 'contextWindow': 128000, 'reasoning': false, 'tiers': []},
+      {'id': 'openai/gpt-4o', 'name': 'GPT-4o', 'contextWindow': 128000, 'reasoning': false, 'tiers': <dynamic>[]},
     ],
-    'warnings': [],
+    'warnings': <dynamic>[],
   });
 }
 

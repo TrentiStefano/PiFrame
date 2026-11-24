@@ -98,12 +98,12 @@ class FakeSidePcpClient extends PcpClient {
 
   @override
   Future<Map<String, dynamic>> getCommands(String sessionId) async {
-    return {'commands': []};
+    return {'commands': <dynamic>[]};
   }
 
   @override
   Future<Map<String, dynamic>> getAvailableModels(String sessionId) async {
-    return {'models': []};
+    return {'models': <dynamic>[]};
   }
 
   @override
@@ -118,7 +118,7 @@ class FakeSidePcpClient extends PcpClient {
 
   @override
   Future<Map<String, dynamic>> getAvailableThinkingLevels(String sessionId) async {
-    return {'levels': []};
+    return {'levels': <dynamic>[]};
   }
 
   @override

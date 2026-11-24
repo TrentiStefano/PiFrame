@@ -51,7 +51,7 @@ void main() {
         'status': 'settled',
         'model': {'provider': 'anthropic', 'id': 'model_map', 'name': 'Model Map'},
       },
-      'queue': {},
+      'queue': <String, dynamic>{},
     };
     final stateMap = applySessionSnapshot('s1', 1, payloadMap);
     expect(stateMap.currentModel, 'Model Map');
@@ -61,7 +61,7 @@ void main() {
     final payloadString = {
       'session': {'id': 's2', 'name': 'Test'},
       'runtime': {'status': 'settled', 'model': 'claude-sonnet-str'},
-      'queue': {},
+      'queue': <String, dynamic>{},
     };
     final stateString = applySessionSnapshot('s2', 1, payloadString);
     expect(stateString.currentModel, 'claude-sonnet-str');

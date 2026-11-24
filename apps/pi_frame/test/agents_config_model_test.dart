@@ -184,7 +184,7 @@ void main() {
             'editable': true,
             'model': {'effective': 'test/model', 'origin': 'default', 'available': true},
             'thinking': {'effective': 'off', 'origin': 'default'},
-            'context': {'supported': false, 'options': []},
+            'context': {'supported': false, 'options': <dynamic>[]},
           },
         ],
         'subagentDefaults': {
@@ -196,7 +196,7 @@ void main() {
         'sessionDefaults': {'provider': 'test', 'model': 'test/model', 'thinking': 'off', 'modelAvailable': true},
         'thinkingLevels': ['off', 'low', 'medium', 'high'],
         'availableModels': [
-          {'id': 'test/model', 'name': 'Test Model', 'contextWindow': 200000, 'reasoning': false, 'tiers': []},
+          {'id': 'test/model', 'name': 'Test Model', 'contextWindow': 200000, 'reasoning': false, 'tiers': <dynamic>[]},
         ],
         'warnings': ['Warning 1'],
       };

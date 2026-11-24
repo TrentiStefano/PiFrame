@@ -7,6 +7,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pi_frame_protocol/pi_frame_protocol.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/daemon/daemon_providers.dart';
@@ -58,7 +59,7 @@ class _ExtensionUiDialogState extends ConsumerState<ExtensionUiDialog> {
   String? _selectedOption;
   final Set<String> _selectedOptions = {};
   Timer? _countdownTimer;
-  StreamSubscription? _resolutionSubscription;
+  StreamSubscription<PcpEvent>? _resolutionSubscription;
   bool _isResponding = false;
   UserFacingError? _responseError;
   int _secondsRemaining = 0;

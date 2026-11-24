@@ -503,7 +503,7 @@ class _SidePanelState extends ConsumerState<SidePanel> {
     final entries = isLive ? sideSession.entries : (selectedRecord?.entries ?? const []);
     final streamingThinking = isLive ? sideSession.currentStreamingThinking : '';
     final streamingText = isLive ? sideSession.currentStreamingText : '';
-    final activeTools = isLive ? sideSession.activeToolCalls.values.toList() : const [];
+    final activeTools = isLive ? sideSession.activeToolCalls.values.toList() : const <ToolExecutionState>[];
     final isOpening = isLive && sideThread.isOpening;
 
     if (entries.isEmpty && streamingThinking.isEmpty && streamingText.isEmpty && activeTools.isEmpty && !isOpening) {

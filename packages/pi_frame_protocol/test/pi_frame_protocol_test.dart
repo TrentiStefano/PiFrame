@@ -312,7 +312,7 @@ void main() {
       expect(agentsUpdate.commandId, 'cmd_au_01');
       expect(agentsUpdate.sessionId, '@daemon');
       expect(agentsUpdate.type, 'pi.agents.update');
-      expect(agentsUpdate.payload['changes'], isA<List>());
+      expect(agentsUpdate.payload['changes'], isA<List<dynamic>>());
     });
   });
 }
