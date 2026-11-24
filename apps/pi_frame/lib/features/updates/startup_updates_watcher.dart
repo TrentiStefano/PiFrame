@@ -1,12 +1,10 @@
-import 'dart:io';
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../data/update/startup_updates_provider.dart';
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/daemon/pcp_client.dart';
+import '../../data/platform/host_environment_service.dart';
+import '../../data/update/startup_updates_provider.dart';
 
 class StartupUpdatesWatcher extends ConsumerStatefulWidget {
   const StartupUpdatesWatcher({super.key});
@@ -33,7 +31,8 @@ class _StartupUpdatesWatcherState extends ConsumerState<StartupUpdatesWatcher> {
 
   @override
   Widget build(BuildContext context) {
-    if (!kIsWeb && !Platform.environment.containsKey('FLUTTER_TEST')) {
+    final host = ref.watch(hostEnvironmentServiceProvider);
+    if (!host.isWeb && host.variable('FLUTTER_TEST') == null) {
       ref.listen(connectionStateProvider, (_, next) => _checkWhenConnected(next));
       _checkWhenConnected(ref.watch(connectionStateProvider));
     }

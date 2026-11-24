@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as crypto from 'node:crypto';
-import { timingSafeEqualStrings, parseCookies } from './auth.js';
+import { timingSafeEqualStrings, parseCookies } from '../auth/auth.js';
 import { serveStaticFile } from './static.js';
 import { receiveBlob, sendBlob, getBlobsDir, pruneOldBlobs } from './blobs.js';
 import { isLoopbackHost, isOriginAllowed, hasProxyHeaders } from './origin.js';

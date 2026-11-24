@@ -1,13 +1,14 @@
 {
   "daemonAllowedDependencies": {
+    "auth": [],
     "main": ["commands","config","pi","remote","server","sessions"],
     "commands": ["config","journal","metrics","pi","remote","server","sessions","side","workspace"],
     "config": [],
     "journal": ["config"],
     "metrics": ["server"],
     "pi": ["config","workspace"],
-    "remote": ["config","server"],
-    "server": ["config","remote"],
+    "remote": ["auth","config"],
+    "server": ["auth","config","remote"],
     "sessions": ["config","journal","pi","server","ui"],
     "side": ["config","pi","server","sessions"],
     "ui": [],
@@ -45,7 +46,6 @@
     { "file": "apps/pi_frame/lib/features/transcript/rich_content.dart", "import": "package:url_launcher/url_launcher.dart" },
     { "file": "apps/pi_frame/lib/features/transcript/subagent_panel.dart", "import": "dart:io" },
     { "file": "apps/pi_frame/lib/features/transcript/subagents_provider.dart", "import": "dart:io" },
-    { "file": "apps/pi_frame/lib/features/updates/startup_updates_watcher.dart", "import": "dart:io" },
     { "file": "apps/pi_frame/lib/features/workspace/integrated_terminal.dart", "import": "dart:io" },
     { "file": "apps/pi_frame/lib/ui/code/code_block.dart", "import": "../../data/language/language_settings.dart" },
     { "file": "apps/pi_frame/lib/ui/code/code_block.dart", "import": "../../data/language/strings_shell.dart" },
@@ -62,7 +62,6 @@
     { "file": "apps/pi_frame/lib/ui/startup_assemble_animation.dart", "import": "dart:io" },
     { "file": "apps/pi_frame/lib/ui/startup_audio_io.dart", "import": "dart:ffi" },
     { "file": "apps/pi_frame/lib/ui/startup_audio_io.dart", "import": "dart:io" },
-    { "file": "apps/pi_frame/lib/ui/startup_audio_io.dart", "import": "package:ffi/ffi.dart" },
-    { "file": "apps/agentd/src/remote", "import": "remote -> server -> remote" }
+    { "file": "apps/pi_frame/lib/ui/startup_audio_io.dart", "import": "package:ffi/ffi.dart" }
   ]
 }
