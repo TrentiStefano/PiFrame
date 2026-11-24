@@ -18,6 +18,10 @@ export interface SessionOptions {
   onBroadcast?: (event: PcpEvent) => void;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
 export class Session {
   public readonly id: string;
   public name?: string;
@@ -224,14 +228,18 @@ export class Session {
     this.activeTools.clear();
   }
 
-  private recordToolTiming(tool: any): void {
+  private recordToolTiming(tool: { toolCallId?: unknown; startedAt?: unknown; durationMs?: unknown }): void {
     for (let i = this.entries.length - 1; i >= 0; i--) {
       const entry = this.entries[i];
       if (!entry) continue;
-      const message: any = entry.message || entry;
+      const message: unknown = entry.message || entry;
+      if (!isRecord(message)) continue;
       for (const calls of [message.toolCalls, message.content]) {
         if (!Array.isArray(calls)) continue;
-        const call = calls.find((c: any) => c && (c.id ?? c.toolCallId) === tool.toolCallId);
+        const list: unknown[] = calls;
+        const call = list.find(
+          (c): c is Record<string, unknown> => isRecord(c) && (c.id ?? c.toolCallId) === tool.toolCallId
+        );
         if (!call) continue;
         if (tool.startedAt != null) call.startedAt = tool.startedAt;
         if (tool.durationMs != null) call.durationMs = tool.durationMs;
