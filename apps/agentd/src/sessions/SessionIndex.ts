@@ -206,7 +206,8 @@ export class SessionIndex {
         while (true) {
           const index = next++;
           if (index >= items.length) return;
-          result[index] = await fn(items[index]);
+          // index was checked against items.length above, so the element exists.
+          result[index] = await fn(items[index]!);
         }
       })
     );
@@ -1023,7 +1024,7 @@ export class SessionIndex {
             ) {
               const text = messageText(message);
               for (const match of text.matchAll(/<task-notification>([\s\S]*?)<\/task-notification>/g)) {
-                const notification = match[1];
+                const notification = match[1] ?? '';
                 const id = /<task-id>([^<]+)<\/task-id>/.exec(notification)?.[1]?.trim();
                 const status = /<status>([^<]+)<\/status>/.exec(notification)?.[1]?.trim().toLowerCase();
                 const toolCallId = /<tool-use-id>([^<]+)<\/tool-use-id>/.exec(notification)?.[1]?.trim();
@@ -1177,8 +1178,9 @@ export class SessionIndex {
       const samePrefixChildren = [...childData.values()].filter(
         (candidate) => candidate.agentPrefix === data.agentPrefix
       );
-      if (matches.length === 1 && samePrefixChildren.length === 1) {
-        childMatches.set(file, matches[0]);
+      const [onlyMatch] = matches;
+      if (matches.length === 1 && samePrefixChildren.length === 1 && onlyMatch) {
+        childMatches.set(file, onlyMatch);
       }
     }
 
@@ -1328,16 +1330,14 @@ export class SessionIndex {
                 } else if (!modelKey) {
                   modelKey = model || 'Main model';
                 }
-                if (!byModel[modelKey]) {
-                  byModel[modelKey] = { tokens: { total: 0, input: 0, output: 0 } };
-                }
+                const bucket = (byModel[modelKey] ??= { tokens: { total: 0, input: 0, output: 0 } });
                 if (hasLineCost) {
-                  byModel[modelKey].cost = (byModel[modelKey].cost ?? 0) + lineCost;
+                  bucket.cost = (bucket.cost ?? 0) + lineCost;
                 }
                 if (hasLineTokens) {
-                  byModel[modelKey].tokens.total += lineTotalTokens;
-                  byModel[modelKey].tokens.input += lineInputTokens;
-                  byModel[modelKey].tokens.output += lineOutputTokens;
+                  bucket.tokens.total += lineTotalTokens;
+                  bucket.tokens.input += lineInputTokens;
+                  bucket.tokens.output += lineOutputTokens;
                 }
               }
             }

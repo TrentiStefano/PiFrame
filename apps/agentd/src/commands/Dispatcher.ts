@@ -1535,6 +1535,10 @@ export class Dispatcher {
         };
       }
 
+      // Not dispatched by this switch: they fall through to the rejection below.
+      case 'agent.abortRetry':
+      case 'daemon.getStatus':
+      case 'session.getForkPoints':
       default: {
         const err: any = new Error(`Unsupported command type: ${cmd.type}`);
         err.code = 'COMMAND_REJECTED';

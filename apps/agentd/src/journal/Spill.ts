@@ -1,6 +1,5 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as os from 'node:os';
 import type { PcpEvent } from '@piframe/pcp-ts';
 import { getPiFrameBaseDir } from '../config/config.js';
 
@@ -87,17 +86,15 @@ export class Spill {
         .filter((f) => f.startsWith('snapshot.') && f.endsWith('.json'))
         .map((f) => {
           const m = f.match(/snapshot\.(\d+)\.json/);
-          return { file: f, seq: m ? parseInt(m[1], 10) : -1 };
+          return { file: f, seq: m ? parseInt(m[1] ?? '', 10) : -1 };
         })
         .filter((s) => s.seq >= 0)
         .sort((a, b) => b.seq - a.seq);
 
-      if (snapFiles.length > retainCount) {
-        for (let i = retainCount; i < snapFiles.length; i++) {
-          try {
-            fs.unlinkSync(path.join(this.journalDir, snapFiles[i].file));
-          } catch {}
-        }
+      for (const stale of snapFiles.slice(retainCount)) {
+        try {
+          fs.unlinkSync(path.join(this.journalDir, stale.file));
+        } catch {}
       }
     } catch (err) {
       console.error(`Failed to prune old snapshots for session ${this.sessionId}:`, err);
@@ -112,13 +109,13 @@ export class Spill {
         .filter((f) => f.startsWith('snapshot.') && f.endsWith('.json'))
         .map((f) => {
           const m = f.match(/snapshot\.(\d+)\.json/);
-          return { file: f, seq: m ? parseInt(m[1], 10) : -1 };
+          return { file: f, seq: m ? parseInt(m[1] ?? '', 10) : -1 };
         })
         .filter((s) => s.seq >= 0)
         .sort((a, b) => b.seq - a.seq);
 
-      if (snapFiles.length > 0) {
-        const latest = snapFiles[0];
+      const latest = snapFiles[0];
+      if (latest) {
         const content = fs.readFileSync(path.join(this.journalDir, latest.file), 'utf8');
         return { seq: latest.seq, snapshot: JSON.parse(content) };
       }

@@ -187,7 +187,7 @@ test('Dispatcher: rejects extra properties in subscribe / unsubscribe payloads',
       commandId: 'cid_invalid_sub',
       sessionId: '@daemon',
       type: 'system.metrics.subscribe',
-      payload: { extraProperty: 123 } as any
+      payload: { extraProperty: 123 }
     });
 
     const msgs = setup.localWs.sentMessages.map((m) => JSON.parse(m));

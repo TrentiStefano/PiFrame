@@ -1,4 +1,3 @@
-import * as http from 'node:http';
 import * as path from 'node:path';
 import { acquireSingleInstanceLock } from './config/lock.js';
 import { loadConfig } from './config/config.js';
@@ -63,7 +62,7 @@ async function main() {
   // Read cli args for optional --port
   const portArgIdx = process.argv.indexOf('--port');
   if (portArgIdx !== -1 && process.argv[portArgIdx + 1]) {
-    port = parseInt(process.argv[portArgIdx + 1], 10) || 0;
+    port = parseInt(process.argv[portArgIdx + 1] ?? '', 10) || 0;
   }
 
   const remoteManager = new RemoteManager(config);

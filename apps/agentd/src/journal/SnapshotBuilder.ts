@@ -48,7 +48,7 @@ export class SnapshotBuilder {
     return modified ? sanitized : entry;
   }
 
-  public static build(ctx: SnapshotContext, seq?: number): PcpSnapshotPayload {
+  public static build(ctx: SnapshotContext, _seq?: number): PcpSnapshotPayload {
     const runtime: RuntimeMeta = {
       status: ctx.runtimeStatus,
       model: ctx.model ?? null,

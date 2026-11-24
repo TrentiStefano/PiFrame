@@ -67,7 +67,7 @@ export function safeBlobName(rawHeader: string | undefined, contentType: string 
     .replace(/^\.+/, '')
     .trim()
     .slice(0, 100);
-  const mime = (contentType ?? '').split(';')[0].trim().toLowerCase();
+  const mime = (contentType ?? '').split(';')[0]?.trim().toLowerCase() ?? '';
   if (!name) name = 'file';
   if (!/\.[A-Za-z0-9]{1,8}$/.test(name) && EXT_BY_MIME[mime]) name += EXT_BY_MIME[mime];
   return name;
@@ -88,7 +88,7 @@ export function receiveBlob(req: http.IncomingMessage, res: http.ServerResponse)
     return;
   }
 
-  const contentType = (req.headers['content-type'] as string | undefined) || 'application/octet-stream';
+  const contentType = req.headers['content-type'] || 'application/octet-stream';
   const name = safeBlobName(req.headers['x-file-name'] as string | undefined, contentType);
   const blobId = `blob_${crypto.randomBytes(16).toString('hex')}`;
   const dir = path.join(getBlobsDir(), blobId);

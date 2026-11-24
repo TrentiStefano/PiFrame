@@ -1,4 +1,4 @@
-import { WebSocketServer, WebSocket } from 'ws';
+import { WebSocketServer, WebSocket, type RawData } from 'ws';
 import * as http from 'node:http';
 
 export interface FaultProxyConfig {
@@ -61,7 +61,7 @@ export class FaultProxy {
       });
 
       // Forward upstream -> client with fault injection
-      upstreamWs.on('message', async (data, isBinary) => {
+      const relayFrame = async (data: RawData, isBinary: boolean): Promise<void> => {
         this.frameCount++;
 
         // 1. Check frame drop
@@ -91,6 +91,11 @@ export class FaultProxy {
         if (this.config.duplicateFrames && clientWs.readyState === WebSocket.OPEN) {
           clientWs.send(data, { binary: isBinary });
         }
+      };
+      // Each frame is relayed on its own, so injected latency delays one frame without holding back later ones.
+      // relayFrame does not reject, so the promise it returns is voided.
+      upstreamWs.on('message', (data, isBinary) => {
+        void relayFrame(data, isBinary);
       });
 
       clientWs.on('close', () => {

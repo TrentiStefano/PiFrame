@@ -28,7 +28,11 @@ function observeJsonLines(child: ReturnType<typeof spawn>) {
       const message = JSON.parse(line);
       messages.push(message);
       for (let i = waiters.length - 1; i >= 0; i--) {
-        if (waiters[i].predicate(message)) waiters.splice(i, 1)[0].resolve(message);
+        const waiter = waiters[i];
+        if (waiter?.predicate(message)) {
+          waiters.splice(i, 1);
+          waiter.resolve(message);
+        }
       }
     }
   });
@@ -236,10 +240,10 @@ describe('fake-pi simulator', () => {
     flush();
     const subagents = parsed.find((item) => item.source === 'npm:pi-subagents');
     assert.ok(subagents?.installPath);
-    const manifest = JSON.parse(fs.readFileSync(path.join(subagents.installPath!, 'package.json'), 'utf8'));
+    const manifest = JSON.parse(fs.readFileSync(path.join(subagents.installPath, 'package.json'), 'utf8'));
     assert.strictEqual(manifest.name, 'pi-subagents');
     assert.strictEqual(manifest.version, '0.9.0');
-    assert.ok(fs.existsSync(path.join(subagents.installPath!, 'agents', 'reviewer.md')));
+    assert.ok(fs.existsSync(path.join(subagents.installPath, 'agents', 'reviewer.md')));
     assert.ok(output.startsWith('User packages:\n  npm:pi-subagents\n    '));
     assert.ok(output.includes('\nProject packages:\n'));
     fs.rmSync(agentDir, { recursive: true, force: true });

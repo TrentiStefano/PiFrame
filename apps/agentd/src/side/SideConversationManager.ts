@@ -1,4 +1,3 @@
-import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { ulid } from 'ulid';
 import { getPiFrameBaseDir } from '../config/config.js';
@@ -9,7 +8,6 @@ import { adaptPiEvent } from '../pi/PiEventAdapter.js';
 import type { ConnectionManager } from '../server/wsServer.js';
 import type { Connection } from '../server/connection.js';
 import type { SessionRegistry } from '../sessions/SessionRegistry.js';
-import type { Session } from '../sessions/Session.js';
 import type { PcpEvent } from '@piframe/pcp-ts';
 import { SideTransport } from './SideTransport.js';
 import {

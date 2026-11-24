@@ -133,7 +133,7 @@ export function renderConversationSnapshot(opts: RenderSnapshotOptions): string 
   let currentChars = 0;
 
   for (let i = renderedBlocks.length - 1; i >= 0; i--) {
-    const block = renderedBlocks[i];
+    const block = renderedBlocks[i] ?? '';
     if (currentChars + block.length <= maxChars) {
       keptBlocks.unshift(block);
       currentChars += block.length;

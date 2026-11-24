@@ -46,13 +46,12 @@ export function parseFrontmatter(content: string): ParsedFrontmatter {
     return { frontmatter: {}, body: normalized };
   }
 
-  const rawYaml = match[1];
-  const body = match[2];
+  const rawYaml = match[1] ?? '';
+  const body = match[2] ?? '';
   const lines = rawYaml.split(/\r?\n/);
   const result: Record<string, any> = {};
 
   let currentKey: string | null = null;
-  let currentIndent = 0;
 
   for (const line of lines) {
     // Ignore comments and blank lines
@@ -61,7 +60,7 @@ export function parseFrontmatter(content: string): ParsedFrontmatter {
     }
 
     const indentMatch = line.match(/^(\s*)/);
-    const indent = indentMatch ? indentMatch[1].length : 0;
+    const indent = indentMatch ? (indentMatch[1] ?? '').length : 0;
 
     if (indent === 0) {
       const colonIdx = line.indexOf(':');
@@ -71,7 +70,6 @@ export function parseFrontmatter(content: string): ParsedFrontmatter {
       const valStr = line.slice(colonIdx + 1).trim();
 
       currentKey = key;
-      currentIndent = 0;
 
       if (valStr.length > 0) {
         result[key] = parseScalar(valStr);

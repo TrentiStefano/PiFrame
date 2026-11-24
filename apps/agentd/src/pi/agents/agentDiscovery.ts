@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import type { PiSubagentPackageInfo, PiSubagentPackageId } from '@piframe/pcp-ts';
+import type { PiSubagentPackageInfo } from '@piframe/pcp-ts';
 import { parseFrontmatter } from './frontmatter.js';
 
 export const BUILTIN_NICOBALION_NAMES = new Set([

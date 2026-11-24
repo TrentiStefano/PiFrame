@@ -86,7 +86,7 @@ test('auth secret UI requests are local-only; normal extension input stays share
       method: 'input',
       title: 'piframe-local:API key',
       placeholder: 'piframe-secret:API key'
-    } as any,
+    },
     { sessionId: 's' }
   );
   const normal = adaptPiEvent(
@@ -95,7 +95,7 @@ test('auth secret UI requests are local-only; normal extension input stays share
       id: 'normal',
       method: 'input',
       placeholder: 'Project name'
-    } as any,
+    },
     { sessionId: 's' }
   );
 
@@ -108,7 +108,7 @@ test('auth secret UI requests are local-only; normal extension input stays share
       method: 'select',
       title: 'piframe-local:Choose provider',
       options: ['A']
-    } as any,
+    },
     { sessionId: 's' }
   );
   assert.equal(authSelector[0]!.payload.localOnly, true);

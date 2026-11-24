@@ -10,14 +10,14 @@ export function parseNvidiaSmiLine(line: string): RawNvidiaSample | null {
   const parts = trimmed.split(',').map((p) => p.trim());
   if (parts.length < 3) return null;
 
-  const utilNum = parseFloat(parts[0]);
+  const utilNum = parseFloat(parts[0] ?? '');
   const utilization =
     !isNaN(utilNum) && isFinite(utilNum) ? Math.min(100, Math.max(0, Math.round(utilNum * 10) / 10)) : null;
 
-  const usedMb = parseFloat(parts[1]);
+  const usedMb = parseFloat(parts[1] ?? '');
   const memoryUsedBytes = !isNaN(usedMb) && isFinite(usedMb) && usedMb >= 0 ? Math.round(usedMb * 1024 * 1024) : null;
 
-  const totalMb = parseFloat(parts[2]);
+  const totalMb = parseFloat(parts[2] ?? '');
   const memoryTotalBytes =
     !isNaN(totalMb) && isFinite(totalMb) && totalMb >= 0 ? Math.round(totalMb * 1024 * 1024) : null;
 

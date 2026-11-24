@@ -3,7 +3,6 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import type { PiCapabilities } from './piCommands.js';
 import { resolvePiLaunch } from './executable.js';
 import { getAugmentedPath, getAugmentedEnv } from './env.js';
 
@@ -21,12 +20,7 @@ export interface PiInstallation {
 export const MINIMUM_PI_VERSION = '0.85.0';
 
 export function compareSemver(a: string, b: string): number {
-  const parse = (v: string) =>
-    v
-      .replace(/^v/, '')
-      .split('-')[0]
-      .split('.')
-      .map((n) => parseInt(n, 10) || 0);
+  const parse = (v: string) => (v.replace(/^v/, '').split('-')[0] ?? '').split('.').map((n) => parseInt(n, 10) || 0);
   const pa = parse(a);
   const pb = parse(b);
   for (let i = 0; i < 3; i++) {
