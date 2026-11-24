@@ -8,7 +8,7 @@ This guide covers what PiFrame installs, how to install and update it, how the d
 
 PiFrame has two parts, plus the Pi coding agent it drives:
 1. **PiFrame app**: the Flutter app for Windows, macOS and Linux. A web build is served by the daemon for local and remote access.
-2. **Daemon** (executable `pi-agentd`): a Node.js process shipped in the installers together with the Node runtime. It starts one Pi worker (`pi --mode rpc`) per session, keeps each session's journal and serves the app over PCP, the PiFrame Protocol ([ADR 0014](adr/0014-daemon-distribution-sidecar.md)).
+2. **Daemon** (executable `pi-agentd`): a Node.js process shipped in the installers together with the Node runtime. It starts one Pi worker (`pi --mode rpc`) per session, keeps each session's journal and serves the app over PCP, the PiFrame Communication Protocol ([ADR 0014](adr/0014-daemon-distribution-sidecar.md)).
 3. **Pi**: your own Pi installation (`v0.85.0+`), which stays external in `~/.pi/`. PiFrame never moves or overwrites Pi's session files; it changes files in `~/.pi/` only when you ask it to from the app (for example deleting a session, toggling an MCP server or editing agent settings).
 
 ---

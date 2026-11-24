@@ -1,6 +1,6 @@
-# PCP/1: PiFrame Protocol Specification (Version 1)
+# PCP/1: PiFrame Communication Protocol Specification (Version 1)
 
-This document is the normative specification of the PiFrame Protocol (PCP/1).
+This document is the normative specification of the PiFrame Communication Protocol (PCP/1).
 PCP/1 defines the bidirectional, asynchronous, message-based protocol used between **pi-agentd** (the background daemon) and **PiFrame** clients (Flutter desktop and web).
 
 ---

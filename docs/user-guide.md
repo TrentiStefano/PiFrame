@@ -309,7 +309,7 @@ The language is decided once, on the first launch of this version, and saved, so
 - **FPS counter**: measured from the app's own rendering. When the app is idle, nothing is redrawn and the counter reports a low value or zero frames in the last second. The display refreshes at most once a second.
 - **On the web**: the system metrics (CPU, RAM, disk, GPU) stay hidden; only the FPS segment is shown.
 - **GPU support**: NVIDIA everywhere through `nvidia-smi`; Windows GPU engines through `typeperf` (only with an English system locale, otherwise `n/a`); AMD on Linux through `sysfs`; Apple Silicon through `ioreg`; anything else shows `n/a`.
-- **Local only**: metrics are sampled on your computer and sent only from the daemon to the app over PCP (the PiFrame Protocol); nothing is stored or sent out. The preference is saved in `~/.piframe/nerd_stats_settings.json`.
+- **Local only**: metrics are sampled on your computer and sent only from the daemon to the app over PCP (the PiFrame Communication Protocol); nothing is stored or sent out. The preference is saved in `~/.piframe/nerd_stats_settings.json`.
 
 ### Reduced motion
 

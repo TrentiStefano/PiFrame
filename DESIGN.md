@@ -609,10 +609,12 @@ PiFrame is flat. Hierarchy comes from tone and hairlines, not shadows:
   `surface` cards with a `border` outline; code blocks, menus and dialogs use `surface-elevated`.
 - Modal layers (command palette, dialogs) dim the window with the `overlay` scrim and sit centred above it
   ([command palette](docs/design/screens/command-palette-light.png)).
-- No drop shadows on panes, cards or dialogs. The exceptions in the app today: a small soft shadow under the menus
-  that float over the composer without a scrim (slash menu, `@` file menu, attachment preview), the one-shot glows of
-  the command chip and the chat drop target, and a faint shadow on the task notification card and the todo panel.
-  New UI does not add to this list. Floating layers separate from the content by the scrim, their
+- Shadows are rare and quiet, never the main source of hierarchy: tone and hairlines come first. The shadows in the
+  app today are kept: a small soft shadow under the menus that float over the composer without a scrim (slash menu,
+  `@` file menu, attachment preview), the one-shot glows of the command chip and the chat drop target, and a faint
+  shadow on the task notification card and the todo panel. The design direction is still open, so new UI may use a
+  shadow when it is subtle, purposeful (it lifts something that floats or needs attention) and reviewed by the
+  maintainer; panes stay flat. Floating layers otherwise separate from the content by the scrim, their
   surface-elevated fill and their border outline.
 
 ## Shapes
@@ -828,10 +830,10 @@ capture of the state.
 
 A UI change is rejected if it adds any of these, however good it looks in isolation:
 
-- Gradients, glows, glassmorphism, drop shadows, or decorative illustrations. The gradients the app has are
-  functional and listed here: the command chip fill, the composer's shimmer border and the step-group shimmer
-  (both tied to a running agent), the fade at the edges of the scrolling Settings tabs, and the startup overlay; the
-  shadows are listed under Elevation & Depth.
+- Gradients, glows, glassmorphism, heavy or decorative drop shadows, or decorative illustrations. The gradients the
+  app has are functional and listed here: the command chip fill, the composer's shimmer border and the step-group
+  shimmer (both tied to a running agent), the fade at the edges of the scrolling Settings tabs, and the startup
+  overlay. A subtle, purposeful shadow is allowed under the rule in Elevation & Depth.
 - A new colour, font, radius, spacing or duration that is not a token in this file.
 - Emoji or marketing copy in the UI; exclamation marks; "Oops"-style errors.
 - Generic placeholder content ("Lorem ipsum", fake metrics, invented users) in screens, docs or screenshots.

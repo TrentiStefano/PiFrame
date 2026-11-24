@@ -27,7 +27,7 @@ One `pi --mode rpc` process that the daemon starts and supervises for a session,
 _Avoid_: worker (on its own), Pi process, agent process
 
 **PCP**:
-The PiFrame Protocol (PCP/1): the versioned JSON message protocol between the daemon and clients over WebSocket on `127.0.0.1`, defined in `packages/pcp-spec` (ADR 0003, 0012). Spell it out on first use.
+The PiFrame Communication Protocol (PCP/1): the versioned JSON message protocol between the daemon and clients over WebSocket on `127.0.0.1`, defined in `packages/pcp-spec` (ADR 0003, 0012). Spell it out on first use.
 _Avoid_: PiFrame's local protocol, the API, the WebSocket protocol
 
 **Normalized event**:
