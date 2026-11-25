@@ -22,11 +22,7 @@ void main() {
             child: ElevatedButton(
               key: const ValueKey('open'),
               onPressed: () async {
-                final value = await showFrameDialog<String>(
-                  context: context,
-                  dialog: dialog(),
-                  instant: instant,
-                );
+                final value = await showFrameDialog<String>(context: context, dialog: dialog(), instant: instant);
                 results?.add(value);
               },
               child: const Text('Apri'),
@@ -36,22 +32,14 @@ void main() {
       ),
     );
     if (!reduced) return app;
-    return MediaQuery(
-      data: const MediaQueryData(disableAnimations: true),
-      child: app,
-    );
+    return MediaQuery(data: const MediaQueryData(disableAnimations: true), child: app);
   }
 
   /// The ScaleTransition wrapping the dialog route's child, if any.
-  final dialogScale = find.ancestor(
-    of: find.byType(FrameDialog<String>),
-    matching: find.byType(ScaleTransition),
-  );
+  final dialogScale = find.ancestor(of: find.byType(FrameDialog<String>), matching: find.byType(ScaleTransition));
 
   /// The 480 px box FrameDialog caps its content at (the dialog surface).
-  final dialogSurface = find.byWidgetPredicate(
-    (w) => w is ConstrainedBox && w.constraints.maxWidth == 480,
-  );
+  final dialogSurface = find.byWidgetPredicate((w) => w is ConstrainedBox && w.constraints.maxWidth == 480);
 
   FrameDialog<String> confirmDialog({
     String title = 'Scarta modifiche',
@@ -61,12 +49,10 @@ void main() {
     return FrameDialog<String>(
       title: title,
       body: body ?? const Text('Questa operazione non può essere annullata.'),
-      actions: actions ??
+      actions:
+          actions ??
           const [
-            FrameDialogAction<String>(
-              label: 'Annulla',
-              role: FrameDialogActionRole.cancel,
-            ),
+            FrameDialogAction<String>(label: 'Annulla', role: FrameDialogActionRole.cancel),
             FrameDialogAction<String>(
               label: 'Scarta modifiche',
               role: FrameDialogActionRole.destructive,
@@ -76,29 +62,16 @@ void main() {
     );
   }
 
-  testWidgets('action roles map to text, filled and danger-filled buttons', (
-    tester,
-  ) async {
+  testWidgets('action roles map to text, filled and danger-filled buttons', (tester) async {
     await tester.pumpWidget(
       host(
         dialog: () => FrameDialog<String>(
           title: 'Titolo',
           body: const Text('Corpo'),
           actions: const [
-            FrameDialogAction<String>(
-              label: 'Annulla',
-              role: FrameDialogActionRole.cancel,
-            ),
-            FrameDialogAction<String>(
-              label: 'Salva',
-              role: FrameDialogActionRole.primary,
-              value: 'save',
-            ),
-            FrameDialogAction<String>(
-              label: 'Elimina',
-              role: FrameDialogActionRole.destructive,
-              value: 'delete',
-            ),
+            FrameDialogAction<String>(label: 'Annulla', role: FrameDialogActionRole.cancel),
+            FrameDialogAction<String>(label: 'Salva', role: FrameDialogActionRole.primary, value: 'save'),
+            FrameDialogAction<String>(label: 'Elimina', role: FrameDialogActionRole.destructive, value: 'delete'),
           ],
         ),
       ),
@@ -106,28 +79,15 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('open')));
     await tester.pumpAndSettle();
 
-    expect(
-      tester.widget(find.byKey(const ValueKey('frame-dialog-cancel'))),
-      isA<TextButton>(),
-    );
-    expect(
-      tester.widget(find.byKey(const ValueKey('frame-dialog-primary'))),
-      isA<FilledButton>(),
-    );
+    expect(tester.widget(find.byKey(const ValueKey('frame-dialog-cancel'))), isA<TextButton>());
+    expect(tester.widget(find.byKey(const ValueKey('frame-dialog-primary'))), isA<FilledButton>());
 
-    final destructive = tester.widget<FilledButton>(
-      find.byKey(const ValueKey('frame-dialog-destructive')),
-    );
+    final destructive = tester.widget<FilledButton>(find.byKey(const ValueKey('frame-dialog-destructive')));
     expect(destructive, isA<FilledButton>());
-    expect(
-      destructive.style?.backgroundColor?.resolve(<WidgetState>{}),
-      tokens.danger,
-    );
+    expect(destructive.style?.backgroundColor?.resolve(<WidgetState>{}), tokens.danger);
   });
 
-  testWidgets('cancel has the initial focus when a destructive action exists', (
-    tester,
-  ) async {
+  testWidgets('cancel has the initial focus when a destructive action exists', (tester) async {
     await tester.pumpWidget(host(dialog: () => confirmDialog()));
     await tester.tap(find.byKey(const ValueKey('open')));
     await tester.pumpAndSettle();
@@ -137,22 +97,13 @@ void main() {
     expect(owner?.key, const ValueKey('frame-dialog-cancel'));
   });
 
-  testWidgets('without a destructive action, nothing forces cancel focus', (
-    tester,
-  ) async {
+  testWidgets('without a destructive action, nothing forces cancel focus', (tester) async {
     await tester.pumpWidget(
       host(
         dialog: () => confirmDialog(
           actions: const [
-            FrameDialogAction<String>(
-              label: 'Annulla',
-              role: FrameDialogActionRole.cancel,
-            ),
-            FrameDialogAction<String>(
-              label: 'OK',
-              role: FrameDialogActionRole.primary,
-              value: 'ok',
-            ),
+            FrameDialogAction<String>(label: 'Annulla', role: FrameDialogActionRole.cancel),
+            FrameDialogAction<String>(label: 'OK', role: FrameDialogActionRole.primary, value: 'ok'),
           ],
         ),
       ),
@@ -161,19 +112,12 @@ void main() {
     await tester.pumpAndSettle();
 
     final focused = FocusManager.instance.primaryFocus!.context!;
-    expect(
-      focused.findAncestorWidgetOfExactType<TextButton>()?.key,
-      isNot(const ValueKey('frame-dialog-cancel')),
-    );
+    expect(focused.findAncestorWidgetOfExactType<TextButton>()?.key, isNot(const ValueKey('frame-dialog-cancel')));
   });
 
-  testWidgets('pressing an action closes the dialog with its value', (
-    tester,
-  ) async {
+  testWidgets('pressing an action closes the dialog with its value', (tester) async {
     final results = <String?>[];
-    await tester.pumpWidget(
-      host(dialog: () => confirmDialog(), results: results),
-    );
+    await tester.pumpWidget(host(dialog: () => confirmDialog(), results: results));
     await tester.tap(find.byKey(const ValueKey('open')));
     await tester.pumpAndSettle();
 
@@ -183,9 +127,7 @@ void main() {
     expect(find.text('Scarta modifiche'), findsNothing);
   });
 
-  testWidgets('dialog height is capped at 80 % of the window and the body scrolls', (
-    tester,
-  ) async {
+  testWidgets('dialog height is capped at 80 % of the window and the body scrolls', (tester) async {
     tester.view.physicalSize = const Size(400, 600);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -194,12 +136,7 @@ void main() {
     await tester.pumpWidget(
       host(
         dialog: () => confirmDialog(
-          body: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (var i = 0; i < 80; i++) Text('riga $i'),
-            ],
-          ),
+          body: Column(mainAxisSize: MainAxisSize.min, children: [for (var i = 0; i < 80; i++) Text('riga $i')]),
         ),
       ),
     );
@@ -207,18 +144,14 @@ void main() {
     await tester.pumpAndSettle();
 
     // The Dialog route fills the window; measure the box FrameDialog caps.
-    final capped = find.byWidgetPredicate(
-      (w) => w is ConstrainedBox && w.constraints.maxWidth == 480,
-    );
+    final capped = find.byWidgetPredicate((w) => w is ConstrainedBox && w.constraints.maxWidth == 480);
     final size = tester.getSize(capped);
     expect(size.height, lessThanOrEqualTo(600 * 0.8 + 0.5));
     expect(size.height, greaterThan(300));
     expect(find.byType(SingleChildScrollView), findsOneWidget);
   });
 
-  testWidgets('reduced motion cross-fades without any ScaleTransition', (
-    tester,
-  ) async {
+  testWidgets('reduced motion cross-fades without any ScaleTransition', (tester) async {
     await tester.pumpWidget(host(dialog: () => confirmDialog(), reduced: true));
     await tester.tap(find.byKey(const ValueKey('open')));
     await tester.pump();
@@ -241,9 +174,7 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('instant option shows the dialog on the first frame', (
-    tester,
-  ) async {
+  testWidgets('instant option shows the dialog on the first frame', (tester) async {
     await tester.pumpWidget(host(dialog: () => confirmDialog(), instant: true));
     await tester.tap(find.byKey(const ValueKey('open')));
     await tester.pump();
@@ -253,18 +184,11 @@ void main() {
     await tester.pumpAndSettle();
   });
 
-  testWidgets('a single cancel action is right-aligned, not left-aligned', (
-    tester,
-  ) async {
+  testWidgets('a single cancel action is right-aligned, not left-aligned', (tester) async {
     await tester.pumpWidget(
       host(
         dialog: () => confirmDialog(
-          actions: const [
-            FrameDialogAction<String>(
-              label: 'Chiudi',
-              role: FrameDialogActionRole.cancel,
-            ),
-          ],
+          actions: const [FrameDialogAction<String>(label: 'Chiudi', role: FrameDialogActionRole.cancel)],
         ),
       ),
     );
@@ -272,17 +196,13 @@ void main() {
     await tester.pumpAndSettle();
 
     final dialogRect = tester.getRect(dialogSurface);
-    final buttonRect = tester.getRect(
-      find.byKey(const ValueKey('frame-dialog-cancel')),
-    );
+    final buttonRect = tester.getRect(find.byKey(const ValueKey('frame-dialog-cancel')));
     // The button sits at the dialog's content padding from the right edge.
     expect(dialogRect.right - buttonRect.right, lessThan(FrameSpace.x6 + 1));
     expect(buttonRect.left, greaterThan(dialogRect.center.dx));
   });
 
-  testWidgets('header actions sit at the end of the title row', (
-    tester,
-  ) async {
+  testWidgets('header actions sit at the end of the title row', (tester) async {
     var refreshed = 0;
     await tester.pumpWidget(
       host(
@@ -304,9 +224,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final titleRect = tester.getRect(find.text('Istruzioni'));
-    final actionRect = tester.getRect(
-      find.byKey(const ValueKey('frame-dialog-refresh')),
-    );
+    final actionRect = tester.getRect(find.byKey(const ValueKey('frame-dialog-refresh')));
     final dialogRect = tester.getRect(dialogSurface);
     // Same row as the title, and to its right.
     expect(actionRect.center.dy, closeTo(titleRect.center.dy, 1));

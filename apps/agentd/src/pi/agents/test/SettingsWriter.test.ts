@@ -1,13 +1,10 @@
 import test from 'node:test';
+import { at } from '../../test/fakes.js';
 import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import {
-  readSettingsFile,
-  writeJsonAtomicallyWithBackup,
-  applyAgentSettingsChanges,
-} from '../settingsWriter.js';
+import { readSettingsFile, writeJsonAtomicallyWithBackup, applyAgentSettingsChanges } from '../settingsWriter.js';
 import { acquireLock } from '../lockfile.js';
 
 function createTempDir(prefix: string): { dir: string; cleanup: () => void } {
@@ -18,7 +15,7 @@ function createTempDir(prefix: string): { dir: string; cleanup: () => void } {
       try {
         fs.rmSync(dir, { recursive: true, force: true });
       } catch {}
-    },
+    }
   };
 }
 
@@ -34,7 +31,7 @@ test('readSettingsFile: parses valid JSON and throws AGENTS_CONFIG_UNREADABLE on
     fs.writeFileSync(invalidFile, '{"broken json: true');
     assert.throws(
       () => readSettingsFile(invalidFile),
-      (err: any) => err?.code === 'AGENTS_CONFIG_UNREADABLE'
+      (err: unknown) => at(err, 'code') === 'AGENTS_CONFIG_UNREADABLE'
     );
 
     const nonExistent = path.join(dir, 'does-not-exist.json');
@@ -82,7 +79,7 @@ test('lock contention: fresh lock times out with AGENTS_CONFIG_LOCKED; stale loc
           { maxAttempts: 3, delayMs: 10, staleMs: 10_000 }
         );
       },
-      (err: any) => err?.code === 'AGENTS_CONFIG_LOCKED'
+      (err: unknown) => at(err, 'code') === 'AGENTS_CONFIG_LOCKED'
     );
 
     // Release held lock
@@ -124,10 +121,10 @@ test('applyAgentSettingsChanges: preserves unrelated keys, writes sessionDefault
         agentOverrides: {
           worker: {
             customField: 'preserved',
-            tools: 'read, write',
-          },
-        },
-      },
+            tools: 'read, write'
+          }
+        }
+      }
     };
     fs.writeFileSync(settingsPath, JSON.stringify(initialSettings, null, 2));
 
@@ -139,20 +136,20 @@ test('applyAgentSettingsChanges: preserves unrelated keys, writes sessionDefault
       {
         kind: 'sessionDefaults',
         model: 'anthropic/claude-3-5-sonnet',
-        thinking: 'medium',
+        thinking: 'medium'
       },
       {
         kind: 'subagentDefaults',
         model: 'anthropic/claude-3-5-haiku',
-        thinking: 'low',
+        thinking: 'low'
       },
       {
         kind: 'agent',
         name: 'worker',
         model: 'anthropic/claude-3-5-sonnet:high',
         thinking: 'high',
-        contextLimit: 64000,
-      },
+        contextLimit: 64000
+      }
     ]);
 
     const updated = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
@@ -182,9 +179,7 @@ test('applyAgentSettingsChanges: preserves unrelated keys, writes sessionDefault
     assert.ok(workerOverride.subagentOnlyExtensions[0].endsWith('subagent-context-limit.mjs'));
 
     // Check subagent-context.json
-    const contextJson = JSON.parse(
-      fs.readFileSync(path.join(piframeDir, 'subagent-context.json'), 'utf8')
-    );
+    const contextJson = JSON.parse(fs.readFileSync(path.join(piframeDir, 'subagent-context.json'), 'utf8'));
     assert.equal(contextJson.worker, 64000);
 
     // Now clear worker context limit
@@ -192,15 +187,13 @@ test('applyAgentSettingsChanges: preserves unrelated keys, writes sessionDefault
       {
         kind: 'agent',
         name: 'worker',
-        contextLimit: null,
-      },
+        contextLimit: null
+      }
     ]);
 
     const afterContextClear = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
     assert.equal(afterContextClear.subagents.agentOverrides.worker.subagentOnlyExtensions, undefined);
-    const contextAfterClear = JSON.parse(
-      fs.readFileSync(path.join(piframeDir, 'subagent-context.json'), 'utf8')
-    );
+    const contextAfterClear = JSON.parse(fs.readFileSync(path.join(piframeDir, 'subagent-context.json'), 'utf8'));
     assert.equal(contextAfterClear.worker, undefined);
   } finally {
     cleanupAgent();
@@ -248,11 +241,7 @@ test('renameWithRetry on Windows: retries on transient errors and unlinks temp f
       fs.renameSync(temp, target);
     };
 
-    await writeJsonAtomicallyWithBackup(
-      targetFile,
-      { retrySuccess: true },
-      { renameFn: transientRename }
-    );
+    await writeJsonAtomicallyWithBackup(targetFile, { retrySuccess: true }, { renameFn: transientRename });
     assert.equal(attempts, 3);
     assert.deepEqual(JSON.parse(fs.readFileSync(targetFile, 'utf8')), { retrySuccess: true });
 
@@ -270,7 +259,7 @@ test('renameWithRetry on Windows: retries on transient errors and unlinks temp f
           { renameFn: permanentRename, maxRetries: 3, delayMs: 5 }
         );
       },
-      (err: any) => err?.code === 'EPERM'
+      (err: unknown) => at(err, 'code') === 'EPERM'
     );
 
     // Verify temp file was unlinked
@@ -302,13 +291,9 @@ test('stolen-lock scenario: aborts write with AGENTS_CONFIG_LOCKED and never del
     // 3. Process A attempts write using its lock handle -> should detect stolen lock
     await assert.rejects(
       async () => {
-        await writeJsonAtomicallyWithBackup(
-          targetFile,
-          { overwritten: true },
-          { lockHandle: lockA }
-        );
+        await writeJsonAtomicallyWithBackup(targetFile, { overwritten: true }, { lockHandle: lockA });
       },
-      (err: any) => err?.code === 'AGENTS_CONFIG_LOCKED'
+      (err: unknown) => at(err, 'code') === 'AGENTS_CONFIG_LOCKED'
     );
 
     // Verify target file was NOT overwritten
@@ -356,7 +341,7 @@ test('lock mtime tolerance: sub-millisecond differences (< 1ms) preserve ownersh
     // check() must detect the stolen lock and throw AGENTS_CONFIG_LOCKED
     assert.throws(
       () => lock.check(),
-      (err: any) => err?.code === 'AGENTS_CONFIG_LOCKED'
+      (err: unknown) => at(err, 'code') === 'AGENTS_CONFIG_LOCKED'
     );
     assert.equal(lock.isCompromised(), true);
 
@@ -392,10 +377,10 @@ test('hold lock across entire read-modify-write: concurrent modification between
           subagents: {
             agentOverrides: {
               worker: {
-                model: 'model-a',
-              },
-            },
-          },
+                model: 'model-a'
+              }
+            }
+          }
         },
         null,
         2
@@ -403,7 +388,7 @@ test('hold lock across entire read-modify-write: concurrent modification between
     );
 
     let writer2Started = false;
-    let writer2Promise: Promise<any> | null = null;
+    const writers: { second?: Promise<unknown> } = {};
 
     // Writer 1 updates worker thinking to 'high'
     // While Writer 1 holds the lock across read-modify-write, hookAfterRead triggers Writer 2
@@ -414,35 +399,35 @@ test('hold lock across entire read-modify-write: concurrent modification between
         {
           kind: 'agent',
           name: 'worker',
-          thinking: 'high',
-        },
+          thinking: 'high'
+        }
       ],
       {
         hookAfterRead: async () => {
           writer2Started = true;
           // Writer 2 updates worker model to 'model-b'
-          writer2Promise = applyAgentSettingsChanges(
+          writers.second = applyAgentSettingsChanges(
             agentDir,
             piframeDir,
             [
               {
                 kind: 'agent',
                 name: 'worker',
-                model: 'model-b',
-              },
+                model: 'model-b'
+              }
             ],
             { maxAttempts: 50, delayMs: 20 }
           );
           // Wait a short time to verify Writer 2 is active and waiting for the lock
           await new Promise((resolve) => setTimeout(resolve, 50));
-        },
+        }
       }
     );
 
     await writer1Promise;
     assert.ok(writer2Started);
-    assert.ok(writer2Promise);
-    await writer2Promise;
+    assert.ok(writers.second);
+    await writers.second;
 
     // Both updates must be preserved: NO LOST UPDATE!
     const finalSettings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
@@ -468,7 +453,7 @@ test('sessionDefaults: null removes both defaultProvider and defaultModel leavin
           defaultProvider: 'anthropic',
           defaultModel: 'claude-3-5-sonnet',
           defaultThinkingLevel: 'high',
-          customAppSetting: 'preserved',
+          customAppSetting: 'preserved'
         },
         null,
         2
@@ -478,8 +463,8 @@ test('sessionDefaults: null removes both defaultProvider and defaultModel leavin
     await applyAgentSettingsChanges(agentDir, piframeDir, [
       {
         kind: 'sessionDefaults',
-        model: null,
-      },
+        model: null
+      }
     ]);
 
     const updated = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));

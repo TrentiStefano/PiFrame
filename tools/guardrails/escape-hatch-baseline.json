@@ -1,0 +1,210 @@
+{
+  "agentd": {
+    "lib": {
+      "// ignore:": 0,
+      "// ignore_for_file:": 0,
+      "@ts-ignore": 0,
+      "@ts-expect-error": 0,
+      "@ts-nocheck": 0,
+      "eslint-disable": 0,
+      "as any": 3,
+      ": any": 52,
+      "as unknown as": 0,
+      "// coverage:ignore": 0
+    },
+    "test": {
+      "// ignore:": 0,
+      "// ignore_for_file:": 0,
+      "@ts-ignore": 0,
+      "@ts-expect-error": 0,
+      "@ts-nocheck": 0,
+      "eslint-disable": 0,
+      "as any": 3,
+      ": any": 0,
+      "as unknown as": 11,
+      "// coverage:ignore": 0
+    }
+  },
+  "pcp-ts": {
+    "lib": {
+      "// ignore:": 0,
+      "// ignore_for_file:": 0,
+      "@ts-ignore": 0,
+      "@ts-expect-error": 0,
+      "@ts-nocheck": 0,
+      "eslint-disable": 0,
+      "as any": 0,
+      ": any": 0,
+      "as unknown as": 0,
+      "// coverage:ignore": 0
+    },
+    "test": {
+      "// ignore:": 0,
+      "// ignore_for_file:": 0,
+      "@ts-ignore": 0,
+      "@ts-expect-error": 0,
+      "@ts-nocheck": 0,
+      "eslint-disable": 0,
+      "as any": 0,
+      ": any": 0,
+      "as unknown as": 0,
+      "// coverage:ignore": 0
+    }
+  },
+  "pcp-spec": {
+    "lib": {
+      "// ignore:": 0,
+      "// ignore_for_file:": 0,
+      "@ts-ignore": 0,
+      "@ts-expect-error": 0,
+      "@ts-nocheck": 0,
+      "eslint-disable": 0,
+      "as any": 0,
+      ": any": 0,
+      "as unknown as": 0,
+      "// coverage:ignore": 0
+    },
+    "test": {
+      "// ignore:": 0,
+      "// ignore_for_file:": 0,
+      "@ts-ignore": 0,
+      "@ts-expect-error": 0,
+      "@ts-nocheck": 0,
+      "eslint-disable": 0,
+      "as any": 0,
+      ": any": 0,
+      "as unknown as": 0,
+      "// coverage:ignore": 0
+    }
+  },
+  "pi_frame": {
+    "lib": {
+      "// ignore:": 0,
+      "// ignore_for_file:": 0,
+      "@ts-ignore": 0,
+      "@ts-expect-error": 0,
+      "@ts-nocheck": 0,
+      "eslint-disable": 0,
+      "as any": 0,
+      ": any": 0,
+      "as unknown as": 0,
+      "// coverage:ignore": 0
+    },
+    "test": {
+      "// ignore:": 2,
+      "// ignore_for_file:": 0,
+      "@ts-ignore": 0,
+      "@ts-expect-error": 0,
+      "@ts-nocheck": 0,
+      "eslint-disable": 0,
+      "as any": 0,
+      ": any": 0,
+      "as unknown as": 0,
+      "// coverage:ignore": 0
+    }
+  },
+  "pi_frame_protocol": {
+    "lib": {
+      "// ignore:": 0,
+      "// ignore_for_file:": 0,
+      "@ts-ignore": 0,
+      "@ts-expect-error": 0,
+      "@ts-nocheck": 0,
+      "eslint-disable": 0,
+      "as any": 0,
+      ": any": 0,
+      "as unknown as": 0,
+      "// coverage:ignore": 0
+    },
+    "test": {
+      "// ignore:": 0,
+      "// ignore_for_file:": 0,
+      "@ts-ignore": 0,
+      "@ts-expect-error": 0,
+      "@ts-nocheck": 0,
+      "eslint-disable": 0,
+      "as any": 0,
+      ": any": 0,
+      "as unknown as": 0,
+      "// coverage:ignore": 0
+    }
+  },
+  "pi_frame_theme": {
+    "lib": {
+      "// ignore:": 0,
+      "// ignore_for_file:": 0,
+      "@ts-ignore": 0,
+      "@ts-expect-error": 0,
+      "@ts-nocheck": 0,
+      "eslint-disable": 0,
+      "as any": 0,
+      ": any": 0,
+      "as unknown as": 0,
+      "// coverage:ignore": 0
+    },
+    "test": {
+      "// ignore:": 0,
+      "// ignore_for_file:": 0,
+      "@ts-ignore": 0,
+      "@ts-expect-error": 0,
+      "@ts-nocheck": 0,
+      "eslint-disable": 0,
+      "as any": 0,
+      ": any": 0,
+      "as unknown as": 0,
+      "// coverage:ignore": 0
+    }
+  },
+  "tools": {
+    "lib": {
+      "// ignore:": 0,
+      "// ignore_for_file:": 0,
+      "@ts-ignore": 0,
+      "@ts-expect-error": 0,
+      "@ts-nocheck": 0,
+      "eslint-disable": 0,
+      "as any": 0,
+      ": any": 0,
+      "as unknown as": 0,
+      "// coverage:ignore": 0
+    },
+    "test": {
+      "// ignore:": 0,
+      "// ignore_for_file:": 0,
+      "@ts-ignore": 0,
+      "@ts-expect-error": 0,
+      "@ts-nocheck": 0,
+      "eslint-disable": 0,
+      "as any": 0,
+      ": any": 0,
+      "as unknown as": 0,
+      "// coverage:ignore": 0
+    }
+  },
+  "e2e": {
+    "lib": {
+      "// ignore:": 0,
+      "// ignore_for_file:": 0,
+      "@ts-ignore": 0,
+      "@ts-expect-error": 0,
+      "@ts-nocheck": 0,
+      "eslint-disable": 0,
+      "as any": 0,
+      ": any": 0,
+      "as unknown as": 0,
+      "// coverage:ignore": 0
+    },
+    "test": {
+      "// ignore:": 0,
+      "// ignore_for_file:": 0,
+      "@ts-ignore": 0,
+      "@ts-expect-error": 0,
+      "@ts-nocheck": 0,
+      "eslint-disable": 0,
+      "as any": 0,
+      ": any": 0,
+      "as unknown as": 0,
+      "// coverage:ignore": 0
+    }
+  }
+}

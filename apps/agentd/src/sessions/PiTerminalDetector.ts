@@ -67,7 +67,8 @@ public static class PiFrameProcessDirectory {
 }`;
 
 async function windowsPiProcesses(): Promise<PiProcessInfo[] | null> {
-  const encodedScript = Buffer.from(`
+  const encodedScript = Buffer.from(
+    `
 $ErrorActionPreference = 'Stop'
 Add-Type -TypeDefinition @'
 ${windowsCwdScript}
@@ -81,15 +82,22 @@ $items = @(Get-CimInstance Win32_Process | Where-Object {
   [PSCustomObject]@{ pid = [int]$_.ProcessId; cwd = $directory; commandLine = $_.CommandLine }
 })
 ConvertTo-Json -InputObject $items -Compress
-`, 'utf16le').toString('base64');
+`,
+    'utf16le'
+  ).toString('base64');
   try {
-    const { stdout } = await execFileAsync('powershell.exe', [
-      '-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', encodedScript,
-    ], { timeout: 5000, windowsHide: true, maxBuffer: 1024 * 1024 });
+    const { stdout } = await execFileAsync(
+      'powershell.exe',
+      ['-NoLogo', '-NoProfile', '-NonInteractive', '-EncodedCommand', encodedScript],
+      { timeout: 5000, windowsHide: true, maxBuffer: 1024 * 1024 }
+    );
     const parsed = JSON.parse(stdout.trim() || '[]');
     const processes = Array.isArray(parsed) ? parsed : [parsed];
     if (processes.some((item) => typeof item.cwd !== 'string' || item.cwd.length === 0)) return null;
-    return processes.map((item) => ({ cwd: item.cwd as string, sessionRef: sessionReference(String(item.commandLine ?? '')) }));
+    return processes.map((item) => ({
+      cwd: item.cwd as string,
+      sessionRef: sessionReference(String(item.commandLine ?? ''))
+    }));
   } catch {
     return null;
   }
@@ -107,7 +115,9 @@ async function linuxPiProcesses(): Promise<PiProcessInfo[] | null> {
         const sessionIndex = args.findIndex((arg) => arg === '--session' || arg === '--session-id');
         const sessionRef = sessionIndex >= 0 ? args[sessionIndex + 1] : undefined;
         result.push({ cwd: fs.realpathSync(`/proc/${pid}/cwd`), sessionRef });
-      } catch { /* Processes can exit while the list is scanned. */ }
+      } catch {
+        /* Processes can exit while the list is scanned. */
+      }
     }
     return result;
   } catch {
@@ -118,22 +128,35 @@ async function linuxPiProcesses(): Promise<PiProcessInfo[] | null> {
 async function macPiProcesses(): Promise<PiProcessInfo[] | null> {
   try {
     const { stdout } = await execFileAsync('ps', ['-axo', 'pid=,args='], {
-      timeout: 5000, windowsHide: true, maxBuffer: 4 * 1024 * 1024,
+      timeout: 5000,
+      windowsHide: true,
+      maxBuffer: 4 * 1024 * 1024
     });
     const processes = stdout.split(/\r?\n/).flatMap((line) => {
       const match = line.trim().match(/^(\d+)\s+(.*)$/);
-      if (!match || !PI_CLI.test(match[2]) || /(?:^|\s)--mode\s+rpc(?:\s|$)/.test(match[2])) return [];
-      return [{ pid: match[1], sessionRef: sessionReference(match[2]) }];
+      if (!match) return [];
+      const [, pid = '', args = ''] = match;
+      if (!PI_CLI.test(args) || /(?:^|\s)--mode\s+rpc(?:\s|$)/.test(args)) return [];
+      return [{ pid, sessionRef: sessionReference(args) }];
     });
-    const cwds = await Promise.all(processes.map(async (process) => {
-      try {
-        const result = await execFileAsync('lsof', ['-a', '-p', process.pid, '-d', 'cwd', '-Fn'], {
-          timeout: 3000, windowsHide: true, maxBuffer: 64 * 1024,
-        });
-        const cwd = result.stdout.split(/\r?\n/).find((line) => line.startsWith('n'))?.slice(1);
-        return cwd ? { cwd, sessionRef: process.sessionRef } : undefined;
-      } catch { return undefined; }
-    }));
+    const cwds = await Promise.all(
+      processes.map(async (process) => {
+        try {
+          const result = await execFileAsync('lsof', ['-a', '-p', process.pid, '-d', 'cwd', '-Fn'], {
+            timeout: 3000,
+            windowsHide: true,
+            maxBuffer: 64 * 1024
+          });
+          const cwd = result.stdout
+            .split(/\r?\n/)
+            .find((line) => line.startsWith('n'))
+            ?.slice(1);
+          return cwd ? { cwd, sessionRef: process.sessionRef } : undefined;
+        } catch {
+          return undefined;
+        }
+      })
+    );
     if (cwds.some((item) => !item)) return null;
     return cwds as PiProcessInfo[];
   } catch {
@@ -158,16 +181,22 @@ export function forgetLastPiProcessScanForTesting(): void {
 function scanPiProcesses(): Promise<PiProcessInfo[] | null> {
   if (processScan) return processScan;
   if (lastScan && Date.now() - lastScan.at < SCAN_REUSE_MS) return Promise.resolve(lastScan.result);
-  const result = process.platform === 'win32'
-    ? windowsPiProcesses()
-    : process.platform === 'darwin'
-      ? macPiProcesses()
-      : process.platform === 'linux'
-        ? linuxPiProcesses()
-        : Promise.resolve(null);
+  const result =
+    process.platform === 'win32'
+      ? windowsPiProcesses()
+      : process.platform === 'darwin'
+        ? macPiProcesses()
+        : process.platform === 'linux'
+          ? linuxPiProcesses()
+          : Promise.resolve(null);
   processScan = result
-    .then((value) => { lastScan = { at: Date.now(), result: value }; return value; })
-    .finally(() => { processScan = null; });
+    .then((value) => {
+      lastScan = { at: Date.now(), result: value };
+      return value;
+    })
+    .finally(() => {
+      processScan = null;
+    });
   return processScan;
 }
 
@@ -175,7 +204,7 @@ function scanPiProcesses(): Promise<PiProcessInfo[] | null> {
 export async function hasInteractivePiInCwd(
   cwd: string,
   sessionFile?: string | null,
-  sessionId?: string,
+  sessionId?: string
 ): Promise<boolean | null> {
   const processes = await scanPiProcesses();
   if (processes === null) return null;
@@ -188,8 +217,12 @@ export async function hasInteractivePiInCwd(
     }
     const ref = process.sessionRef;
     const parsedId = path.basename(ref).match(/(?:^|_)([0-9a-f]{8}-[0-9a-f-]{27,})\.jsonl$/i)?.[1];
-    if (ref === sessionId || (sessionFile && normalize(ref) === normalize(sessionFile)) ||
-        (sessionId && (path.basename(ref) === sessionId || parsedId === sessionId))) return true;
+    if (
+      ref === sessionId ||
+      (sessionFile && normalize(ref) === normalize(sessionFile)) ||
+      (sessionId && (path.basename(ref) === sessionId || parsedId === sessionId))
+    )
+      return true;
   }
   return ambiguous ? null : false;
 }

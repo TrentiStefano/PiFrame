@@ -1,0 +1,71 @@
+{
+  "daemonAllowedDependencies": {
+    "auth": [],
+    "main": [
+      "commands",
+      "config",
+      "pi",
+      "remote",
+      "server",
+      "sessions"
+    ],
+    "commands": [
+      "config",
+      "errors",
+      "journal",
+      "metrics",
+      "pi",
+      "remote",
+      "server",
+      "sessions",
+      "side",
+      "workspace"
+    ],
+    "config": [
+      "errors"
+    ],
+    "journal": [
+      "config"
+    ],
+    "metrics": [
+      "server"
+    ],
+    "pi": [
+      "config",
+      "errors",
+      "workspace"
+    ],
+    "remote": [
+      "auth",
+      "config",
+      "errors"
+    ],
+    "server": [
+      "auth",
+      "config",
+      "errors",
+      "remote"
+    ],
+    "sessions": [
+      "config",
+      "errors",
+      "journal",
+      "pi",
+      "server",
+      "ui"
+    ],
+    "side": [
+      "config",
+      "errors",
+      "pi",
+      "server",
+      "sessions"
+    ],
+    "ui": [],
+    "workspace": [
+      "errors"
+    ],
+    "errors": []
+  },
+  "baseline": []
+}

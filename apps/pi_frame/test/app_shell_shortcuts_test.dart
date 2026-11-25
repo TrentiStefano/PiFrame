@@ -22,21 +22,13 @@ ProviderContainer _container({
     desktopWindowLifecycleProvider.overrideWithValue(false),
     desktopChromeProvider.overrideWithValue(false),
     activeSessionIdProvider.overrideWith((ref) => sessionIds.first),
-    connectionStateProvider.overrideWith(
-      (ref) => Stream.value(DaemonConnectionState.connected),
-    ),
-    if (withClient)
-      pcpClientProvider.overrideWithValue(
-            PcpClient(port: 1, token: 'test'),
-          ),
+    connectionStateProvider.overrideWith((ref) => Stream.value(DaemonConnectionState.connected)),
+    if (withClient) pcpClientProvider.overrideWithValue(PcpClient(port: 1, token: 'test')),
     sessionListProvider.overrideWith((ref) async => sessions ?? const []),
     for (final id in sessionIds) ...[
-      sessionStateFamily(id).overrideWith(
-        (ref) => SessionStateNotifier(id, null)
-          ..state = SessionState(sessionId: id, cwd: 'C:/repo'),
-      ),
-      repositoryStateProvider(id)
-          .overrideWith((ref) => RepositoryController(id, () => null)),
+      sessionStateFamily(id)
+          .overrideWith((ref) => SessionStateNotifier(id, null)..state = SessionState(sessionId: id, cwd: 'C:/repo')),
+      repositoryStateProvider(id).overrideWith((ref) => RepositoryController(id, () => null)),
     ],
   ],
 );
@@ -56,11 +48,7 @@ void main() {
     if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
   });
 
-  Future<void> pumpShell(
-    WidgetTester tester,
-    ProviderContainer container, {
-    double width = 1920,
-  }) async {
+  Future<void> pumpShell(WidgetTester tester, ProviderContainer container, {double width = 1920}) async {
     tester.view.physicalSize = Size(width, 1080);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() => tester.view.resetPhysicalSize());
@@ -107,11 +95,7 @@ void main() {
     addTearDown(container.dispose);
     await pumpShell(tester, container);
 
-    await press(
-      tester,
-      LogicalKeyboardKey.keyN,
-      modifier: LogicalKeyboardKey.metaLeft,
-    );
+    await press(tester, LogicalKeyboardKey.keyN, modifier: LogicalKeyboardKey.metaLeft);
 
     expect(find.byType(Dialog), findsOneWidget);
   });
@@ -128,9 +112,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Ctrl+B hides and shows the docked sessions rail', (
-    tester,
-  ) async {
+  testWidgets('Ctrl+B hides and shows the docked sessions rail', (tester) async {
     final container = _container();
     addTearDown(container.dispose);
     await pumpShell(tester, container);
@@ -139,42 +121,29 @@ void main() {
 
     await press(tester, LogicalKeyboardKey.keyB);
     expect(rail, findsNothing);
-    expect(
-      (jsonDecode(layoutFile.readAsStringSync()) as Map)['sidebarCollapsed'],
-      isTrue,
-    );
+    expect((jsonDecode(layoutFile.readAsStringSync()) as Map)['sidebarCollapsed'], isTrue);
 
     await press(tester, LogicalKeyboardKey.keyB);
     expect(rail, findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Ctrl+Shift+B keeps its side conversation meaning, not the rail', (
-    tester,
-  ) async {
+  testWidgets('Ctrl+Shift+B keeps its side conversation meaning, not the rail', (tester) async {
     final container = _container();
     addTearDown(container.dispose);
     await pumpShell(tester, container);
 
     await press(tester, LogicalKeyboardKey.keyB, shift: true);
 
-    expect(
-      find.byKey(const ValueKey('sessions-sidebar-pane')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('sessions-sidebar-pane')), findsOneWidget);
   });
 
-  testWidgets('Ctrl+Tab switches to the previously active session', (
-    tester,
-  ) async {
+  testWidgets('Ctrl+Tab switches to the previously active session', (tester) async {
     final sessions = [
       {'id': 'session_1'},
       {'id': 'session_2'},
     ];
-    final container = _container(
-      sessionIds: const ['session_1', 'session_2'],
-      sessions: sessions,
-    );
+    final container = _container(sessionIds: const ['session_1', 'session_2'], sessions: sessions);
     addTearDown(container.dispose);
     await pumpShell(tester, container);
 
@@ -190,9 +159,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Ctrl+Tab does nothing when the previous session is gone', (
-    tester,
-  ) async {
+  testWidgets('Ctrl+Tab does nothing when the previous session is gone', (tester) async {
     final container = _container(
       sessionIds: const ['session_1', 'session_2'],
       sessions: [

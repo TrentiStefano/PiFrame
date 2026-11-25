@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
+
 import '../../domain/update/update_models.dart';
 
 abstract class UpdateStorage {
@@ -18,9 +20,7 @@ class FileUpdateStorage implements UpdateStorage {
     if (kIsWeb) return null;
     try {
       final env = Platform.environment;
-      final home = Platform.isWindows
-          ? (env['USERPROFILE'] ?? 'C:\\Users\\Default')
-          : (env['HOME'] ?? '/tmp');
+      final home = Platform.isWindows ? (env['USERPROFILE'] ?? 'C:\\Users\\Default') : (env['HOME'] ?? '/tmp');
       final dir = Directory('$home/.piframe');
       if (!dir.existsSync()) {
         dir.createSync(recursive: true);

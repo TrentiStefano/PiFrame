@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_frame/data/daemon/daemon_providers.dart';
@@ -44,7 +45,14 @@ class ListClient extends PcpClient {
   @override
   Future<Map<String, dynamic>> listSessions({String? query, int? limit}) async {
     calls++;
-    return {'state': 'completed', 'data': {'sessions': [{'id': 'visible'}]}};
+    return {
+      'state': 'completed',
+      'data': {
+        'sessions': [
+          {'id': 'visible'},
+        ],
+      },
+    };
   }
 }
 
@@ -56,7 +64,7 @@ class IndexEventClient extends StartupRaceClient {
 
   @override
   void dispose() {
-    indexEvents.close();
+    unawaited(indexEvents.close());
     super.dispose();
   }
 }
@@ -87,7 +95,7 @@ class StartupRaceClient extends ListClient {
 
   @override
   void dispose() {
-    changes.close();
+    unawaited(changes.close());
     super.dispose();
   }
 }
@@ -95,9 +103,7 @@ class StartupRaceClient extends ListClient {
 void main() {
   test('session list loads when handshake completes during initial state delivery', () async {
     final client = StartupRaceClient();
-    final container = ProviderContainer(overrides: [
-      pcpClientProvider.overrideWithValue(client),
-    ]);
+    final container = ProviderContainer(overrides: [pcpClientProvider.overrideWithValue(client)]);
     var connected = false;
     final connectionListener = container.listen(connectionStateProvider, (_, next) {
       if (!connected && next.value == DaemonConnectionState.authenticating) {
@@ -110,7 +116,9 @@ void main() {
     await Future<void>.delayed(Duration.zero);
 
     expect(container.read(connectionStateProvider).value, DaemonConnectionState.connected);
-    expect(await container.read(sessionListProvider.future), [{'id': 'visible'}]);
+    expect(await container.read(sessionListProvider.future), [
+      {'id': 'visible'},
+    ]);
     expect(client.calls, 1);
     connectionListener.close();
     listListener.close();
@@ -120,19 +128,21 @@ void main() {
 
   test('session list loads if connected before subscription and after reconnect', () async {
     final client = StartupRaceClient()..current = DaemonConnectionState.connected;
-    final container = ProviderContainer(overrides: [
-      pcpClientProvider.overrideWithValue(client),
-    ]);
+    final container = ProviderContainer(overrides: [pcpClientProvider.overrideWithValue(client)]);
     final listener = container.listen(sessionListProvider, (_, _) {});
     await Future<void>.delayed(Duration.zero);
-    expect(await container.read(sessionListProvider.future), [{'id': 'visible'}]);
+    expect(await container.read(sessionListProvider.future), [
+      {'id': 'visible'},
+    ]);
     expect(client.calls, 1);
 
     client.setConnectionState(DaemonConnectionState.reconnecting);
     await Future<void>.delayed(Duration.zero);
     client.setConnectionState(DaemonConnectionState.connected);
     await Future<void>.delayed(Duration.zero);
-    expect(await container.read(sessionListProvider.future), [{'id': 'visible'}]);
+    expect(await container.read(sessionListProvider.future), [
+      {'id': 'visible'},
+    ]);
     expect(client.calls, 2);
     listener.close();
     container.dispose();
@@ -142,17 +152,21 @@ void main() {
   test('session list refreshes when handshake completes', () async {
     final changes = StreamController<DaemonConnectionState>();
     final client = ListClient();
-    final container = ProviderContainer(overrides: [
-      pcpClientProvider.overrideWithValue(client),
-      connectionStateProvider.overrideWith((ref) => changes.stream),
-    ]);
+    final container = ProviderContainer(
+      overrides: [
+        pcpClientProvider.overrideWithValue(client),
+        connectionStateProvider.overrideWith((ref) => changes.stream),
+      ],
+    );
     final listener = container.listen(sessionListProvider, (_, _) {});
     changes.add(DaemonConnectionState.disconnected);
     await Future<void>.delayed(Duration.zero);
     expect(await container.read(sessionListProvider.future), isEmpty);
     changes.add(DaemonConnectionState.connected);
     await Future<void>.delayed(Duration.zero);
-    expect(await container.read(sessionListProvider.future), [{'id': 'visible'}]);
+    expect(await container.read(sessionListProvider.future), [
+      {'id': 'visible'},
+    ]);
     expect(client.calls, 1);
     listener.close();
     container.dispose();
@@ -170,22 +184,26 @@ void main() {
         if (message['kind'] == 'hello') {
           socket.add(jsonEncode({'kind': 'welcome'}));
         } else if (message['type'] == 'session.list') {
-          socket.add(jsonEncode({
-            'kind': 'result',
-            'commandId': message['commandId'],
-            'payload': {
-              'state': 'completed',
-              'data': {'sessions': [{'id': 'visible'}]},
-            },
-          }));
+          socket.add(
+            jsonEncode({
+              'kind': 'result',
+              'commandId': message['commandId'],
+              'payload': {
+                'state': 'completed',
+                'data': {
+                  'sessions': [
+                    {'id': 'visible'},
+                  ],
+                },
+              },
+            }),
+          );
           if (!requested.isCompleted) requested.complete();
         }
       });
     });
     final client = PcpClient(port: server.port, token: 'test');
-    final container = ProviderContainer(overrides: [
-      pcpClientProvider.overrideWithValue(client),
-    ]);
+    final container = ProviderContainer(overrides: [pcpClientProvider.overrideWithValue(client)]);
     final listener = container.listen(sessionListProvider, (_, _) {});
     addTearDown(() async {
       listener.close();
@@ -197,40 +215,52 @@ void main() {
 
     client.connect();
     await requested.future.timeout(const Duration(seconds: 3));
-    expect(await container.read(sessionListProvider.future), [{'id': 'visible'}]);
+    expect(await container.read(sessionListProvider.future), [
+      {'id': 'visible'},
+    ]);
   });
 
   test('session list ignores progress events but reloads completed index updates', () async {
     final client = IndexEventClient()..current = DaemonConnectionState.connected;
-    final container = ProviderContainer(overrides: [
-      pcpClientProvider.overrideWithValue(client),
-    ]);
+    final container = ProviderContainer(overrides: [pcpClientProvider.overrideWithValue(client)]);
     final listener = container.listen(sessionListProvider, (_, _) {});
     await Future<void>.delayed(Duration.zero);
-    expect(await container.read(sessionListProvider.future), [{'id': 'visible'}]);
+    expect(await container.read(sessionListProvider.future), [
+      {'id': 'visible'},
+    ]);
     expect(client.calls, 1);
 
-    client.indexEvents.add(const SessionIndexChangedEvent(
-      protocol: 1,
-      id: 'progress',
-      ts: 1,
-      sessionId: '@daemon',
-      seq: 0,
-      payload: {'refreshing': true},
-    ));
+    client.indexEvents.add(
+      const SessionIndexChangedEvent(
+        protocol: 1,
+        id: 'progress',
+        ts: 1,
+        sessionId: '@daemon',
+        seq: 0,
+        payload: {'refreshing': true},
+      ),
+    );
     await Future<void>.delayed(Duration.zero);
     expect(client.calls, 1);
 
-    client.indexEvents.add(const SessionIndexChangedEvent(
-      protocol: 1,
-      id: 'updated',
-      ts: 2,
-      sessionId: '@daemon',
-      seq: 0,
-      payload: {'updated': [{'id': 'visible'}]},
-    ));
+    client.indexEvents.add(
+      const SessionIndexChangedEvent(
+        protocol: 1,
+        id: 'updated',
+        ts: 2,
+        sessionId: '@daemon',
+        seq: 0,
+        payload: {
+          'updated': [
+            {'id': 'visible'},
+          ],
+        },
+      ),
+    );
     await Future<void>.delayed(Duration.zero);
-    expect(await container.read(sessionListProvider.future), [{'id': 'visible'}]);
+    expect(await container.read(sessionListProvider.future), [
+      {'id': 'visible'},
+    ]);
     expect(client.calls, 2);
     listener.close();
     container.dispose();
@@ -239,17 +269,14 @@ void main() {
 
   test('session list errors are not mistaken for an empty list', () async {
     final client = FailingListClient();
-    final container = ProviderContainer(overrides: [
-      pcpClientProvider.overrideWithValue(client),
-      connectionStateProvider.overrideWith(
-        (ref) => Stream.value(DaemonConnectionState.connected),
-      ),
-    ]);
-    await container.read(connectionStateProvider.future);
-    await expectLater(
-      container.read(sessionListProvider.future),
-      throwsA(isA<StateError>()),
+    final container = ProviderContainer(
+      overrides: [
+        pcpClientProvider.overrideWithValue(client),
+        connectionStateProvider.overrideWith((ref) => Stream.value(DaemonConnectionState.connected)),
+      ],
     );
+    await container.read(connectionStateProvider.future);
+    await expectLater(container.read(sessionListProvider.future), throwsA(isA<StateError>()));
     container.dispose();
     client.dispose();
   });
@@ -286,10 +313,7 @@ void main() {
     final client = PromptClient(reject: true);
     final notifier = SessionStateNotifier('prompt', client);
 
-    await expectLater(
-      notifier.sendPrompt('hello'),
-      throwsA(isA<StateError>()),
-    );
+    await expectLater(notifier.sendPrompt('hello'), throwsA(isA<StateError>()));
 
     expect(notifier.state.entries, hasLength(1));
     expect(notifier.state.entries.single.text, 'hello');
@@ -302,17 +326,37 @@ void main() {
   test('full snapshot restores runtime and nested Pi messages atomically', () {
     final state = applySessionSnapshot('test', 42, {
       'session': {'cwd': '/project', 'readOnly': true},
-      'runtime': {'status': 'awaiting_user', 'queue': {'steering': ['later']}},
-      'transcript': {'entries': [
-        {'type': 'message', 'id': 'entry', 'timestamp': '2026-01-01T00:00:00Z',
-          'message': {'role': 'user', 'content': 'History'}},
-      ]},
-      'liveMessage': {'content': [
-        {'type': 'text', 'text': 'Streaming'},
-        {'type': 'thinking', 'thinking': 'Reasoning'},
-      ]},
-      'activeTools': [{'toolCallId': 'call1', 'toolName': 'read', 'isRunning': true}],
-      'pendingUiRequests': [{'requestId': 'ui1', 'options': ['Yes']}],
+      'runtime': {
+        'status': 'awaiting_user',
+        'queue': {
+          'steering': ['later'],
+        },
+      },
+      'transcript': {
+        'entries': [
+          {
+            'type': 'message',
+            'id': 'entry',
+            'timestamp': '2026-01-01T00:00:00Z',
+            'message': {'role': 'user', 'content': 'History'},
+          },
+        ],
+      },
+      'liveMessage': {
+        'content': [
+          {'type': 'text', 'text': 'Streaming'},
+          {'type': 'thinking', 'thinking': 'Reasoning'},
+        ],
+      },
+      'activeTools': [
+        {'toolCallId': 'call1', 'toolName': 'read', 'isRunning': true},
+      ],
+      'pendingUiRequests': [
+        {
+          'requestId': 'ui1',
+          'options': ['Yes'],
+        },
+      ],
     });
     expect(state.entries.single.text, 'History');
     expect(state.entries.single.id, 'entry');
@@ -325,7 +369,9 @@ void main() {
     expect(state.steeringQueue, ['later']);
     expect(state.pendingUiRequests.single['options'], ['Yes']);
     expect(state.lastAppliedSeq, 42);
-    final empty = applySessionSnapshot('test', 0, {'transcript': {'entries': []}});
+    final empty = applySessionSnapshot('test', 0, {
+      'transcript': {'entries': <dynamic>[]},
+    });
     expect(empty.entries, isEmpty);
     expect(empty.currentStreamingText, isEmpty);
     expect(empty.agentStatus, AgentStatus.settled);

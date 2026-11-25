@@ -53,11 +53,7 @@ Widget _app(StepsGroupBlock block) => ProviderScope(
     theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
     home: Scaffold(
       body: SingleChildScrollView(
-        child: StepsGroup(
-          sessionId: _sid,
-          block: block,
-          tokens: FrameTokens.dark,
-        ),
+        child: StepsGroup(sessionId: _sid, block: block, tokens: FrameTokens.dark),
       ),
     ),
   ),
@@ -65,18 +61,13 @@ Widget _app(StepsGroupBlock block) => ProviderScope(
 
 ScrollPosition _compactPosition(WidgetTester tester) {
   final scrollable = find
-      .descendant(
-        of: find.byKey(const ValueKey('step_group_compact_list_steps_u1')),
-        matching: find.byType(Scrollable),
-      )
+      .descendant(of: find.byKey(const ValueKey('step_group_compact_list_steps_u1')), matching: find.byType(Scrollable))
       .first;
   return tester.state<ScrollableState>(scrollable).position;
 }
 
 void main() {
-  testWidgets('streaming thinking stays pinned to the bottom on every frame', (
-    tester,
-  ) async {
+  testWidgets('streaming thinking stays pinned to the bottom on every frame', (tester) async {
     tester.view.physicalSize = const Size(900, 600);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -125,10 +116,7 @@ void main() {
     await tester.drag(list, const Offset(0, 200));
     await tester.pump();
     final pinnedAway = _compactPosition(tester).pixels;
-    expect(
-      _compactPosition(tester).maxScrollExtent - pinnedAway,
-      greaterThan(50),
-    );
+    expect(_compactPosition(tester).maxScrollExtent - pinnedAway, greaterThan(50));
 
     for (int i = 0; i < 5; i++) {
       buffer.write('\nmore $i');
@@ -138,9 +126,7 @@ void main() {
     expect(_compactPosition(tester).pixels, closeTo(pinnedAway, 0.5));
   });
 
-  testWidgets('transcript does not jump while a long thinking block streams', (
-    tester,
-  ) async {
+  testWidgets('transcript does not jump while a long thinking block streams', (tester) async {
     tester.view.physicalSize = const Size(1200, 800);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -149,12 +135,7 @@ void main() {
     const sid = 'transcript_stream';
     final entries = <SessionEntry>[
       for (int t = 0; t < 4; t++) ...[
-        SessionEntry(
-          id: 'u$t',
-          role: 'user',
-          text: 'old question $t',
-          timestamp: 1000 + t * 100,
-        ),
+        SessionEntry(id: 'u$t', role: 'user', text: 'old question $t', timestamp: 1000 + t * 100),
         SessionEntry(
           id: 'a$t',
           role: 'assistant',
@@ -184,12 +165,7 @@ void main() {
       ),
     ];
     final notifier = SessionStateNotifier(sid, null)
-      ..state = SessionState(
-        sessionId: sid,
-        cwd: '/repo',
-        entries: entries,
-        agentStatus: AgentStatus.working,
-      );
+      ..state = SessionState(sessionId: sid, cwd: '/repo', entries: entries, agentStatus: AgentStatus.working);
 
     await tester.pumpWidget(
       ProviderScope(
@@ -197,15 +173,11 @@ void main() {
           daemonEndpointProvider.overrideWith((ref) async => null),
           sessionStateFamily(sid).overrideWith((ref) => notifier),
           stepGroupingSettingsProvider.overrideWith(
-            (ref) =>
-                StepGroupingSettingsNotifier()
-                  ..setMode(StepGroupingMode.always),
+            (ref) => StepGroupingSettingsNotifier()..setMode(StepGroupingMode.always),
           ),
         ],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: const Scaffold(body: TranscriptView(sessionId: sid)),
         ),
       ),
@@ -214,12 +186,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 16));
     }
 
-    final words = 'the model keeps reasoning about many alternatives'.split(
-      ' ',
-    );
-    final groupHeader = find.byKey(
-      const ValueKey('step_group_header_steps_ucur'),
-    );
+    final words = 'the model keeps reasoning about many alternatives'.split(' ');
+    final groupHeader = find.byKey(const ValueKey('step_group_header_steps_ucur'));
     final toolRow = find.byKey(const ValueKey('tool_step_header_tc3'));
     var text = '';
     double? lastTool;
@@ -227,9 +195,7 @@ void main() {
     for (int i = 0; i < 300; i++) {
       // Token-sized chunks, with a hard line break now and then.
       text += '${words[i % words.length]}${i % 23 == 22 ? '\n' : ' '}';
-      notifier.state = notifier.state.copyWith(
-        streamingThinkingBlocks: {0: text},
-      );
+      notifier.state = notifier.state.copyWith(streamingThinkingBlocks: {0: text});
       await tester.pump(const Duration(milliseconds: 16));
 
       // The group header only moves up while the group grows to its cap.
@@ -248,9 +214,6 @@ void main() {
         lastTool = tool;
       }
     }
-    expect(
-      find.byKey(const ValueKey('step_group_expand_all_steps_ucur')),
-      findsOneWidget,
-    );
+    expect(find.byKey(const ValueKey('step_group_expand_all_steps_ucur')), findsOneWidget);
   });
 }

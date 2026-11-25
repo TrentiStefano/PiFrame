@@ -38,14 +38,11 @@ class _MemoryThemeStorage extends ThemeStorage {
   }
 
   @override
-  Future<File?> saveUserThemeFile(String filename, String content) async =>
-      null;
+  Future<File?> saveUserThemeFile(String filename, String content) async => null;
 }
 
 void main() {
-  testWidgets('theme editor opens through the frame dialog route and ignores barrier taps', (
-    tester,
-  ) async {
+  testWidgets('theme editor opens through the frame dialog route and ignores barrier taps', (tester) async {
     final repository = ThemeRepository();
     addTearDown(repository.dispose);
     final langNotifier = AppLanguageNotifier()..setLanguage(AppLanguage.en);

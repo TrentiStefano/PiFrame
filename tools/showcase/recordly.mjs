@@ -18,8 +18,10 @@ async function targets() {
 async function pick(which) {
   const list = await targets();
   const match = (t) =>
-    which === 'hud' ? t.url.includes('windowType=hud-overlay')
-      : which === 'editor' ? t.url.includes('windowType=editor')
+    which === 'hud'
+      ? t.url.includes('windowType=hud-overlay')
+      : which === 'editor'
+        ? t.url.includes('windowType=editor')
         : t.url.includes(which) || t.title.includes(which);
   const t = list.find(match);
   if (!t) throw new Error(`no target for ${which}: ${list.map((x) => x.url).join(' | ')}`);
@@ -29,17 +31,23 @@ async function pick(which) {
 export async function evaluate(which, expression, { awaitPromise = true } = {}) {
   const t = await pick(which);
   const ws = new WebSocket(t.webSocketDebuggerUrl);
-  await new Promise((res, rej) => { ws.onopen = res; ws.onerror = rej; });
+  await new Promise((res, rej) => {
+    ws.onopen = res;
+    ws.onerror = rej;
+  });
   const id = 1;
   const result = await new Promise((res, rej) => {
     ws.onmessage = (ev) => {
       const msg = JSON.parse(ev.data);
       if (msg.id === id) res(msg);
     };
-    ws.send(JSON.stringify({
-      id, method: 'Runtime.evaluate',
-      params: { expression, awaitPromise, returnByValue: true, userGesture: true },
-    }));
+    ws.send(
+      JSON.stringify({
+        id,
+        method: 'Runtime.evaluate',
+        params: { expression, awaitPromise, returnByValue: true, userGesture: true }
+      })
+    );
     setTimeout(() => rej(new Error('timeout')), 120000);
   });
   ws.close();
@@ -83,18 +91,34 @@ async function main() {
   const [cmd, a, b] = process.argv.slice(2);
   let out;
   switch (cmd) {
-    case 'targets': out = (await targets()).map((t) => `${t.title} :: ${t.url}`); break;
-    case 'eval': out = await evaluate(a, b); break;
-    case 'select-window': out = await evaluate('hud', SELECT_WINDOW(a)); break;
-    case 'select-screen': out = await evaluate('hud', SELECT_SCREEN); break;
-    case 'start': out = await evaluate('hud', CLICK_REC); break;
-    case 'stop': out = await evaluate('hud', CLICK_STOP); break;
-    default: throw new Error(`unknown command ${cmd}`);
+    case 'targets':
+      out = (await targets()).map((t) => `${t.title} :: ${t.url}`);
+      break;
+    case 'eval':
+      out = await evaluate(a, b);
+      break;
+    case 'select-window':
+      out = await evaluate('hud', SELECT_WINDOW(a));
+      break;
+    case 'select-screen':
+      out = await evaluate('hud', SELECT_SCREEN);
+      break;
+    case 'start':
+      out = await evaluate('hud', CLICK_REC);
+      break;
+    case 'stop':
+      out = await evaluate('hud', CLICK_STOP);
+      break;
+    default:
+      throw new Error(`unknown command ${cmd}`);
   }
   console.log(typeof out === 'string' ? out : JSON.stringify(out, null, 2));
   process.exit(0);
 }
 
 if (import.meta.url === `file:///${process.argv[1].replace(/\\/g, '/')}`) {
-  main().catch((e) => { console.error(e.message); process.exit(1); });
+  main().catch((e) => {
+    console.error(e.message);
+    process.exit(1);
+  });
 }

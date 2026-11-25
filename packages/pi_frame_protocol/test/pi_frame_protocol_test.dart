@@ -111,17 +111,11 @@ void main() {
       expect(promptCmd.payload['sideId'], 'side_01');
       expect(promptCmd.payload['text'], 'What about edge cases?');
 
-      final abortCmd = PcpCommand.sideAbort(
-        commandId: 'cmd_side_abort',
-        sideId: 'side_01',
-      );
+      final abortCmd = PcpCommand.sideAbort(commandId: 'cmd_side_abort', sideId: 'side_01');
       expect(abortCmd.type, 'side.abort');
       expect(abortCmd.payload['sideId'], 'side_01');
 
-      final closeCmd = PcpCommand.sideClose(
-        commandId: 'cmd_side_close',
-        sideId: 'side_01',
-      );
+      final closeCmd = PcpCommand.sideClose(commandId: 'cmd_side_close', sideId: 'side_01');
       expect(closeCmd.type, 'side.close');
       expect(closeCmd.payload['sideId'], 'side_01');
     });
@@ -278,10 +272,7 @@ void main() {
     });
 
     test('creates workspaceListBranches and workspaceSwitchBranch commands', () {
-      final listCmd = PcpCommand.workspaceListBranches(
-        commandId: 'cmd_lb_01',
-        sessionId: 's_workspace_01',
-      );
+      final listCmd = PcpCommand.workspaceListBranches(commandId: 'cmd_lb_01', sessionId: 's_workspace_01');
       expect(listCmd.commandId, 'cmd_lb_01');
       expect(listCmd.sessionId, 's_workspace_01');
       expect(listCmd.type, 'workspace.listBranches');
@@ -306,10 +297,7 @@ void main() {
       );
       expect(switchStash.payload['onDirty'], 'stash');
 
-      final agentsGet = PcpCommand.piAgentsGet(
-        commandId: 'cmd_ag_01',
-        cwd: '/project/dir',
-      );
+      final agentsGet = PcpCommand.piAgentsGet(commandId: 'cmd_ag_01', cwd: '/project/dir');
       expect(agentsGet.commandId, 'cmd_ag_01');
       expect(agentsGet.sessionId, '@daemon');
       expect(agentsGet.type, 'pi.agents.get');
@@ -318,13 +306,13 @@ void main() {
       final agentsUpdate = PcpCommand.piAgentsUpdate(
         commandId: 'cmd_au_01',
         changes: [
-          {'kind': 'agent', 'name': 'worker', 'model': 'anthropic/claude-3-5-sonnet'}
+          {'kind': 'agent', 'name': 'worker', 'model': 'anthropic/claude-3-5-sonnet'},
         ],
       );
       expect(agentsUpdate.commandId, 'cmd_au_01');
       expect(agentsUpdate.sessionId, '@daemon');
       expect(agentsUpdate.type, 'pi.agents.update');
-      expect(agentsUpdate.payload['changes'], isA<List>());
+      expect(agentsUpdate.payload['changes'], isA<List<dynamic>>());
     });
   });
 }

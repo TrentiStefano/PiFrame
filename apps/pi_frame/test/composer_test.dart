@@ -42,48 +42,28 @@ class BuiltinCommandSession extends SessionStateNotifier {
 
   @override
   Future<List<Map<String, dynamic>>> getCommands() async => [
-    {
-      'name': 'settings',
-      'description': 'Open settings menu',
-      'source': 'builtin',
-    },
+    {'name': 'settings', 'description': 'Open settings menu', 'source': 'builtin'},
     {'name': 'share', 'description': 'Share session', 'source': 'builtin'},
-    {
-      'name': 'login',
-      'description': 'Authenticate with a provider',
-      'source': 'builtin',
-    },
-    {
-      'name': 'logout',
-      'description': 'Remove provider credentials',
-      'source': 'builtin',
-    },
+    {'name': 'login', 'description': 'Authenticate with a provider', 'source': 'builtin'},
+    {'name': 'logout', 'description': 'Remove provider credentials', 'source': 'builtin'},
     {'name': 'caveman', 'description': 'Caveman mode', 'source': 'extension'},
   ];
 }
 
 void main() {
-  testWidgets('Pi built-ins appear in slash menu and run as local actions', (
-    tester,
-  ) async {
+  testWidgets('Pi built-ins appear in slash menu and run as local actions', (tester) async {
     final session = BuiltinCommandSession();
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          sessionStateFamily('builtin').overrideWith((ref) => session),
-        ],
+        overrides: [sessionStateFamily('builtin').overrideWith((ref) => session)],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: const Scaffold(body: Composer(sessionId: 'builtin')),
         ),
       ),
     );
     await tester.pumpAndSettle();
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(Composer)),
-    );
+    final container = ProviderScope.containerOf(tester.element(find.byType(Composer)));
 
     await tester.enterText(find.byType(TextField), '/');
     await tester.pumpAndSettle();
@@ -119,104 +99,82 @@ void main() {
     expect(session.state.entries, isEmpty);
   });
 
-  testWidgets(
-    'pending send survives session switch and updates restored draft safely',
-    (tester) async {
-      final session = DeferredSession();
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            daemonEndpointProvider.overrideWith((ref) async => null),
-            activeSessionIdProvider.overrideWith((ref) => 'pending'),
-            sessionStateFamily('pending').overrideWith((ref) => session),
-          ],
-          child: MaterialApp(
-            theme: ThemeData.dark().copyWith(
-              extensions: const [FrameTokens.dark],
-            ),
-            home: Scaffold(
-              body: Consumer(
-                builder: (context, ref, child) {
-                  final id = ref.watch(activeSessionIdProvider)!;
-                  return Composer(key: ValueKey(id), sessionId: id);
-                },
-              ),
+  testWidgets('pending send survives session switch and updates restored draft safely', (tester) async {
+    final session = DeferredSession();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          daemonEndpointProvider.overrideWith((ref) async => null),
+          activeSessionIdProvider.overrideWith((ref) => 'pending'),
+          sessionStateFamily('pending').overrideWith((ref) => session),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+          home: Scaffold(
+            body: Consumer(
+              builder: (context, ref, child) {
+                final id = ref.watch(activeSessionIdProvider)!;
+                return Composer(key: ValueKey(id), sessionId: id);
+              },
             ),
           ),
         ),
-      );
-      final container = ProviderScope.containerOf(
-        tester.element(find.byType(Composer)),
-      );
-      await tester.enterText(find.byType(TextField), 'Pending draft');
-      await tester.tap(find.byIcon(Icons.arrow_upward_outlined));
-      await tester.pump();
-      expect(find.text('Pending draft'), findsNothing);
-      expect(container.read(composerDraftProvider('pending')), isEmpty);
-      container.read(activeSessionIdProvider.notifier).state = 'B';
-      await tester.pump();
-      container.read(activeSessionIdProvider.notifier).state = 'pending';
-      await tester.pump();
-      final sendButton = tester.widget<FilledButton>(
-        find
-            .ancestor(
-              of: find.byIcon(Icons.arrow_upward_outlined),
-              matching: find.byType(FilledButton),
-            )
-            .first,
-      );
-      expect(sendButton.onPressed, isNull);
-      expect(session.calls, 1);
-      session.completion.complete();
-      await tester.pump();
-      expect(find.text('Pending draft'), findsNothing);
-      expect(container.read(composerDraftProvider('pending')), isEmpty);
+      ),
+    );
+    final container = ProviderScope.containerOf(tester.element(find.byType(Composer)));
+    await tester.enterText(find.byType(TextField), 'Pending draft');
+    await tester.tap(find.byIcon(Icons.arrow_upward_outlined));
+    await tester.pump();
+    expect(find.text('Pending draft'), findsNothing);
+    expect(container.read(composerDraftProvider('pending')), isEmpty);
+    container.read(activeSessionIdProvider.notifier).state = 'B';
+    await tester.pump();
+    container.read(activeSessionIdProvider.notifier).state = 'pending';
+    await tester.pump();
+    final sendButton = tester.widget<FilledButton>(
+      find.ancestor(of: find.byIcon(Icons.arrow_upward_outlined), matching: find.byType(FilledButton)).first,
+    );
+    expect(sendButton.onPressed, isNull);
+    expect(session.calls, 1);
+    session.completion.complete();
+    await tester.pump();
+    expect(find.text('Pending draft'), findsNothing);
+    expect(container.read(composerDraftProvider('pending')), isEmpty);
 
-      session.completion = Completer<void>();
-      await tester.enterText(find.byType(TextField), 'Second draft');
-      await tester.tap(find.byIcon(Icons.arrow_upward_outlined));
-      await tester.pump();
-      await tester.enterText(find.byType(TextField), 'Newer edit');
-      container.read(activeSessionIdProvider.notifier).state = 'B';
-      await tester.pump();
-      container.read(activeSessionIdProvider.notifier).state = 'pending';
-      await tester.pump();
-      session.completion.complete();
-      await tester.pump();
-      expect(find.text('Newer edit'), findsOneWidget);
-      expect(container.read(composerDraftProvider('pending')), 'Newer edit');
-    },
-  );
+    session.completion = Completer<void>();
+    await tester.enterText(find.byType(TextField), 'Second draft');
+    await tester.tap(find.byIcon(Icons.arrow_upward_outlined));
+    await tester.pump();
+    await tester.enterText(find.byType(TextField), 'Newer edit');
+    container.read(activeSessionIdProvider.notifier).state = 'B';
+    await tester.pump();
+    container.read(activeSessionIdProvider.notifier).state = 'pending';
+    await tester.pump();
+    session.completion.complete();
+    await tester.pump();
+    expect(find.text('Newer edit'), findsOneWidget);
+    expect(container.read(composerDraftProvider('pending')), 'Newer edit');
+  });
 
-  testWidgets(
-    'failed prompt clears composer and keeps error on message entry',
-    (tester) async {
-      final session = RejectingSession();
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            sessionStateFamily('rejecting').overrideWith((ref) => session),
-          ],
-          child: MaterialApp(
-            theme: ThemeData.dark().copyWith(
-              extensions: const [FrameTokens.dark],
-            ),
-            home: const Scaffold(body: Composer(sessionId: 'rejecting')),
-          ),
+  testWidgets('failed prompt clears composer and keeps error on message entry', (tester) async {
+    final session = RejectingSession();
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [sessionStateFamily('rejecting').overrideWith((ref) => session)],
+        child: MaterialApp(
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+          home: const Scaffold(body: Composer(sessionId: 'rejecting')),
         ),
-      );
-      await tester.enterText(find.byType(TextField), 'Keep this draft');
-      await tester.tap(find.byIcon(Icons.arrow_upward_outlined));
-      await tester.pump();
-      expect(find.text('Keep this draft'), findsNothing);
-      expect(session.state.entries.single.text, 'Keep this draft');
-      expect(
-        session.state.entries.single.metadata?['sendError'],
-        contains('Daemon non connesso'),
-      );
-      expect(tester.takeException(), isNull);
-    },
-  );
+      ),
+    );
+    await tester.enterText(find.byType(TextField), 'Keep this draft');
+    await tester.tap(find.byIcon(Icons.arrow_upward_outlined));
+    await tester.pump();
+    expect(find.text('Keep this draft'), findsNothing);
+    expect(session.state.entries.single.text, 'Keep this draft');
+    expect(session.state.entries.single.metadata?['sendError'], contains('Daemon not connected'));
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('failed message survives switching A to B to A', (tester) async {
     final session = RejectingSession();
@@ -228,9 +186,7 @@ void main() {
           sessionStateFamily('rejecting').overrideWith((ref) => session),
         ],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: Scaffold(
             body: Consumer(
               builder: (context, ref, child) {
@@ -246,13 +202,8 @@ void main() {
     await tester.tap(find.byIcon(Icons.arrow_upward_outlined));
     await tester.pump();
     expect(session.state.entries.single.text, 'Session A draft');
-    expect(
-      session.state.entries.single.metadata?['sendError'],
-      contains('Daemon non connesso'),
-    );
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(Composer)),
-    );
+    expect(session.state.entries.single.metadata?['sendError'], contains('Daemon not connected'));
+    final container = ProviderScope.containerOf(tester.element(find.byType(Composer)));
     container.read(activeSessionIdProvider.notifier).state = 'B';
     await tester.pump();
     expect(find.text('Session A draft'), findsNothing);
@@ -264,19 +215,14 @@ void main() {
     expect(session.state.entries.single.text, 'Session A draft');
   });
 
-  testWidgets('Composer displays Invia button when agent is settled', (
-    tester,
-  ) async {
+  testWidgets('Composer displays Invia button when agent is settled', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           sessionStateFamily('s_test').overrideWith(
-            (ref) => SessionStateNotifier('s_test', null)
-              ..state = const SessionState(
-                sessionId: 's_test',
-                cwd: '/test',
-                agentStatus: AgentStatus.settled,
-              ),
+            (ref) =>
+                SessionStateNotifier('s_test', null)
+                  ..state = const SessionState(sessionId: 's_test', cwd: '/test', agentStatus: AgentStatus.settled),
           ),
         ],
         child: MaterialApp(
@@ -295,65 +241,56 @@ void main() {
     expect(find.text('Follow-up'), findsNothing);
   });
 
-  testWidgets(
-    'Composer displays Steer and Follow-up buttons when agent is streaming',
-    (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            sessionStateFamily('s_test').overrideWith(
-              (ref) => SessionStateNotifier('s_test', null)
-                ..state = const SessionState(
-                  sessionId: 's_test',
-                  cwd: '/test',
-                  agentStatus: AgentStatus.working,
-                  streamingTextBlocks: {0: 'Hello, '},
-                ),
-            ),
-          ],
-          child: MaterialApp(
-            theme: ThemeData.dark().copyWith(extensions: [FrameTokens.dark]),
-            home: const Scaffold(body: Composer(sessionId: 's_test')),
-          ),
-        ),
-      );
-
-      await tester.pump(const Duration(milliseconds: 50));
-
-      // Initially minimized while streaming
-      expect(
-        find.byKey(const ValueKey('composer-minimized-bar')),
-        findsOneWidget,
-      );
-
-      // Tap minimized bar to expand
-      await tester.tap(find.byKey(const ValueKey('composer-minimized-bar')));
-      await tester.pumpAndSettle();
-
-      // Steer & Follow-up buttons are visible
-      expect(find.text('Steer'), findsOneWidget);
-      expect(find.text('Follow-up'), findsOneWidget);
-      // Stop button should be visible
-      expect(find.byIcon(Icons.stop_circle_outlined), findsOneWidget);
-    },
-  );
-
-  testWidgets('Composer displays pending queue bar when queue is non-empty', (
-    tester,
-  ) async {
+  testWidgets('Composer displays Steer and Follow-up buttons when agent is streaming', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
           sessionStateFamily('s_test').overrideWith(
-            (ref) =>
-                SessionStateNotifier('s_test', null)
-                  ..state = const SessionState(
-                    sessionId: 's_test',
-                    cwd: '/test',
-                    agentStatus: AgentStatus.working,
-                    steeringQueue: ['Steer task 1'],
-                    followUpQueue: ['Follow-up task 2'],
-                  ),
+            (ref) => SessionStateNotifier('s_test', null)
+              ..state = const SessionState(
+                sessionId: 's_test',
+                cwd: '/test',
+                agentStatus: AgentStatus.working,
+                streamingTextBlocks: {0: 'Hello, '},
+              ),
+          ),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.dark().copyWith(extensions: [FrameTokens.dark]),
+          home: const Scaffold(body: Composer(sessionId: 's_test')),
+        ),
+      ),
+    );
+
+    await tester.pump(const Duration(milliseconds: 50));
+
+    // Initially minimized while streaming
+    expect(find.byKey(const ValueKey('composer-minimized-bar')), findsOneWidget);
+
+    // Tap minimized bar to expand
+    await tester.tap(find.byKey(const ValueKey('composer-minimized-bar')));
+    await tester.pumpAndSettle();
+
+    // Steer & Follow-up buttons are visible
+    expect(find.text('Steer'), findsOneWidget);
+    expect(find.text('Follow-up'), findsOneWidget);
+    // Stop button should be visible
+    expect(find.byIcon(Icons.stop_circle_outlined), findsOneWidget);
+  });
+
+  testWidgets('Composer displays pending queue bar when queue is non-empty', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sessionStateFamily('s_test').overrideWith(
+            (ref) => SessionStateNotifier('s_test', null)
+              ..state = const SessionState(
+                sessionId: 's_test',
+                cwd: '/test',
+                agentStatus: AgentStatus.working,
+                steeringQueue: ['Steer task 1'],
+                followUpQueue: ['Follow-up task 2'],
+              ),
           ),
         ],
         child: MaterialApp(
@@ -369,16 +306,11 @@ void main() {
     expect(find.byKey(const ValueKey('composer-status-line')), findsOneWidget);
     await tester.pumpAndSettle();
 
-    expect(
-      find.textContaining('In coda (2): 1 steer, 1 follow-up'),
-      findsOneWidget,
-    );
-    expect(find.text('Svuota coda'), findsOneWidget);
+    expect(find.textContaining('Queued (2): 1 steer, 1 follow-up'), findsOneWidget);
+    expect(find.text('Clear queue'), findsOneWidget);
   });
 
-  testWidgets('Stopped worker shows recovery banner without a stop button', (
-    tester,
-  ) async {
+  testWidgets('Stopped worker shows recovery banner without a stop button', (tester) async {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
@@ -409,7 +341,7 @@ void main() {
 
     // The recovery action keeps its visible text label, and send remains available.
     expect(find.byKey(const ValueKey('composer-crash-banner')), findsOneWidget);
-    expect(find.text('Riprendi sessione'), findsOneWidget);
+    expect(find.text('Resume session'), findsOneWidget);
     expect(find.byKey(const ValueKey('composer-send-btn')), findsOneWidget);
   });
 }

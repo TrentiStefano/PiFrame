@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -115,17 +117,11 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
 
   void _move(int delta) {
     if (_actions.isEmpty) return;
-    setState(
-      () => _selectedIndex = (_selectedIndex + delta).clamp(
-        0,
-        _actions.length - 1,
-      ),
-    );
+    setState(() => _selectedIndex = (_selectedIndex + delta).clamp(0, _actions.length - 1));
     _ensureSelectedVisible();
   }
 
-  double _extentOf(Object item) =>
-      item is String ? _groupHeaderHeight : _rowHeight;
+  double _extentOf(Object item) => item is String ? _groupHeaderHeight : _rowHeight;
 
   void _ensureSelectedVisible() {
     if (!_scrollController.hasClients) return;
@@ -166,12 +162,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
       await action.onExecute();
     } catch (error) {
       if (host.mounted) {
-        FrameSnackBar.show(
-          host,
-          message: widget.hostRef
-              .read(appStringsProvider)
-              .actionFailedNotice(error),
-        );
+        FrameSnackBar.show(host, message: widget.hostRef.read(appStringsProvider).actionFailedNotice(error));
       }
     }
   }
@@ -206,8 +197,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
           onExecute: () async {
             final host = widget.hostContext;
             final hostRef = widget.hostRef;
-            if (await switchSessionSafely(host, hostRef, id) &&
-                host.mounted) {
+            if (await switchSessionSafely(host, hostRef, id) && host.mounted) {
               hostRef.read(activeSessionIdProvider.notifier).state = id;
             }
           },
@@ -226,9 +216,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
     final activeSessionId = ref.watch(activeSessionIdProvider);
     final strings = ref.watch(appStringsProvider);
     final isLight = Theme.of(context).brightness == Brightness.light;
-    final activeState = activeSessionId == null
-        ? null
-        : ref.watch(sessionStateFamily(activeSessionId));
+    final activeState = activeSessionId == null ? null : ref.watch(sessionStateFamily(activeSessionId));
     final canWrite = activeState != null && !activeState.readOnly;
     final isReviewing = ref.watch(isReviewingChangesProvider);
     final macOS = defaultTargetPlatform == TargetPlatform.macOS;
@@ -250,11 +238,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
         onExecute: () async {
           final client = hostRef.read(pcpClientProvider);
           if (client == null) return;
-          await createSession(
-            host,
-            hostRef,
-            name: strings.isItalian ? 'Nuova Sessione' : 'New Session',
-          );
+          await createSession(host, hostRef, name: strings.newSessionDefaultName);
           if (!host.mounted) return;
           hostRef.invalidate(sessionListProvider);
         },
@@ -276,9 +260,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
           subtitle: strings.paletteCompactSubtitle,
           icon: Icons.compress_outlined,
           onExecute: () async {
-            await hostRef
-                .read(sessionStateFamily(activeSessionId).notifier)
-                .compact();
+            await hostRef.read(sessionStateFamily(activeSessionId).notifier).compact();
           },
         ),
         PaletteAction(
@@ -288,16 +270,12 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
           subtitle: strings.paletteClearQueueSubtitle,
           icon: Icons.clear_all_outlined,
           onExecute: () async {
-            await hostRef
-                .read(sessionStateFamily(activeSessionId).notifier)
-                .clearQueue();
+            await hostRef.read(sessionStateFamily(activeSessionId).notifier).clearQueue();
           },
         ),
       ],
       // Esc only interrupts while the composer has focus, so no key cap here.
-      if (activeSessionId != null &&
-          activeState != null &&
-          activeState.isStreaming)
+      if (activeSessionId != null && activeState != null && activeState.isStreaming)
         PaletteAction(
           id: 'interrupt',
           group: sessionGroup,
@@ -305,9 +283,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
           subtitle: strings.paletteInterruptSubtitle,
           icon: Icons.stop_circle_outlined,
           onExecute: () async {
-            await hostRef
-                .read(sessionStateFamily(activeSessionId).notifier)
-                .interrupt();
+            await hostRef.read(sessionStateFamily(activeSessionId).notifier).interrupt();
           },
         ),
       if (!kIsWeb && activeSessionId != null)
@@ -328,9 +304,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
             if (!launched && host.mounted) {
               FrameSnackBar.show(
                 host,
-                message: hostRef
-                    .read(appStringsProvider)
-                    .actionFailedNotice(strings.paletteNewTerminalTitle),
+                message: hostRef.read(appStringsProvider).actionFailedNotice(strings.paletteNewTerminalTitle),
               );
             }
           },
@@ -344,15 +318,12 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
           icon: Icons.call_split_outlined,
           keys: [modifier, shift, 'B'],
           onExecute: () async {
-            hostRef
-                .read(sideThreadFamily(activeSessionId).notifier)
-                .togglePanel();
+            hostRef.read(sideThreadFamily(activeSessionId).notifier).togglePanel();
           },
         ),
       if (widget.onTogglePane != null && widget.isPaneVisible != null)
         for (final pane in WorkspacePane.values)
-          if (!(widget.isPaneVisible!(pane) &&
-              WorkspacePane.values.where(widget.isPaneVisible!).length <= 1))
+          if (!(widget.isPaneVisible!(pane) && WorkspacePane.values.where(widget.isPaneVisible!).length <= 1))
             _paneAction(pane, viewGroup, strings),
       PaletteAction(
         id: 'toggle_theme',
@@ -361,9 +332,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
         subtitle: strings.paletteThemeSubtitle,
         icon: isLight ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
         onExecute: () async {
-          hostRef
-              .read(activeThemeSpecProvider.notifier)
-              .setTheme(isLight ? 'piframe-dark' : 'piframe-light');
+          hostRef.read(activeThemeSpecProvider.notifier).setTheme(isLight ? 'piframe-dark' : 'piframe-light');
         },
       ),
       if (ref.watch(browserPaneSupportedProvider))
@@ -374,8 +343,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
           subtitle: strings.paletteSwitchBrowserSubtitle,
           icon: Icons.language_outlined,
           onExecute: () async {
-            hostRef.read(rightPaneModeProvider.notifier).state =
-                RightPaneMode.browser;
+            hostRef.read(rightPaneModeProvider.notifier).state = RightPaneMode.browser;
           },
         ),
       if (ref.watch(browserPaneSupportedProvider))
@@ -386,8 +354,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
           subtitle: strings.paletteSwitchGitSubtitle,
           icon: Icons.source_outlined,
           onExecute: () async {
-            hostRef.read(rightPaneModeProvider.notifier).state =
-                RightPaneMode.git;
+            hostRef.read(rightPaneModeProvider.notifier).state = RightPaneMode.git;
           },
         ),
       if (activeSessionId != null && !isReviewing)
@@ -403,24 +370,9 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
         ),
       if (canWrite && activeSessionId != null) ...[
         for (final (id, title, subtitle, icon) in [
-          (
-            'git_fetch',
-            strings.paletteGitFetchTitle,
-            strings.paletteGitFetchSubtitle,
-            Icons.cloud_download_outlined,
-          ),
-          (
-            'git_pull',
-            strings.paletteGitPullTitle,
-            strings.paletteGitPullSubtitle,
-            Icons.arrow_downward_outlined,
-          ),
-          (
-            'git_push',
-            strings.paletteGitPushTitle,
-            strings.paletteGitPushSubtitle,
-            Icons.arrow_upward_outlined,
-          ),
+          ('git_fetch', strings.paletteGitFetchTitle, strings.paletteGitFetchSubtitle, Icons.cloud_download_outlined),
+          ('git_pull', strings.paletteGitPullTitle, strings.paletteGitPullSubtitle, Icons.arrow_downward_outlined),
+          ('git_push', strings.paletteGitPushTitle, strings.paletteGitPushSubtitle, Icons.arrow_upward_outlined),
         ])
           PaletteAction(
             id: id,
@@ -452,11 +404,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
     ];
   }
 
-  PaletteAction _paneAction(
-    WorkspacePane pane,
-    String group,
-    AppStrings strings,
-  ) {
+  PaletteAction _paneAction(WorkspacePane pane, String group, AppStrings strings) {
     final name = switch (pane) {
       WorkspacePane.chat => strings.paletteChatPaneName,
       WorkspacePane.repository => strings.paletteRepositoryPaneName,
@@ -466,9 +414,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
     return PaletteAction(
       id: 'pane_${pane.name}',
       group: group,
-      title: visible
-          ? strings.paletteHidePaneTitle(name)
-          : strings.paletteShowPaneTitle(name),
+      title: visible ? strings.paletteHidePaneTitle(name) : strings.paletteShowPaneTitle(name),
       subtitle: strings.paletteTogglePaneSubtitle(name),
       icon: switch (pane) {
         WorkspacePane.chat => Icons.chat_bubble_outlined,
@@ -507,8 +453,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
       actions = _sessionActions(query);
     } else {
       actions = _commandActions(context).where((a) {
-        return a.title.toLowerCase().contains(query) ||
-            a.subtitle.toLowerCase().contains(query);
+        return a.title.toLowerCase().contains(query) || a.subtitle.toLowerCase().contains(query);
       }).toList();
     }
     _actions = actions;
@@ -524,15 +469,12 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
         const SingleActivator(LogicalKeyboardKey.arrowDown): () => _move(1),
         const SingleActivator(LogicalKeyboardKey.arrowUp): () => _move(-1),
         const SingleActivator(LogicalKeyboardKey.enter): () {
-          if (_actions.isNotEmpty) _execute(_actions[_selectedIndex]);
+          if (_actions.isNotEmpty) unawaited(_execute(_actions[_selectedIndex]));
         },
       },
       child: Center(
         child: ConstrainedBox(
-          constraints: BoxConstraints(
-            maxWidth: _dialogMaxWidth,
-            maxHeight: maxHeight,
-          ),
+          constraints: BoxConstraints(maxWidth: _dialogMaxWidth, maxHeight: maxHeight),
           child: Material(
             color: tokens.surface,
             borderRadius: BorderRadius.circular(tokens.radiusLg),
@@ -548,17 +490,10 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
                 children: [
                   // Search Input Header
                   Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: FrameSpace.x4,
-                      vertical: FrameSpace.x3,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x4, vertical: FrameSpace.x3),
                     child: Row(
                       children: [
-                        Icon(
-                          Icons.search_outlined,
-                          size: FrameSize.iconLg,
-                          color: tokens.textMuted,
-                        ),
+                        Icon(Icons.search_outlined, size: FrameSize.iconLg, color: tokens.textMuted),
                         const SizedBox(width: FrameSpace.x3),
                         Expanded(
                           // Standard keyboard focus ring. The field draws no
@@ -567,26 +502,16 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
                           child: FrameFocusRing(
                             borderRadius: BorderRadius.circular(tokens.radiusSm),
                             child: TextField(
-                              key: const ValueKey(
-                                'command-palette-search-field',
-                              ),
+                              key: const ValueKey('command-palette-search-field'),
                               controller: _searchController,
                               autofocus: true,
-                              style: text.bodyLarge.copyWith(
-                                color: tokens.textPrimary,
-                              ),
+                              style: text.bodyLarge.copyWith(color: tokens.textPrimary),
                               decoration: InputDecoration(
-                                hintText: _sessionMode
-                                    ? strings.paletteSessionSearchHint
-                                    : strings.paletteSearchHint,
-                                hintStyle: text.bodyLarge.copyWith(
-                                  color: tokens.textMuted,
-                                ),
+                                hintText: _sessionMode ? strings.paletteSessionSearchHint : strings.paletteSearchHint,
+                                hintStyle: text.bodyLarge.copyWith(color: tokens.textMuted),
                                 filled: false,
                                 isDense: true,
-                                contentPadding: const EdgeInsets.symmetric(
-                                  vertical: FrameSpace.x2,
-                                ),
+                                contentPadding: const EdgeInsets.symmetric(vertical: FrameSpace.x2),
                                 border: InputBorder.none,
                                 enabledBorder: InputBorder.none,
                                 disabledBorder: InputBorder.none,
@@ -594,8 +519,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
                                 errorBorder: InputBorder.none,
                                 focusedErrorBorder: InputBorder.none,
                               ),
-                              onChanged: (_) =>
-                                  setState(() => _selectedIndex = 0),
+                              onChanged: (_) => setState(() => _selectedIndex = 0),
                             ),
                           ),
                         ),
@@ -612,12 +536,8 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
                             padding: const EdgeInsets.all(_emptyStatePadding),
                             child: Center(
                               child: Text(
-                                _sessionMode
-                                    ? strings.paletteNoSessionsFound
-                                    : strings.paletteNoActionsFound,
-                                style: text.body.copyWith(
-                                  color: tokens.textMuted,
-                                ),
+                                _sessionMode ? strings.paletteNoSessionsFound : strings.paletteNoActionsFound,
+                                style: text.body.copyWith(color: tokens.textMuted),
                               ),
                             ),
                           )
@@ -625,9 +545,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
                             key: const ValueKey('command-palette-list'),
                             shrinkWrap: true,
                             controller: _scrollController,
-                            padding: const EdgeInsets.symmetric(
-                              vertical: FrameSpace.x1,
-                            ),
+                            padding: const EdgeInsets.symmetric(vertical: FrameSpace.x1),
                             itemCount: _items.length,
                             itemBuilder: (context, index) {
                               final item = _items[index];
@@ -635,8 +553,7 @@ class _CommandPaletteState extends ConsumerState<CommandPalette> {
                                 return _GroupHeader(label: item, tokens: tokens);
                               }
                               final action = item as PaletteAction;
-                              final isSelected =
-                                  _actions.indexOf(action) == _selectedIndex;
+                              final isSelected = _actions.indexOf(action) == _selectedIndex;
                               return _ActionRow(
                                 action: action,
                                 isSelected: isSelected,
@@ -672,10 +589,7 @@ class _GroupHeader extends StatelessWidget {
           alignment: Alignment.centerLeft,
           child: Text(
             label.toUpperCase(),
-            style: FrameText.of(context).caption.copyWith(
-              color: tokens.textMuted,
-              fontWeight: FontWeight.w600,
-            ),
+            style: FrameText.of(context).caption.copyWith(color: tokens.textMuted, fontWeight: FontWeight.w600),
           ),
         ),
       ),
@@ -689,12 +603,7 @@ class _ActionRow extends StatelessWidget {
   final FrameTokens tokens;
   final VoidCallback onTap;
 
-  const _ActionRow({
-    required this.action,
-    required this.isSelected,
-    required this.tokens,
-    required this.onTap,
-  });
+  const _ActionRow({required this.action, required this.isSelected, required this.tokens, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -709,11 +618,7 @@ class _ActionRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x4),
         child: Row(
           children: [
-            Icon(
-              action.icon,
-              size: _rowIconSize,
-              color: isSelected ? tokens.accent : tokens.textSecondary,
-            ),
+            Icon(action.icon, size: _rowIconSize, color: isSelected ? tokens.accent : tokens.textSecondary),
             const SizedBox(width: _rowIconGap),
             Expanded(
               child: Column(
@@ -726,8 +631,7 @@ class _ActionRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: text.body.copyWith(
                       color: tokens.textPrimary,
-                      fontWeight:
-                          isSelected ? FontWeight.bold : FontWeight.normal,
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                     ),
                   ),
                   Text(
@@ -745,10 +649,7 @@ class _ActionRow extends StatelessWidget {
                 key: ValueKey('palette-keys-${action.id}'),
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  for (final key in action.keys) ...[
-                    const SizedBox(width: FrameSpace.x1),
-                    _KeyCap(label: key),
-                  ],
+                  for (final key in action.keys) ...[const SizedBox(width: FrameSpace.x1), _KeyCap(label: key)],
                 ],
               ),
             ],
@@ -768,10 +669,7 @@ class _KeyCap extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: FrameSpace.x2,
-        vertical: FrameSpace.x1,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2, vertical: FrameSpace.x1),
       decoration: BoxDecoration(
         color: tokens.surface,
         borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -779,10 +677,7 @@ class _KeyCap extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: FrameText.of(context).mono.copyWith(
-          color: tokens.textMuted,
-          fontWeight: FontWeight.bold,
-        ),
+        style: FrameText.of(context).mono.copyWith(color: tokens.textMuted, fontWeight: FontWeight.bold),
       ),
     );
   }

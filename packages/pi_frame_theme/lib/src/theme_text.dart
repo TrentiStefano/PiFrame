@@ -69,22 +69,11 @@ class FrameText extends ThemeExtension<FrameText> {
   /// when the theme does not register a `FrameText` extension.
   static FrameText of(BuildContext context) {
     final theme = Theme.of(context);
-    return theme.extension<FrameText>() ??
-        FrameText.fromTokens(theme.extension<FrameTokens>() ?? FrameTokens.dark);
+    return theme.extension<FrameText>() ?? FrameText.fromTokens(theme.extension<FrameTokens>() ?? FrameTokens.dark);
   }
 
-  static TextStyle _style(
-    String family,
-    double size,
-    double lineHeight, {
-    FontWeight weight = FontWeight.w400,
-  }) {
-    return TextStyle(
-      fontFamily: family,
-      fontSize: size,
-      height: lineHeight / size,
-      fontWeight: weight,
-    );
+  static TextStyle _style(String family, double size, double lineHeight, {FontWeight weight = FontWeight.w400}) {
+    return TextStyle(fontFamily: family, fontSize: size, height: lineHeight / size, fontWeight: weight);
   }
 
   @override

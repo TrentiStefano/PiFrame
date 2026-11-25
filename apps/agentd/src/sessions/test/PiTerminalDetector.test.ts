@@ -17,7 +17,7 @@ test('detects an interactive Pi CLI process in the session project', { timeout: 
   const child = spawn(process.execPath, [cli], {
     cwd: root,
     stdio: 'ignore',
-    windowsHide: true,
+    windowsHide: true
   });
   try {
     await new Promise<void>((resolve, reject) => {
@@ -43,7 +43,7 @@ test('matches explicit terminal session path exactly', { timeout: 15000 }, async
   const child = spawn(process.execPath, [cli, '--session', sessionFile], {
     cwd: root,
     stdio: 'ignore',
-    windowsHide: true,
+    windowsHide: true
   });
   try {
     await new Promise<void>((resolve, reject) => {
@@ -59,34 +59,41 @@ test('matches explicit terminal session path exactly', { timeout: 15000 }, async
   }
 });
 
-test('concurrent checks share one process scan and a check after the reuse window scans again', { timeout: 30000 }, async () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-terminal-shared-'));
-  const cli = path.join(root, 'node_modules', '@earendil-works', 'pi-coding-agent', 'dist', 'bundle', 'cli.js');
-  fs.mkdirSync(path.dirname(cli), { recursive: true });
-  fs.writeFileSync(cli, 'setInterval(() => {}, 1000);');
-  try {
-    const started = Date.now();
-    const results = await Promise.all(Array.from({ length: 4 }, () => hasInteractivePiInCwd(root)));
-    const sharedMs = Date.now() - started;
-    assert.deepEqual(results, [false, false, false, false]);
-
-    // A terminal opened after the reuse window must be detected.
-    const child = spawn(process.execPath, [cli], { cwd: root, stdio: 'ignore', windowsHide: true });
+test(
+  'concurrent checks share one process scan and a check after the reuse window scans again',
+  { timeout: 30000 },
+  async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-terminal-shared-'));
+    const cli = path.join(root, 'node_modules', '@earendil-works', 'pi-coding-agent', 'dist', 'bundle', 'cli.js');
+    fs.mkdirSync(path.dirname(cli), { recursive: true });
+    fs.writeFileSync(cli, 'setInterval(() => {}, 1000);');
     try {
-      await new Promise<void>((resolve, reject) => { child.once('spawn', resolve); child.once('error', reject); });
-      await new Promise((resolve) => setTimeout(resolve, 2100));
-      const single = Date.now();
-      assert.equal(await hasInteractivePiInCwd(root), null);
-      // Four shared checks must cost about one scan, not four.
-      assert.ok(sharedMs < (Date.now() - single) * 2.5, `shared=${sharedMs}ms`);
+      const started = Date.now();
+      const results = await Promise.all(Array.from({ length: 4 }, () => hasInteractivePiInCwd(root)));
+      const sharedMs = Date.now() - started;
+      assert.deepEqual(results, [false, false, false, false]);
+
+      // A terminal opened after the reuse window must be detected.
+      const child = spawn(process.execPath, [cli], { cwd: root, stdio: 'ignore', windowsHide: true });
+      try {
+        await new Promise<void>((resolve, reject) => {
+          child.once('spawn', resolve);
+          child.once('error', reject);
+        });
+        await new Promise((resolve) => setTimeout(resolve, 2100));
+        const single = Date.now();
+        assert.equal(await hasInteractivePiInCwd(root), null);
+        // Four shared checks must cost about one scan, not four.
+        assert.ok(sharedMs < (Date.now() - single) * 2.5, `shared=${sharedMs}ms`);
+      } finally {
+        child.kill();
+        await new Promise<void>((resolve) => child.once('exit', () => resolve()));
+      }
     } finally {
-      child.kill();
-      await new Promise<void>((resolve) => child.once('exit', () => resolve()));
+      fs.rmSync(root, { recursive: true, force: true });
     }
-  } finally {
-    fs.rmSync(root, { recursive: true, force: true });
   }
-});
+);
 
 test('ignores Pi RPC workers because daemon owns those session writes', { timeout: 15000 }, async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-rpc-owner-'));
@@ -96,7 +103,7 @@ test('ignores Pi RPC workers because daemon owns those session writes', { timeou
   const child = spawn(process.execPath, [cli, '--mode', 'rpc'], {
     cwd: root,
     stdio: 'ignore',
-    windowsHide: true,
+    windowsHide: true
   });
   try {
     await new Promise<void>((resolve, reject) => {

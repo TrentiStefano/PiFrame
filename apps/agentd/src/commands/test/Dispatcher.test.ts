@@ -1,6 +1,5 @@
 import test from 'node:test';
 import * as assert from 'node:assert/strict';
-import { EventEmitter } from 'node:events';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -20,25 +19,8 @@ import { SessionRegistry } from '../../sessions/SessionRegistry.js';
 import { ConnectionManager } from '../../server/wsServer.js';
 import { Connection } from '../../server/connection.js';
 import type { PiPackageOperations } from '../../pi/PiPackageService.js';
-
-class MockWebSocket extends EventEmitter {
-  public readyState = 1;
-  public sentMessages: string[] = [];
-  public closedCode?: number;
-  public closedReason?: string;
-
-  public send(data: string, cb?: () => void): void {
-    this.sentMessages.push(data);
-    if (cb) cb();
-  }
-
-  public close(code: number, reason: string): void {
-    this.readyState = 3;
-    this.closedCode = code;
-    this.closedReason = reason;
-    this.emit('close');
-  }
-}
+import type { PcpCommandType } from '@piframe/pcp-ts';
+import { at, commandEnvelope, fakeWorker, MockWebSocket, parseSent, type SentMessage } from './fakes.js';
 
 function createTestSetup(piPackages?: PiPackageOperations, sessionIndex?: SessionIndex) {
   const manager = new ConnectionManager();
@@ -47,13 +29,13 @@ function createTestSetup(piPackages?: PiPackageOperations, sessionIndex?: Sessio
     capabilities: { version: '0.85.1', supported: true, modes: ['rpc'], features: [] },
     workerIdleTimeoutMs: 60000,
     connectionManager: manager,
-    sessionIndex
+    ...(sessionIndex ? { sessionIndex } : {})
   });
   const dispatcher = new Dispatcher(registry, manager, piPackages);
 
   const ws = new MockWebSocket();
   const conn = new Connection({
-    ws: ws as any,
+    ws: ws,
     expectedToken: 'tok',
     daemonVersion: '0.1.0',
     startedAt: Date.now(),
@@ -79,55 +61,71 @@ function createGitRepo(): { root: string; cleanup: () => void } {
   return { root, cleanup: () => fs.rmSync(root, { recursive: true, force: true }) };
 }
 
-async function sendCommand(setup: ReturnType<typeof createTestSetup>, type: string, sessionId: string | undefined, payload: Record<string, unknown> = {}) {
+async function sendCommand(
+  setup: ReturnType<typeof createTestSetup>,
+  type: PcpCommandType,
+  sessionId: string | undefined,
+  payload: Record<string, unknown> = {}
+): Promise<SentMessage[]> {
   const start = setup.ws.sentMessages.length;
-  await setup.dispatcher.handle(setup.conn, {
-    protocol: 1, kind: 'command', id: `msg_${start}`, ts: Date.now(), commandId: `workspace_${start}_${Math.random()}`,
-    type, sessionId, payload
-  } as any);
-  return setup.ws.sentMessages.slice(start).map((item) => JSON.parse(item));
+  await setup.dispatcher.handle(
+    setup.conn,
+    commandEnvelope(type, payload, { id: `msg_${start}`, commandId: `workspace_${start}_${Math.random()}`, sessionId })
+  );
+  return setup.ws.sentMessages.slice(start).map((item) => parseSent(item));
 }
 
-test('Dispatcher: session.list returns a cached result before slow filesystem revalidation', { timeout: 10_000 }, async () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-dispatcher-session-list-'));
-  const sessionsDir = path.join(root, 'sessions');
-  const cachePath = path.join(root, 'index.json');
-  fs.mkdirSync(sessionsDir);
-  fs.writeFileSync(path.join(sessionsDir, 'cached.jsonl'), [
-    { type: 'session', id: 'cached', cwd: process.cwd() },
-    { type: 'session_info', name: 'Cached session' },
-  ].map((row) => JSON.stringify(row)).join('\n') + '\n');
-  const index = new SessionIndex({ sessionsDir, cachePath });
-  await index.scan();
-  const currentIndex = new SessionIndex({ sessionsDir, cachePath });
-  const enumerate = (currentIndex as any).enumerateSessionFiles.bind(currentIndex);
-  let release!: () => void;
-  const blocked = new Promise<void>((resolve) => { release = resolve; });
-  (currentIndex as any).enumerateSessionFiles = async () => {
-    await blocked;
-    return enumerate();
-  };
-  const setup = createTestSetup(undefined, currentIndex);
-  try {
-    let timer: NodeJS.Timeout | undefined;
-    const result = await Promise.race([
-      sendCommand(setup, 'session.list', '@daemon'),
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(() => reject(new Error('session.list waited for filesystem revalidation')), 1000);
-      })
-    ]);
-    if (timer) clearTimeout(timer);
-    assert.equal(result[0].kind, 'ack');
-    assert.equal(result[1].payload.state, 'completed');
-    assert.equal(result[1].payload.data.sessions[0].id, 'cached');
-    release();
-    await currentIndex.scanFast();
-  } finally {
-    release();
-    await setup.registry.closeAll();
-    fs.rmSync(root, { recursive: true, force: true });
+test(
+  'Dispatcher: session.list returns a cached result before slow filesystem revalidation',
+  { timeout: 10_000 },
+  async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-dispatcher-session-list-'));
+    const sessionsDir = path.join(root, 'sessions');
+    const cachePath = path.join(root, 'index.json');
+    fs.mkdirSync(sessionsDir);
+    fs.writeFileSync(
+      path.join(sessionsDir, 'cached.jsonl'),
+      [
+        { type: 'session', id: 'cached', cwd: process.cwd() },
+        { type: 'session_info', name: 'Cached session' }
+      ]
+        .map((row) => JSON.stringify(row))
+        .join('\n') + '\n'
+    );
+    const index = new SessionIndex({ sessionsDir, cachePath });
+    await index.scan();
+    const currentIndex = new SessionIndex({ sessionsDir, cachePath });
+    const enumerate = currentIndex['enumerateSessionFiles'].bind(currentIndex);
+    let release!: () => void;
+    const blocked = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    currentIndex['enumerateSessionFiles'] = async () => {
+      await blocked;
+      return enumerate();
+    };
+    const setup = createTestSetup(undefined, currentIndex);
+    try {
+      let timer: NodeJS.Timeout | undefined;
+      const result = await Promise.race([
+        sendCommand(setup, 'session.list', '@daemon'),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new Error('session.list waited for filesystem revalidation')), 1000);
+        })
+      ]);
+      if (timer) clearTimeout(timer);
+      assert.equal(result[0]?.kind, 'ack');
+      assert.equal(at(result[1], 'payload', 'state'), 'completed');
+      assert.equal(at(result[1], 'payload', 'data', 'sessions', '0', 'id'), 'cached');
+      release();
+      await currentIndex.scanFast();
+    } finally {
+      release();
+      await setup.registry.closeAll();
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   }
-});
+);
 
 test('Dispatcher: workspace commands require session scope and ignore client cwd', async () => {
   const repoA = createGitRepo();
@@ -138,14 +136,17 @@ test('Dispatcher: workspace commands require session scope and ignore client cwd
     const scoped = await sendCommand(setup, 'workspace.refresh', session.id, { cwd: repoB.root });
     const scopedRes = scoped.find((m) => m.kind === 'result');
     assert.ok(scopedRes);
-    assert.equal(path.normalize(scopedRes.payload.data.rootPath), path.normalize(fs.realpathSync(repoA.root)));
+    assert.equal(
+      path.normalize(String(at(scopedRes, 'payload', 'data', 'rootPath'))),
+      path.normalize(fs.realpathSync(repoA.root))
+    );
     const unscoped = await sendCommand(setup, 'workspace.refresh', undefined, { cwd: repoB.root });
     const unscopedErr = unscoped.find((m) => m.kind === 'error');
     const unscopedRes = unscoped.find((m) => m.kind === 'result');
     assert.ok(unscopedErr);
     assert.ok(unscopedRes);
     assert.ok(unscoped.indexOf(unscopedErr) < unscoped.indexOf(unscopedRes));
-    assert.equal(unscopedRes.payload.state, 'rejected');
+    assert.equal(at(unscopedRes, 'payload', 'state'), 'rejected');
   } finally {
     repoA.cleanup();
     repoB.cleanup();
@@ -157,25 +158,46 @@ test('Dispatcher: workspace blocks writes for read-only and active sessions, but
   try {
     const setup = createTestSetup();
     const session = await setup.registry.createSession({ cwd: repo.root });
-    const file = (await sendCommand(setup, 'workspace.readFile', session.id, { path: 'file.txt' })).find((m) => m.kind === 'result').payload.data;
+    const readResult = (await sendCommand(setup, 'workspace.readFile', session.id, { path: 'file.txt' })).find(
+      (m) => m.kind === 'result'
+    );
+    const file = at(readResult, 'payload', 'data');
     fs.writeFileSync(path.join(repo.root, 'file.txt'), 'edited\n');
-    session.worker = { health: () => ({ alive: true }) } as any; // healthy idle workers may still use the workspace
+    session.worker = fakeWorker({ health: () => ({ alive: true }) }); // healthy idle workers may still use the workspace
     session.readOnly = true;
-    let result = await sendCommand(setup, 'workspace.saveFile', session.id, { path: 'file.txt', content: 'blocked', revision: file.revision });
+    let result = await sendCommand(setup, 'workspace.saveFile', session.id, {
+      path: 'file.txt',
+      content: 'blocked',
+      revision: at(file, 'revision')
+    });
     let res = result.find((m) => m.kind === 'result');
     let err = result.find((m) => m.kind === 'error');
     assert.ok(err && res && result.indexOf(err) < result.indexOf(res));
-    assert.equal(res.payload.state, 'rejected');
-    assert.equal((await sendCommand(setup, 'workspace.listFiles', session.id)).find((m) => m.kind === 'result').payload.state, 'completed');
+    assert.equal(at(res, 'payload', 'state'), 'rejected');
+    assert.equal(
+      at(
+        (await sendCommand(setup, 'workspace.listFiles', session.id)).find((m) => m.kind === 'result'),
+        'payload',
+        'state'
+      ),
+      'completed'
+    );
     session.readOnly = false;
     result = await sendCommand(setup, 'workspace.gitAction', session.id, { action: 'stage', paths: ['file.txt'] });
-    assert.equal(result.find((m) => m.kind === 'result').payload.state, 'completed');
+    assert.equal(
+      at(
+        result.find((m) => m.kind === 'result'),
+        'payload',
+        'state'
+      ),
+      'completed'
+    );
     session.isStreaming = true;
     result = await sendCommand(setup, 'workspace.gitAction', session.id, { action: 'unstage', paths: ['file.txt'] });
     res = result.find((m) => m.kind === 'result');
     err = result.find((m) => m.kind === 'error');
     assert.ok(err && res && result.indexOf(err) < result.indexOf(res));
-    assert.equal(res.payload.state, 'rejected');
+    assert.equal(at(res, 'payload', 'state'), 'rejected');
     assert.equal(fs.readFileSync(path.join(repo.root, 'file.txt'), 'utf8'), 'edited\n');
   } finally {
     repo.cleanup();
@@ -194,18 +216,18 @@ test('Dispatcher: workspace rejects traversal and symlink escape and surfaces Gi
     let res = result.find((m) => m.kind === 'result');
     let err = result.find((m) => m.kind === 'error');
     assert.ok(err && res && result.indexOf(err) < result.indexOf(res));
-    assert.equal(res.payload.state, 'rejected');
+    assert.equal(at(res, 'payload', 'state'), 'rejected');
     result = await sendCommand(setup, 'workspace.readFile', session.id, { path: 'outside-link/secret.txt' });
     res = result.find((m) => m.kind === 'result');
     err = result.find((m) => m.kind === 'error');
     assert.ok(err && res && result.indexOf(err) < result.indexOf(res));
-    assert.equal(res.payload.state, 'rejected');
+    assert.equal(at(res, 'payload', 'state'), 'rejected');
     result = await sendCommand(setup, 'workspace.gitAction', session.id, { action: 'stage', paths: ['missing.txt'] });
     res = result.find((m) => m.kind === 'result');
     err = result.find((m) => m.kind === 'error');
     assert.ok(err && res && result.indexOf(err) < result.indexOf(res));
-    assert.equal(res.payload.state, 'rejected');
-    assert.match(res.payload.error, /stale/i);
+    assert.equal(at(res, 'payload', 'state'), 'rejected');
+    assert.match(String(at(res, 'payload', 'error')), /stale/i);
   } finally {
     fs.rmSync(outside, { recursive: true, force: true });
     repo.cleanup();
@@ -219,12 +241,15 @@ test('Dispatcher: workspace gitAction stages and commits confirmed staged paths'
     const session = await setup.registry.createSession({ cwd: repo.root });
     fs.writeFileSync(path.join(repo.root, 'file.txt'), 'committed by dispatcher\n');
     let result = await sendCommand(setup, 'workspace.gitAction', session.id, { action: 'stage', paths: ['file.txt'] });
-    assert.equal(result[1].payload.state, 'completed');
+    assert.equal(at(result[1], 'payload', 'state'), 'completed');
     result = await sendCommand(setup, 'workspace.gitAction', session.id, {
-      action: 'commit', paths: ['file.txt'], expectedStagedPaths: ['file.txt'], message: 'workspace edit'
+      action: 'commit',
+      paths: ['file.txt'],
+      expectedStagedPaths: ['file.txt'],
+      message: 'workspace edit'
     });
-    assert.equal(result[1].payload.state, 'completed');
-    assert.equal(result[1].payload.data.status.files.length, 0);
+    assert.equal(at(result[1], 'payload', 'state'), 'completed');
+    assert.equal(at(result[1], 'payload', 'data', 'status', 'files', 'length'), 0);
   } finally {
     repo.cleanup();
   }
@@ -235,10 +260,15 @@ test('Dispatcher: delegates Pi package list/update/remove/pin commands', async (
   const piPackages: PiPackageOperations = {
     async list(checkUpdates) {
       calls.push(checkUpdates ? 'checkUpdates' : 'list');
-      return [{
-        source: 'npm:pi-caveman', name: 'pi-caveman', version: '1.2.3', pinnedVersion: null,
-        ...(checkUpdates ? { latestVersion: '1.2.4' } : {}),
-      }];
+      return [
+        {
+          source: 'npm:pi-caveman',
+          name: 'pi-caveman',
+          version: '1.2.3',
+          pinnedVersion: null,
+          ...(checkUpdates ? { latestVersion: '1.2.4' } : {})
+        }
+      ];
     },
     async update(source) {
       calls.push(`update:${source}`);
@@ -251,28 +281,48 @@ test('Dispatcher: delegates Pi package list/update/remove/pin commands', async (
     async pin(source, version) {
       calls.push(`pin:${source}@${version}`);
       return { output: 'pinned', source: `npm:pi-caveman@${version}` };
-    },
+    }
   };
   const setup = createTestSetup(piPackages);
   const listed = await sendCommand(setup, 'pi.packages.list', undefined);
-  assert.equal(listed[1].payload.data.packages[0].name, 'pi-caveman');
+  assert.equal(at(listed[1], 'payload', 'data', 'packages', '0', 'name'), 'pi-caveman');
   const checked = await sendCommand(setup, 'pi.packages.list', undefined, { checkUpdates: true });
-  assert.equal(checked[1].payload.data.packages[0].latestVersion, '1.2.4');
-  assert.equal((await sendCommand(setup, 'pi.packages.update', undefined, { source: 'npm:pi-caveman' }))[1].payload.state, 'completed');
-  assert.equal((await sendCommand(setup, 'pi.packages.remove', undefined, { source: 'npm:pi-caveman' }))[1].payload.state, 'completed');
+  assert.equal(at(checked[1], 'payload', 'data', 'packages', '0', 'latestVersion'), '1.2.4');
+  assert.equal(
+    at(
+      (await sendCommand(setup, 'pi.packages.update', undefined, { source: 'npm:pi-caveman' }))[1],
+      'payload',
+      'state'
+    ),
+    'completed'
+  );
+  assert.equal(
+    at(
+      (await sendCommand(setup, 'pi.packages.remove', undefined, { source: 'npm:pi-caveman' }))[1],
+      'payload',
+      'state'
+    ),
+    'completed'
+  );
   const pinned = await sendCommand(setup, 'pi.packages.pin', undefined, { source: 'npm:pi-caveman', version: '1.2.3' });
-  assert.equal(pinned[1].payload.data.source, 'npm:pi-caveman@1.2.3');
-  assert.deepEqual(calls, ['list', 'checkUpdates', 'update:npm:pi-caveman', 'remove:npm:pi-caveman', 'pin:npm:pi-caveman@1.2.3']);
+  assert.equal(at(pinned[1], 'payload', 'data', 'source'), 'npm:pi-caveman@1.2.3');
+  assert.deepEqual(calls, [
+    'list',
+    'checkUpdates',
+    'update:npm:pi-caveman',
+    'remove:npm:pi-caveman',
+    'pin:npm:pi-caveman@1.2.3'
+  ]);
 });
 
 test('Dispatcher: delegates pi.agents.get and pi.agents.update for local connection', async () => {
   const setup = createTestSetup();
   const getRes = await sendCommand(setup, 'pi.agents.get', '@daemon', {});
-  assert.equal(getRes[0].payload.state, 'accepted');
-  assert.equal(getRes[1].payload.state, 'completed');
-  assert.ok(Array.isArray(getRes[1].payload.data.packages));
-  assert.ok(Array.isArray(getRes[1].payload.data.agents));
-  assert.ok(Array.isArray(getRes[1].payload.data.thinkingLevels));
+  assert.equal(at(getRes[0], 'payload', 'state'), 'accepted');
+  assert.equal(at(getRes[1], 'payload', 'state'), 'completed');
+  assert.ok(Array.isArray(at(getRes[1], 'payload', 'data', 'packages')));
+  assert.ok(Array.isArray(at(getRes[1], 'payload', 'data', 'agents')));
+  assert.ok(Array.isArray(at(getRes[1], 'payload', 'data', 'thinkingLevels')));
 });
 
 test('Dispatcher: executes daemon.getConfig and returns config', async () => {
@@ -288,14 +338,14 @@ test('Dispatcher: executes daemon.getConfig and returns config', async () => {
     payload: {}
   });
 
-  const ack = JSON.parse(ws.sentMessages[0]);
+  const ack = JSON.parse(ws.sentMessages[0]!);
   assert.equal(ack.kind, 'ack');
-  assert.equal(ack.payload.state, 'accepted');
+  assert.equal(at(ack, 'payload', 'state'), 'accepted');
 
-  const res = JSON.parse(ws.sentMessages[1]);
+  const res = JSON.parse(ws.sentMessages[1]!);
   assert.equal(res.kind, 'result');
-  assert.equal(res.payload.state, 'completed');
-  assert.ok(res.payload.data.workerIdleTimeoutMs !== undefined);
+  assert.equal(at(res, 'payload', 'state'), 'completed');
+  assert.ok(at(res, 'payload', 'data', 'workerIdleTimeoutMs') !== undefined);
 });
 
 test('Dispatcher: deduplicates repeated commands with identical commandId', async () => {
@@ -313,8 +363,8 @@ test('Dispatcher: deduplicates repeated commands with identical commandId', asyn
   });
 
   assert.equal(ws.sentMessages.length, 2); // ack + result
-  const firstResult = JSON.parse(ws.sentMessages[1]);
-  assert.equal(firstResult.payload.state, 'completed');
+  const firstResult = JSON.parse(ws.sentMessages[1]!);
+  assert.equal(at(firstResult, 'payload', 'state'), 'completed');
 
   // Send exact same commandId again
   await dispatcher.handle(conn, {
@@ -328,13 +378,13 @@ test('Dispatcher: deduplicates repeated commands with identical commandId', asyn
   });
 
   assert.equal(ws.sentMessages.length, 4); // second ack + second result
-  const secondResult = JSON.parse(ws.sentMessages[3]);
-  assert.equal(secondResult.payload.state, 'deduplicated');
-  assert.deepEqual(secondResult.payload.data, firstResult.payload.data);
+  const secondResult = JSON.parse(ws.sentMessages[3]!);
+  assert.equal(at(secondResult, 'payload', 'state'), 'deduplicated');
+  assert.deepEqual(at(secondResult, 'payload', 'data'), at(firstResult, 'payload', 'data'));
 });
 
 test('Dispatcher: daemon.setConfig validates workerIdleTimeoutMs and updates runtime', async () => {
-  const { dispatcher, ws, conn, registry } = createTestSetup();
+  const { dispatcher, ws, conn } = createTestSetup();
 
   // Valid update to 5 minutes (300,000 ms)
   await dispatcher.handle(conn, {
@@ -347,9 +397,9 @@ test('Dispatcher: daemon.setConfig validates workerIdleTimeoutMs and updates run
     payload: { workerIdleTimeoutMs: 300000 }
   });
 
-  const res = JSON.parse(ws.sentMessages[1]);
-  assert.equal(res.payload.state, 'completed');
-  assert.equal(res.payload.data.workerIdleTimeoutMs, 300000);
+  const res = JSON.parse(ws.sentMessages[1]!);
+  assert.equal(at(res, 'payload', 'state'), 'completed');
+  assert.equal(at(res, 'payload', 'data', 'workerIdleTimeoutMs'), 300000);
 
   // Invalid update: negative timeout -> should reject
   await dispatcher.handle(conn, {
@@ -368,7 +418,7 @@ test('Dispatcher: daemon.setConfig validates workerIdleTimeoutMs and updates run
   assert.ok(errEnvelope);
   assert.ok(errRes);
   assert.ok(sent.indexOf(errEnvelope) < sent.indexOf(errRes), 'Error envelope must precede rejected result');
-  assert.equal(errRes.payload.state, 'rejected');
+  assert.equal(at(errRes, 'payload', 'state'), 'rejected');
 });
 
 test('Dispatcher: executes remote.* commands and enforces remote allowlist', async () => {
@@ -392,7 +442,7 @@ test('Dispatcher: executes remote.* commands and enforces remote allowlist', asy
 
   const ws = new MockWebSocket();
   const conn = new Connection({
-    ws: ws as any,
+    ws: ws,
     expectedToken: 'tok',
     daemonVersion: '0.1.0',
     startedAt: Date.now(),
@@ -402,9 +452,9 @@ test('Dispatcher: executes remote.* commands and enforces remote allowlist', asy
   });
   conn.state = 'ready';
 
-  function getLastResult(mockWs: MockWebSocket): any {
+  function getLastResult(mockWs: MockWebSocket): SentMessage | null {
     for (let i = mockWs.sentMessages.length - 1; i >= 0; i--) {
-      const msg = JSON.parse(mockWs.sentMessages[i]);
+      const msg = parseSent(mockWs.sentMessages[i]!);
       if (msg.kind === 'result') return msg;
     }
     return null;
@@ -412,21 +462,31 @@ test('Dispatcher: executes remote.* commands and enforces remote allowlist', asy
 
   // 1. remote.getStatus
   await dispatcher.handle(conn, {
-    protocol: 1, kind: 'command', id: 'cmd_rg', ts: Date.now(),
-    commandId: 'c_rem_get', type: 'remote.getStatus', payload: {}
+    protocol: 1,
+    kind: 'command',
+    id: 'cmd_rg',
+    ts: Date.now(),
+    commandId: 'c_rem_get',
+    type: 'remote.getStatus',
+    payload: {}
   });
   const res1 = getLastResult(ws);
-  assert.equal(res1.payload.state, 'completed');
-  assert.equal(res1.payload.data.enabled, false);
+  assert.equal(at(res1, 'payload', 'state'), 'completed');
+  assert.equal(at(res1, 'payload', 'data', 'enabled'), false);
 
   // 2. remote.setOptions
   await dispatcher.handle(conn, {
-    protocol: 1, kind: 'command', id: 'cmd_opt', ts: Date.now(),
-    commandId: 'c_rem_opt', type: 'remote.setOptions', payload: { defaultMode: 'control' }
+    protocol: 1,
+    kind: 'command',
+    id: 'cmd_opt',
+    ts: Date.now(),
+    commandId: 'c_rem_opt',
+    type: 'remote.setOptions',
+    payload: { defaultMode: 'control' }
   });
   const res2 = getLastResult(ws);
-  assert.equal(res2.payload.state, 'completed');
-  assert.equal(res2.payload.data.options.defaultMode, 'control');
+  assert.equal(at(res2, 'payload', 'state'), 'completed');
+  assert.equal(at(res2, 'payload', 'data', 'options', 'defaultMode'), 'control');
 
   // Pair a test device
   const pairing = authManager.generatePairing(60000);
@@ -435,7 +495,7 @@ test('Dispatcher: executes remote.* commands and enforces remote allowlist', asy
   // 3. Remote connection in 'view' mode:
   const remoteWs = new MockWebSocket();
   const remoteConn = new Connection({
-    ws: remoteWs as any,
+    ws: remoteWs,
     expectedToken: 'tok',
     daemonVersion: '0.1.0',
     startedAt: Date.now(),
@@ -450,79 +510,124 @@ test('Dispatcher: executes remote.* commands and enforces remote allowlist', asy
 
   // Remote attempts remote.* -> MUST BE BLOCKED
   await dispatcher.handle(remoteConn, {
-    protocol: 1, kind: 'command', id: 'cmd_rem_att', ts: Date.now(),
-    commandId: 'c_rem_att', type: 'remote.getStatus', payload: {}
+    protocol: 1,
+    kind: 'command',
+    id: 'cmd_rem_att',
+    ts: Date.now(),
+    commandId: 'c_rem_att',
+    type: 'remote.getStatus',
+    payload: {}
   });
   const res3 = getLastResult(remoteWs);
-  assert.equal(res3.payload.state, 'rejected');
-  assert.ok(res3.payload.error.includes('not permitted'));
+  assert.equal(at(res3, 'payload', 'state'), 'rejected');
+  assert.ok(String(at(res3, 'payload', 'error')).includes('not permitted'));
 
   // Remote attempts daemon.setConfig -> MUST BE BLOCKED
   await dispatcher.handle(remoteConn, {
-    protocol: 1, kind: 'command', id: 'cmd_cfg_att', ts: Date.now(),
-    commandId: 'c_cfg_att', type: 'daemon.setConfig', payload: { workerIdleTimeoutMs: 5000 }
+    protocol: 1,
+    kind: 'command',
+    id: 'cmd_cfg_att',
+    ts: Date.now(),
+    commandId: 'c_cfg_att',
+    type: 'daemon.setConfig',
+    payload: { workerIdleTimeoutMs: 5000 }
   });
   const res4 = getLastResult(remoteWs);
-  assert.equal(res4.payload.state, 'rejected');
+  assert.equal(at(res4, 'payload', 'state'), 'rejected');
 
   // Remote attempts pi.packages.* -> MUST BE BLOCKED
   await dispatcher.handle(remoteConn, {
-    protocol: 1, kind: 'command', id: 'cmd_pkg_att', ts: Date.now(),
-    commandId: 'c_pkg_att', type: 'pi.packages.list', payload: {}
+    protocol: 1,
+    kind: 'command',
+    id: 'cmd_pkg_att',
+    ts: Date.now(),
+    commandId: 'c_pkg_att',
+    type: 'pi.packages.list',
+    payload: {}
   });
   const res5 = getLastResult(remoteWs);
-  assert.equal(res5.payload.state, 'rejected');
+  assert.equal(at(res5, 'payload', 'state'), 'rejected');
   await dispatcher.handle(remoteConn, {
-    protocol: 1, kind: 'command', id: 'cmd_pkg_check_att', ts: Date.now(),
-    commandId: 'c_pkg_check_att', type: 'pi.packages.list', payload: { checkUpdates: true }
+    protocol: 1,
+    kind: 'command',
+    id: 'cmd_pkg_check_att',
+    ts: Date.now(),
+    commandId: 'c_pkg_check_att',
+    type: 'pi.packages.list',
+    payload: { checkUpdates: true }
   });
-  assert.equal(getLastResult(remoteWs).payload.state, 'rejected');
+  assert.equal(at(getLastResult(remoteWs), 'payload', 'state'), 'rejected');
 
   // Remote attempts pi.agents.get -> MUST BE BLOCKED
   await dispatcher.handle(remoteConn, {
-    protocol: 1, kind: 'command', id: 'cmd_agents_get_att', ts: Date.now(),
-    commandId: 'c_ag_att', type: 'pi.agents.get', payload: {}
+    protocol: 1,
+    kind: 'command',
+    id: 'cmd_agents_get_att',
+    ts: Date.now(),
+    commandId: 'c_ag_att',
+    type: 'pi.agents.get',
+    payload: {}
   });
   const resAgentsGet = getLastResult(remoteWs);
-  assert.equal(resAgentsGet.payload.state, 'rejected');
+  assert.equal(at(resAgentsGet, 'payload', 'state'), 'rejected');
 
   // Remote attempts pi.agents.update -> MUST BE BLOCKED
   await dispatcher.handle(remoteConn, {
-    protocol: 1, kind: 'command', id: 'cmd_agents_upd_att', ts: Date.now(),
-    commandId: 'c_au_att', type: 'pi.agents.update', payload: { changes: [] }
+    protocol: 1,
+    kind: 'command',
+    id: 'cmd_agents_upd_att',
+    ts: Date.now(),
+    commandId: 'c_au_att',
+    type: 'pi.agents.update',
+    payload: { changes: [] }
   });
   const resAgentsUpd = getLastResult(remoteWs);
-  assert.equal(resAgentsUpd.payload.state, 'rejected');
+  assert.equal(at(resAgentsUpd, 'payload', 'state'), 'rejected');
 
   // Remote in view mode attempts workspace.saveFile -> MUST BE BLOCKED
   await dispatcher.handle(remoteConn, {
-    protocol: 1, kind: 'command', id: 'cmd_write_blocked', ts: Date.now(),
-    commandId: 'c_blk_write', type: 'workspace.saveFile',
+    protocol: 1,
+    kind: 'command',
+    id: 'cmd_write_blocked',
+    ts: Date.now(),
+    commandId: 'c_blk_write',
+    type: 'workspace.saveFile',
     payload: { path: 'a.txt', content: 'hello', revision: '0'.repeat(64) }
   });
   const res6 = getLastResult(remoteWs);
-  assert.equal(res6.payload.state, 'rejected');
+  assert.equal(at(res6, 'payload', 'state'), 'rejected');
 
   // Remote in view mode attempts agent.prompt -> MUST BE BLOCKED
   await dispatcher.handle(remoteConn, {
-    protocol: 1, kind: 'command', id: 'cmd_prompt_blocked', ts: Date.now(),
-    commandId: 'c_blk_prompt', type: 'agent.prompt',
-    payload: { text: 'hello' }, sessionId: 'sess_1'
+    protocol: 1,
+    kind: 'command',
+    id: 'cmd_prompt_blocked',
+    ts: Date.now(),
+    commandId: 'c_blk_prompt',
+    type: 'agent.prompt',
+    payload: { text: 'hello' },
+    sessionId: 'sess_1'
   });
   const res7 = getLastResult(remoteWs);
-  assert.equal(res7.payload.state, 'rejected');
+  assert.equal(at(res7, 'payload', 'state'), 'rejected');
 
   // Local connection attempts daemon.setConfig { remote: ... } -> MUST BE BLOCKED with CONFIG_INVALID
   await dispatcher.handle(conn, {
-    protocol: 1, kind: 'command', id: 'cmd_inj_cfg', ts: Date.now(),
-    commandId: 'c_inj_cfg', type: 'daemon.setConfig',
+    protocol: 1,
+    kind: 'command',
+    id: 'cmd_inj_cfg',
+    ts: Date.now(),
+    commandId: 'c_inj_cfg',
+    type: 'daemon.setConfig',
     payload: { remote: { customTunnelCommand: 'calc.exe' } }
   });
   const res8 = getLastResult(ws);
-  assert.equal(res8.payload.state, 'rejected');
-  assert.ok(res8.payload.error.includes('cannot modify "remote"'));
+  assert.equal(at(res8, 'payload', 'state'), 'rejected');
+  assert.ok(String(at(res8, 'payload', 'error')).includes('cannot modify "remote"'));
 
-  try { fs.unlinkSync(devFile); } catch {}
+  try {
+    fs.unlinkSync(devFile);
+  } catch {}
 });
 
 test('Dispatcher: agent.interrupt clears queues without marking the worker idle', async () => {
@@ -532,19 +637,19 @@ test('Dispatcher: agent.interrupt clears queues without marking the worker idle'
   session.status = 'working';
   session.isStreaming = true;
   const commands: string[] = [];
-  session.worker = {
-    send: async ({ command }: { command: string }) => {
+  session.worker = fakeWorker({
+    send: async ({ command }) => {
       commands.push(command);
-      return { data: {} };
-    },
-  } as any;
+      return { type: 'response', success: true, data: {} };
+    }
+  });
 
   const res = await sendCommand(setup, 'agent.interrupt', session.id);
-  const resultMsg = res.find((m: any) => m.kind === 'result');
+  const resultMsg = res.find((m) => m.kind === 'result');
   assert.ok(resultMsg, 'must receive result');
-  assert.equal(resultMsg.payload.state, 'completed');
-  assert.equal(resultMsg.payload.data.interrupted, true);
-  assert.deepEqual(resultMsg.payload.data.queue, { steering: [], followUp: [] });
+  assert.equal(at(resultMsg, 'payload', 'state'), 'completed');
+  assert.equal(at(resultMsg, 'payload', 'data', 'interrupted'), true);
+  assert.deepEqual(at(resultMsg, 'payload', 'data', 'queue'), { steering: [], followUp: [] });
   assert.deepEqual(session.queue, { steering: [], followUp: [] });
   assert.deepEqual(commands, ['clear_queue', 'abort']);
   assert.equal(session.status, 'working');
@@ -558,25 +663,27 @@ test('Dispatcher: agent.interrupt responds before Pi finishes becoming idle', { 
   session.status = 'working';
   session.isStreaming = true;
   let releaseAbort!: () => void;
-  const abortPending = new Promise<void>((resolve) => { releaseAbort = resolve; });
+  const abortPending = new Promise<void>((resolve) => {
+    releaseAbort = resolve;
+  });
   const commands: string[] = [];
-  session.worker = {
-    send: async ({ command }: { command: string }) => {
+  session.worker = fakeWorker({
+    send: async ({ command }) => {
       commands.push(command);
       if (command === 'abort') await abortPending;
-      return { data: {} };
-    },
-  } as any;
+      return { type: 'response', success: true, data: {} };
+    }
+  });
 
   const responsePromise = sendCommand(setup, 'agent.interrupt', session.id);
   try {
     const response = await Promise.race([
       responsePromise,
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 500)),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 500))
     ]);
     assert.ok(response, 'interrupt response must not wait for Pi idle');
-    const result = response.find((message: any) => message.kind === 'result');
-    assert.equal(result.payload.state, 'completed');
+    const result = response.find((message) => message.kind === 'result');
+    assert.equal(at(result, 'payload', 'state'), 'completed');
     assert.deepEqual(commands, ['clear_queue', 'abort']);
     assert.equal(session.status, 'working');
     assert.equal(session.isStreaming, true);
@@ -595,29 +702,28 @@ test('Dispatcher: session.getHistory paginates historical entries backwards', as
   }
 
   const res1 = await sendCommand(setup, 'session.getHistory', session.id, { beforeId: 'entry_100', limit: 30 });
-  const result1 = res1.find((m: any) => m.kind === 'result');
+  const result1 = res1.find((m) => m.kind === 'result');
   assert.ok(result1, 'must receive result');
-  assert.equal(result1.payload.state, 'completed');
-  assert.equal(result1.payload.data.entries.length, 30);
-  assert.equal(result1.payload.data.entries[0].id, 'entry_70');
-  assert.equal(result1.payload.data.entries[29].id, 'entry_99');
-  assert.equal(result1.payload.data.hasMore, true);
-  assert.equal(result1.payload.data.totalEntries, 120);
+  assert.equal(at(result1, 'payload', 'state'), 'completed');
+  assert.equal(at(result1, 'payload', 'data', 'entries', 'length'), 30);
+  assert.equal(at(result1, 'payload', 'data', 'entries', '0', 'id'), 'entry_70');
+  assert.equal(at(result1, 'payload', 'data', 'entries', '29', 'id'), 'entry_99');
+  assert.equal(at(result1, 'payload', 'data', 'hasMore'), true);
+  assert.equal(at(result1, 'payload', 'data', 'totalEntries'), 120);
 
   const res2 = await sendCommand(setup, 'session.getHistory', session.id, { beforeId: 'entry_70', limit: 100 });
-  const result2 = res2.find((m: any) => m.kind === 'result');
-  assert.equal(result2.payload.data.entries.length, 69);
-  assert.equal(result2.payload.data.entries[0].id, 'entry_1');
-  assert.equal(result2.payload.data.hasMore, false);
+  const result2 = res2.find((m) => m.kind === 'result');
+  assert.equal(at(result2, 'payload', 'data', 'entries', 'length'), 69);
+  assert.equal(at(result2, 'payload', 'data', 'entries', '0', 'id'), 'entry_1');
+  assert.equal(at(result2, 'payload', 'data', 'hasMore'), false);
 });
-
 
 test('Dispatcher: session.create starts the Pi worker in the background so the first prompt is not stalled', async () => {
   const repo = createGitRepo();
   const setup = createTestSetup();
   try {
     const started: string[] = [];
-    (setup.registry as any).ensureWorkerForSession = async (id: string) => {
+    setup.registry.ensureWorkerForSession = async (id: string) => {
       started.push(id);
       throw new Error('start failures must not fail session.create');
     };

@@ -1,11 +1,11 @@
-import 'dart:io';
+import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../app/app_version.dart';
+import '../../data/runtime/app_version.dart';
 import '../../data/changelog/changelog_service.dart';
+import '../../data/platform/host_environment_service.dart';
 import '../../data/changelog/changelog_store.dart';
 import 'changelog_dialog.dart';
 
@@ -17,25 +17,20 @@ import 'changelog_dialog.dart';
 class StartupChangelogWatcher extends ConsumerStatefulWidget {
   final bool enableInTests;
 
-  const StartupChangelogWatcher({
-    super.key,
-    this.enableInTests = false,
-  });
+  const StartupChangelogWatcher({super.key, this.enableInTests = false});
 
   @override
-  ConsumerState<StartupChangelogWatcher> createState() =>
-      _StartupChangelogWatcherState();
+  ConsumerState<StartupChangelogWatcher> createState() => _StartupChangelogWatcherState();
 }
 
-class _StartupChangelogWatcherState
-    extends ConsumerState<StartupChangelogWatcher> {
+class _StartupChangelogWatcherState extends ConsumerState<StartupChangelogWatcher> {
   bool _checked = false;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkChangelog();
+      unawaited(_checkChangelog());
     });
   }
 
@@ -43,7 +38,8 @@ class _StartupChangelogWatcherState
     if (_checked) return;
     _checked = true;
 
-    final inTest = !kIsWeb && Platform.environment.containsKey('FLUTTER_TEST');
+    final host = ref.read(hostEnvironmentServiceProvider);
+    final inTest = !host.isWeb && host.variable('FLUTTER_TEST') != null;
     if (inTest && !widget.enableInTests) {
       return;
     }
@@ -61,10 +57,7 @@ class _StartupChangelogWatcherState
     store.setLastSeenVersion(piFrameVersion);
 
     if (release != null && release.isNotEmpty && mounted) {
-      await showChangelogDialog(
-        context: context,
-        release: release,
-      );
+      await showChangelogDialog(context: context, release: release);
     }
   }
 

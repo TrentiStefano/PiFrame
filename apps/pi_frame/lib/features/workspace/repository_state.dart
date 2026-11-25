@@ -46,20 +46,15 @@ class RepositoryState {
   bool get dirty => buffers.values.any((buffer) => buffer.dirty);
 }
 
-final repositoryStateProvider =
-    StateNotifierProvider.family<RepositoryController, RepositoryState, String>(
-      (ref, sessionId) {
-        return RepositoryController(
-          sessionId,
-          () => ref.read(pcpClientProvider),
-          () => ref.read(appStringsProvider),
-        );
-      },
-    );
+final repositoryStateProvider = StateNotifierProvider.family<RepositoryController, RepositoryState, String>((
+  ref,
+  sessionId,
+) {
+  return RepositoryController(sessionId, () => ref.read(pcpClientProvider), () => ref.read(appStringsProvider));
+});
 
 class RepositoryController extends StateNotifier<RepositoryState> {
-  RepositoryController(this.sessionId, this._readClient, [this._readStrings])
-    : super(const RepositoryState());
+  RepositoryController(this.sessionId, this._readClient, [this._readStrings]) : super(const RepositoryState());
   final String sessionId;
   final PcpClient? Function() _readClient;
   final AppStrings Function()? _readStrings;
@@ -69,11 +64,7 @@ class RepositoryController extends StateNotifier<RepositoryState> {
   Future<void> loadFiles() async {
     final client = _readClient();
     if (client == null) {
-      state = RepositoryState(
-        error:
-            _readStrings?.call().daemonNotConnectedCapital ??
-            'Daemon non connesso',
-      );
+      state = RepositoryState(error: _readStrings?.call().daemonNotConnectedCapital ?? 'Daemon not connected');
       return;
     }
     state = RepositoryState(
@@ -111,9 +102,7 @@ class RepositoryController extends StateNotifier<RepositoryState> {
   Future<void> selectFile(String path) async {
     final client = _readClient();
     final buffers = Map<String, WorkspaceFileBuffer>.of(state.buffers)
-      ..removeWhere(
-        (existingPath, buffer) => existingPath != path && !buffer.dirty,
-      );
+      ..removeWhere((existingPath, buffer) => existingPath != path && !buffer.dirty);
     final cached = buffers[path];
     state = RepositoryState(
       rootPath: state.rootPath,
@@ -169,11 +158,7 @@ class RepositoryController extends StateNotifier<RepositoryState> {
     final current = state.buffers[path];
     if (current == null) return;
     final buffers = Map<String, WorkspaceFileBuffer>.of(state.buffers);
-    buffers[path] = WorkspaceFileBuffer(
-      content,
-      current.savedContent,
-      current.revision,
-    );
+    buffers[path] = WorkspaceFileBuffer(content, current.savedContent, current.revision);
     state = RepositoryState(
       rootPath: state.rootPath,
       files: state.files,
@@ -188,7 +173,7 @@ class RepositoryController extends StateNotifier<RepositoryState> {
     final client = _readClient();
     final buffer = state.buffers[path];
     if (client == null || buffer == null) {
-      throw StateError('File non disponibile');
+      throw StateError('File not available');
     }
     final content = buffer.content;
     final result = await client.saveWorkspaceFile(sessionId, {
@@ -198,11 +183,7 @@ class RepositoryController extends StateNotifier<RepositoryState> {
     });
     final data = (result['data'] as Map<String, dynamic>?) ?? result;
     final buffers = Map<String, WorkspaceFileBuffer>.of(state.buffers);
-    buffers[path] = WorkspaceFileBuffer(
-      content,
-      content,
-      data['revision'].toString(),
-    );
+    buffers[path] = WorkspaceFileBuffer(content, content, data['revision'].toString());
     final manualSavedPaths = Set<String>.of(state.manualSavedPaths)..add(path);
     state = RepositoryState(
       rootPath: state.rootPath,
@@ -215,8 +196,7 @@ class RepositoryController extends StateNotifier<RepositoryState> {
   }
 
   void clearManualSavedPaths(Iterable<String> paths) {
-    final manualSavedPaths = Set<String>.of(state.manualSavedPaths)
-      ..removeAll(paths);
+    final manualSavedPaths = Set<String>.of(state.manualSavedPaths)..removeAll(paths);
     if (manualSavedPaths.length == state.manualSavedPaths.length) return;
     state = RepositoryState(
       rootPath: state.rootPath,
@@ -230,13 +210,10 @@ class RepositoryController extends StateNotifier<RepositoryState> {
 
   Future<({String content, String revision})> currentDisk(String path) async {
     final client = _readClient();
-    if (client == null) throw StateError('Daemon non connesso');
+    if (client == null) throw StateError('Daemon not connected');
     final result = await client.readWorkspaceFile(sessionId, path);
     final data = (result['data'] as Map<String, dynamic>?) ?? result;
-    return (
-      content: data['content'] as String,
-      revision: data['revision'].toString(),
-    );
+    return (content: data['content'] as String, revision: data['revision'].toString());
   }
 
   void reload(String path, String content, String revision) {

@@ -1,8 +1,9 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-/// Ratchet for design literals (DESIGN.md §07, plan task 2.5).
+/// Ratchet for design literals (root DESIGN.md, section "Do's and Don'ts", plan task 2.5).
 ///
 /// Each pattern has a baseline. The test fails when a count goes UP, so the
 /// number can only fall over time. When a migration lowers a count, lower the
@@ -11,10 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 ///
 /// Allow-listed files (theme tokens and the startup animation) are not counted:
 /// they are where the literals are meant to live.
-const _allowList = <String>{
-  'lib/ui/motion.dart',
-  'lib/ui/startup_assemble_animation.dart',
-};
+const _allowList = <String>{'lib/ui/motion.dart', 'lib/ui/startup_assemble_animation.dart'};
 
 /// Non-visual timers that may stay numeric (daemon retry and readiness, the
 /// window-save I/O debounce, harness touch pacing). Each one is a named
@@ -30,9 +28,9 @@ const _allowedTimerConstants = <String>{
   // lib/harness/harness_extensions.dart: synthetic touch pacing (harness only).
   'lib/harness/harness_extensions.dart#_harnessDoubleTapGap',
   'lib/harness/harness_extensions.dart#_harnessLongPressHold',
-  // lib/data/notifications/session_notification_watcher.dart: how long a
+  // lib/features/notifications/session_notification_watcher.dart: how long a
   // run must stay settled before its answer counts as final.
-  'lib/data/notifications/session_notification_watcher.dart#finalAnswerQuietPeriod',
+  'lib/features/notifications/session_notification_watcher.dart#finalAnswerQuietPeriod',
   // lib/harness/harness_window.dart: polling the view size after a resize.
   'lib/harness/harness_window.dart#_resizePollInterval',
   'lib/harness/harness_window.dart#_resizeSettleDelay',
@@ -41,9 +39,7 @@ const _allowedTimerConstants = <String>{
 final _fontSizeLiteral = RegExp(r'fontSize:\s*(\d+(?:\.\d+)?)');
 final _radiusLiteral = RegExp(r'BorderRadius\.circular\(\s*\d');
 final _durationLiteral = RegExp(r'Duration\(\s*milliseconds:\s*\d');
-final _timerConstantDecl = RegExp(
-  r'\b(\w+)\s*=\s*(?:const\s+)?Duration\(\s*milliseconds:',
-);
+final _timerConstantDecl = RegExp(r'\b(\w+)\s*=\s*(?:const\s+)?Duration\(\s*milliseconds:');
 final _curvesLiteral = RegExp(r'\bCurves\.');
 final _boxShadow = RegExp(r'\bBoxShadow\(');
 final _gestureDetector = RegExp(r'\bGestureDetector\(');
@@ -62,23 +58,16 @@ const _baselines = <String, int>{
 typedef _Hit = ({String file, int line});
 
 void main() {
-  test('Design literal ratchet: counts may only go down (DESIGN.md §07)', () {
+  test("Design literal ratchet: counts may only go down (DESIGN.md Do's and Don'ts)", () {
     final libDir = Directory('lib');
     expect(libDir.existsSync(), isTrue, reason: 'lib directory must exist');
 
-    final hits = <String, List<_Hit>>{
-      for (final key in _baselines.keys) key: <_Hit>[],
-    };
+    final hits = <String, List<_Hit>>{for (final key in _baselines.keys) key: <_Hit>[]};
 
-    final dartFiles = libDir
-        .listSync(recursive: true)
-        .whereType<File>()
-        .where((f) => f.path.endsWith('.dart'));
+    final dartFiles = libDir.listSync(recursive: true).whereType<File>().where((f) => f.path.endsWith('.dart'));
 
     for (final file in dartFiles) {
-      final rel = file.path
-          .replaceAll('\\', '/')
-          .replaceFirst(RegExp(r'^.*?lib/'), 'lib/');
+      final rel = file.path.replaceAll('\\', '/').replaceFirst(RegExp(r'^.*?lib/'), 'lib/');
       if (_allowList.contains(rel)) continue;
 
       final lines = file.readAsLinesSync();
@@ -100,14 +89,9 @@ void main() {
         }
         if (_durationLiteral.hasMatch(line)) {
           final decl = _timerConstantDecl.firstMatch(line);
-          final allowed =
-              decl != null &&
-              _allowedTimerConstants.contains('$rel#${decl.group(1)}');
+          final allowed = decl != null && _allowedTimerConstants.contains('$rel#${decl.group(1)}');
           if (!allowed) {
-            hits['Duration(milliseconds:) numeric']!.add((
-              file: rel,
-              line: lineNo,
-            ));
+            hits['Duration(milliseconds:) numeric']!.add((file: rel, line: lineNo));
           }
         }
         if (_curvesLiteral.hasMatch(line)) {
@@ -122,16 +106,11 @@ void main() {
       }
     }
 
-    final report = StringBuffer(
-      '\nDesign literal counts (count / baseline):\n',
-    );
+    final report = StringBuffer('\nDesign literal counts (count / baseline):\n');
     for (final entry in _baselines.entries) {
-      report.writeln(
-        '  ${entry.key.padRight(34)} ${hits[entry.key]!.length} / ${entry.value}',
-      );
+      report.writeln('  ${entry.key.padRight(34)} ${hits[entry.key]!.length} / ${entry.value}');
     }
-    // ignore: avoid_print
-    print(report.toString());
+    debugPrint(report.toString());
 
     final failures = <String>[];
     for (final entry in _baselines.entries) {
@@ -141,12 +120,8 @@ void main() {
       for (final h in found) {
         byFile.putIfAbsent(h.file, () => <int>[]).add(h.line);
       }
-      final files = byFile.entries
-          .map((e) => '    ${e.key}: lines ${e.value.join(', ')}')
-          .join('\n');
-      failures.add(
-        '${entry.key}: ${found.length} hits, baseline ${entry.value}\n$files',
-      );
+      final files = byFile.entries.map((e) => '    ${e.key}: lines ${e.value.join(', ')}').join('\n');
+      failures.add('${entry.key}: ${found.length} hits, baseline ${entry.value}\n$files');
     }
 
     expect(

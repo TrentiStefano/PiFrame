@@ -59,6 +59,7 @@ blob-report/
 .agents/skills/*
 !.agents/skills/piframe-ui-harness/
 !.agents/skills/piframe-ui-preview/
+!.agents/skills/bugfix/
 
 # ==============================================================================
 # Flutter & Dart
@@ -109,7 +110,10 @@ daemon.log*
 *.token
 *.pid
 crash-*.log
-.pi/
+# pi: only the shared project extensions (the agent guard) are committed.
+.pi/*
+!.pi/extensions/
+!.pi/prompts/
 
 # ==============================================================================
 # Environment & Secrets
@@ -153,12 +157,22 @@ Thumbs.db
 !.vscode/launch.json
 !.vscode/extensions.json
 
-.claude/
+# Claude Code: shared project settings and hooks are committed. The skills folder holds symlinks from the skills
+# installer, worktrees are per-machine agent checkouts, and settings.local.json is personal.
+.claude/skills/
+.claude/worktrees/
+.claude/settings.local.json
 # ==============================================================================
 # Showcase recording masters (large; regenerate with tools/showcase/post.py)
 # ==============================================================================
 website/assets/showcase/*/master.mp4
-brag-output/work/
+# Launch-video output of the /brag skill, kept locally (web versions of the promo live in website/assets/video/)
+brag-output/
 
-# Promo masters (web versions live in website/assets/video/)
-brag-output/*.mp4
+# ==============================================================================
+# Generated in-app changelog (copy of the root CHANGELOG.md, written by tools/scripts/sync-changelog.mjs)
+# ==============================================================================
+apps/pi_frame/assets/CHANGELOG.md
+
+# Golden screens: the mismatch images of the last run (apps/pi_frame/test/golden_screens_test.dart)
+apps/pi_frame/test/failures/

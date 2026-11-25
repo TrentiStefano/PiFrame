@@ -1,10 +1,11 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+
 import '../../ui/precision.dart';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -12,6 +13,9 @@ import 'package:xterm/xterm.dart';
 
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_workspace.dart';
+import '../../data/platform/file_system_service.dart';
+import '../../data/platform/host_environment_service.dart';
+import '../../data/platform/process_service.dart';
 import '../../data/terminal/terminal_settings.dart';
 
 class TerminalTabSession {
@@ -19,11 +23,11 @@ class TerminalTabSession {
   String title;
   final String shellName;
   final Terminal terminal;
-  Process? process;
+  RunningProcess? process;
   bool isRunning = false;
   int? exitCode;
-  StreamSubscription? _stdoutSub;
-  StreamSubscription? _stderrSub;
+  StreamSubscription<String>? _stdoutSub;
+  StreamSubscription<String>? _stderrSub;
   final List<String> _pendingPowerShellEchoes = [];
   String _stdoutBuffer = '';
   bool _lastOutputEndedWithCr = false;
@@ -32,16 +36,11 @@ class TerminalTabSession {
   String currentInput = '';
   int historyIndex = -1;
 
-  TerminalTabSession({
-    required this.id,
-    required this.title,
-    required this.shellName,
-    required this.terminal,
-  });
+  TerminalTabSession({required this.id, required this.title, required this.shellName, required this.terminal});
 
   void dispose() {
-    _stdoutSub?.cancel();
-    _stderrSub?.cancel();
+    unawaited(_stdoutSub?.cancel());
+    unawaited(_stderrSub?.cancel());
     try {
       process?.kill();
     } catch (_) {}
@@ -79,9 +78,7 @@ class TerminalTabSession {
     while (_stdoutBuffer.isNotEmpty) {
       final lineEnd = _stdoutBuffer.indexOf('\n');
       if (lineEnd < 0) {
-        final isEchoPrefix = _pendingPowerShellEchoes.any(
-          (command) => command.startsWith(_stdoutBuffer),
-        );
+        final isEchoPrefix = _pendingPowerShellEchoes.any((command) => command.startsWith(_stdoutBuffer));
         if (isEchoPrefix) return;
         _emit(_stdoutBuffer);
         _stdoutBuffer = '';
@@ -89,9 +86,7 @@ class TerminalTabSession {
       }
 
       final rawLine = _stdoutBuffer.substring(0, lineEnd);
-      final line = rawLine.endsWith('\r')
-          ? rawLine.substring(0, rawLine.length - 1)
-          : rawLine;
+      final line = rawLine.endsWith('\r') ? rawLine.substring(0, rawLine.length - 1) : rawLine;
       final echoIndex = _pendingPowerShellEchoes.indexOf(line);
       if (echoIndex >= 0) {
         _pendingPowerShellEchoes.removeAt(echoIndex);
@@ -112,7 +107,7 @@ class TerminalTabSession {
     // Handle Ctrl+C (character code 3)
     if (data == '\x03') {
       try {
-        process?.stdin.add([3]);
+        process?.writeBytes([3]);
       } catch (_) {}
       terminal.write('^C\r\n');
       currentInput = '';
@@ -177,7 +172,7 @@ class TerminalTabSession {
         }
         historyIndex = history.length;
         try {
-          process?.stdin.writeln(lineToSend);
+          process?.writeLine(lineToSend);
         } catch (_) {}
       }
       // Tab (\t)
@@ -216,7 +211,7 @@ class TerminalTabSession {
       _pendingPowerShellEchoes.add(command);
     }
     try {
-      process?.stdin.writeln(command);
+      process?.writeLine(command);
     } catch (_) {}
   }
 }
@@ -236,12 +231,10 @@ class IntegratedTerminalPanel extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<IntegratedTerminalPanel> createState() =>
-      _IntegratedTerminalPanelState();
+  ConsumerState<IntegratedTerminalPanel> createState() => _IntegratedTerminalPanelState();
 }
 
-class _IntegratedTerminalPanelState
-    extends ConsumerState<IntegratedTerminalPanel> {
+class _IntegratedTerminalPanelState extends ConsumerState<IntegratedTerminalPanel> {
   final List<TerminalTabSession> _tabs = [];
   int _activeTabIndex = 0;
   int _counter = 0;
@@ -296,35 +289,16 @@ class _IntegratedTerminalPanelState
     );
   }
 
-  Map<String, String>? _parseWslPath(String path) {
-    final normalized =
-        path.trim().replaceFirst(RegExp(r'^[\\/]+'), '//').replaceAll('\\', '/');
-    final match = RegExp(
-      r'^//(wsl(?:\.localhost|\$))/([^/]+)(?:/(.*))?$',
-      caseSensitive: false,
-    ).firstMatch(normalized);
-    if (match == null) return null;
-    final distro = match.group(2)!;
-    final rest = match.group(3) ?? '';
-    final linuxPath = '/$rest'.replaceAll(RegExp(r'/+'), '/');
-    return {
-      'distro': distro,
-      'linuxPath': linuxPath.length > 1 && linuxPath.endsWith('/')
-          ? linuxPath.substring(0, linuxPath.length - 1)
-          : linuxPath,
-    };
-  }
-
   void _createNewTab({String? preferredShell}) {
     _counter++;
     final String shellExe;
     final List<String> shellArgs;
     final String shellName;
 
-    if (Platform.isWindows) {
-      final wslInfo = _parseWslPath(widget.cwd);
-      final shouldUseWsl = preferredShell == 'wsl' ||
-          (preferredShell == null && wslInfo != null);
+    final host = ref.read(hostEnvironmentServiceProvider);
+    if (host.operatingSystem == 'windows') {
+      final wslInfo = parseWslPath(widget.cwd);
+      final shouldUseWsl = preferredShell == 'wsl' || (preferredShell == null && wslInfo != null);
 
       if (shouldUseWsl && wslInfo != null) {
         shellExe = 'wsl.exe';
@@ -339,21 +313,19 @@ class _IntegratedTerminalPanelState
         shellArgs = ['-NoLogo'];
         shellName = 'PowerShell';
       }
-    } else if (Platform.isMacOS) {
-      final envShell = Platform.environment['SHELL'] ?? '/bin/zsh';
+    } else if (host.operatingSystem == 'macos') {
+      final envShell = host.variable('SHELL') ?? '/bin/zsh';
       shellExe = envShell;
       shellArgs = ['-l'];
       shellName = envShell.split('/').last;
     } else {
-      final envShell = Platform.environment['SHELL'] ?? '/bin/bash';
+      final envShell = host.variable('SHELL') ?? '/bin/bash';
       shellExe = envShell;
       shellArgs = ['-i'];
       shellName = envShell.split('/').last;
     }
 
-    final terminal = Terminal(
-      maxLines: 10000,
-    );
+    final terminal = Terminal(maxLines: 10000);
 
     final session = TerminalTabSession(
       id: 'term_$_counter',
@@ -368,14 +340,14 @@ class _IntegratedTerminalPanelState
     });
     _terminalFocusNode.requestFocus();
 
-    _startProcessForTab(session, shellExe, shellArgs);
+    unawaited(_startProcessForTab(session, shellExe, shellArgs));
   }
 
   AppStrings _getStrings() {
     try {
       return ref.watch(appStringsProvider);
     } catch (_) {
-      return const AppStrings(AppLanguage.it);
+      return const AppStrings(AppLanguage.defaultLanguage);
     }
   }
 
@@ -383,35 +355,25 @@ class _IntegratedTerminalPanelState
     try {
       return ref.read(appStringsProvider);
     } catch (_) {
-      return const AppStrings(AppLanguage.it);
+      return const AppStrings(AppLanguage.defaultLanguage);
     }
   }
 
-  Future<void> _startProcessForTab(
-    TerminalTabSession session,
-    String executable,
-    List<String> args,
-  ) async {
+  Future<void> _startProcessForTab(TerminalTabSession session, String executable, List<String> args) async {
     final isWsl = executable.toLowerCase() == 'wsl.exe';
-    final effectiveCwd = !isWsl &&
-            widget.cwd.isNotEmpty &&
-            Directory(widget.cwd).existsSync()
-        ? widget.cwd
-        : Directory.current.path;
+    final files = ref.read(fileSystemServiceProvider);
+    final cwdExists = !isWsl && widget.cwd.isNotEmpty && await files.directoryExists(widget.cwd);
+    if (!mounted) return;
+    final effectiveCwd = cwdExists ? widget.cwd : files.currentDirectory;
 
     final displayDir = isWsl && widget.cwd.isNotEmpty ? widget.cwd : effectiveCwd;
     final strings = _getReadStrings();
-    session.terminal.write(
-      strings.terminalStartingSession(displayDir),
-    );
+    session.terminal.write(strings.terminalStartingSession(displayDir));
 
     try {
-      final process = await Process.start(
-        executable,
-        args,
-        workingDirectory: isWsl ? null : effectiveCwd,
-        runInShell: false,
-      );
+      final process = await ref
+          .read(processServiceProvider)
+          .start(executable, args, workingDirectory: isWsl ? null : effectiveCwd, runInShell: false);
 
       session.process = process;
       session.isRunning = true;
@@ -420,35 +382,29 @@ class _IntegratedTerminalPanelState
         session.handleInput(data);
       };
 
-      session._stdoutSub = const Utf8Decoder(allowMalformed: true)
-          .bind(process.stdout)
-          .listen((text) {
+      session._stdoutSub = const Utf8Decoder(allowMalformed: true).bind(process.stdout).listen((text) {
         if (!mounted) return;
         session.writeProcessOutput(text);
       });
 
-      session._stderrSub = const Utf8Decoder(allowMalformed: true)
-          .bind(process.stderr)
-          .listen((text) {
+      session._stderrSub = const Utf8Decoder(allowMalformed: true).bind(process.stderr).listen((text) {
         if (!mounted) return;
         session.writeErrorOutput(text);
       });
 
-      process.exitCode.then((code) {
-        if (!mounted) return;
-        setState(() {
-          session.isRunning = false;
-          session.exitCode = code;
-        });
-        session.terminal.write(
-          strings.terminalProcessTerminated(code),
-        );
-      });
+      unawaited(
+        process.exitCode.then((code) {
+          if (!mounted) return;
+          setState(() {
+            session.isRunning = false;
+            session.exitCode = code;
+          });
+          session.terminal.write(strings.terminalProcessTerminated(code));
+        }),
+      );
     } catch (e) {
       if (!mounted) return;
-      session.terminal.write(
-        strings.terminalCannotStartProcess(executable, e),
-      );
+      session.terminal.write(strings.terminalCannotStartProcess(executable, e));
       setState(() {
         session.isRunning = false;
         session.exitCode = -1;
@@ -487,15 +443,14 @@ class _IntegratedTerminalPanelState
 
   void _openInNativeTerminal() {
     final termSettings = ref.read(terminalSettingsProvider);
-    launchNativeTerminal(
-      cwd: widget.cwd,
-      nativeApp: termSettings.nativeApp,
-      customPath: termSettings.customPath,
+    unawaited(
+      launchNativeTerminal(cwd: widget.cwd, nativeApp: termSettings.nativeApp, customPath: termSettings.customPath),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final isWindowsHost = ref.read(hostEnvironmentServiceProvider).operatingSystem == 'windows';
     final tokens = widget.tokens;
     final strings = _getStrings();
 
@@ -511,15 +466,15 @@ class _IntegratedTerminalPanelState
                 style: FrameText.of(context).body.copyWith(color: tokens.textMuted),
               ),
               const SizedBox(height: 8),
-              PressFeedback(enabled: true, child: FilledButton.icon(
-                style: FilledButton.styleFrom(
-                  backgroundColor: tokens.accent,
-                  foregroundColor: tokens.surface,
+              PressFeedback(
+                enabled: true,
+                child: FilledButton.icon(
+                  style: FilledButton.styleFrom(backgroundColor: tokens.accent, foregroundColor: tokens.surface),
+                  onPressed: () => _createNewTab(),
+                  icon: const Icon(Icons.add_outlined, size: FrameSize.icon),
+                  label: Text(strings.terminalOpenNew),
                 ),
-                onPressed: () => _createNewTab(),
-                icon: const Icon(Icons.add_outlined, size: FrameSize.icon),
-                label: Text(strings.terminalOpenNew),
-              )),
+              ),
             ],
           ),
         ),
@@ -531,9 +486,7 @@ class _IntegratedTerminalPanelState
     return Container(
       decoration: BoxDecoration(
         color: tokens.chassis,
-        border: Border(
-          top: BorderSide(color: tokens.borderStrong, width: 1),
-        ),
+        border: Border(top: BorderSide(color: tokens.borderStrong, width: 1)),
       ),
       child: Column(
         children: [
@@ -544,9 +497,7 @@ class _IntegratedTerminalPanelState
             height: 36,
             decoration: BoxDecoration(
               color: tokens.surface,
-              border: Border(
-                bottom: BorderSide(color: tokens.border, width: 1),
-              ),
+              border: Border(bottom: BorderSide(color: tokens.border, width: 1)),
             ),
             child: Row(
               children: [
@@ -567,14 +518,10 @@ class _IntegratedTerminalPanelState
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10),
                           decoration: BoxDecoration(
-                            color: isSelected
-                                ? tokens.chassis
-                                : tokens.surface,
+                            color: isSelected ? tokens.chassis : tokens.surface,
                             border: Border(
                               right: BorderSide(color: tokens.border),
-                              bottom: isSelected
-                                    ? BorderSide(color: tokens.accent, width: 2)
-                                    : BorderSide.none,
+                              bottom: isSelected ? BorderSide(color: tokens.accent, width: 2) : BorderSide.none,
                             ),
                           ),
                           child: Row(
@@ -583,20 +530,14 @@ class _IntegratedTerminalPanelState
                               Icon(
                                 Icons.terminal_outlined,
                                 size: FrameSize.icon,
-                                color: isSelected
-                                    ? tokens.accent
-                                    : tokens.textMuted,
+                                color: isSelected ? tokens.accent : tokens.textMuted,
                               ),
                               const SizedBox(width: 6),
                               Text(
                                 tab.title,
                                 style: FrameText.of(context).caption.copyWith(
-                                  color: isSelected
-                                      ? tokens.displayText
-                                      : tokens.textMuted,
-                                  fontWeight: isSelected
-                                      ? FontWeight.w600
-                                      : FontWeight.normal,
+                                  color: isSelected ? tokens.displayText : tokens.textMuted,
+                                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -605,11 +546,7 @@ class _IntegratedTerminalPanelState
                                 borderRadius: BorderRadius.circular(tokens.radiusSm),
                                 child: Padding(
                                   padding: const EdgeInsets.all(2.0),
-                                  child: Icon(
-                                    Icons.close_outlined,
-                                    size: 13,
-                                    color: tokens.textMuted,
-                                  ),
+                                  child: Icon(Icons.close_outlined, size: 13, color: tokens.textMuted),
                                 ),
                               ),
                             ],
@@ -634,7 +571,7 @@ class _IntegratedTerminalPanelState
                     }
                   },
                   itemBuilder: (context) {
-                    final wslInfo = Platform.isWindows ? _parseWslPath(widget.cwd) : null;
+                    final wslInfo = isWindowsHost ? parseWslPath(widget.cwd) : null;
                     return [
                       if (wslInfo != null)
                         PopupMenuItem(
@@ -653,15 +590,11 @@ class _IntegratedTerminalPanelState
                           children: [
                             const Icon(Icons.terminal_outlined, size: FrameSize.icon),
                             const SizedBox(width: 8),
-                            Text(
-                              Platform.isWindows
-                                  ? strings.terminalNewPowerShellTab
-                                  : strings.terminalNewTabTooltip,
-                            ),
+                            Text(isWindowsHost ? strings.terminalNewPowerShellTab : strings.terminalNewTabTooltip),
                           ],
                         ),
                       ),
-                      if (Platform.isWindows)
+                      if (isWindowsHost)
                         PopupMenuItem(
                           value: 'cmd',
                           child: Row(
@@ -800,17 +733,18 @@ class _IntegratedTerminalPanelState
 
     // Ctrl+V: Paste from clipboard
     if ((isCtrl || isMeta) && event.logicalKey == LogicalKeyboardKey.keyV) {
-      Clipboard.getData('text/plain').then((clip) {
-        if (clip?.text != null && clip!.text!.isNotEmpty) {
-          activeTab.handleInput(clip.text!);
-        }
-      });
+      unawaited(
+        Clipboard.getData('text/plain').then((clip) {
+          if (clip?.text != null && clip!.text!.isNotEmpty) {
+            activeTab.handleInput(clip.text!);
+          }
+        }),
+      );
       return KeyEventResult.handled;
     }
 
     // Enter / Return
-    if (event.logicalKey == LogicalKeyboardKey.enter ||
-        event.logicalKey == LogicalKeyboardKey.numpadEnter) {
+    if (event.logicalKey == LogicalKeyboardKey.enter || event.logicalKey == LogicalKeyboardKey.numpadEnter) {
       activeTab.handleInput('\r');
       return KeyEventResult.handled;
     }

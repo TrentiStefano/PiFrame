@@ -1,44 +1,46 @@
-import type { PcpEvent } from '@piframe/pcp-ts';
+import type { PcpEventType } from '@piframe/pcp-ts';
+
+/** Pi reports request ids as strings or numbers; both key the same map. */
+export type UiRequestId = string | number;
 
 export interface PendingUiRequest {
-  requestId: string;
+  requestId: UiRequestId;
   method: string;
-  title?: string;
-  message?: string;
+  /** Passed through as Pi sent it; the UI decides how to show a non-string value. */
+  title?: unknown;
+  message?: unknown;
   dialog: boolean;
   claimedBy: string | null;
   claimedAt: number | null;
   leaseExpiresAt: number | null;
   leaseTimer?: NodeJS.Timeout | null;
-  raw: Record<string, any>;
+  raw: Record<string, unknown>;
 }
 
 export interface UiRequestBrokerOptions {
   sessionId: string;
-  onEmitEvent: (event: { type: string; payload: Record<string, any> }) => void;
+  onEmitEvent: (event: { type: PcpEventType; payload: Record<string, unknown> }) => void;
 }
 
 export class UiRequestBroker {
-  private sessionId: string;
-  private onEmitEvent: (event: { type: string; payload: Record<string, any> }) => void;
-  private requests = new Map<string, PendingUiRequest>();
+  private onEmitEvent: (event: { type: PcpEventType; payload: Record<string, unknown> }) => void;
+  private requests = new Map<UiRequestId, PendingUiRequest>();
 
   constructor(opts: UiRequestBrokerOptions) {
-    this.sessionId = opts.sessionId;
     this.onEmitEvent = opts.onEmitEvent;
   }
 
-  public addRequest(raw: Record<string, any>): void {
-    const requestId = raw.requestId || raw.id;
-    if (!requestId) return;
+  public addRequest(raw: Record<string, unknown>): void {
+    const rawId = raw.requestId || raw.id;
+    if (!(typeof rawId === 'string' || typeof rawId === 'number') || !rawId) return;
+    const requestId: UiRequestId = rawId;
 
-    const dialog = raw.dialog ?? true;
     const req: PendingUiRequest = {
       requestId,
-      method: raw.method || 'confirm',
+      method: String(raw.method || 'confirm'),
       title: raw.title,
       message: raw.message,
-      dialog,
+      dialog: Boolean(raw.dialog ?? true),
       claimedBy: null,
       claimedAt: null,
       leaseExpiresAt: null,
@@ -49,11 +51,15 @@ export class UiRequestBroker {
     this.requests.set(requestId, req);
   }
 
-  public isLocalOnly(requestId: string): boolean {
+  public isLocalOnly(requestId: UiRequestId): boolean {
     return this.requests.get(requestId)?.raw.localOnly === true;
   }
 
-  public claimRequest(requestId: string, clientId: string, leaseDurationMs = 30000): { success: boolean; reason?: string } {
+  public claimRequest(
+    requestId: UiRequestId,
+    clientId: string,
+    leaseDurationMs = 30000
+  ): { success: boolean; reason?: string } {
     const req = this.requests.get(requestId);
     if (!req) {
       return { success: false, reason: 'Request not found' };
@@ -87,7 +93,7 @@ export class UiRequestBroker {
     return { success: true };
   }
 
-  public releaseClaim(requestId: string, clientId: string): void {
+  public releaseClaim(requestId: UiRequestId, clientId: string): void {
     const req = this.requests.get(requestId);
     if (!req || req.claimedBy !== clientId) return;
 
@@ -103,7 +109,7 @@ export class UiRequestBroker {
     // Broadcast that the request is once again unclaimed
     this.onEmitEvent({
       type: 'ui.claimed',
-      payload: { requestId, clientId: null as any }
+      payload: { requestId, clientId: null }
     });
   }
 
@@ -116,7 +122,7 @@ export class UiRequestBroker {
   }
 
   public resolveRequest(
-    requestId: string,
+    requestId: UiRequestId,
     clientId?: string,
     resolution: 'value' | 'confirmed' | 'cancelled' | 'timeout' = 'confirmed'
   ): { success: boolean; reason?: string } {
@@ -169,7 +175,7 @@ export class UiRequestBroker {
     this.requests.clear();
   }
 
-  public getPending(): Array<Record<string, any>> {
+  public getPending(): Array<Record<string, unknown>> {
     return Array.from(this.requests.values()).map((r) => ({
       ...r.raw,
       requestId: r.requestId,

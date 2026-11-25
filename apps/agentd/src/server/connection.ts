@@ -1,20 +1,31 @@
-import type { WebSocket } from 'ws';
 import { ulid } from 'ulid';
 import type {
   ServerMessage,
   PcpEnvelope,
   PcpWelcomePayload,
-  PcpError
+  PcpError,
+  PcpCommand,
+  PcpMessage,
+  ClientMessage
 } from '@piframe/pcp-ts';
 import { parseIncoming, encode } from '@piframe/pcp-ts';
-import { timingSafeEqualStrings } from './auth.js';
+import { timingSafeEqualStrings } from '../auth/auth.js';
 import type { RemoteManager } from '../remote/RemoteManager.js';
 import type { RemoteDeviceMode } from '../remote/types.js';
 
 export type ConnectionState = 'authenticating' | 'ready' | 'attached' | 'closed';
 
+/** The socket operations a connection uses. A `ws` WebSocket satisfies it; tests supply a typed fake. */
+export interface ConnectionSocket {
+  readonly readyState: number;
+  on(event: 'message', listener: (data: Buffer | string) => void): unknown;
+  on(event: 'close' | 'error', listener: () => void): unknown;
+  send(data: string, cb: () => void): void;
+  close(code: number, reason: string): void;
+}
+
 export interface ConnectionOptions {
-  ws: WebSocket;
+  ws: ConnectionSocket;
   expectedToken: string;
   daemonVersion: string;
   startedAt: number;
@@ -22,11 +33,20 @@ export interface ConnectionOptions {
   remoteManager?: RemoteManager;
   viaRemoteListener?: boolean;
   clientIp?: string;
-  onCommand: (conn: Connection, cmd: any) => Promise<void>;
+  onCommand: (conn: Connection, cmd: PcpCommand) => Promise<void>;
   onAttach?: (conn: Connection, sessionId: string, lastSeq: number | null, commandId?: string) => Promise<void>;
   onDetach?: (conn: Connection, sessionId: string) => Promise<void>;
   onClose: (conn: Connection) => void;
 }
+
+// How long a new connection may take to send its hello before it is closed.
+const HANDSHAKE_TIMEOUT_MS = 5000;
+
+// How often the daemon sends a heartbeat ping to each connected client.
+const HEARTBEAT_INTERVAL_MS = 15_000;
+
+// How long the daemon waits for a heartbeat pong before it closes the connection.
+const PONG_TIMEOUT_MS = 10_000;
 
 export class Connection {
   public readonly id: string;
@@ -42,14 +62,19 @@ export class Connection {
   private cleanedUp = false;
   public attachedSessions = new Set<string>();
 
-  private ws: WebSocket;
+  private ws: ConnectionSocket;
   private expectedToken: string;
   private daemonVersion: string;
   private startedAt: number;
   private piInfo: { path: string; version: string; supported: boolean };
   private remoteManager?: RemoteManager;
-  private onCommandCallback: (conn: Connection, cmd: any) => Promise<void>;
-  private onAttachCallback?: (conn: Connection, sessionId: string, lastSeq: number | null, commandId?: string) => Promise<void>;
+  private onCommandCallback: (conn: Connection, cmd: PcpCommand) => Promise<void>;
+  private onAttachCallback?: (
+    conn: Connection,
+    sessionId: string,
+    lastSeq: number | null,
+    commandId?: string
+  ) => Promise<void>;
   private onDetachCallback?: (conn: Connection, sessionId: string) => Promise<void>;
   private onCloseCallback: (conn: Connection) => void;
 
@@ -93,7 +118,7 @@ export class Connection {
           this.close(4001, 'Handshake timeout (no hello within 5s)');
         }
       });
-    }, 5000);
+    }, HANDSHAKE_TIMEOUT_MS);
 
     this.ws.on('message', (data: Buffer | string) => {
       this.handleIncoming(data.toString());
@@ -127,17 +152,6 @@ export class Connection {
       return;
     }
 
-    if ((msg as any).kind === 'ping') {
-      this.send({
-        protocol: 1,
-        kind: 'pong',
-        id: `pong_${Date.now()}`,
-        ts: Date.now(),
-        payload: {}
-      } as any);
-      return;
-    }
-
     if (msg.kind === 'pong') {
       if (this.pongTimeout) {
         clearTimeout(this.pongTimeout);
@@ -149,7 +163,7 @@ export class Connection {
     if (msg.kind === 'command') {
       // Rate limiting: max 200 commands in a 1-second window
       const now = Date.now();
-      this.commandTimestamps = this.commandTimestamps.filter(t => now - t < 1000);
+      this.commandTimestamps = this.commandTimestamps.filter((t) => now - t < 1000);
       if (this.commandTimestamps.length >= 200) {
         this.send({
           protocol: 1,
@@ -169,18 +183,23 @@ export class Connection {
 
       void this.executeCommand(msg).catch((error) => {
         this.send({
-          protocol: 1, kind: 'error', id: `err_${ulid()}`, ts: Date.now(),
-          commandId: msg.commandId, type: 'error',
+          protocol: 1,
+          kind: 'error',
+          id: `err_${ulid()}`,
+          ts: Date.now(),
+          commandId: msg.commandId,
+          type: 'error',
           payload: { code: error.code || 'INTERNAL', message: error.message }
         } as PcpError);
       });
     }
   }
 
-  private async executeCommand(msg: any): Promise<void> {
+  private async executeCommand(msg: PcpCommand): Promise<void> {
     if (msg.type === 'session.attach') {
       if (!msg.sessionId) throw new Error('sessionId required');
-      await this.onAttachCallback?.(this, msg.sessionId, msg.payload?.lastSeq ?? null, msg.commandId);
+      const lastSeq = typeof msg.payload?.lastSeq === 'number' ? msg.payload.lastSeq : null;
+      await this.onAttachCallback?.(this, msg.sessionId, lastSeq, msg.commandId);
       this.attachedSessions.add(msg.sessionId);
     } else if (msg.type === 'session.detach' && msg.sessionId) {
       await this.onDetachCallback?.(this, msg.sessionId);
@@ -189,7 +208,7 @@ export class Connection {
     await this.onCommandCallback(this, msg);
   }
 
-  private handleHello(msg: any): void {
+  private handleHello(msg: Extract<ClientMessage, { kind: 'hello' }>): void {
     if (this.handshakeTimer) {
       clearTimeout(this.handshakeTimer);
       this.handshakeTimer = undefined;
@@ -222,10 +241,8 @@ export class Connection {
     } else {
       // LOCAL LISTENER: accepts master token (desktop app) or device token
       const isMaster = timingSafeEqualStrings(token, this.expectedToken);
-      let matchedDevice: any = null;
-      if (!isMaster && this.remoteManager) {
-        matchedDevice = this.remoteManager.getAuthManager().verifyDeviceToken(token);
-      }
+      const matchedDevice =
+        !isMaster && this.remoteManager ? this.remoteManager.getAuthManager().verifyDeviceToken(token) : null;
 
       if (!isMaster && !matchedDevice) {
         this.authFailed = true;
@@ -293,9 +310,9 @@ export class Connection {
         setImmediate(() => {
           if (this.pongTimeout === timer) this.close(4008, 'Heartbeat timeout: no pong received within 10s');
         });
-      }, 10000);
+      }, PONG_TIMEOUT_MS);
       this.pongTimeout = timer;
-    }, 15000);
+    }, HEARTBEAT_INTERVAL_MS);
   }
 
   public send(msg: ServerMessage | PcpEnvelope<any>): boolean {
@@ -303,7 +320,7 @@ export class Connection {
       return false;
     }
 
-    const serialized = encode(msg as any);
+    const serialized = encode(msg as PcpMessage);
     const byteLength = Buffer.byteLength(serialized);
 
     // Check backpressure buffer
@@ -322,8 +339,8 @@ export class Connection {
           kind: 'event',
           id: `gap_${ulid()}`,
           ts: Date.now(),
-          sessionId: (msg as any).sessionId || '@daemon',
-          seq: (msg as any).seq || 0,
+          sessionId: msg.sessionId || '@daemon',
+          seq: msg.seq || 0,
           type: 'journal.gap',
           payload: { reason: 'Client buffer overrun: re-attach required' }
         });

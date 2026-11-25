@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../platform/runtime_mode.dart';
 import '../../domain/session/transcript_grouping.dart';
 
 @immutable
@@ -18,16 +19,11 @@ class StepGroupingSettings {
     this.showIntermediateAnswers = true,
   });
 
-  StepGroupingSettings copyWith({
-    StepGroupingMode? mode,
-    bool? autoCollapse,
-    bool? showIntermediateAnswers,
-  }) {
+  StepGroupingSettings copyWith({StepGroupingMode? mode, bool? autoCollapse, bool? showIntermediateAnswers}) {
     return StepGroupingSettings(
       mode: mode ?? this.mode,
       autoCollapse: autoCollapse ?? this.autoCollapse,
-      showIntermediateAnswers:
-          showIntermediateAnswers ?? this.showIntermediateAnswers,
+      showIntermediateAnswers: showIntermediateAnswers ?? this.showIntermediateAnswers,
     );
   }
 
@@ -53,9 +49,7 @@ class StepGroupingSettings {
     final parsedAutoCollapse = rawAutoCollapse is bool ? rawAutoCollapse : true;
 
     final rawShowIntermediateAnswers = json['showIntermediateAnswers'];
-    final parsedShowIntermediateAnswers = rawShowIntermediateAnswers is bool
-        ? rawShowIntermediateAnswers
-        : true;
+    final parsedShowIntermediateAnswers = rawShowIntermediateAnswers is bool ? rawShowIntermediateAnswers : true;
 
     return StepGroupingSettings(
       mode: parsedMode,
@@ -92,12 +86,10 @@ class StepGroupingSettingsNotifier extends StateNotifier<StepGroupingSettings> {
 
   File? _getStorageFile() {
     if (_customStorageFile != null) return _customStorageFile;
-    if (kIsWeb || Platform.environment.containsKey('FLUTTER_TEST')) return null;
+    if (!usesHomeDirectoryStorage) return null;
     try {
       final env = Platform.environment;
-      final home = Platform.isWindows
-          ? (env['USERPROFILE'] ?? 'C:\\Users\\Default')
-          : (env['HOME'] ?? '/tmp');
+      final home = Platform.isWindows ? (env['USERPROFILE'] ?? 'C:\\Users\\Default') : (env['HOME'] ?? '/tmp');
       final dir = Directory('$home/.piframe');
       if (!dir.existsSync()) {
         dir.createSync(recursive: true);
@@ -156,9 +148,6 @@ class StepGroupingSettingsNotifier extends StateNotifier<StepGroupingSettings> {
   }
 }
 
-final stepGroupingSettingsProvider =
-    StateNotifierProvider<StepGroupingSettingsNotifier, StepGroupingSettings>((
-      ref,
-    ) {
-      return StepGroupingSettingsNotifier();
-    });
+final stepGroupingSettingsProvider = StateNotifierProvider<StepGroupingSettingsNotifier, StepGroupingSettings>((ref) {
+  return StepGroupingSettingsNotifier();
+});

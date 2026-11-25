@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
+
 import '../../domain/update/update_models.dart';
 
 class DownloadProgress {
@@ -10,18 +12,30 @@ class DownloadProgress {
   final int totalBytes;
   final double fraction;
 
-  const DownloadProgress({
-    required this.downloadedBytes,
-    required this.totalBytes,
-    required this.fraction,
-  });
+  const DownloadProgress({required this.downloadedBytes, required this.totalBytes, required this.fraction});
+}
+
+/// Why an update check or download failed; the translation tables word it
+/// for the user (`updateFailureMessage`).
+enum UpdateFailure {
+  rateLimited,
+  checkFailed,
+  unreachable,
+  timeout,
+  unexpected,
+  invalidDownloadUrl,
+  downloadFailed,
+  cancelled,
+  emptyDownload,
 }
 
 class UpdateException implements Exception {
+  /// English technical message, for logs and details.
   final String message;
   final int? statusCode;
+  final UpdateFailure? failure;
 
-  const UpdateException(this.message, [this.statusCode]);
+  const UpdateException(this.message, {this.statusCode, this.failure});
 
   @override
   String toString() => message;
@@ -42,13 +56,9 @@ class GithubUpdateClient implements UpdateClient {
 
   static const defaultRepository = 'TrentiStefano/piframe';
 
-  GithubUpdateClient({
-    http.Client? client,
-    this.repository = defaultRepository,
-  }) : _client = client ?? http.Client();
+  GithubUpdateClient({http.Client? client, this.repository = defaultRepository}) : _client = client ?? http.Client();
 
-  Uri get _releasesLatestUri =>
-      Uri.https('api.github.com', '/repos/$repository/releases/latest');
+  Uri get _releasesLatestUri => Uri.https('api.github.com', '/repos/$repository/releases/latest');
 
   bool _isAllowedHost(String host) {
     final lower = host.toLowerCase();
@@ -64,13 +74,9 @@ class GithubUpdateClient implements UpdateClient {
   Future<AppRelease?> fetchLatestRelease() async {
     final uri = _releasesLatestUri;
     try {
-      final response = await _client.get(
-        uri,
-        headers: {
-          'Accept': 'application/vnd.github.v3+json',
-          'User-Agent': 'PiFrame-App',
-        },
-      ).timeout(const Duration(seconds: 15));
+      final response = await _client
+          .get(uri, headers: {'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'PiFrame-App'})
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -82,26 +88,28 @@ class GithubUpdateClient implements UpdateClient {
         return null;
       } else if (response.statusCode == 403 || response.statusCode == 429) {
         throw const UpdateException(
-          'Limite di richieste GitHub raggiunto. Riprova più tardi.',
-          403,
+          'GitHub rate limit reached. Try again later.',
+          statusCode: 403,
+          failure: UpdateFailure.rateLimited,
         );
       } else {
         throw UpdateException(
-          'Errore durante il controllo degli aggiornamenti (HTTP ${response.statusCode})',
-          response.statusCode,
+          'Update check failed (HTTP ${response.statusCode})',
+          statusCode: response.statusCode,
+          failure: UpdateFailure.checkFailed,
         );
       }
     } on SocketException {
       throw const UpdateException(
-        'Impossibile contattare GitHub. Verifica la connessione a Internet.',
+        'Cannot reach GitHub. Check the Internet connection.',
+
+        failure: UpdateFailure.unreachable,
       );
     } on TimeoutException {
-      throw const UpdateException(
-        'La richiesta di aggiornamento a GitHub è scaduta (timeout).',
-      );
+      throw const UpdateException('The GitHub update request timed out.', failure: UpdateFailure.timeout);
     } catch (e) {
       if (e is UpdateException) rethrow;
-      throw UpdateException('Errore imprevisto durante il controllo: $e');
+      throw UpdateException('Unexpected error while checking for updates: $e', failure: UpdateFailure.unexpected);
     }
   }
 
@@ -114,7 +122,9 @@ class GithubUpdateClient implements UpdateClient {
     final uri = Uri.tryParse(asset.downloadUrl);
     if (uri == null || uri.scheme != 'https' || !_isAllowedHost(uri.host)) {
       throw const UpdateException(
-        'URL di download non valido o dominio non autorizzato per sicurezza.',
+        'Invalid download URL or domain not allowed for security.',
+
+        failure: UpdateFailure.invalidDownloadUrl,
       );
     }
 
@@ -126,17 +136,15 @@ class GithubUpdateClient implements UpdateClient {
     }
 
     final request = http.Request('GET', uri)
-      ..headers.addAll({
-        'Accept': 'application/octet-stream',
-        'User-Agent': 'PiFrame-App',
-      });
+      ..headers.addAll({'Accept': 'application/octet-stream', 'User-Agent': 'PiFrame-App'});
 
     final streamedResponse = await _client.send(request);
 
     if (streamedResponse.statusCode != 200) {
       throw UpdateException(
-        'Errore durante il download del file di aggiornamento (HTTP ${streamedResponse.statusCode})',
-        streamedResponse.statusCode,
+        'Update download failed (HTTP ${streamedResponse.statusCode})',
+        statusCode: streamedResponse.statusCode,
+        failure: UpdateFailure.downloadFailed,
       );
     }
 
@@ -153,18 +161,12 @@ class GithubUpdateClient implements UpdateClient {
     try {
       await for (final chunk in streamedResponse.stream) {
         if (isCancelled) {
-          throw const UpdateException('Download annullato dall\'utente.');
+          throw const UpdateException('Download cancelled by the user.', failure: UpdateFailure.cancelled);
         }
         sink.add(chunk);
         downloadedBytes += chunk.length;
-        final fraction = totalBytes > 0
-            ? (downloadedBytes / totalBytes).clamp(0.0, 1.0)
-            : 0.0;
-        yield DownloadProgress(
-          downloadedBytes: downloadedBytes,
-          totalBytes: totalBytes,
-          fraction: fraction,
-        );
+        final fraction = totalBytes > 0 ? (downloadedBytes / totalBytes).clamp(0.0, 1.0) : 0.0;
+        yield DownloadProgress(downloadedBytes: downloadedBytes, totalBytes: totalBytes, fraction: fraction);
       }
       await sink.flush();
     } finally {
@@ -179,7 +181,7 @@ class GithubUpdateClient implements UpdateClient {
 
     // Verify downloaded file exists and is non-empty
     if (!await destFile.exists() || await destFile.length() == 0) {
-      throw const UpdateException('Il file scaricato è vuoto o non valido.');
+      throw const UpdateException('The downloaded file is empty or invalid.', failure: UpdateFailure.emptyDownload);
     }
   }
 

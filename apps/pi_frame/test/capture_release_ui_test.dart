@@ -20,8 +20,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 Directory _resolveRepoRoot() {
   var dir = Directory.current;
   for (var i = 0; i < 5; i++) {
-    if (File('${dir.path}/pnpm-workspace.yaml').existsSync() ||
-        Directory('${dir.path}/scratch').existsSync()) {
+    if (File('${dir.path}/pnpm-workspace.yaml').existsSync() || Directory('${dir.path}/scratch').existsSync()) {
       return dir;
     }
     if (dir.parent.path == dir.path) break;
@@ -41,11 +40,7 @@ Directory _getOutputDir() {
   return out;
 }
 
-Future<void> _captureToPng(
-  WidgetTester tester,
-  GlobalKey key,
-  String fileName,
-) async {
+Future<void> _captureToPng(WidgetTester tester, GlobalKey key, String fileName) async {
   await tester.pumpAndSettle();
   await tester.runAsync(() async {
     final boundary = key.currentContext?.findRenderObject() as RenderRepaintBoundary?;
@@ -67,62 +62,58 @@ class _MockPcpClient extends PcpClient {
 
   @override
   Future<Map<String, dynamic>> listSessions({String? query, int? limit}) async => {
-        'data': {
-          'sessions': [
-            {
-              'id': 'sess-1',
-              'name': 'Audit Dart consumers e integrazione grafica Linux',
-              'cwd': 'C:/Projects/pi-crust',
-              'updatedAt': 1729586000000,
-              'model': 'claude-3-7-sonnet',
-            },
-            {
-              'id': 'sess-2',
-              'name': 'Refactor UI Shell e navigazione pannelli',
-              'cwd': 'C:/Projects/pi-crust',
-              'updatedAt': 1729585000000,
-              'model': 'claude-3-7-sonnet',
-            },
-            {
-              'id': 'sess-3',
-              'name': 'Aggiungere syntax highlighting e Ctrl+F search',
-              'cwd': 'C:/Projects/pi-crust',
-              'updatedAt': 1729584000000,
-              'model': 'gpt-4o',
-            },
-            {
-              'id': 'sess-4',
-              'name': 'Ottimizzazione protocollo PCP e streaming token',
-              'cwd': 'C:/Projects/pi-crust',
-              'updatedAt': 1729583000000,
-              'model': 'claude-3-7-sonnet',
-            },
-            {
-              'id': 'sess-5',
-              'name': 'Aggiornamento dipendenze e audit SAIF',
-              'cwd': 'C:/Projects/pi-crust',
-              'updatedAt': 1729582000000,
-              'model': 'claude-3-5-sonnet',
-            },
-          ]
-        }
-      };
+    'data': {
+      'sessions': [
+        {
+          'id': 'sess-1',
+          'name': 'Audit Dart consumers e integrazione grafica Linux',
+          'cwd': 'C:/Projects/pi-crust',
+          'updatedAt': 1729586000000,
+          'model': 'claude-3-7-sonnet',
+        },
+        {
+          'id': 'sess-2',
+          'name': 'Refactor UI Shell e navigazione pannelli',
+          'cwd': 'C:/Projects/pi-crust',
+          'updatedAt': 1729585000000,
+          'model': 'claude-3-7-sonnet',
+        },
+        {
+          'id': 'sess-3',
+          'name': 'Aggiungere syntax highlighting e Ctrl+F search',
+          'cwd': 'C:/Projects/pi-crust',
+          'updatedAt': 1729584000000,
+          'model': 'gpt-4o',
+        },
+        {
+          'id': 'sess-4',
+          'name': 'Ottimizzazione protocollo PCP e streaming token',
+          'cwd': 'C:/Projects/pi-crust',
+          'updatedAt': 1729583000000,
+          'model': 'claude-3-7-sonnet',
+        },
+        {
+          'id': 'sess-5',
+          'name': 'Aggiornamento dipendenze e audit SAIF',
+          'cwd': 'C:/Projects/pi-crust',
+          'updatedAt': 1729582000000,
+          'model': 'claude-3-5-sonnet',
+        },
+      ],
+    },
+  };
 }
 
 void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
-    final ui = FontLoader('SchibstedGrotesk')
-      ..addFont(rootBundle.load('assets/fonts/SchibstedGrotesk.ttf'));
+    final ui = FontLoader('SchibstedGrotesk')..addFont(rootBundle.load('assets/fonts/SchibstedGrotesk.ttf'));
     await ui.load();
-    final mono = FontLoader('SourceCodePro')
-      ..addFont(rootBundle.load('assets/fonts/SourceCodePro.ttf'));
+    final mono = FontLoader('SourceCodePro')..addFont(rootBundle.load('assets/fonts/SourceCodePro.ttf'));
     await mono.load();
-    final heading = FontLoader('BarlowCondensed')
-      ..addFont(rootBundle.load('assets/fonts/BarlowCondensed-Bold.ttf'));
+    final heading = FontLoader('BarlowCondensed')..addFont(rootBundle.load('assets/fonts/BarlowCondensed-Bold.ttf'));
     await heading.load();
-    final icons = FontLoader('MaterialIcons')
-      ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
+    final icons = FontLoader('MaterialIcons')..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
     await icons.load();
   });
 
@@ -149,9 +140,7 @@ void main() {
           pcpClientProvider.overrideWithValue(mockClient),
           desktopChromeProvider.overrideWithValue(false),
           desktopWindowLifecycleProvider.overrideWithValue(false),
-          connectionStateProvider.overrideWith(
-            (ref) => Stream.value(DaemonConnectionState.connected),
-          ),
+          connectionStateProvider.overrideWith((ref) => Stream.value(DaemonConnectionState.connected)),
           sessionListProvider.overrideWith(
             (ref) => Future.value([
               {
@@ -192,10 +181,7 @@ void main() {
           theme: repo.activeTheme.toThemeData(),
           debugShowCheckedModeBanner: false,
           home: Scaffold(
-            body: RepaintBoundary(
-              key: boundaryKey,
-              child: const AppShell(),
-            ),
+            body: RepaintBoundary(key: boundaryKey, child: const AppShell()),
           ),
         ),
       ),
@@ -204,7 +190,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('Sessioni recenti'), findsOneWidget);
+    expect(find.text('Recent sessions'), findsOneWidget);
     expect(find.text('Audit Dart consumers e grafica Linux'), findsOneWidget);
 
     await _captureToPng(tester, boundaryKey, '01_landing_quick_launch.png');
@@ -227,9 +213,7 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          themeRepositoryProvider.overrideWithValue(repo),
-        ],
+        overrides: [themeRepositoryProvider.overrideWithValue(repo)],
         child: MaterialApp(
           theme: repo.activeTheme.toThemeData(),
           debugShowCheckedModeBanner: false,
@@ -249,7 +233,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
 
-    // Tap "Genera con Pi" button
+    // Tap "Generate with Pi" button
     final generateBtn = find.byKey(const ValueKey('instruction-generate-pi-btn'));
     expect(generateBtn, findsOneWidget);
     await tester.tap(generateBtn);
@@ -276,9 +260,7 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          themeRepositoryProvider.overrideWithValue(repo),
-        ],
+        overrides: [themeRepositoryProvider.overrideWithValue(repo)],
         child: MaterialApp(
           theme: repo.activeTheme.toThemeData(),
           debugShowCheckedModeBanner: false,
@@ -292,10 +274,7 @@ void main() {
                   children: [
                     CustomPaint(
                       size: const Size(140, 140),
-                      painter: StartupAssembleOverlay.createAssemblePainter(
-                        progress: 0.68,
-                        tokens: FrameTokens.dark,
-                      ),
+                      painter: StartupAssembleOverlay.createAssemblePainter(progress: 0.68, tokens: FrameTokens.dark),
                     ),
                     const SizedBox(height: 24),
                     Text(
@@ -349,19 +328,14 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          themeRepositoryProvider.overrideWithValue(repo),
-        ],
+        overrides: [themeRepositoryProvider.overrideWithValue(repo)],
         child: MaterialApp(
           theme: repo.activeTheme.toThemeData(),
           debugShowCheckedModeBanner: false,
           home: Scaffold(
             backgroundColor: const Color(0xFF0F172A),
             body: Center(
-              child: RepaintBoundary(
-                key: boundaryKey,
-                child: const ThemeEditorDialog(),
-              ),
+              child: RepaintBoundary(key: boundaryKey, child: const ThemeEditorDialog()),
             ),
           ),
         ),
@@ -391,19 +365,14 @@ void main() {
 
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          themeRepositoryProvider.overrideWithValue(repo),
-        ],
+        overrides: [themeRepositoryProvider.overrideWithValue(repo)],
         child: MaterialApp(
           theme: repo.activeTheme.toThemeData(),
           debugShowCheckedModeBanner: false,
           home: Scaffold(
             body: RepaintBoundary(
               key: boundaryKey,
-              child: SettingsView(
-                onClose: () {},
-                initialTabIndex: 3,
-              ),
+              child: SettingsView(onClose: () {}, initialTabIndex: 3),
             ),
           ),
         ),
@@ -413,7 +382,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
 
-    expect(find.text('Lingua dell\'applicazione'), findsOneWidget);
+    expect(find.text('Application Language'), findsOneWidget);
 
     await _captureToPng(tester, boundaryKey, '05_appearance_settings.png');
   });

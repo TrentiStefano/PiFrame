@@ -2,6 +2,7 @@ import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { isRecord, type JsonRecord } from '../errors/errors.js';
 
 const COPILOT_HEADERS = {
   'User-Agent': 'GitHubCopilotChat/0.35.0',
@@ -14,7 +15,6 @@ const REQUEST_TIMEOUT_MS = 5_000;
 const RESPONSE_LIMIT_BYTES = 1_048_576;
 const CACHE_TTL_MS = 30_000;
 
-type RecordValue = Record<string, unknown>;
 type CopilotDiagnostic = { available: true } | { available: false; code: string; message: string };
 type CopilotResult = { allowedModelIds: Set<string>; diagnostic: CopilotDiagnostic };
 
@@ -25,8 +25,9 @@ type ServiceOptions = {
   cacheTtlMs?: number;
 };
 
-function isRecord(value: unknown): value is RecordValue {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+/** A JSON object that is not an array (the shared isRecord also accepts arrays). */
+function isPlainRecord(value: unknown): value is JsonRecord {
+  return isRecord(value) && !Array.isArray(value);
 }
 
 function readAuthFile(): unknown {
@@ -39,11 +40,18 @@ function readAuthFile(): unknown {
 }
 
 function authFingerprint(refresh: string, access: string, expires: unknown): string {
-  return crypto.createHash('sha256').update(JSON.stringify([refresh, access, expires])).digest('hex');
+  return crypto
+    .createHash('sha256')
+    .update(JSON.stringify([refresh, access, expires]))
+    .digest('hex');
 }
 
 function trustedModelsUrl(token: string): { url: string; individual: boolean } {
-  const proxy = token.split(';').map((part) => part.trim()).find((part) => part.startsWith('proxy-ep='))?.slice('proxy-ep='.length);
+  const proxy = token
+    .split(';')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith('proxy-ep='))
+    ?.slice('proxy-ep='.length);
   if (!proxy || !/^proxy\.(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+githubcopilot\.com$/i.test(proxy)) {
     throw new Error('UNTRUSTED_ENDPOINT');
   }
@@ -84,22 +92,26 @@ async function readJsonBounded(response: Response): Promise<unknown> {
 }
 
 function parseAllowedModelIds(raw: unknown, individual: boolean): Set<string> {
-  if (!isRecord(raw) || !Array.isArray(raw.data)) throw new Error('INVALID_MODEL_CATALOG');
+  if (!isPlainRecord(raw) || !Array.isArray(raw.data)) throw new Error('INVALID_MODEL_CATALOG');
   const items = raw.data;
   if (items.length > 10_000) throw new Error('INVALID_MODEL_CATALOG');
 
   const models = items.flatMap((item) => {
-    if (!isRecord(item) || typeof item.id !== 'string' || item.id.length === 0 || item.id.length > 256) return [];
-    const capabilities = isRecord(item.capabilities) ? item.capabilities : undefined;
-    const supports = capabilities && isRecord(capabilities.supports) ? capabilities.supports : undefined;
+    if (!isPlainRecord(item) || typeof item.id !== 'string' || item.id.length === 0 || item.id.length > 256) return [];
+    const capabilities = isPlainRecord(item.capabilities) ? item.capabilities : undefined;
+    const supports = capabilities && isPlainRecord(capabilities.supports) ? capabilities.supports : undefined;
     if (item.tools === false || supports?.tool_calls === false) return [];
-    return [{ id: item.id, picker: item.model_picker_enabled === true, state: isRecord(item.policy) ? item.policy.state : undefined }];
+    return [
+      {
+        id: item.id,
+        picker: item.model_picker_enabled === true,
+        state: isPlainRecord(item.policy) ? item.policy.state : undefined
+      }
+    ];
   });
   // Models without a policy (for example included Codex models) need no opt-in.
   const regular = models.filter((model) => model.picker && (model.state === undefined || model.state === 'enabled'));
-  const selected = regular.length > 0 || !individual
-    ? regular
-    : models.filter((model) => model.state === 'enabled');
+  const selected = regular.length > 0 || !individual ? regular : models.filter((model) => model.state === 'enabled');
   return new Set(selected.map((model) => model.id));
 }
 
@@ -121,10 +133,19 @@ export function createCopilotEntitlementService(options: ServiceOptions = {}) {
       } catch {
         return failure('NO_CREDENTIALS', 'GitHub Copilot credentials are unavailable.');
       }
-      const entry = isRecord(auth) && isRecord(auth['github-copilot']) ? auth['github-copilot'] : undefined;
-      if (!entry || entry.type !== 'oauth' || typeof entry.refresh !== 'string' || entry.refresh.length === 0 || entry.refresh.length > 8192 ||
-          typeof entry.access !== 'string' || entry.access.length === 0 || entry.access.length > 8192 ||
-          /[\r\n]/.test(entry.refresh) || /[\r\n]/.test(entry.access)) {
+      const entry = isPlainRecord(auth) && isPlainRecord(auth['github-copilot']) ? auth['github-copilot'] : undefined;
+      if (
+        !entry ||
+        entry.type !== 'oauth' ||
+        typeof entry.refresh !== 'string' ||
+        entry.refresh.length === 0 ||
+        entry.refresh.length > 8192 ||
+        typeof entry.access !== 'string' ||
+        entry.access.length === 0 ||
+        entry.access.length > 8192 ||
+        /[\r\n]/.test(entry.refresh) ||
+        /[\r\n]/.test(entry.access)
+      ) {
         return failure('NO_CREDENTIALS', 'GitHub Copilot credentials are unavailable.');
       }
 
@@ -144,7 +165,11 @@ export function createCopilotEntitlementService(options: ServiceOptions = {}) {
           });
           if (!response.ok) throw new Error('TOKEN_REFRESH_FAILED');
           const refreshed = await readJsonBounded(response);
-          if (!isRecord(refreshed) || typeof refreshed.token !== 'string' || typeof refreshed.expires_at !== 'number') {
+          if (
+            !isPlainRecord(refreshed) ||
+            typeof refreshed.token !== 'string' ||
+            typeof refreshed.expires_at !== 'number'
+          ) {
             throw new Error('TOKEN_REFRESH_FAILED');
           }
           token = refreshed.token;

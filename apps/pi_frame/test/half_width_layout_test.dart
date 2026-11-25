@@ -12,35 +12,35 @@ import 'package:pi_frame/ui/frame_pane_header.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 Widget _host(double width, Widget child) => MaterialApp(
-      theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
-      home: Scaffold(
-        body: Align(
-          alignment: Alignment.topLeft,
-          child: SizedBox(width: width, child: child),
-        ),
-      ),
-    );
+  theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+  home: Scaffold(
+    body: Align(
+      alignment: Alignment.topLeft,
+      child: SizedBox(width: width, child: child),
+    ),
+  ),
+);
 
 Widget _repositoryHeader() => Builder(
-      builder: (context) => workspacePaneHeader(
-        context,
-        'Repository',
-        Icons.folder_outlined,
-        companionTabLabels: const <WorkspacePane, String>{},
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            for (final icon in [
-              Icons.terminal_outlined,
-              Icons.more_horiz_outlined,
-              Icons.refresh_outlined,
-              Icons.chevron_left_outlined,
-            ])
-              FrameIconAction(icon: icon, tooltip: icon.codePoint.toString(), onPressed: () {}),
-          ],
-        ),
-      ),
-    );
+  builder: (context) => workspacePaneHeader(
+    context,
+    'Repository',
+    Icons.folder_outlined,
+    companionTabLabels: const <WorkspacePane, String>{},
+    trailing: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final icon in [
+          Icons.terminal_outlined,
+          Icons.more_horiz_outlined,
+          Icons.refresh_outlined,
+          Icons.chevron_left_outlined,
+        ])
+          FrameIconAction(icon: icon, tooltip: icon.codePoint.toString(), onPressed: () {}),
+      ],
+    ),
+  ),
+);
 
 void main() {
   group('Repository pane header', () {
@@ -50,10 +50,7 @@ void main() {
     testWidgets('keeps title and buttons on one line when wide', (tester) async {
       await tester.pumpWidget(_host(400, _repositoryHeader()));
       expect(tester.takeException(), isNull);
-      expect(
-        tester.getCenter(actions).dy,
-        moreOrLessEquals(tester.getCenter(title).dy, epsilon: 1),
-      );
+      expect(tester.getCenter(actions).dy, moreOrLessEquals(tester.getCenter(title).dy, epsilon: 1));
       expect(find.text('REPOSITORY'), findsOneWidget);
     });
 
@@ -76,23 +73,24 @@ void main() {
 
   group('Pane header actions on their own line', () {
     Widget header({required bool ownLine}) => FramePaneHeader(
-          title: 'Workspace implementation',
-          actionsOnOwnLine: ownLine,
-          actions: const [SizedBox(key: ValueKey('chip'), width: 300, height: 24)],
-        );
+      title: 'Workspace implementation',
+      actionsOnOwnLine: ownLine,
+      actions: const [SizedBox(key: ValueKey('chip'), width: 300, height: 24)],
+    );
 
     testWidgets('inline by default, under the title when asked', (tester) async {
       await tester.pumpWidget(_host(900, header(ownLine: false)));
       final titleY = tester.getCenter(find.text('Workspace implementation')).dy;
-      expect(tester.getCenter(find.byKey(const ValueKey('chip'))).dy,
-          moreOrLessEquals(titleY, epsilon: 2));
+      expect(tester.getCenter(find.byKey(const ValueKey('chip'))).dy, moreOrLessEquals(titleY, epsilon: 2));
       expect(find.byKey(const ValueKey('pane-header-actions-line')), findsNothing);
 
       await tester.pumpWidget(_host(520, header(ownLine: true)));
       expect(tester.takeException(), isNull);
       expect(find.byKey(const ValueKey('pane-header-actions-line')), findsOneWidget);
-      expect(tester.getTopLeft(find.byKey(const ValueKey('chip'))).dy,
-          greaterThan(tester.getBottomLeft(find.text('Workspace implementation')).dy - 1));
+      expect(
+        tester.getTopLeft(find.byKey(const ValueKey('chip'))).dy,
+        greaterThan(tester.getBottomLeft(find.text('Workspace implementation')).dy - 1),
+      );
     });
   });
 

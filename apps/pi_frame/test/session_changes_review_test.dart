@@ -23,15 +23,10 @@ class _ReviewWorkspaceClient extends PcpClient {
   _ReviewWorkspaceClient(this.refreshResult) : super(port: 0, token: 'test');
 
   @override
-  Future<Map<String, dynamic>> refreshWorkspace(
-    String sessionId, {
-    String? cwd,
-  }) =>
-      refreshResult();
+  Future<Map<String, dynamic>> refreshWorkspace(String sessionId, {String? cwd}) => refreshResult();
 }
 
-class _TestSessionChangesNotifier extends StateNotifier<SessionChangesState>
-    implements SessionChangesNotifier {
+class _TestSessionChangesNotifier extends StateNotifier<SessionChangesState> implements SessionChangesNotifier {
   _TestSessionChangesNotifier(super.state);
 
   @override
@@ -82,36 +77,27 @@ index ccb1dd3..d31323b 100644
 
   group('Review Changes provider tests', () {
     SessionState touchedSession() => const SessionState(
-          sessionId: 'session_review',
-          cwd: '/repo',
-          entries: [
-            SessionEntry(
-              id: 'tool-entry',
-              role: 'assistant',
-              text: '',
-              timestamp: 1,
-              toolCalls: [
-                ToolExecutionState(
-                  toolCallId: 'write-call',
-                  toolName: 'write',
-                  args: {'path': 'src/clean.dart'},
-                ),
-              ],
-            ),
+      sessionId: 'session_review',
+      cwd: '/repo',
+      entries: [
+        SessionEntry(
+          id: 'tool-entry',
+          role: 'assistant',
+          text: '',
+          timestamp: 1,
+          toolCalls: [
+            ToolExecutionState(toolCallId: 'write-call', toolName: 'write', args: {'path': 'src/clean.dart'}),
           ],
-        );
+        ),
+      ],
+    );
 
     test('daemon changed-file list excludes clean paths touched by Pi', () async {
       final client = _ReviewWorkspaceClient(
         () async => {
           'data': {
             'files': [
-              {
-                'path': 'src/real.dart',
-                'additions': 3,
-                'deletions': 1,
-                'status': 'modified',
-              },
+              {'path': 'src/real.dart', 'additions': 3, 'deletions': 1, 'status': 'modified'},
             ],
           },
         },
@@ -119,10 +105,8 @@ index ccb1dd3..d31323b 100644
       final container = ProviderContainer(
         overrides: [
           pcpClientProvider.overrideWithValue(client),
-          sessionStateFamily('session_review').overrideWith(
-            (ref) => SessionStateNotifier('session_review', null)
-              ..state = touchedSession(),
-          ),
+          sessionStateFamily('session_review')
+              .overrideWith((ref) => SessionStateNotifier('session_review', null)..state = touchedSession()),
         ],
       );
       addTearDown(container.dispose);
@@ -139,28 +123,22 @@ index ccb1dd3..d31323b 100644
       final offline = ProviderContainer(
         overrides: [
           pcpClientProvider.overrideWithValue(null),
-          sessionStateFamily('session_review').overrideWith(
-            (ref) => SessionStateNotifier('session_review', null)
-              ..state = touchedSession(),
-          ),
+          sessionStateFamily('session_review')
+              .overrideWith((ref) => SessionStateNotifier('session_review', null)..state = touchedSession()),
         ],
       );
       addTearDown(offline.dispose);
       final offlineState = offline.read(sessionChangesProvider('session_review'));
       expect(offlineState.files, isEmpty);
       expect(offlineState.totalAdditions, 0);
-      expect(offlineState.error, 'Daemon non connesso');
+      expect(offlineState.error, 'Daemon not connected');
 
-      final failingClient = _ReviewWorkspaceClient(
-        () async => throw StateError('workspace refresh failed'),
-      );
+      final failingClient = _ReviewWorkspaceClient(() async => throw StateError('workspace refresh failed'));
       final failing = ProviderContainer(
         overrides: [
           pcpClientProvider.overrideWithValue(failingClient),
-          sessionStateFamily('session_review').overrideWith(
-            (ref) => SessionStateNotifier('session_review', null)
-              ..state = touchedSession(),
-          ),
+          sessionStateFamily('session_review')
+              .overrideWith((ref) => SessionStateNotifier('session_review', null)..state = touchedSession()),
         ],
       );
       addTearDown(failing.dispose);
@@ -179,14 +157,19 @@ index ccb1dd3..d31323b 100644
         final gate = Completer<void>();
         gates.add(gate);
         await gate.future;
-        return {'data': {'files': [{'path': 'f$calls.dart', 'additions': 1, 'deletions': 0, 'status': 'modified'}]}};
+        return {
+          'data': {
+            'files': [
+              {'path': 'f$calls.dart', 'additions': 1, 'deletions': 0, 'status': 'modified'},
+            ],
+          },
+        };
       });
       final container = ProviderContainer(
         overrides: [
           pcpClientProvider.overrideWithValue(client),
-          sessionStateFamily('session_review').overrideWith(
-            (ref) => SessionStateNotifier('session_review', null)..state = touchedSession(),
-          ),
+          sessionStateFamily('session_review')
+              .overrideWith((ref) => SessionStateNotifier('session_review', null)..state = touchedSession()),
         ],
       );
       addTearDown(container.dispose);
@@ -212,83 +195,71 @@ index ccb1dd3..d31323b 100644
   });
 
   group('Review Changes UI tests', () {
-    testWidgets(
-      'Review changes button appears next to send button when agent finished and modified files',
-      (tester) async {
-        final mockSessionState = SessionState(
-          sessionId: 'session_1',
-          sessionName: 'Feature Session',
-          cwd: 'C:/projects/demo',
-          agentStatus: AgentStatus.settled, // Finished answering
-          entries: const [
-            SessionEntry(
-              id: 'entry_1',
-              role: 'assistant',
-              text: 'Modified files.',
-              timestamp: 123456,
-              toolCalls: [
-                ToolExecutionState(
-                  toolCallId: 'tc_1',
-                  toolName: 'write',
-                  args: {'path': 'lib/main.dart'},
+    testWidgets('Review changes button appears next to send button when agent finished and modified files', (
+      tester,
+    ) async {
+      final mockSessionState = SessionState(
+        sessionId: 'session_1',
+        sessionName: 'Feature Session',
+        cwd: 'C:/projects/demo',
+        agentStatus: AgentStatus.settled, // Finished answering
+        entries: const [
+          SessionEntry(
+            id: 'entry_1',
+            role: 'assistant',
+            text: 'Modified files.',
+            timestamp: 123456,
+            toolCalls: [
+              ToolExecutionState(toolCallId: 'tc_1', toolName: 'write', args: {'path': 'lib/main.dart'}),
+            ],
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            daemonEndpointProvider.overrideWith((ref) async => null),
+            sessionStateFamily('session_1')
+                .overrideWith((ref) => SessionStateNotifier('session_1', null)..state = mockSessionState),
+            sessionChangesProvider('session_1').overrideWith(
+              (ref) => SessionChangesNotifier(ref, 'session_1')
+                ..state = const SessionChangesState(
+                  files: [
+                    SessionChangedFile(
+                      path: 'lib/main.dart',
+                      filename: 'main.dart',
+                      directory: 'lib',
+                      additions: 12,
+                      deletions: 2,
+                    ),
+                  ],
                 ),
-              ],
             ),
           ],
-        );
-
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              daemonEndpointProvider.overrideWith((ref) async => null),
-              sessionStateFamily('session_1').overrideWith(
-                (ref) => SessionStateNotifier('session_1', null)..state = mockSessionState,
-              ),
-              sessionChangesProvider('session_1').overrideWith(
-                (ref) => SessionChangesNotifier(ref, 'session_1')
-                  ..state = const SessionChangesState(
-                    files: [
-                      SessionChangedFile(
-                        path: 'lib/main.dart',
-                        filename: 'main.dart',
-                        directory: 'lib',
-                        additions: 12,
-                        deletions: 2,
-                      ),
-                    ],
-                  ),
-              ),
-            ],
-            child: MaterialApp(
-              theme: ThemeData.dark().copyWith(
-                extensions: const [FrameTokens.dark],
-              ),
-              home: const Scaffold(
-                body: Composer(sessionId: 'session_1'),
-              ),
-            ),
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+            home: const Scaffold(body: Composer(sessionId: 'session_1')),
           ),
-        );
-        await tester.pumpAndSettle();
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        // The "Review changes" button should be visible on the left side of the "Invia" button
-        final reviewBtnFinder = find.byKey(const ValueKey('review-changes-btn'));
-        expect(reviewBtnFinder, findsOneWidget);
-        // Narrow rows show the icon; the tooltip names the action (the label appears on wide rows).
-        expect(find.byTooltip('Rivedi modifiche ai file'), findsOneWidget);
-        expect(find.text('Invia'), findsOneWidget);
+      // The "Review changes" button should be visible on the left side of the "Send" button
+      final reviewBtnFinder = find.byKey(const ValueKey('review-changes-btn'));
+      expect(reviewBtnFinder, findsOneWidget);
+      // Narrow rows show the icon; the tooltip names the action (the label appears on wide rows).
+      expect(find.byTooltip('Review file changes'), findsOneWidget);
+      expect(find.text('Send'), findsOneWidget);
 
-        // Verify button position: Review changes button should be to the left of Invia
-        final reviewCenter = tester.getCenter(reviewBtnFinder);
-        final sendCenter = tester.getCenter(find.text('Invia'));
-        expect(reviewCenter.dx, lessThan(sendCenter.dx));
-      },
-    );
+      // Verify button position: Review changes button should be to the left of Invia
+      final reviewCenter = tester.getCenter(reviewBtnFinder);
+      final sendCenter = tester.getCenter(find.text('Send'));
+      expect(reviewCenter.dx, lessThan(sendCenter.dx));
+    });
 
-    testWidgets(
-      'SessionChangesPane renders file list with file badges, additions and deletions',
-      (tester) async {
-        const sampleDiff = '''
+    testWidgets('SessionChangesPane renders file list with file badges, additions and deletions', (tester) async {
+      const sampleDiff = '''
 @@ -1,3 +1,4 @@
  line 1
 -old line 2
@@ -296,89 +267,81 @@ index ccb1dd3..d31323b 100644
  line 3
 ''';
 
-        final notifier = _TestSessionChangesNotifier(
-          const SessionChangesState(
-            files: [
-              SessionChangedFile(
-                path: 'apps/agentd/src/sessions/SessionIndex.ts',
-                filename: 'SessionIndex.ts',
-                directory: 'apps/agentd/src/sessions',
-                additions: 23,
-                deletions: 0,
-                diff: sampleDiff,
-              ),
-              SessionChangedFile(
-                path: 'apps/pi_frame/lib/data/daemon/pcp_client.dart',
-                filename: 'pcp_client.dart',
-                directory: 'apps/pi_frame/lib/data/daemon',
-                additions: 13,
-                deletions: 1,
-                diff: sampleDiff,
-              ),
-            ],
-            totalAdditions: 36,
-            totalDeletions: 1,
-          ),
-        );
+      final notifier = _TestSessionChangesNotifier(
+        const SessionChangesState(
+          files: [
+            SessionChangedFile(
+              path: 'apps/agentd/src/sessions/SessionIndex.ts',
+              filename: 'SessionIndex.ts',
+              directory: 'apps/agentd/src/sessions',
+              additions: 23,
+              deletions: 0,
+              diff: sampleDiff,
+            ),
+            SessionChangedFile(
+              path: 'apps/pi_frame/lib/data/daemon/pcp_client.dart',
+              filename: 'pcp_client.dart',
+              directory: 'apps/pi_frame/lib/data/daemon',
+              additions: 13,
+              deletions: 1,
+              diff: sampleDiff,
+            ),
+          ],
+          totalAdditions: 36,
+          totalDeletions: 1,
+        ),
+      );
 
-        bool closed = false;
+      bool closed = false;
 
-        await tester.pumpWidget(
-          ProviderScope(
-            overrides: [
-              sessionChangesProvider('session_1').overrideWith((ref) => notifier),
-            ],
-            child: MaterialApp(
-              theme: ThemeData.dark().copyWith(
-                extensions: const [FrameTokens.dark],
-              ),
-              home: Scaffold(
-                body: SessionChangesPane(
-                  sessionId: 'session_1',
-                  onClose: () => closed = true,
-                ),
-              ),
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [sessionChangesProvider('session_1').overrideWith((ref) => notifier)],
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+            home: Scaffold(
+              body: SessionChangesPane(sessionId: 'session_1', onClose: () => closed = true),
             ),
           ),
-        );
-        await tester.pumpAndSettle();
+        ),
+      );
+      await tester.pumpAndSettle();
 
-        // Title and count
-        expect(find.text('Rivedi modifiche'), findsOneWidget);
-        expect(find.text('2'), findsOneWidget);
+      // Title and count
+      expect(find.text('Review Changes'), findsOneWidget);
+      expect(find.text('2'), findsOneWidget);
 
-        // Files listed
-        expect(find.text('SessionIndex.ts'), findsOneWidget);
-        expect(find.text('apps/agentd/src/sessions'), findsOneWidget);
-        expect(find.text('+23'), findsOneWidget);
-        expect(find.text('-0'), findsOneWidget);
+      // Files listed
+      expect(find.text('SessionIndex.ts'), findsOneWidget);
+      expect(find.text('apps/agentd/src/sessions'), findsOneWidget);
+      expect(find.text('+23'), findsOneWidget);
+      expect(find.text('-0'), findsOneWidget);
 
-        expect(find.text('pcp_client.dart'), findsOneWidget);
-        expect(find.text('apps/pi_frame/lib/data/daemon'), findsOneWidget);
-        expect(find.text('+13'), findsOneWidget);
-        expect(find.text('-1'), findsOneWidget);
+      expect(find.text('pcp_client.dart'), findsOneWidget);
+      expect(find.text('apps/pi_frame/lib/data/daemon'), findsOneWidget);
+      expect(find.text('+13'), findsOneWidget);
+      expect(find.text('-1'), findsOneWidget);
 
-        // Click on SessionIndex.ts to expand diff
-        await tester.tap(find.byKey(const ValueKey('review-file-apps/agentd/src/sessions/SessionIndex.ts')));
-        await tester.pumpAndSettle();
+      // Click on SessionIndex.ts to expand diff
+      await tester.tap(find.byKey(const ValueKey('review-file-apps/agentd/src/sessions/SessionIndex.ts')));
+      await tester.pumpAndSettle();
 
-        // Diff lines should now be displayed
-        expect(find.byType(ReviewFileDiffViewer), findsOneWidget);
-        expect(find.textContaining('new line 2'), findsOneWidget);
+      // Diff lines should now be displayed
+      expect(find.byType(ReviewFileDiffViewer), findsOneWidget);
+      expect(find.textContaining('new line 2'), findsOneWidget);
 
-        // Toggle diff mode button
-        final toggleModeBtn = find.byKey(const ValueKey('toggle-diff-mode-btn'));
-        expect(toggleModeBtn, findsOneWidget);
-        await tester.tap(toggleModeBtn);
-        await tester.pumpAndSettle();
+      // Toggle diff mode button
+      final toggleModeBtn = find.byKey(const ValueKey('toggle-diff-mode-btn'));
+      expect(toggleModeBtn, findsOneWidget);
+      await tester.tap(toggleModeBtn);
+      await tester.pumpAndSettle();
 
-        // Close button
-        final closeBtn = find.byKey(const ValueKey('close-session-changes-btn'));
-        expect(closeBtn, findsOneWidget);
-        await tester.tap(closeBtn);
-        expect(closed, isTrue);
-      },
-    );
+      // Close button
+      final closeBtn = find.byKey(const ValueKey('close-session-changes-btn'));
+      expect(closeBtn, findsOneWidget);
+      await tester.tap(closeBtn);
+      expect(closed, isTrue);
+    });
 
     testWidgets(
       'AppShell layout switches to 50/50 split between Chat and SessionChangesPane with minimized sessions sidebar and hidden repo pane',
@@ -392,19 +355,13 @@ index ccb1dd3..d31323b 100644
             desktopWindowLifecycleProvider.overrideWithValue(false),
             desktopChromeProvider.overrideWithValue(false),
             activeSessionIdProvider.overrideWith((ref) => 'session_1'),
-            connectionStateProvider.overrideWith(
-              (ref) => Stream.value(DaemonConnectionState.connected),
-            ),
+            connectionStateProvider.overrideWith((ref) => Stream.value(DaemonConnectionState.connected)),
             sessionStateFamily('session_1').overrideWith(
-              (ref) => SessionStateNotifier('session_1', null)
-                ..state = const SessionState(
-                  sessionId: 'session_1',
-                  cwd: 'C:/repo',
-                ),
+              (ref) =>
+                  SessionStateNotifier('session_1', null)
+                    ..state = const SessionState(sessionId: 'session_1', cwd: 'C:/repo'),
             ),
-            repositoryStateProvider('session_1').overrideWith(
-              (ref) => RepositoryController('session_1', () => null),
-            ),
+            repositoryStateProvider('session_1').overrideWith((ref) => RepositoryController('session_1', () => null)),
             sessionChangesProvider('session_1').overrideWith(
               (ref) => SessionChangesNotifier(ref, 'session_1')
                 ..state = const SessionChangesState(
@@ -427,9 +384,7 @@ index ccb1dd3..d31323b 100644
           UncontrolledProviderScope(
             container: container,
             child: MaterialApp(
-              theme: ThemeData.dark().copyWith(
-                extensions: const [FrameTokens.dark],
-              ),
+              theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
               home: const AppShell(),
             ),
           ),
@@ -446,8 +401,8 @@ index ccb1dd3..d31323b 100644
         await tester.pumpAndSettle();
 
         // Now:
-        // 1. Sessions sidebar is minimized (showing collapsed strip with 'SESSIONI')
-        expect(find.text('SESSIONI'), findsOneWidget);
+        // 1. Sessions sidebar is minimized (showing collapsed strip with 'SESSIONS')
+        expect(find.text('SESSIONS'), findsOneWidget);
         // 2. Repository pane is hidden
         expect(find.byType(RepositoryPane), findsNothing);
         // 3. GitChangesPane is replaced by SessionChangesPane

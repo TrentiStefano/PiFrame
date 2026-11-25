@@ -1,13 +1,13 @@
 import 'dart:async';
-import 'dart:io';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/daemon/pcp_client.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_transcript.dart';
+import '../../data/platform/file_system_service.dart';
+import '../../data/platform/host_environment_service.dart';
 import '../../domain/session/session_state.dart';
 import 'task_notification_card.dart';
 
@@ -24,10 +24,13 @@ class SubagentItem {
   final int? timestamp;
   final bool isSteeringOpen;
   final bool isUnlinked;
+
   /// Agent definition the child ran as (`general-purpose`, `Explore`, ...).
   final String? agentType;
+
   /// One distinctive line of the task the agent was given.
   final String? prompt;
+
   /// What the agent is doing now (last tool call) or its last answer line.
   final String? activity;
   final int? startedAt;
@@ -104,28 +107,19 @@ class SubagentLiveState {
   final bool workerAlive;
   final bool workerGone;
 
-  const SubagentLiveState({
-    this.anyRunning,
-    this.idleSince,
-    this.workerAlive = false,
-    this.workerGone = false,
-  });
+  const SubagentLiveState({this.anyRunning, this.idleSince, this.workerAlive = false, this.workerGone = false});
 
-  factory SubagentLiveState.fromJson(Map<String, dynamic> json) =>
-      SubagentLiveState(
-        anyRunning: json['anyRunning'] is bool ? json['anyRunning'] as bool : null,
-        idleSince: (json['idleSince'] as num?)?.toInt(),
-        workerAlive: json['workerAlive'] == true,
-        workerGone: json['workerGone'] == true,
-      );
+  factory SubagentLiveState.fromJson(Map<String, dynamic> json) => SubagentLiveState(
+    anyRunning: json['anyRunning'] is bool ? json['anyRunning'] as bool : null,
+    idleSince: (json['idleSince'] as num?)?.toInt(),
+    workerAlive: json['workerAlive'] == true,
+    workerGone: json['workerGone'] == true,
+  );
 
   /// Nothing can be running: the worker reports idle, or it has gone.
   bool idleFor(Duration quiet, int now) =>
       workerGone ||
-      (workerAlive &&
-          anyRunning == false &&
-          idleSince != null &&
-          now - idleSince! >= quiet.inMilliseconds);
+      (workerAlive && anyRunning == false && idleSince != null && now - idleSince! >= quiet.inMilliseconds);
 
   @override
   bool operator ==(Object other) =>
@@ -140,10 +134,12 @@ class SubagentLiveState {
 }
 
 /// Per session, the live state from the last subagent refresh.
-final subagentLiveStateFamily =
-    StateProvider.family<SubagentLiveState, String>(
-      (ref, sessionId) => const SubagentLiveState(),
-    );
+final subagentLiveStateFamily = StateProvider.family<SubagentLiveState, String>(
+  (ref, sessionId) => const SubagentLiveState(),
+);
+
+/// How often the subagent list refreshes while any subagent is active.
+const _subagentRefreshInterval = Duration(seconds: 5);
 
 class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
   final Ref ref;
@@ -162,35 +158,32 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
 
   void _init() {
     _listenToSession();
-    _fetchFromDaemon();
+    unawaited(_fetchFromDaemon());
   }
 
   void _listenToSession() {
-    _subscription = ref.listen<SessionState>(
-      sessionStateFamily(sessionId),
-      (prev, next) {
-        _syncFromSessionState(next);
-        final shouldFetch = prev == null ||
-            prev.agentStatus != next.agentStatus ||
-            prev.activeToolCalls.length != next.activeToolCalls.length ||
-            prev.entries.length != next.entries.length;
-        if (shouldFetch) {
-          _fetchFromDaemon();
-        }
-      },
-      fireImmediately: true,
-    );
+    _subscription = ref.listen<SessionState>(sessionStateFamily(sessionId), (prev, next) {
+      _syncFromSessionState(next);
+      final shouldFetch =
+          prev == null ||
+          prev.agentStatus != next.agentStatus ||
+          prev.activeToolCalls.length != next.activeToolCalls.length ||
+          prev.entries.length != next.entries.length;
+      if (shouldFetch) {
+        unawaited(_fetchFromDaemon());
+      }
+    }, fireImmediately: true);
   }
 
   void _checkTimer() {
     // Child sessions run outside agentd, so its status can lag live activity.
-    final hasActive = state.any((s) => s.isRunning) ||
-        (state.isNotEmpty && ref.read(sessionStateFamily(sessionId)).isStreaming);
+    final hasActive =
+        state.any((s) => s.isRunning) || (state.isNotEmpty && ref.read(sessionStateFamily(sessionId)).isStreaming);
     if (hasActive) {
-      _refreshTimer ??= Timer.periodic(const Duration(seconds: 5), (_) {
+      _refreshTimer ??= Timer.periodic(_subagentRefreshInterval, (_) {
         _syncFromSessionState();
-        _fetchFromDaemon();
-        _readOutputFiles();
+        unawaited(_fetchFromDaemon());
+        unawaited(_readOutputFiles());
       });
     } else {
       _refreshTimer?.cancel();
@@ -232,29 +225,26 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
             if (subagent != null) {
               terminalResults.remove(subagent.id);
               final linked = _findByToolCallId(itemsMap, subagent.toolCallId);
-              final existing = linked ?? itemsMap[subagent.id] ??
+              final existing =
+                  linked ??
+                  itemsMap[subagent.id] ??
                   previousItems[subagent.id] ??
                   _findByToolCallId(previousItems, subagent.toolCallId);
               final id = existing?.id ?? subagent.id;
               latestLaunch[subagent.id] = entryIndex;
               latestLaunch[id] = entryIndex;
               if (id != subagent.id) itemsMap.remove(subagent.id);
-              final status = _locallyStopped.contains(id) ||
-                      _locallyStopped.contains(subagent.id)
+              final status = _locallyStopped.contains(id) || _locallyStopped.contains(subagent.id)
                   ? 'stopped'
-                  : _locallySteered.contains(id) ||
-                          _locallySteered.contains(subagent.id)
-                      ? 'steering'
-                      : subagent.status;
-              final isSteeringOpen = _openSteeringIds.contains(id) ||
-                  _openSteeringIds.contains(subagent.id);
+                  : _locallySteered.contains(id) || _locallySteered.contains(subagent.id)
+                  ? 'steering'
+                  : subagent.status;
+              final isSteeringOpen = _openSteeringIds.contains(id) || _openSteeringIds.contains(subagent.id);
               itemsMap[id] = subagent.copyWith(
                 id: id,
                 name: existing?.name ?? subagent.name,
                 model: subagent.model ?? existing?.model,
-                output: subagent.output.isNotEmpty
-                    ? subagent.output
-                    : existing?.output ?? '',
+                output: subagent.output.isNotEmpty ? subagent.output : existing?.output ?? '',
                 cost: subagent.cost ?? existing?.cost,
                 description: existing?.description ?? subagent.description,
                 outputFile: subagent.outputFile ?? existing?.outputFile,
@@ -275,27 +265,24 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
           final subagent = _parseFromTool(tool);
           if (subagent != null) {
             final linked = _findByToolCallId(itemsMap, subagent.toolCallId);
-            final existing = linked ?? itemsMap[subagent.id] ??
+            final existing =
+                linked ??
+                itemsMap[subagent.id] ??
                 previousItems[subagent.id] ??
                 _findByToolCallId(previousItems, subagent.toolCallId);
             final id = existing?.id ?? subagent.id;
             if (id != subagent.id) itemsMap.remove(subagent.id);
-            final status = _locallyStopped.contains(id) ||
-                    _locallyStopped.contains(subagent.id)
+            final status = _locallyStopped.contains(id) || _locallyStopped.contains(subagent.id)
                 ? 'stopped'
-                : _locallySteered.contains(id) ||
-                        _locallySteered.contains(subagent.id)
-                    ? 'steering'
-                    : (tool.isRunning ? 'running' : subagent.status);
-            final isSteeringOpen = _openSteeringIds.contains(id) ||
-                _openSteeringIds.contains(subagent.id);
+                : _locallySteered.contains(id) || _locallySteered.contains(subagent.id)
+                ? 'steering'
+                : (tool.isRunning ? 'running' : subagent.status);
+            final isSteeringOpen = _openSteeringIds.contains(id) || _openSteeringIds.contains(subagent.id);
             itemsMap[id] = subagent.copyWith(
               id: id,
               name: existing?.name ?? subagent.name,
               model: subagent.model ?? existing?.model,
-              output: subagent.output.isNotEmpty
-                  ? subagent.output
-                  : existing?.output ?? '',
+              output: subagent.output.isNotEmpty ? subagent.output : existing?.output ?? '',
               cost: subagent.cost ?? existing?.cost,
               description: existing?.description ?? subagent.description,
               outputFile: subagent.outputFile ?? existing?.outputFile,
@@ -319,29 +306,29 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
 
       // Notifications update an existing agent; they are not agent launches.
       for (final (notification, timestamp, entryIndex) in notifications) {
-        final existing = itemsMap[notification.taskId] ??
-            _findByToolCallId(itemsMap, notification.toolUseId);
+        final existing = itemsMap[notification.taskId] ?? _findByToolCallId(itemsMap, notification.toolUseId);
         if (existing == null) continue;
         if ((latestLaunch[notification.taskId] ?? latestLaunch[existing.id] ?? -1) > entryIndex ||
             (terminalResults[notification.taskId]?.$2 ?? -1) > entryIndex) {
           continue;
         }
-        final id = existing.id == existing.toolCallId
-            ? notification.taskId
-            : existing.id;
+        final id = existing.id == existing.toolCallId ? notification.taskId : existing.id;
         if (id != existing.id) itemsMap.remove(existing.id);
         _locallySteered.remove(id);
         if (existing.toolCallId != null) _locallySteered.remove(existing.toolCallId);
         final statusText = notification.status.toLowerCase();
-        final isActive = existing.toolCallId != null &&
-            sessionState.activeToolCalls[existing.toolCallId]?.isRunning == true;
-        final status = isActive ? 'running' :
-            statusText.contains('error') || statusText.contains('fail') ? 'error' :
-            statusText.contains('stop') || statusText.contains('cancel') || statusText.contains('abort') ? 'stopped' :
-            statusText.contains('wrapped') || statusText.contains('steered') ? 'steered' :
-            'completed';
-        final summaryName = RegExp(r'Agent\s+"([^"]+)"')
-            .firstMatch(notification.summary)?.group(1);
+        final isActive =
+            existing.toolCallId != null && sessionState.activeToolCalls[existing.toolCallId]?.isRunning == true;
+        final status = isActive
+            ? 'running'
+            : statusText.contains('error') || statusText.contains('fail')
+            ? 'error'
+            : statusText.contains('stop') || statusText.contains('cancel') || statusText.contains('abort')
+            ? 'stopped'
+            : statusText.contains('wrapped') || statusText.contains('steered')
+            ? 'steered'
+            : 'completed';
+        final summaryName = RegExp(r'Agent\s+"([^"]+)"').firstMatch(notification.summary)?.group(1);
         itemsMap[id] = existing.copyWith(
           id: id,
           name: existing.description ?? summaryName ?? existing.name,
@@ -366,19 +353,14 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
     try {
       // Keep one request in flight so a slow response is not discarded or duplicated.
       // A daemon that never answers must not block every later refresh.
-      final response = await client
-          .getSubagentsWithLive(sessionId)
-          .timeout(const Duration(seconds: 30));
+      final response = await client.getSubagentsWithLive(sessionId).timeout(const Duration(seconds: 30));
       if (!mounted) return;
       final daemonSubagents = response.subagents;
       final live = SubagentLiveState.fromJson(response.live);
       final liveState = ref.read(subagentLiveStateFamily(sessionId).notifier);
       if (liveState.state != live) liveState.state = live;
       final nextIds = daemonSubagents.map((raw) => raw['id']).toSet();
-      final removedIds = _daemonSubagents
-          .map((raw) => raw['id'])
-          .where((id) => !nextIds.contains(id))
-          .toSet();
+      final removedIds = _daemonSubagents.map((raw) => raw['id']).where((id) => !nextIds.contains(id)).toSet();
       if (removedIds.isNotEmpty) {
         state = state.where((item) => !removedIds.contains(item.id)).toList();
       }
@@ -396,22 +378,19 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
       if (id.isEmpty) continue;
       final model = raw['model']?.toString();
       final rawCost = raw['cost'];
-      final cost = rawCost is num && rawCost.isFinite && rawCost >= 0
-          ? rawCost.toDouble()
-          : null;
+      final cost = rawCost is num && rawCost.isFinite && rawCost >= 0 ? rawCost.toDouble() : null;
       final output = (raw['output'] ?? '').toString();
       final toolCallId = raw['toolCallId']?.toString();
       final childSessionId = raw['sessionId']?.toString();
       final linked = _findByToolCallId(itemsMap, toolCallId);
       final existing = itemsMap[id] ?? linked ?? itemsMap[childSessionId];
       // A response for an earlier run must not overwrite a resumed launch.
-      if (existing != null && toolCallId != null && existing.toolCallId != null &&
-          toolCallId != existing.toolCallId) {
+      if (existing != null && toolCallId != null && existing.toolCallId != null && toolCallId != existing.toolCallId) {
         continue;
       }
-      final name = (raw['unlinked'] == true
-          ? raw['name'] ?? id
-          : raw['description'] ?? existing?.name ?? raw['name'] ?? id).toString();
+      final name =
+          (raw['unlinked'] == true ? raw['name'] ?? id : raw['description'] ?? existing?.name ?? raw['name'] ?? id)
+              .toString();
       final activeTool = toolCallId == null
           ? null
           : ref.read(sessionStateFamily(sessionId)).activeToolCalls[toolCallId];
@@ -449,30 +428,27 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
 
   static int? _epochMs(Object? value) => value is num && value.isFinite ? value.toInt() : null;
 
-  void _readOutputFiles() {
+  Future<void> _readOutputFiles() async {
     // Subagent output files are read from the host disk; the browser gets the
     // streamed output from the daemon instead.
-    if (kIsWeb) return;
-    bool changed = false;
-    final updated = state.map((item) {
-      if (item.outputFile != null && item.outputFile!.isNotEmpty) {
-        try {
-          final file = File(item.outputFile!);
-          if (file.existsSync()) {
-            final content = file.readAsStringSync();
-            if (content.isNotEmpty && content != item.output) {
-              changed = true;
-              return item.copyWith(output: content);
-            }
-          }
-        } catch (_) {}
-      }
-      return item;
-    }).toList();
-
-    if (changed) {
-      state = updated;
+    if (ref.read(hostEnvironmentServiceProvider).isWeb) return;
+    final files = ref.read(fileSystemServiceProvider);
+    final fresh = <SubagentItem, String>{};
+    for (final item in state) {
+      final path = item.outputFile;
+      if (path == null || path.isEmpty) continue;
+      try {
+        if (!await files.fileExists(path)) continue;
+        final content = await files.readText(path);
+        if (content.isNotEmpty && content != item.output) fresh[item] = content;
+      } catch (_) {}
     }
+    if (!mounted || fresh.isEmpty) return;
+
+    state = [
+      for (final item in state)
+        if (fresh[item] case final content?) item.copyWith(output: content) else item,
+    ];
   }
 
   bool _isSubagentTool(ToolExecutionState tool) {
@@ -484,19 +460,14 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
         lower == 'subagentworkflow') {
       return false;
     }
-    if (const {
-      'agent', 'subagent', 'delegate', 'spawn_agent', 'run_agent', 'invoke_agent',
-    }.contains(lower)) {
+    if (const {'agent', 'subagent', 'delegate', 'spawn_agent', 'run_agent', 'invoke_agent'}.contains(lower)) {
       return true;
     }
     final subagentType = tool.args['subagent_type'];
     return subagentType is String && subagentType.toLowerCase() == lower;
   }
 
-  SubagentItem? _findByToolCallId(
-    Map<String, SubagentItem> items,
-    String? toolCallId,
-  ) {
+  SubagentItem? _findByToolCallId(Map<String, SubagentItem> items, String? toolCallId) {
     if (toolCallId == null || toolCallId.isEmpty) return null;
     for (final item in items.values) {
       if (item.toolCallId == toolCallId) return item;
@@ -504,9 +475,7 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
     return null;
   }
 
-  void _recordTerminalResult(
-    ToolExecutionState tool, Map<String, (String, int)> results, int entryIndex,
-  ) {
+  void _recordTerminalResult(ToolExecutionState tool, Map<String, (String, int)> results, int entryIndex) {
     if (tool.toolName.toLowerCase() != 'get_subagent_result' || tool.isRunning || tool.isError) return;
     final match = RegExp(
       r'^Agent:\s*([^\r\n]+)\r?\nType:[^\r\n]*\|\s*Status:\s*(completed|error|steered|stopped|aborted)\b',
@@ -561,12 +530,11 @@ class SubagentsNotifier extends StateNotifier<List<SubagentItem>> {
       if (fileMatch != null && fileMatch.group(1) != null) {
         outputFile = fileMatch.group(1)!.trim();
       }
-
     }
 
-    final launchedInBackground = tool.toolName.toLowerCase() == 'agent' &&
-        RegExp(r'(^|\n)Agent (started|queued) in background\.', caseSensitive: false)
-            .hasMatch(output);
+    final launchedInBackground =
+        tool.toolName.toLowerCase() == 'agent' &&
+        RegExp(r'(^|\n)Agent (started|queued) in background\.', caseSensitive: false).hasMatch(output);
     final status = tool.isError
         ? 'error'
         : tool.isRunning || launchedInBackground

@@ -28,17 +28,9 @@ class PackageUpdateInfo {
   final String currentVersion;
   final String latestVersion;
 
-  const PackageUpdateInfo({
-    required this.name,
-    required this.currentVersion,
-    required this.latestVersion,
-  });
+  const PackageUpdateInfo({required this.name, required this.currentVersion, required this.latestVersion});
 
-  Map<String, dynamic> toJson() => {
-    'name': name,
-    'currentVersion': currentVersion,
-    'latestVersion': latestVersion,
-  };
+  Map<String, dynamic> toJson() => {'name': name, 'currentVersion': currentVersion, 'latestVersion': latestVersion};
 
   @override
   bool operator ==(Object other) =>
@@ -50,8 +42,7 @@ class PackageUpdateInfo {
           latestVersion == other.latestVersion;
 
   @override
-  int get hashCode =>
-      name.hashCode ^ currentVersion.hashCode ^ latestVersion.hashCode;
+  int get hashCode => name.hashCode ^ currentVersion.hashCode ^ latestVersion.hashCode;
 }
 
 class StartupUpdateState {
@@ -111,10 +102,8 @@ class DefaultStartupUpdateChecker implements StartupUpdateChecker {
   final http.Client _httpClient;
   final Future<List<Map<String, dynamic>>> Function() listPackages;
 
-  DefaultStartupUpdateChecker({
-    required this.listPackages,
-    http.Client? httpClient,
-  }) : _httpClient = httpClient ?? http.Client();
+  DefaultStartupUpdateChecker({required this.listPackages, http.Client? httpClient})
+    : _httpClient = httpClient ?? http.Client();
 
   void dispose() => _httpClient.close();
 
@@ -142,11 +131,7 @@ class DefaultStartupUpdateChecker implements StartupUpdateChecker {
   @override
   Future<String?> checkLatestPiVersion() async {
     final res = await _httpClient
-        .get(
-          Uri.parse(
-            'https://registry.npmjs.org/@earendil-works%2Fpi-coding-agent/latest',
-          ),
-        )
+        .get(Uri.parse('https://registry.npmjs.org/@earendil-works%2Fpi-coding-agent/latest'))
         .timeout(const Duration(seconds: 4));
     if (res.statusCode != 200) {
       throw StateError('Pi registry check failed: HTTP ${res.statusCode}');
@@ -273,9 +258,7 @@ class StartupUpdatesNotifier extends StateNotifier<StartupUpdateState> {
 
   Future<void> refreshPackages() {
     if (!mounted) return Future.value();
-    final refresh = (_pendingCheck ?? Future<void>.value()).then<void>((
-      _,
-    ) async {
+    final refresh = (_pendingCheck ?? Future<void>.value()).then<void>((_) async {
       if (!mounted) return;
       await _refreshPackages();
     });
@@ -290,19 +273,11 @@ class StartupUpdatesNotifier extends StateNotifier<StartupUpdateState> {
     try {
       final packages = await _checker.checkOutdatedPackages();
       if (!mounted) return;
-      state = state.copyWith(
-        isChecking: false,
-        hasChecked: true,
-        outdatedPackages: packages,
-      );
+      state = state.copyWith(isChecking: false, hasChecked: true, outdatedPackages: packages);
     } catch (error) {
       if (!mounted) return;
       debugPrint('Package update check failed: $error');
-      state = state.copyWith(
-        isChecking: false,
-        hasChecked: true,
-        error: error.toString(),
-      );
+      state = state.copyWith(isChecking: false, hasChecked: true, error: error.toString());
     }
   }
 
@@ -311,7 +286,6 @@ class StartupUpdatesNotifier extends StateNotifier<StartupUpdateState> {
   }
 }
 
-final startupUpdatesProvider =
-    StateNotifierProvider<StartupUpdatesNotifier, StartupUpdateState>((ref) {
-      return StartupUpdatesNotifier(ref);
-    });
+final startupUpdatesProvider = StateNotifierProvider<StartupUpdatesNotifier, StartupUpdateState>((ref) {
+  return StartupUpdatesNotifier(ref);
+});

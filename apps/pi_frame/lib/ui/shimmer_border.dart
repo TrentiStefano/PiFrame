@@ -1,20 +1,21 @@
 import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
-import '../data/platform/widget_test_binding.dart';
 
 /// Accent ring around an active composer.
 ///
 /// Normal motion: an animated light beam sweeps around the ring, with a visible
 /// atmospheric glow halo that surrounds the composer box while the agent is active.
 ///
-/// Reduced motion, phone-web, and tests: a static accent ring with no loop.
+/// Reduced motion, phone-web, and [animate] false (the caller's test-environment check): a static accent ring with no loop.
 class ShimmerBorder extends StatefulWidget {
   final bool isActive;
   final Widget child;
   final BorderRadius borderRadius;
   final double strokeWidth;
+  final bool animate;
 
   const ShimmerBorder({
     super.key,
@@ -22,14 +23,14 @@ class ShimmerBorder extends StatefulWidget {
     required this.child,
     required this.borderRadius,
     this.strokeWidth = 2.0,
+    this.animate = true,
   });
 
   @override
   State<ShimmerBorder> createState() => _ShimmerBorderState();
 }
 
-class _ShimmerBorderState extends State<ShimmerBorder>
-    with SingleTickerProviderStateMixin {
+class _ShimmerBorderState extends State<ShimmerBorder> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
   /// Phone browsers (canvaskit) cannot sustain a 60fps blurred sweep + animated shadow around the
@@ -42,10 +43,7 @@ class _ShimmerBorderState extends State<ShimmerBorder>
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: FrameMotionTokens.shimmerLoop,
-    );
+    _controller = AnimationController(vsync: this, duration: FrameMotionTokens.shimmerLoop);
   }
 
   @override
@@ -56,7 +54,7 @@ class _ShimmerBorderState extends State<ShimmerBorder>
     _syncAnimation();
   }
 
-  bool get _animates => widget.isActive && !isWidgetTestBinding && !_lite && !_reduced;
+  bool get _animates => widget.isActive && widget.animate && !_lite && !_reduced;
 
   void _syncAnimation() {
     if (_animates) {
@@ -98,10 +96,7 @@ class _ShimmerBorderState extends State<ShimmerBorder>
         decoration: BoxDecoration(
           borderRadius: widget.borderRadius,
           // Thin, softened accent: a 2px bright ring looked heavy around the phone composer.
-          border: Border.all(
-            color: tokens.accent.withValues(alpha: 0.7),
-            width: math.min(widget.strokeWidth, 1.25),
-          ),
+          border: Border.all(color: tokens.accent.withValues(alpha: 0.7), width: math.min(widget.strokeWidth, 1.25)),
         ),
         child: widget.child,
       );

@@ -1,9 +1,15 @@
 import 'dart:io';
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:desktop_drop/desktop_drop.dart';
 import 'package:pi_frame/data/daemon/daemon_providers.dart';
+import 'package:pi_frame/data/platform/drop_target_service.dart';
+import 'package:pi_frame/data/platform/file_dialog_service.dart';
+
+import 'support/fake_platform_services.dart';
+
 import 'package:pi_frame/domain/session/attachment_model.dart';
 import 'package:pi_frame/domain/session/session_state.dart';
 import 'package:pi_frame/domain/session/agent_status.dart';
@@ -18,12 +24,7 @@ void main() {
   group('Attachment model tests', () {
     test('encodeAttachmentsTag and parseAttachmentsFromText round-trip correctly', () {
       final attachments = [
-        const ChatAttachment(
-          id: 'att_1',
-          type: AttachmentType.repoFile,
-          name: 'main.dart',
-          pathOrUrl: 'lib/main.dart',
-        ),
+        const ChatAttachment(id: 'att_1', type: AttachmentType.repoFile, name: 'main.dart', pathOrUrl: 'lib/main.dart'),
         const ChatAttachment(
           id: 'att_2',
           type: AttachmentType.externalFile,
@@ -78,28 +79,21 @@ void main() {
       return ProviderScope(
         overrides: [
           sessionStateFamily('s_att_test').overrideWith(
-            (ref) => SessionStateNotifier('s_att_test', null)
-              ..state = const SessionState(
-                sessionId: 's_att_test',
-                cwd: '/test',
-                agentStatus: AgentStatus.settled,
-              ),
+            (ref) =>
+                SessionStateNotifier('s_att_test', null)
+                  ..state = const SessionState(sessionId: 's_att_test', cwd: '/test', agentStatus: AgentStatus.settled),
           ),
         ],
         child: MaterialApp(
           theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: const Scaffold(
-            body: SingleChildScrollView(
-              child: Composer(sessionId: 's_att_test'),
-            ),
+            body: SingleChildScrollView(child: Composer(sessionId: 's_att_test')),
           ),
         ),
       );
     }
 
-    testWidgets('shows popup-dropdown with 4 attachment options on attach button click', (
-      tester,
-    ) async {
+    testWidgets('shows popup-dropdown with 4 attachment options on attach button click', (tester) async {
       await tester.pumpWidget(wrapComposer(null));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
@@ -114,30 +108,25 @@ void main() {
 
       // Verify the 4 options appear in the popup-dropdown
       expect(find.byKey(const ValueKey('attach-option-repo')), findsOneWidget);
-      expect(find.text('File dal repository'), findsOneWidget);
+      expect(find.text('File from repository'), findsOneWidget);
 
       expect(find.byKey(const ValueKey('attach-option-external')), findsOneWidget);
-      expect(find.text('File esterno'), findsOneWidget);
+      expect(find.text('External file'), findsOneWidget);
 
       expect(find.byKey(const ValueKey('attach-option-link')), findsOneWidget);
-      expect(find.text('Link web'), findsOneWidget);
+      expect(find.text('Web link'), findsOneWidget);
 
       expect(find.byKey(const ValueKey('attach-option-image')), findsOneWidget);
-      expect(find.text('Immagine'), findsOneWidget);
+      expect(find.text('Image'), findsOneWidget);
     });
 
-    testWidgets('renders attachment chips in composer and allows removing', (
-      tester,
-    ) async {
+    testWidgets('renders attachment chips in composer and allows removing', (tester) async {
       final container = ProviderContainer(
         overrides: [
           sessionStateFamily('s_att_test').overrideWith(
-            (ref) => SessionStateNotifier('s_att_test', null)
-              ..state = const SessionState(
-                sessionId: 's_att_test',
-                cwd: '/test',
-                agentStatus: AgentStatus.settled,
-              ),
+            (ref) =>
+                SessionStateNotifier('s_att_test', null)
+                  ..state = const SessionState(sessionId: 's_att_test', cwd: '/test', agentStatus: AgentStatus.settled),
           ),
         ],
       );
@@ -165,9 +154,7 @@ void main() {
           child: MaterialApp(
             theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
             home: const Scaffold(
-              body: SingleChildScrollView(
-                child: Composer(sessionId: 's_att_test'),
-              ),
+              body: SingleChildScrollView(child: Composer(sessionId: 's_att_test')),
             ),
           ),
         ),
@@ -194,9 +181,7 @@ void main() {
   });
 
   group('Chat transcript attachments rendering and lightbox tests', () {
-    testWidgets('renders file box, web link, and image preview with lightbox popup', (
-      tester,
-    ) async {
+    testWidgets('renders file box, web link, and image preview with lightbox popup', (tester) async {
       final tempDir = Directory.systemTemp.createTempSync('pi_frame_img_test_');
       addTearDown(() {
         if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
@@ -229,12 +214,7 @@ void main() {
           name: 'Dashboard URL',
           pathOrUrl: 'https://dashboard.example.com',
         ),
-        ChatAttachment(
-          id: 'user_att_img',
-          type: AttachmentType.image,
-          name: 'diagram.png',
-          pathOrUrl: testImg.path,
-        ),
+        ChatAttachment(id: 'user_att_img', type: AttachmentType.image, name: 'diagram.png', pathOrUrl: testImg.path),
       ];
 
       final tag = encodeAttachmentsTag(attachments);
@@ -257,18 +237,13 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionStateFamily('s_view_test').overrideWith(
-              (ref) => SessionStateNotifier('s_view_test', null)..state = state,
-            ),
+            sessionStateFamily('s_view_test')
+                .overrideWith((ref) => SessionStateNotifier('s_view_test', null)..state = state),
           ],
           child: MaterialApp(
             theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
             home: const Scaffold(
-              body: SizedBox(
-                width: 800,
-                height: 600,
-                child: TranscriptView(sessionId: 's_view_test'),
-              ),
+              body: SizedBox(width: 800, height: 600, child: TranscriptView(sessionId: 's_view_test')),
             ),
           ),
         ),
@@ -305,7 +280,7 @@ void main() {
       expect(find.byType(InteractiveViewer), findsOneWidget);
 
       // Close the lightbox dialog
-      await tester.tap(find.byTooltip('Chiudi anteprima'));
+      await tester.tap(find.byTooltip('Close preview'));
       await tester.pumpAndSettle();
 
       expect(find.byKey(const ValueKey('image-lightbox-dialog')), findsNothing);
@@ -313,10 +288,9 @@ void main() {
   });
 
   group('ChatDropTarget drag and drop tests', () {
-    testWidgets('shows animated hover overlay on drag and attaches files on drop', (
-      tester,
-    ) async {
-      final container = ProviderContainer();
+    testWidgets('shows animated hover overlay on drag and attaches files on drop', (tester) async {
+      final dropService = FakeDropTargetService();
+      final container = ProviderContainer(overrides: [dropTargetServiceProvider.overrideWithValue(dropService)]);
       addTearDown(container.dispose);
 
       await tester.pumpWidget(
@@ -327,11 +301,7 @@ void main() {
             home: const Scaffold(
               body: ChatDropTarget(
                 sessionId: 's_drop_test',
-                child: SizedBox(
-                  width: 400,
-                  height: 400,
-                  child: Text('Chat Content'),
-                ),
+                child: SizedBox(width: 400, height: 400, child: Text('Chat Content')),
               ),
             ),
           ),
@@ -347,33 +317,21 @@ void main() {
       final AnimatedOpacity initialOpacityWidget = tester.widget(opacityFinder);
       expect(initialOpacityWidget.opacity, 0.0);
 
-      // Simulate onDragEntered on DropTarget
-      final dropTarget = tester.widget<DropTarget>(find.byType(DropTarget));
-      dropTarget.onDragEntered?.call(
-        DropEventDetails(
-          localPosition: Offset.zero,
-          globalPosition: Offset.zero,
-        ),
-      );
+      // A drag enters the drop target.
+      dropService.enter();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 250));
 
       // Overlay is visible
       final AnimatedOpacity activeOpacityWidget = tester.widget(opacityFinder);
       expect(activeOpacityWidget.opacity, 1.0);
-      expect(find.text('Rilascia i file qui per allegarli'), findsOneWidget);
+      expect(find.text('Drop files here to attach'), findsOneWidget);
 
-      // Simulate onDragDone with a dropped file and an image
-      dropTarget.onDragDone?.call(
-        DropDoneDetails(
-          localPosition: Offset.zero,
-          globalPosition: Offset.zero,
-          files: [
-            DropItemFile('/path/to/script.py', name: 'script.py'),
-            DropItemFile('/path/to/diagram.png', name: 'diagram.png'),
-          ],
-        ),
-      );
+      // Files dropped with a script and an image
+      dropService.drop([
+        PickedFile(path: '/path/to/script.py', name: 'script.py', readBytes: () async => Uint8List(0)),
+        PickedFile(path: '/path/to/diagram.png', name: 'diagram.png', readBytes: () async => Uint8List(0)),
+      ]);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 250));
 
@@ -390,7 +348,9 @@ void main() {
       expect(attachments[1].type, AttachmentType.image);
     });
 
-    testWidgets('renders assistant attachments and base64 data URIs without leaking raw attachment tags', (tester) async {
+    testWidgets('renders assistant attachments and base64 data URIs without leaking raw attachment tags', (
+      tester,
+    ) async {
       // 1x1 transparent GIF base64 data URI
       const dataUri = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
       final asstAttachments = [
@@ -422,18 +382,13 @@ void main() {
       await tester.pumpWidget(
         ProviderScope(
           overrides: [
-            sessionStateFamily('s_asst_att_test').overrideWith(
-              (ref) => SessionStateNotifier('s_asst_att_test', null)..state = state,
-            ),
+            sessionStateFamily('s_asst_att_test')
+                .overrideWith((ref) => SessionStateNotifier('s_asst_att_test', null)..state = state),
           ],
           child: MaterialApp(
             theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
             home: const Scaffold(
-              body: SizedBox(
-                width: 800,
-                height: 600,
-                child: TranscriptView(sessionId: 's_asst_att_test'),
-              ),
+              body: SizedBox(width: 800, height: 600, child: TranscriptView(sessionId: 's_asst_att_test')),
             ),
           ),
         ),
@@ -465,12 +420,7 @@ void main() {
               home: Scaffold(
                 body: AttachmentListBar(
                   attachments: [
-                    ChatAttachment(
-                      id: id,
-                      type: AttachmentType.image,
-                      name: 'image.png',
-                      pathOrUrl: dataUri,
-                    ),
+                    ChatAttachment(id: id, type: AttachmentType.image, name: 'image.png', pathOrUrl: dataUri),
                   ],
                   isEditable: false,
                 ),
@@ -486,11 +436,11 @@ void main() {
       await pumpThumbnail(validPng, 'img_valid');
       expect(find.byKey(const ValueKey('attachment-image-img_valid')), findsOneWidget);
       expect(find.byKey(const ValueKey('attachment-image-invalid-img_valid')), findsNothing);
-      expect(find.text('Immagine non valida'), findsNothing);
+      expect(find.text('Invalid image'), findsNothing);
 
       await pumpThumbnail(invalidPng, 'img_invalid');
       expect(find.byKey(const ValueKey('attachment-image-invalid-img_invalid')), findsOneWidget);
-      expect(find.text('Immagine non valida'), findsOneWidget);
+      expect(find.text('Invalid image'), findsOneWidget);
     });
   });
 }

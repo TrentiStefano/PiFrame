@@ -1,13 +1,23 @@
-import * as path from 'node:path';
+import { isRecord, readProperty, type JsonRecord } from '../errors/errors.js';
 import { PIFRAME_SUBAGENTS_STATUS_KEY, parseLiveSubagents, type LiveSubagentState } from './liveSubagents.js';
 import { EventJournal } from '../journal/EventJournal.js';
 import { SnapshotBuilder, type SnapshotContext } from '../journal/SnapshotBuilder.js';
 import { adaptPiEvent, type SessionContext } from '../pi/PiEventAdapter.js';
 import type { StdioPiTransport } from '../pi/StdioPiTransport.js';
 import type { PcpEvent, PcpEventType, PcpSnapshotPayload, SessionMeta } from '@piframe/pcp-ts';
-import type { PiEvent } from '../pi/piCommands.js';
+import type { PiEvent, PiModelInfo } from '../pi/piCommands.js';
 import { UiRequestBroker } from '../ui/UiRequestBroker.js';
 import { readContextPolicy, DEFAULT_COMPACTION_RESERVE_PERCENT } from '../pi/contextPolicy.js';
+
+/**
+ * The model as the snapshot protocol carries it. Pi reports either the model object or, when it
+ * reported only an id (read back from the transcript), a bare string; the protocol's model is an
+ * object, so a bare id is normalised to `{ id }`.
+ */
+export function snapshotModelOf(model: PiModelInfo | string | null | undefined): PiModelInfo | null {
+  if (typeof model === 'string') return model ? { id: model } : null;
+  return model ?? null;
+}
 
 export interface SessionOptions {
   id: string;
@@ -19,6 +29,12 @@ export interface SessionOptions {
   onBroadcast?: (event: PcpEvent) => void;
 }
 
+/** A Pi or daemon event payload. Fields are narrowed where they are read. */
+type EventPayload = JsonRecord;
+
+/** The assistant message being streamed, before Pi reports it as complete. */
+type LiveMessage = JsonRecord & { content: JsonRecord[] };
+
 export class Session {
   public readonly id: string;
   public name?: string;
@@ -29,8 +45,9 @@ export class Session {
   public readOnly = false;
   public readOnlyReason: 'terminal' | 'unknown' | null = null;
   public allowAmbiguousTerminal = false;
-  public liveMessage: any = null;
-  public activeTools = new Map<string, any>();
+  public liveMessage: LiveMessage | null = null;
+  /** Keyed by the Pi tool call id exactly as reported (a missing id is an undefined key, not the string "undefined"). */
+  public activeTools = new Map<unknown, JsonRecord>();
   public usage: Record<string, unknown> = {};
   public createdAt: number;
   public lastActivityAt: number;
@@ -44,7 +61,8 @@ export class Session {
   public autoCompaction: boolean = true;
   public contextWindowOverride: number | null = null;
   public compactionReservePercent = DEFAULT_COMPACTION_RESERVE_PERCENT;
-  public model: any = null;
+  /** Pi's model for the session; a bare model id when it was read back from the transcript. */
+  public model: PiModelInfo | string | null | undefined = null;
   public thinkingLevel: string | null = 'medium';
   public steeringMode: string | null = 'one-at-a-time';
   public followUpMode: string | null = 'one-at-a-time';
@@ -97,7 +115,7 @@ export class Session {
     this.uiBroker = new UiRequestBroker({
       sessionId: this.id,
       onEmitEvent: (evt) => {
-        this.emitCustomEvent(evt.type as any, evt.payload);
+        this.emitCustomEvent(evt.type, evt.payload);
       }
     });
   }
@@ -120,7 +138,7 @@ export class Session {
     return {
       sessionMeta: this.getSessionMeta(),
       runtimeStatus: this.status,
-      model: this.model,
+      model: snapshotModelOf(this.model),
       thinkingLevel: this.thinkingLevel,
       steeringMode: this.steeringMode,
       followUpMode: this.followUpMode,
@@ -150,9 +168,9 @@ export class Session {
     }
     if (!newEntries || newEntries.length === 0) return;
 
-    const existingIds = new Set(this.entries.map((e: any) => e.id || e.entryId).filter(Boolean));
+    const existingIds = new Set(this.entries.map((e) => e.id || e.entryId).filter(Boolean));
     for (const entry of newEntries) {
-      const id = (entry as any).id || (entry as any).entryId;
+      const id = entry.id || entry.entryId;
       if (!id || !existingIds.has(id)) {
         this.entries.push(entry);
         if (id) existingIds.add(id);
@@ -163,8 +181,11 @@ export class Session {
   public dispatchPiEvent(rawEvent: PiEvent): PcpEvent[] {
     // The subagent bridge reports through a reserved status key: keep it as
     // live state, never as a visible status line or a journal event.
-    if (rawEvent.type === 'extension_ui_request' && rawEvent.method === 'setStatus' &&
-        rawEvent.statusKey === PIFRAME_SUBAGENTS_STATUS_KEY) {
+    if (
+      rawEvent.type === 'extension_ui_request' &&
+      rawEvent.method === 'setStatus' &&
+      rawEvent.statusKey === PIFRAME_SUBAGENTS_STATUS_KEY
+    ) {
       const live = parseLiveSubagents(rawEvent.statusText);
       if (live) this.liveSubagents = live;
       return [];
@@ -203,7 +224,7 @@ export class Session {
     return this.liveSubagents?.anyRunning === true;
   }
 
-  public emitCustomEvent(type: PcpEventType, payload: any): PcpEvent {
+  public emitCustomEvent(type: PcpEventType, payload: EventPayload): PcpEvent {
     this.lastActivityAt = Date.now();
     this.updateInternalState(type, payload);
     const event = this.journal.append({ type, payload });
@@ -213,12 +234,27 @@ export class Session {
     return event;
   }
 
-  private recordToolTiming(tool: any): void {
+  private settleRun(): void {
+    this.finishActiveTools();
+    this.status = 'settled';
+    this.runStartedAt = null;
+    this.isStreaming = false;
+    this.liveMessage = null;
+    this.activeTools.clear();
+  }
+
+  private recordToolTiming(tool: JsonRecord): void {
     for (let i = this.entries.length - 1; i >= 0; i--) {
-      const message: any = this.entries[i].message || this.entries[i];
+      const entry = this.entries[i];
+      if (!entry) continue;
+      const message: unknown = entry.message || entry;
+      if (!isRecord(message)) continue;
       for (const calls of [message.toolCalls, message.content]) {
         if (!Array.isArray(calls)) continue;
-        const call = calls.find((c: any) => c && (c.id ?? c.toolCallId) === tool.toolCallId);
+        const list: unknown[] = calls;
+        const call = list.find(
+          (c): c is Record<string, unknown> => isRecord(c) && (c.id ?? c.toolCallId) === tool.toolCallId
+        );
         if (!call) continue;
         if (tool.startedAt != null) call.startedAt = tool.startedAt;
         if (tool.durationMs != null) call.durationMs = tool.durationMs;
@@ -231,13 +267,13 @@ export class Session {
     for (const tool of this.activeTools.values()) {
       if (tool.isRunning) {
         tool.isRunning = false;
-        if (tool.startedAt != null) tool.durationMs ??= Math.max(0, this.lastActivityAt - tool.startedAt);
+        if (tool.startedAt != null) tool.durationMs ??= Math.max(0, this.lastActivityAt - Number(tool.startedAt));
       }
       this.recordToolTiming(tool);
     }
   }
 
-  private updateInternalState(type: PcpEventType, payload: any): void {
+  private updateInternalState(type: PcpEventType, payload: EventPayload): void {
     switch (type) {
       case 'message.started':
         this.liveMessage = { id: payload.messageId, role: payload.role, content: [] };
@@ -245,41 +281,47 @@ export class Session {
 
       case 'text.delta':
       case 'thinking.delta': {
-        this.liveMessage ||= { role: 'assistant', content: [] };
-        const index = payload.contentIndex || 0;
+        const live: LiveMessage = (this.liveMessage ??= { role: 'assistant', content: [] });
+        const index = Number(payload.contentIndex) || 0;
         const field = type === 'text.delta' ? 'text' : 'thinking';
-        const block = this.liveMessage.content[index] || { type: field, [field]: '' };
-        block[field] += payload.delta || '';
-        this.liveMessage.content[index] = block;
+        const block: JsonRecord = live.content[index] || { type: field, [field]: '' };
+        block[field] = String(block[field]) + String(payload.delta || '');
+        live.content[index] = block;
         break;
       }
 
-      case 'tool.started':
-        payload.startedAt ??= this.activeTools.get(payload.toolCallId)?.startedAt ?? this.lastActivityAt;
-        this.activeTools.set(payload.toolCallId, { ...payload, isRunning: true });
+      case 'tool.started': {
+        const toolKey = payload.toolCallId;
+        payload.startedAt ??= this.activeTools.get(toolKey)?.startedAt ?? this.lastActivityAt;
+        this.activeTools.set(toolKey, { ...payload, isRunning: true });
         this.recordToolTiming(payload);
         break;
+      }
       case 'tool.progress': {
-        const tool = this.activeTools.get(payload.toolCallId) || {};
-        this.activeTools.set(payload.toolCallId, { ...tool, ...payload, output: payload.partialResult });
+        const toolKey = payload.toolCallId;
+        const tool = this.activeTools.get(toolKey) || {};
+        this.activeTools.set(toolKey, { ...tool, ...payload, output: payload.partialResult });
         break;
       }
       case 'tool.completed': {
-        const tool = this.activeTools.get(payload.toolCallId) || {};
+        const toolKey = payload.toolCallId;
+        const tool = this.activeTools.get(toolKey) || {};
         if (payload.durationMs == null && tool.startedAt != null) {
-          payload.durationMs = Math.max(0, this.lastActivityAt - tool.startedAt);
+          payload.durationMs = Math.max(0, this.lastActivityAt - Number(tool.startedAt));
         }
         const completed = { ...tool, ...payload, output: payload.result, isRunning: false };
-        this.activeTools.set(payload.toolCallId, completed);
+        this.activeTools.set(toolKey, completed);
         this.recordToolTiming(completed);
         break;
       }
-      case 'usage.updated':
-        this.usage = payload.usage || {};
+      case 'usage.updated': {
+        const usage = payload.usage;
+        this.usage = isRecord(usage) ? usage : {};
         break;
+      }
       case 'run.started':
         payload.startedAt ??= this.lastActivityAt;
-        this.runStartedAt = payload.startedAt;
+        this.runStartedAt = typeof payload.startedAt === 'number' ? payload.startedAt : null;
         this.status = 'working';
         this.isStreaming = true;
         break;
@@ -292,15 +334,14 @@ export class Session {
         break;
 
       case 'session.status':
-        if (payload.status !== 'settled' && payload.status !== 'idle') break;
         // Recovery must settle the same execution state as a normal stop.
+        if (payload.status === 'settled' || payload.status === 'idle') {
+          this.settleRun();
+        }
+        break;
+
       case 'run.settled':
-        this.finishActiveTools();
-        this.status = 'settled';
-        this.runStartedAt = null;
-        this.isStreaming = false;
-        this.liveMessage = null;
-        this.activeTools.clear();
+        this.settleRun();
         break;
 
       case 'retry.started':
@@ -314,14 +355,17 @@ export class Session {
 
       case 'compaction.ended':
         this.isCompacting = false;
-        if (!payload.aborted && payload.result) this.postCompactionTokens = payload.result.estimatedTokensAfter;
+        if (!payload.aborted && payload.result) {
+          const tokensAfter = readProperty(payload.result, 'estimatedTokensAfter');
+          this.postCompactionTokens = typeof tokensAfter === 'number' ? tokensAfter : undefined;
+        }
         this.status = this.isStreaming ? 'working' : 'settled';
         break;
 
       case 'queue.changed':
         this.queue = {
-          steering: payload.steering || [],
-          followUp: payload.followUp || []
+          steering: Array.isArray(payload.steering) ? payload.steering : [],
+          followUp: Array.isArray(payload.followUp) ? payload.followUp : []
         };
         break;
 
@@ -338,16 +382,18 @@ export class Session {
         }
         break;
 
-      case 'message.completed':
+      case 'message.completed': {
         this.liveMessage = null;
         this.activeTools.clear();
-        if (payload.message && payload.message.role !== 'system') {
-          this.entries.push(payload.message);
-          if (payload.message.id) {
-            this.leafId = payload.message.id;
+        const message = payload.message;
+        if (isRecord(message) && message.role !== 'system') {
+          this.entries.push(message);
+          if (message.id) {
+            this.leafId = String(message.id);
           }
         }
         break;
+      }
 
       case 'worker.crashed':
         this.finishActiveTools();
@@ -355,6 +401,37 @@ export class Session {
         this.uiBroker.cancelAll('worker_crashed');
         this.status = 'worker_error';
         this.isStreaming = false;
+        break;
+
+      // Events this state does not track: they leave the session state unchanged.
+      case 'bash.output':
+      case 'daemon.configChanged':
+      case 'extension.error':
+      case 'journal.gap':
+      case 'remote.statusChanged':
+      case 'retry.ended':
+      case 'session.indexChanged':
+      case 'side.closed':
+      case 'side.opened':
+      case 'summarization.retry':
+      case 'system.metrics':
+      case 'text.completed':
+      case 'text.started':
+      case 'thinking.completed':
+      case 'thinking.started':
+      case 'toolcall.argsDelta':
+      case 'toolcall.completed':
+      case 'toolcall.started':
+      case 'turn.ended':
+      case 'turn.started':
+      case 'ui.claimed':
+      case 'ui.editorText':
+      case 'ui.notify':
+      case 'ui.status':
+      case 'ui.title':
+      case 'ui.widget':
+      case 'worker.diagnostic':
+      case 'workspace.changed':
         break;
     }
   }

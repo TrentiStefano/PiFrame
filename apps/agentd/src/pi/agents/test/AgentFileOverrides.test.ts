@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { at } from '../../test/fakes.js';
 import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -8,13 +9,13 @@ import {
   ORIGINALS_FILE,
   formatFrontmatterLine,
   getFrontmatterLine,
-  setFrontmatterLine,
+  setFrontmatterLine
 } from '../agentFileOverrides.js';
 import type { PiAvailableModel } from '@piframe/pcp-ts';
 
 const MODELS: PiAvailableModel[] = [
   { id: 'github-copilot/gpt-6-luna', name: 'GPT-6 Luna', contextWindow: 400000, reasoning: true, tiers: [272000] },
-  { id: 'github-copilot/claude-haiku-5.5', name: 'Claude Haiku 5.5', contextWindow: 200000, reasoning: true, tiers: [] },
+  { id: 'github-copilot/claude-haiku-5.5', name: 'Claude Haiku 5.5', contextWindow: 200000, reasoning: true, tiers: [] }
 ];
 
 function tempDir(prefix: string): string {
@@ -41,13 +42,16 @@ const REVIEWER =
   '\r\n' +
   'You are a reviewer.\r\n';
 
-function setup(opts: { tintinweb?: boolean; nicobailon?: boolean; settings?: any } = {}): Fixture {
+function setup(opts: { tintinweb?: boolean; nicobailon?: boolean; settings?: Record<string, unknown> } = {}): Fixture {
   const agentDir = tempDir('pi-fm-agent-');
   const piframeDir = tempDir('pi-fm-piframe-');
   if (opts.tintinweb !== false) {
     const dir = path.join(agentDir, 'npm', 'node_modules', '@tintinweb', 'pi-subagents');
     fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(path.join(dir, 'package.json'), JSON.stringify({ name: '@tintinweb/pi-subagents', version: '0.26.1' }));
+    fs.writeFileSync(
+      path.join(dir, 'package.json'),
+      JSON.stringify({ name: '@tintinweb/pi-subagents', version: '0.26.1' })
+    );
   }
   if (opts.nicobailon) {
     const dir = path.join(agentDir, 'npm', 'node_modules', 'pi-subagents');
@@ -61,7 +65,7 @@ function setup(opts: { tintinweb?: boolean; nicobailon?: boolean; settings?: any
   const service = new AgentsService({
     agentDir,
     piframeDir,
-    getAvailableModels: async () => ({ models: MODELS }),
+    getAvailableModels: async () => ({ models: MODELS })
   });
   return {
     agentDir,
@@ -71,7 +75,7 @@ function setup(opts: { tintinweb?: boolean; nicobailon?: boolean; settings?: any
     cleanup: () => {
       fs.rmSync(agentDir, { recursive: true, force: true });
       fs.rmSync(piframeDir, { recursive: true, force: true });
-    },
+    }
   };
 }
 
@@ -92,7 +96,10 @@ test('setFrontmatterLine: replaces, inserts and removes one line, keeping CRLF, 
   // Nested keys are not top-level matches.
   assert.equal(getFrontmatterLine('---\nrunner:\n  model: z\n---\n', 'model'), null);
 
-  assert.equal(formatFrontmatterLine('model', 'github-copilot/claude-haiku-5.5'), 'model: github-copilot/claude-haiku-5.5');
+  assert.equal(
+    formatFrontmatterLine('model', 'github-copilot/claude-haiku-5.5'),
+    'model: github-copilot/claude-haiku-5.5'
+  );
   assert.equal(formatFrontmatterLine('model', 'has space: yes'), 'model: "has space: yes"');
 });
 
@@ -106,7 +113,7 @@ test('tintinweb: a model override is written to the user agent frontmatter, and 
     assert.equal(reviewer.model.origin, 'frontmatter');
 
     const after = await f.service.updateAgents([
-      { kind: 'agent', name: 'reviewer', model: 'github-copilot/claude-haiku-5.5', thinking: 'high' },
+      { kind: 'agent', name: 'reviewer', model: 'github-copilot/claude-haiku-5.5', thinking: 'high' }
     ]);
     const content = fs.readFileSync(f.reviewerPath, 'utf8');
     assert.equal(
@@ -132,7 +139,7 @@ test('tintinweb: a model override is written to the user agent frontmatter, and 
     const originals = JSON.parse(fs.readFileSync(path.join(f.piframeDir, ORIGINALS_FILE), 'utf8'));
     assert.deepEqual(originals[path.resolve(f.reviewerPath)], {
       model: 'model: github-copilot/gpt-6-luna   ',
-      thinking: null,
+      thinking: null
     });
 
     // A second change keeps the first recorded original.
@@ -156,8 +163,8 @@ test('tintinweb: stale settings.json overrides are shown as ignored, reset clear
   const f = setup({
     settings: {
       theme: 'dark',
-      subagents: { agentOverrides: { reviewer: { model: 'github-copilot/claude-haiku-5.5' } } },
-    },
+      subagents: { agentOverrides: { reviewer: { model: 'github-copilot/claude-haiku-5.5' } } }
+    }
   });
   try {
     const state = await f.service.getAgents();
@@ -171,7 +178,8 @@ test('tintinweb: stale settings.json overrides are shown as ignored, reset clear
 
     await assert.rejects(
       f.service.updateAgents([{ kind: 'agent', name: 'reviewer', contextLimit: 272000 }]),
-      (err: any) => err.code === 'AGENTS_VALIDATION_FAILED' && err.details[0].field === 'contextLimit'
+      (err: unknown) =>
+        at(err, 'code') === 'AGENTS_VALIDATION_FAILED' && at(err, 'details', '0', 'field') === 'contextLimit'
     );
 
     await f.service.updateAgents([{ kind: 'agent', name: 'reviewer', model: null }]);
@@ -187,7 +195,10 @@ test('both packages installed: override goes to the agent file and to settings.j
   const f = setup({ nicobailon: true });
   try {
     await f.service.updateAgents([{ kind: 'agent', name: 'reviewer', model: 'github-copilot/claude-haiku-5.5' }]);
-    assert.equal(getFrontmatterLine(fs.readFileSync(f.reviewerPath, 'utf8'), 'model'), 'model: github-copilot/claude-haiku-5.5');
+    assert.equal(
+      getFrontmatterLine(fs.readFileSync(f.reviewerPath, 'utf8'), 'model'),
+      'model: github-copilot/claude-haiku-5.5'
+    );
     const settings = JSON.parse(fs.readFileSync(path.join(f.agentDir, 'settings.json'), 'utf8'));
     assert.equal(settings.subagents.agentOverrides.reviewer.model, 'github-copilot/claude-haiku-5.5');
   } finally {
@@ -199,7 +210,7 @@ test('nicobailon only: user agent files are never edited; overrides stay in sett
   const f = setup({ tintinweb: false, nicobailon: true });
   try {
     const state = await f.service.updateAgents([
-      { kind: 'agent', name: 'reviewer', model: 'github-copilot/claude-haiku-5.5' },
+      { kind: 'agent', name: 'reviewer', model: 'github-copilot/claude-haiku-5.5' }
     ]);
     assert.equal(fs.readFileSync(f.reviewerPath, 'utf8'), REVIEWER);
     assert.equal(fs.existsSync(path.join(f.piframeDir, ORIGINALS_FILE)), false);
@@ -225,7 +236,7 @@ test('tintinweb: project agents stay read-only and their files are untouched', a
     assert.equal(planner.editable, false);
     await assert.rejects(
       f.service.updateAgents([{ kind: 'agent', name: 'planner', model: 'github-copilot/claude-haiku-5.5' }], cwd),
-      (err: any) => err.code === 'AGENTS_VALIDATION_FAILED'
+      (err: unknown) => at(err, 'code') === 'AGENTS_VALIDATION_FAILED'
     );
     assert.equal(fs.readFileSync(projectAgent, 'utf8'), '---\nname: planner\nmodel: github-copilot/gpt-6-luna\n---\n');
   } finally {

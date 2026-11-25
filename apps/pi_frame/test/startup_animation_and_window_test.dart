@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -34,48 +35,29 @@ void main() {
     test('settings default to off and round-trip through JSON', () {
       const defaults = StartupAnimationSettings();
       expect(defaults.enabled, isFalse);
-      expect(
-        StartupAnimationSettings.fromJson(
-          const StartupAnimationSettings(enabled: true).toJson(),
-        ).enabled,
-        isTrue,
-      );
-      expect(StartupAnimationSettings.fromJson({'enabled': 'yes'}).enabled,
-          isFalse);
+      expect(StartupAnimationSettings.fromJson(const StartupAnimationSettings(enabled: true).toJson()).enabled, isTrue);
+      expect(StartupAnimationSettings.fromJson({'enabled': 'yes'}).enabled, isFalse);
     });
 
     test('intro plays on the first run, or every launch when the setting is on', () {
-      ProviderContainer makeContainer({
-        required bool firstRun,
-        required bool settingOn,
-      }) {
-        final container = ProviderContainer(overrides: [
-          appIntroFirstRunProvider.overrideWithValue(firstRun),
-          startupAnimationSettingsProvider.overrideWith(
-            (ref) => StartupAnimationSettingsNotifier(
-              storageFile: File('${tempDir.path}/startup_animation_settings.json'),
-            )..setEnabled(settingOn),
-          ),
-        ]);
+      ProviderContainer makeContainer({required bool firstRun, required bool settingOn}) {
+        final container = ProviderContainer(
+          overrides: [
+            appIntroFirstRunProvider.overrideWithValue(firstRun),
+            startupAnimationSettingsProvider.overrideWith(
+              (ref) =>
+                  StartupAnimationSettingsNotifier(storageFile: File('${tempDir.path}/startup_animation_settings.json'))
+                    ..setEnabled(settingOn),
+            ),
+          ],
+        );
         addTearDown(container.dispose);
         return container;
       }
 
-      expect(
-        makeContainer(firstRun: false, settingOn: false)
-            .read(startupIntroPlaysProvider),
-        isFalse,
-      );
-      expect(
-        makeContainer(firstRun: true, settingOn: false)
-            .read(startupIntroPlaysProvider),
-        isTrue,
-      );
-      expect(
-        makeContainer(firstRun: false, settingOn: true)
-            .read(startupIntroPlaysProvider),
-        isTrue,
-      );
+      expect(makeContainer(firstRun: false, settingOn: false).read(startupIntroPlaysProvider), isFalse);
+      expect(makeContainer(firstRun: true, settingOn: false).read(startupIntroPlaysProvider), isTrue);
+      expect(makeContainer(firstRun: false, settingOn: true).read(startupIntroPlaysProvider), isTrue);
     });
 
     test('toggling the setting persists it to the storage file', () {
@@ -84,13 +66,9 @@ void main() {
 
       notifier.setEnabled(true);
       expect(file.existsSync(), isTrue);
-      expect(
-        StartupAnimationSettingsNotifier(storageFile: file).state.enabled,
-        isTrue,
-      );
+      expect(StartupAnimationSettingsNotifier(storageFile: file).state.enabled, isTrue);
     });
   });
-
 
   group('WindowStateService tests', () {
     late Directory tempDir;
@@ -118,14 +96,7 @@ void main() {
     });
 
     test('persists custom window state and restores correctly', () async {
-      const customState = WindowState(
-        width: 1440,
-        height: 900,
-        x: 120,
-        y: 80,
-        isFullScreen: true,
-        isMaximized: false,
-      );
+      const customState = WindowState(width: 1440, height: 900, x: 120, y: 80, isFullScreen: true, isMaximized: false);
 
       await WindowStateService.instance.saveState(customState);
       expect(stateFile.existsSync(), isTrue);
@@ -163,30 +134,28 @@ void main() {
       expect(String.fromCharCodes(bytes.sublist(36, 40)), 'data');
     });
 
-    test('StartupAudio play methods do not crash in test environment', () {
-      expect(() => StartupAudio.playCiak(), returnsNormally);
-      expect(() => StartupAudio.playHum(), returnsNormally);
-      expect(() => StartupAudio.dispose(), returnsNormally);
+    test('wavFor returns the clip of each startup sound', () {
+      expect(StartupAudio.wavFor(StartupSound.ciak), StartupAudio.generateCiakWav());
+      expect(StartupAudio.wavFor(StartupSound.hum), StartupAudio.generateHumWav());
     });
   });
 
   group('StartupAssembleOverlay tests', () {
     Widget wrapWithTheme(Widget child) {
       return MaterialApp(
-        theme: ThemeData.dark().copyWith(
-          extensions: const [FrameTokens.dark],
-        ),
+        theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
         home: Scaffold(body: child),
       );
     }
 
-    testWidgets('renders child and finishes immediately in test mode or on tap', (tester) async {
+    testWidgets('renders child and finishes immediately when the intro is skipped', (tester) async {
       var completed = false;
 
       await tester.pumpWidget(
         wrapWithTheme(
           StartupAssembleOverlay(
             autoStart: true,
+            skipIntro: true,
             onAnimationComplete: () => completed = true,
             child: const Text('Main App Content'),
           ),
@@ -200,15 +169,20 @@ void main() {
       expect(completed, isTrue);
     });
 
-    testWidgets('can be tapped to dismiss overlay', (tester) async {
+    testWidgets('reports the ciak and hum cues to onSound as the intro plays', (tester) async {
+      final sounds = <StartupSound>[];
+
       await tester.pumpWidget(
-        wrapWithTheme(
-          StartupAssembleOverlay(
-            autoStart: false,
-            child: const Text('App Ready'),
-          ),
-        ),
+        wrapWithTheme(StartupAssembleOverlay(onSound: sounds.add, child: const Text('Main App Content'))),
       );
+      await tester.pump();
+      await tester.pump(const Duration(seconds: 3));
+
+      expect(sounds, [StartupSound.ciak, StartupSound.hum]);
+    });
+
+    testWidgets('can be tapped to dismiss overlay', (tester) async {
+      await tester.pumpWidget(wrapWithTheme(StartupAssembleOverlay(autoStart: false, child: const Text('App Ready'))));
       await tester.pump();
 
       // Overlay should be present when autoStart is false and not completed

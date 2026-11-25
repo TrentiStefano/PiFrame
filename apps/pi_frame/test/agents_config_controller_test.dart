@@ -4,17 +4,13 @@ import 'package:pi_frame/data/agents/agents_config_model.dart';
 import 'package:pi_frame/data/daemon/pcp_client.dart';
 
 class _FakeAgentsClient extends PcpClient {
-  _FakeAgentsClient({
-    this.initialConfig,
-    this.updateError,
-    this.getError,
-  }) : super(port: 1, token: 'test');
+  _FakeAgentsClient({this.initialConfig, this.updateError, this.getError}) : super(port: 1, token: 'test');
 
   PiAgentsConfig? initialConfig;
   PcpException? updateError;
   PcpException? getError;
 
-  List<Map>? lastChangesReceived;
+  List<Map<String, dynamic>>? lastChangesReceived;
 
   @override
   Future<PiAgentsConfig> getAgentsConfig({String? cwd}) async {
@@ -23,7 +19,7 @@ class _FakeAgentsClient extends PcpClient {
   }
 
   @override
-  Future<PiAgentsConfig> updateAgentsConfig(List<Map> changes) async {
+  Future<PiAgentsConfig> updateAgentsConfig(List<Map<String, dynamic>> changes) async {
     lastChangesReceived = changes;
     if (updateError != null) throw updateError!;
     return initialConfig ?? const PiAgentsConfig();
@@ -33,12 +29,7 @@ class _FakeAgentsClient extends PcpClient {
 PiAgentsConfig _createSampleConfig() {
   return PiAgentsConfig.fromJson({
     'packages': [
-      {
-        'id': 'pi-subagents',
-        'version': '0.9.5',
-        'installed': true,
-        'configFile': '/path/settings.json',
-      }
+      {'id': 'pi-subagents', 'version': '0.9.5', 'installed': true, 'configFile': '/path/settings.json'},
     ],
     'agents': [
       {
@@ -47,15 +38,8 @@ PiAgentsConfig _createSampleConfig() {
         'source': 'builtin',
         'description': 'Worker agent',
         'editable': true,
-        'model': {
-          'effective': 'anthropic/claude-3-5-sonnet',
-          'origin': 'override',
-          'available': true,
-        },
-        'thinking': {
-          'effective': 'high',
-          'origin': 'override',
-        },
+        'model': {'effective': 'anthropic/claude-3-5-sonnet', 'origin': 'override', 'available': true},
+        'thinking': {'effective': 'high', 'origin': 'override'},
         'context': {
           'supported': true,
           'limit': 272000,
@@ -70,21 +54,9 @@ PiAgentsConfig _createSampleConfig() {
         'description': 'Oracle agent',
         'editable': false,
         'readOnlyReason': 'external CLI runner',
-        'model': {
-          'effective': 'openai/gpt-4o',
-          'origin': 'default',
-          'available': true,
-        },
-        'thinking': {
-          'effective': 'off',
-          'origin': 'default',
-        },
-        'context': {
-          'supported': false,
-          'limit': null,
-          'options': [],
-          'modelContextWindow': null,
-        },
+        'model': {'effective': 'openai/gpt-4o', 'origin': 'default', 'available': true},
+        'thinking': {'effective': 'off', 'origin': 'default'},
+        'context': {'supported': false, 'limit': null, 'options': <dynamic>[], 'modelContextWindow': null},
       },
     ],
     'subagentDefaults': {
@@ -109,15 +81,9 @@ PiAgentsConfig _createSampleConfig() {
         'reasoning': true,
         'tiers': [272000, 1048576],
       },
-      {
-        'id': 'openai/gpt-4o',
-        'name': 'GPT-4o',
-        'contextWindow': 128000,
-        'reasoning': false,
-        'tiers': [],
-      },
+      {'id': 'openai/gpt-4o', 'name': 'GPT-4o', 'contextWindow': 128000, 'reasoning': false, 'tiers': <dynamic>[]},
     ],
-    'warnings': [],
+    'warnings': <dynamic>[],
   });
 }
 
@@ -136,9 +102,7 @@ void main() {
     });
 
     test('load handles REMOTE_FORBIDDEN error correctly', () async {
-      final fake = _FakeAgentsClient(
-        getError: PcpException('Forbidden', code: 'REMOTE_FORBIDDEN'),
-      );
+      final fake = _FakeAgentsClient(getError: PcpException('Forbidden', code: 'REMOTE_FORBIDDEN'));
       final controller = AgentsConfigController(fake);
 
       await controller.load();
@@ -269,18 +233,9 @@ void main() {
           'Agent settings validation failed',
           code: 'AGENTS_VALIDATION_FAILED',
           details: [
-            {
-              'field': 'model',
-              'message': 'model not available with current credentials',
-            },
-            {
-              'field': 'thinking',
-              'message': 'Thinking level must be "off" for models without reasoning support',
-            },
-            {
-              'field': 'contextLimit',
-              'message': 'Context limit requires a model with pricing tiers',
-            },
+            {'field': 'model', 'message': 'model not available with current credentials'},
+            {'field': 'thinking', 'message': 'Thinking level must be "off" for models without reasoning support'},
+            {'field': 'contextLimit', 'message': 'Context limit requires a model with pricing tiers'},
           ],
         ),
       );
@@ -293,18 +248,12 @@ void main() {
 
       expect(ok, isFalse);
       expect(controller.state.validationErrors.length, 3);
-      expect(
-        controller.state.getValidationError('model'),
-        'model not available with current credentials',
-      );
+      expect(controller.state.getValidationError('model'), 'model not available with current credentials');
       expect(
         controller.state.getValidationError('thinking'),
         'Thinking level must be "off" for models without reasoning support',
       );
-      expect(
-        controller.state.getValidationError('contextLimit'),
-        'Context limit requires a model with pricing tiers',
-      );
+      expect(controller.state.getValidationError('contextLimit'), 'Context limit requires a model with pricing tiers');
     });
 
     test('save returns false when not dirty', () async {

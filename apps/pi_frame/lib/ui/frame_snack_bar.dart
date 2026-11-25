@@ -50,12 +50,7 @@ class FrameSnackBar {
     return sm.showSnackBar(
       create(
         context,
-        content: Text(
-          message,
-          style: FrameText.of(context).body.copyWith(
-            color: context.tokens.textPrimary,
-          ),
-        ),
+        content: Text(message, style: FrameText.of(context).body.copyWith(color: context.tokens.textPrimary)),
         duration: duration,
         backgroundColor: backgroundColor,
         action: action,
@@ -105,12 +100,7 @@ class FrameSnackBar {
         side: BorderSide(color: tokens.borderStrong),
       ),
       padding: EdgeInsets.zero,
-      margin: margin ??
-          EdgeInsets.only(
-            left: leftMargin,
-            right: rightOffset,
-            bottom: bottomOffset,
-          ),
+      margin: margin ?? EdgeInsets.only(left: leftMargin, right: rightOffset, bottom: bottomOffset),
       duration: duration ?? successDuration,
       // Errors stay until the user dismisses them with the ✕ control.
       persist: isError,
@@ -120,8 +110,7 @@ class FrameSnackBar {
         reduced: reduced,
         child: Builder(
           builder: (innerContext) {
-            void dismiss() =>
-                ScaffoldMessenger.maybeOf(innerContext)?.hideCurrentSnackBar();
+            void dismiss() => ScaffoldMessenger.maybeOf(innerContext)?.hideCurrentSnackBar();
             // The SnackBar supplies the Material ancestor for the InkWell.
             return InkWell(
               key: const ValueKey('frame-snack-bar-card'),
@@ -131,10 +120,7 @@ class FrameSnackBar {
                 onTap?.call();
               },
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

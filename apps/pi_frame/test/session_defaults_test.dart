@@ -11,19 +11,10 @@ class MockDefaultsPcpClient extends PcpClient {
   Future<Map<String, dynamic>> getAvailableModels(String sessionId) async {
     return {
       'data': {
-        'currentModel': {
-          'provider': 'anthropic',
-          'id': 'claude-3-7-sonnet',
-          'name': 'Claude 3.7 Sonnet',
-        },
+        'currentModel': {'provider': 'anthropic', 'id': 'claude-3-7-sonnet', 'name': 'Claude 3.7 Sonnet'},
         'currentThinkingLevel': 'high',
         'models': [
-          {
-            'provider': 'anthropic',
-            'id': 'claude-3-7-sonnet',
-            'name': 'Claude 3.7 Sonnet',
-            'isDefault': true,
-          },
+          {'provider': 'anthropic', 'id': 'claude-3-7-sonnet', 'name': 'Claude 3.7 Sonnet', 'isDefault': true},
         ],
       },
     };
@@ -49,22 +40,8 @@ void main() {
       currentModelProvider: 'anthropic',
       currentModelId: 'shared-id',
     );
-    expect(
-      state.matchesModel({
-        'provider': 'anthropic',
-        'id': 'shared-id',
-        'name': 'Shared',
-      }),
-      isTrue,
-    );
-    expect(
-      state.matchesModel({
-        'provider': 'github-copilot',
-        'id': 'shared-id',
-        'name': 'Shared',
-      }),
-      isFalse,
-    );
+    expect(state.matchesModel({'provider': 'anthropic', 'id': 'shared-id', 'name': 'Shared'}), isTrue);
+    expect(state.matchesModel({'provider': 'github-copilot', 'id': 'shared-id', 'name': 'Shared'}), isFalse);
   });
 
   test('snapshot_reducer parses both Map and String model values', () {
@@ -72,13 +49,9 @@ void main() {
       'session': {'id': 's1', 'name': 'Test'},
       'runtime': {
         'status': 'settled',
-        'model': {
-          'provider': 'anthropic',
-          'id': 'model_map',
-          'name': 'Model Map',
-        },
+        'model': {'provider': 'anthropic', 'id': 'model_map', 'name': 'Model Map'},
       },
-      'queue': {},
+      'queue': <String, dynamic>{},
     };
     final stateMap = applySessionSnapshot('s1', 1, payloadMap);
     expect(stateMap.currentModel, 'Model Map');
@@ -88,7 +61,7 @@ void main() {
     final payloadString = {
       'session': {'id': 's2', 'name': 'Test'},
       'runtime': {'status': 'settled', 'model': 'claude-sonnet-str'},
-      'queue': {},
+      'queue': <String, dynamic>{},
     };
     final stateString = applySessionSnapshot('s2', 1, payloadString);
     expect(stateString.currentModel, 'claude-sonnet-str');

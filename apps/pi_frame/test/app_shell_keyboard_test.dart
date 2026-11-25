@@ -32,7 +32,7 @@ class _InterruptRecordingClient extends PcpClient {
         },
       };
     }
-    return {'data': {}};
+    return {'data': <String, dynamic>{}};
   }
 }
 
@@ -53,13 +53,10 @@ ProviderContainer _streamingContainer(PcpClient client) {
       desktopChromeProvider.overrideWithValue(false),
       pcpClientProvider.overrideWithValue(client),
       activeSessionIdProvider.overrideWith((ref) => 'session_1'),
-      connectionStateProvider.overrideWith(
-        (ref) => Stream.value(DaemonConnectionState.connected),
-      ),
+      connectionStateProvider.overrideWith((ref) => Stream.value(DaemonConnectionState.connected)),
       sessionListProvider.overrideWith((ref) async => const []),
       sessionStateFamily('session_1').overrideWith((ref) => notifier),
-      repositoryStateProvider('session_1')
-          .overrideWith((ref) => RepositoryController('session_1', () => null)),
+      repositoryStateProvider('session_1').overrideWith((ref) => RepositoryController('session_1', () => null)),
     ],
   );
 }
@@ -69,17 +66,12 @@ ProviderContainer _container() => ProviderContainer(
     desktopWindowLifecycleProvider.overrideWithValue(false),
     desktopChromeProvider.overrideWithValue(false),
     activeSessionIdProvider.overrideWith((ref) => 'session_1'),
-    connectionStateProvider.overrideWith(
-      (ref) => Stream.value(DaemonConnectionState.connected),
-    ),
+    connectionStateProvider.overrideWith((ref) => Stream.value(DaemonConnectionState.connected)),
     sessionListProvider.overrideWith((ref) async => const []),
     sessionStateFamily('session_1').overrideWith(
-      (ref) =>
-          SessionStateNotifier('session_1', null)
-            ..state = SessionState(sessionId: 'session_1', cwd: 'C:/repo'),
+      (ref) => SessionStateNotifier('session_1', null)..state = SessionState(sessionId: 'session_1', cwd: 'C:/repo'),
     ),
-    repositoryStateProvider('session_1')
-        .overrideWith((ref) => RepositoryController('session_1', () => null)),
+    repositoryStateProvider('session_1').overrideWith((ref) => RepositoryController('session_1', () => null)),
   ],
 );
 
@@ -109,9 +101,7 @@ void main() {
 
   setUp(() {
     tempDir = Directory.systemTemp.createTempSync('pi_frame_keyboard_test_');
-    LayoutStore.instance.setStorageFileForTesting(
-      File('${tempDir.path}/layout.json'),
-    );
+    LayoutStore.instance.setStorageFileForTesting(File('${tempDir.path}/layout.json'));
   });
 
   tearDown(() {
@@ -119,10 +109,7 @@ void main() {
     if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
   });
 
-  Future<void> pumpShell(
-    WidgetTester tester,
-    ProviderContainer container,
-  ) async {
+  Future<void> pumpShell(WidgetTester tester, ProviderContainer container) async {
     tester.view.physicalSize = const Size(1920, 1080);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(() => tester.view.resetPhysicalSize());
@@ -140,10 +127,7 @@ void main() {
   Future<void> focusComposer(WidgetTester tester) async {
     await tester.tap(
       find
-          .descendant(
-            of: find.byKey(const ValueKey('focus-region-composer')),
-            matching: find.byType(EditableText),
-          )
+          .descendant(of: find.byKey(const ValueKey('focus-region-composer')), matching: find.byType(EditableText))
           .first,
     );
     await tester.pump(const Duration(milliseconds: 300));
@@ -164,12 +148,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
   }
 
-  ScaffoldState scaffold(WidgetTester tester) =>
-      tester.state<ScaffoldState>(find.byType(Scaffold).first);
+  ScaffoldState scaffold(WidgetTester tester) => tester.state<ScaffoldState>(find.byType(Scaffold).first);
 
-  testWidgets('Tab from the composer visits the regions in order', (
-    tester,
-  ) async {
+  testWidgets('Tab from the composer visits the regions in order', (tester) async {
     final container = _container();
     addTearDown(container.dispose);
     await pumpShell(tester, container);
@@ -220,93 +201,74 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets(
-    'Ctrl+1 to Ctrl+4 focus sessions, repository, chat and companion',
-    (tester) async {
-      final container = _container();
-      addTearDown(container.dispose);
-      await pumpShell(tester, container);
+  testWidgets('Ctrl+1 to Ctrl+4 focus sessions, repository, chat and companion', (tester) async {
+    final container = _container();
+    addTearDown(container.dispose);
+    await pumpShell(tester, container);
 
-      final expected = <LogicalKeyboardKey, String>{
-        LogicalKeyboardKey.digit1: 'sessions',
-        LogicalKeyboardKey.digit2: 'repository',
-        LogicalKeyboardKey.digit3: 'composer',
-        LogicalKeyboardKey.digit4: 'companion',
-      };
-      for (final entry in expected.entries) {
-        await sendKey(
-          tester,
-          entry.key,
-          modifier: LogicalKeyboardKey.controlLeft,
-        );
-        expect(_regionOf(_primary), entry.value, reason: 'after ${entry.key}');
-      }
-      expect(tester.takeException(), isNull);
-    },
-  );
+    final expected = <LogicalKeyboardKey, String>{
+      LogicalKeyboardKey.digit1: 'sessions',
+      LogicalKeyboardKey.digit2: 'repository',
+      LogicalKeyboardKey.digit3: 'composer',
+      LogicalKeyboardKey.digit4: 'companion',
+    };
+    for (final entry in expected.entries) {
+      await sendKey(tester, entry.key, modifier: LogicalKeyboardKey.controlLeft);
+      expect(_regionOf(_primary), entry.value, reason: 'after ${entry.key}');
+    }
+    expect(tester.takeException(), isNull);
+  });
 
-  testWidgets(
-    'Escape closes the end drawer, then Review mode, then does nothing',
-    (tester) async {
-      final container = _container();
-      addTearDown(container.dispose);
-      await pumpShell(tester, container);
+  testWidgets('Escape closes the end drawer, then Review mode, then does nothing', (tester) async {
+    final container = _container();
+    addTearDown(container.dispose);
+    await pumpShell(tester, container);
 
-      await tester.tap(
-        find.byKey(const ValueKey('shell-context-drawer-button')),
-      );
-      await tester.pump(const Duration(milliseconds: 500));
-      expect(scaffold(tester).isEndDrawerOpen, isTrue);
+    await tester.tap(find.byKey(const ValueKey('shell-context-drawer-button')));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(scaffold(tester).isEndDrawerOpen, isTrue);
 
-      container.read(isReviewingChangesProvider.notifier).state = true;
-      await tester.pump(const Duration(milliseconds: 500));
+    container.read(isReviewingChangesProvider.notifier).state = true;
+    await tester.pump(const Duration(milliseconds: 500));
 
-      // The end drawer is the higher layer: it closes first, Review mode stays open.
-      await sendKey(tester, LogicalKeyboardKey.escape);
-      await tester.pump(const Duration(milliseconds: 500));
-      expect(scaffold(tester).isEndDrawerOpen, isFalse);
-      expect(container.read(isReviewingChangesProvider), isTrue);
+    // The end drawer is the higher layer: it closes first, Review mode stays open.
+    await sendKey(tester, LogicalKeyboardKey.escape);
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(scaffold(tester).isEndDrawerOpen, isFalse);
+    expect(container.read(isReviewingChangesProvider), isTrue);
 
-      await sendKey(tester, LogicalKeyboardKey.escape);
-      await tester.pump(const Duration(milliseconds: 500));
-      expect(container.read(isReviewingChangesProvider), isFalse);
-      expect(tester.takeException(), isNull);
-    },
-  );
+    await sendKey(tester, LogicalKeyboardKey.escape);
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(container.read(isReviewingChangesProvider), isFalse);
+    expect(tester.takeException(), isNull);
+  });
 
-  testWidgets(
-    'the end drawer has no shell heading and closes on Escape or a scrim tap',
-    (tester) async {
-      final container = _container();
-      addTearDown(container.dispose);
-      await pumpShell(tester, container);
+  testWidgets('the end drawer has no shell heading and closes on Escape or a scrim tap', (tester) async {
+    final container = _container();
+    addTearDown(container.dispose);
+    await pumpShell(tester, container);
 
-      await tester.tap(
-        find.byKey(const ValueKey('shell-context-drawer-button')),
-      );
-      await tester.pump(const Duration(milliseconds: 500));
-      expect(scaffold(tester).isEndDrawerOpen, isTrue);
-      // The shell no longer draws its own "Area di lavoro" heading or close button.
-      expect(find.text('Area di lavoro'), findsNothing);
-      expect(find.byTooltip('Chiudi workspace'), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('shell-context-drawer-button')));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(scaffold(tester).isEndDrawerOpen, isTrue);
+    // The shell no longer draws its own "Area di lavoro" heading or close button.
+    expect(find.text('Area di lavoro'), findsNothing);
+    expect(find.byTooltip('Chiudi workspace'), findsNothing);
 
-      await sendKey(tester, LogicalKeyboardKey.escape);
-      await tester.pump(const Duration(milliseconds: 500));
-      expect(scaffold(tester).isEndDrawerOpen, isFalse);
+    await sendKey(tester, LogicalKeyboardKey.escape);
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(scaffold(tester).isEndDrawerOpen, isFalse);
 
-      await tester.tap(
-        find.byKey(const ValueKey('shell-context-drawer-button')),
-      );
-      await tester.pump(const Duration(milliseconds: 500));
-      expect(scaffold(tester).isEndDrawerOpen, isTrue);
+    await tester.tap(find.byKey(const ValueKey('shell-context-drawer-button')));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(scaffold(tester).isEndDrawerOpen, isTrue);
 
-      // A tap on the scrim, left of the drawer, closes it.
-      await tester.tapAt(const Offset(100, 500));
-      await tester.pump(const Duration(milliseconds: 500));
-      expect(scaffold(tester).isEndDrawerOpen, isFalse);
-      expect(tester.takeException(), isNull);
-    },
-  );
+    // A tap on the scrim, left of the drawer, closes it.
+    await tester.tapAt(const Offset(100, 500));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(scaffold(tester).isEndDrawerOpen, isFalse);
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('Escape closes Settings', (tester) async {
     final container = _container();
@@ -322,59 +284,52 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets(
-    'Escape interrupts a streaming run only when the composer is focused and no layer is open',
-    (tester) async {
-      final client = _InterruptRecordingClient();
-      final container = _streamingContainer(client);
-      addTearDown(container.dispose);
-      await pumpShell(tester, container);
-      await focusComposer(tester);
-      expect(client.commandTypes, isNot(contains('agent.interrupt')));
+  testWidgets('Escape interrupts a streaming run only when the composer is focused and no layer is open', (
+    tester,
+  ) async {
+    final client = _InterruptRecordingClient();
+    final container = _streamingContainer(client);
+    addTearDown(container.dispose);
+    await pumpShell(tester, container);
+    await focusComposer(tester);
+    expect(client.commandTypes, isNot(contains('agent.interrupt')));
 
-      await sendKey(tester, LogicalKeyboardKey.escape);
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(client.commandTypes, contains('agent.interrupt'));
-      expect(tester.takeException(), isNull);
-    },
-  );
+    await sendKey(tester, LogicalKeyboardKey.escape);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(client.commandTypes, contains('agent.interrupt'));
+    expect(tester.takeException(), isNull);
+  });
 
-  testWidgets(
-    'with the end drawer open, Escape closes the drawer and does not interrupt',
-    (tester) async {
-      final client = _InterruptRecordingClient();
-      final container = _streamingContainer(client);
-      addTearDown(container.dispose);
-      await pumpShell(tester, container);
-      await focusComposer(tester);
+  testWidgets('with the end drawer open, Escape closes the drawer and does not interrupt', (tester) async {
+    final client = _InterruptRecordingClient();
+    final container = _streamingContainer(client);
+    addTearDown(container.dispose);
+    await pumpShell(tester, container);
+    await focusComposer(tester);
 
-      scaffold(tester).openEndDrawer();
-      await tester.pump(const Duration(milliseconds: 500));
-      expect(scaffold(tester).isEndDrawerOpen, isTrue);
-      // Opening the drawer moves focus away from the composer. Return focus to the composer
-      // while the drawer stays open, so Escape reaches the composer with a layer open.
-      final input = tester.state<EditableTextState>(
-        find
-            .descendant(
-              of: find.byKey(const ValueKey('focus-region-composer')),
-              matching: find.byType(EditableText),
-            )
-            .first,
-      );
-      input.widget.focusNode.requestFocus();
-      await tester.pump();
-      expect(_regionOf(_primary), 'composer');
+    scaffold(tester).openEndDrawer();
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(scaffold(tester).isEndDrawerOpen, isTrue);
+    // Opening the drawer moves focus away from the composer. Return focus to the composer
+    // while the drawer stays open, so Escape reaches the composer with a layer open.
+    final input = tester.state<EditableTextState>(
+      find
+          .descendant(of: find.byKey(const ValueKey('focus-region-composer')), matching: find.byType(EditableText))
+          .first,
+    );
+    input.widget.focusNode.requestFocus();
+    await tester.pump();
+    expect(_regionOf(_primary), 'composer');
 
-      await sendKey(tester, LogicalKeyboardKey.escape);
-      await tester.pump(const Duration(milliseconds: 500));
-      expect(scaffold(tester).isEndDrawerOpen, isFalse);
-      expect(client.commandTypes, isNot(contains('agent.interrupt')));
+    await sendKey(tester, LogicalKeyboardKey.escape);
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(scaffold(tester).isEndDrawerOpen, isFalse);
+    expect(client.commandTypes, isNot(contains('agent.interrupt')));
 
-      // With nothing open, the same key interrupts.
-      await sendKey(tester, LogicalKeyboardKey.escape);
-      await tester.pump(const Duration(milliseconds: 300));
-      expect(client.commandTypes, contains('agent.interrupt'));
-      expect(tester.takeException(), isNull);
-    },
-  );
+    // With nothing open, the same key interrupts.
+    await sendKey(tester, LogicalKeyboardKey.escape);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(client.commandTypes, contains('agent.interrupt'));
+    expect(tester.takeException(), isNull);
+  });
 }

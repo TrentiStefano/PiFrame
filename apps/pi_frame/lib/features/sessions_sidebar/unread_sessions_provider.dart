@@ -1,13 +1,15 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/daemon/daemon_providers.dart';
+import '../../data/platform/user_data_service.dart';
 import '../../data/platform/widget_test_binding.dart';
 import '../../domain/session/agent_status.dart';
 import '../../domain/session/session_state.dart';
+
+const _fileName = 'unread_sessions.json';
 
 /// Whether a session's own agent is answering (not background subagents).
 bool agentAtWork(SessionState s) =>
@@ -23,9 +25,9 @@ bool agentAtWork(SessionState s) =>
 /// The set is saved in `~/.piframe/unread_sessions.json`, so an answer that
 /// arrived before a restart is still flagged after it.
 class UnreadSessionsNotifier extends StateNotifier<Set<String>> {
-  // Built from an explicit set (tests), or under a test binding, the notifier
-  // never touches the user's real file.
-  final bool _persists;
+  // Saved through [_storage] only when built without an explicit set. Built from an
+  // explicit set (tests), or under a test binding, the notifier never touches the user's real file.
+  final UserDataService? _storage;
 
   /// Last `lastActivityAt` seen per session in the daemon's listing.
   final Map<String, num> _lastActivity = {};
@@ -41,41 +43,29 @@ class UnreadSessionsNotifier extends StateNotifier<Set<String>> {
   /// Starts watching a session's live state for finished answers.
   void follow(String sessionId) => _follow?.call(sessionId);
 
-  UnreadSessionsNotifier([Iterable<String>? initial])
-      : _persists = initial == null && !kIsWeb && !isWidgetTestBinding,
-        super(initial?.toSet() ?? const <String>{}) {
-    if (_persists) _load();
-  }
-
-  File? _storageFile() {
-    if (!_persists) return null;
-    try {
-      final env = Platform.environment;
-      final home = Platform.isWindows
-          ? (env['USERPROFILE'] ?? 'C:\\Users\\Default')
-          : (env['HOME'] ?? '/tmp');
-      final dir = Directory('$home/.piframe');
-      if (!dir.existsSync()) dir.createSync(recursive: true);
-      return File('${dir.path}/unread_sessions.json');
-    } catch (_) {
-      return null;
-    }
+  UnreadSessionsNotifier([Iterable<String>? initial, UserDataService? storage])
+    : _storage = initial == null ? storage : null,
+      super(initial?.toSet() ?? const <String>{}) {
+    if (_storage != null) _load();
   }
 
   void _load() {
-    final file = _storageFile();
-    if (file == null || !file.existsSync()) return;
+    final content = _storage?.read(_fileName);
+    if (content == null) return;
     try {
-      final list = (jsonDecode(file.readAsStringSync()) as List?) ?? const [];
-      state = {for (final id in list) if (id is String) id};
+      final list = (jsonDecode(content) as List?) ?? const [];
+      state = {
+        for (final id in list)
+          if (id is String) id,
+      };
     } catch (_) {}
   }
 
   void _save() {
-    final file = _storageFile();
-    if (file == null) return;
+    final storage = _storage;
+    if (storage == null) return;
     try {
-      file.writeAsStringSync(jsonEncode(state.toList()));
+      storage.write(_fileName, jsonEncode(state.toList()));
     } catch (_) {}
   }
 
@@ -117,9 +107,10 @@ class UnreadSessionsNotifier extends StateNotifier<Set<String>> {
   }
 }
 
-final unreadSessionsProvider =
-    StateNotifierProvider<UnreadSessionsNotifier, Set<String>>((ref) {
-  final notifier = UnreadSessionsNotifier();
+final unreadSessionsProvider = StateNotifierProvider<UnreadSessionsNotifier, Set<String>>((ref) {
+  // Under a test binding (or on the web) the set is kept in memory only.
+  final persist = !kIsWeb && !isWidgetTestBinding;
+  final notifier = UnreadSessionsNotifier(null, persist ? ref.read(userDataServiceProvider) : null);
 
   // An answer that lands while another session is open marks it unread. The
   // daemon listing alone is not enough: its activity time lags a running turn.
@@ -132,18 +123,11 @@ final unreadSessionsProvider =
     });
   }
 
-  ref.listen<AsyncValue<List<Map<String, dynamic>>>>(
-    sessionListProvider,
-    (_, next) {
-      final sessions = next.value;
-      if (sessions == null) return;
-      notifier.noteListing(
-        sessions,
-        activeId: ref.read(activeSessionIdProvider),
-      );
-    },
-    fireImmediately: true,
-  );
+  ref.listen<AsyncValue<List<Map<String, dynamic>>>>(sessionListProvider, (_, next) {
+    final sessions = next.value;
+    if (sessions == null) return;
+    notifier.noteListing(sessions, activeId: ref.read(activeSessionIdProvider));
+  }, fireImmediately: true);
   ref.listen<String?>(activeSessionIdProvider, (_, id) {
     if (id == null) return;
     notifier.markRead(id);

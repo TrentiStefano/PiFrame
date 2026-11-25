@@ -28,7 +28,9 @@ test('WorkspaceService reads text, reports SHA-256 revision, and rejects stale s
     assert.match(read.revision, /^[a-f0-9]{64}$/);
     const saved = await service.saveFile(repo.root, 'file.txt', 'updated\n', read.revision);
     assert.match(saved.revision, /^[a-f0-9]{64}$/);
-    await assert.rejects(service.saveFile(repo.root, 'file.txt', 'stale\n', read.revision), { code: 'WORKSPACE_REVISION_CONFLICT' });
+    await assert.rejects(service.saveFile(repo.root, 'file.txt', 'stale\n', read.revision), {
+      code: 'WORKSPACE_REVISION_CONFLICT'
+    });
     assert.equal(fs.readFileSync(path.join(repo.root, 'file.txt'), 'utf8'), 'updated\n');
   } finally {
     repo.cleanup();
@@ -77,7 +79,10 @@ test('WorkspaceService discards a staged new file without leaving it in the inde
     const service = new WorkspaceService();
     fs.writeFileSync(path.join(repo.root, 'new.txt'), 'new file');
     await service.gitAction(repo.root, 'stage', ['new.txt']);
-    assert.equal((await service.getStatus(repo.root, true)).files.find((file) => file.path === 'new.txt')?.staged, true);
+    assert.equal(
+      (await service.getStatus(repo.root, true)).files.find((file) => file.path === 'new.txt')?.staged,
+      true
+    );
     const result = await service.gitAction(repo.root, 'discard', ['new.txt']);
     assert.equal(fs.existsSync(path.join(repo.root, 'new.txt')), false);
     assert.ok(!result.status.files.some((file) => file.path === 'new.txt'));
@@ -94,15 +99,17 @@ test('WorkspaceService stage, unstage, commit exact staged set, discard, and rej
     const staged = await service.gitAction(repo.root, 'stage', ['file.txt']);
     assert.equal(staged.status.files.find((file) => file.path === 'file.txt')?.staged, true);
     await service.gitAction(repo.root, 'unstage', ['file.txt']);
-    assert.equal((await service.getStatus(repo.root, true)).files.find((file) => file.path === 'file.txt')?.staged, false);
+    assert.equal(
+      (await service.getStatus(repo.root, true)).files.find((file) => file.path === 'file.txt')?.staged,
+      false
+    );
 
     await service.gitAction(repo.root, 'stage', ['file.txt']);
     fs.writeFileSync(path.join(repo.root, 'another.txt'), 'untracked');
     await service.gitAction(repo.root, 'stage', ['another.txt']);
-    await assert.rejects(
-      service.gitAction(repo.root, 'commit', ['file.txt'], ['file.txt'], 'should not commit'),
-      { code: 'WORKSPACE_STAGED_SET_MISMATCH' }
-    );
+    await assert.rejects(service.gitAction(repo.root, 'commit', ['file.txt'], ['file.txt'], 'should not commit'), {
+      code: 'WORKSPACE_STAGED_SET_MISMATCH'
+    });
     await service.gitAction(repo.root, 'unstage', ['another.txt']);
     await service.gitAction(repo.root, 'commit', ['file.txt'], ['file.txt'], 'save file');
     assert.equal((await service.getStatus(repo.root, true)).files.length, 1);

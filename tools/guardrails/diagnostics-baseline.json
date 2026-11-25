@@ -1,0 +1,71 @@
+{
+  "dart-analyze": {
+    "packages/pi_frame_protocol": {
+      "strict_raw_type": 0
+    },
+    "packages/pi_frame_theme": {
+      "discarded_futures": 0
+    },
+    "apps/pi_frame": {
+      "argument_type_not_assignable": 0,
+      "avoid_dynamic_calls": 0,
+      "discarded_futures": 0,
+      "for_in_of_invalid_type": 0,
+      "inference_failure_on_collection_literal": 0,
+      "inference_failure_on_instance_creation": 0,
+      "inference_failure_on_untyped_parameter": 0,
+      "return_of_invalid_type_from_closure": 0,
+      "strict_raw_type": 0,
+      "unawaited_futures": 0
+    }
+  },
+  "tsc": {
+    "apps/agentd": {
+      "TS18048": 0,
+      "TS2322": 0,
+      "TS2339": 0,
+      "TS2345": 0,
+      "TS2375": 0,
+      "TS2379": 0,
+      "TS2412": 0,
+      "TS2532": 0,
+      "TS2538": 0,
+      "TS2684": 0,
+      "TS2769": 0,
+      "TS6133": 0,
+      "TS6196": 0,
+      "TS7006": 0,
+      "TS7029": 0
+    },
+    "packages/pcp-ts": {
+      "TS6196": 0
+    },
+    "test/e2e": {
+      "TS6133": 0
+    },
+    "tools/fake-pi": {
+      "TS2345": 0,
+      "TS2532": 0
+    }
+  },
+  "eslint": {
+    "apps/agentd": {
+      "@typescript-eslint/await-thenable": 0,
+      "@typescript-eslint/no-floating-promises": 0,
+      "@typescript-eslint/no-unnecessary-type-assertion": 0,
+      "@typescript-eslint/switch-exhaustiveness-check": 0
+    },
+    "packages/pcp-ts": {
+      "@typescript-eslint/no-unnecessary-type-assertion": 0
+    },
+    "test/e2e": {
+      "@typescript-eslint/no-floating-promises": 0
+    },
+    "tools/fake-pi": {
+      "@typescript-eslint/no-unnecessary-type-assertion": 0
+    },
+    "tools/fault-proxy": {
+      "@typescript-eslint/no-misused-promises": 0
+    }
+  }
+}

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../domain/session/session_state.dart';
 import 'tool_card.dart';
 
@@ -6,11 +7,7 @@ class ToolTimeline extends StatelessWidget {
   final List<ToolExecutionState> toolCalls;
   final VoidCallback? onCardExpansionChanged;
 
-  const ToolTimeline({
-    super.key,
-    required this.toolCalls,
-    this.onCardExpansionChanged,
-  });
+  const ToolTimeline({super.key, required this.toolCalls, this.onCardExpansionChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -29,8 +26,7 @@ class ToolTimeline extends StatelessWidget {
               tool: toolCalls[i],
               onExpansionChanged: onCardExpansionChanged,
             ),
-            if (i < toolCalls.length - 1)
-              const SizedBox(height: 4),
+            if (i < toolCalls.length - 1) const SizedBox(height: 4),
           ],
         ],
       ),

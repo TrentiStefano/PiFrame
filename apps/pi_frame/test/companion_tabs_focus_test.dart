@@ -7,8 +7,7 @@ import 'package:pi_frame/features/session_changes/session_changes_provider.dart'
 import 'package:pi_frame/features/workspace/repository_workspace.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
-class _FixedSessionChangesNotifier extends StateNotifier<SessionChangesState>
-    implements SessionChangesNotifier {
+class _FixedSessionChangesNotifier extends StateNotifier<SessionChangesState> implements SessionChangesNotifier {
   _FixedSessionChangesNotifier() : super(const SessionChangesState());
 
   @override
@@ -27,11 +26,7 @@ class _FixedSessionChangesNotifier extends StateNotifier<SessionChangesState>
 /// Companion tabs of the Review pane (plan task 6.1): focusable, announced as selected
 /// buttons, and ←/→ or Enter select the tab.
 void main() {
-  const tabs = [
-    WorkspacePane.repository,
-    WorkspacePane.git,
-    WorkspacePane.chat,
-  ];
+  const tabs = [WorkspacePane.repository, WorkspacePane.git, WorkspacePane.chat];
 
   Future<List<WorkspacePane>> pumpPane(
     WidgetTester tester, {
@@ -46,14 +41,9 @@ void main() {
     addTearDown(() => tester.view.resetDevicePixelRatio());
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [
-          sessionChangesProvider('session_1')
-              .overrideWith((ref) => _FixedSessionChangesNotifier()),
-        ],
+        overrides: [sessionChangesProvider('session_1').overrideWith((ref) => _FixedSessionChangesNotifier())],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: Scaffold(
             body: SizedBox(
               width: width,
@@ -82,30 +72,18 @@ void main() {
   }
 
   // The app defaults to Italian, so the tab names are the Italian strings.
-  testWidgets('tabs are selected buttons in the semantics tree', (
-    tester,
-  ) async {
+  testWidgets('tabs are selected buttons in the semantics tree', (tester) async {
     final semantics = tester.ensureSemantics();
     final selected = <WorkspacePane>[];
     await pumpPane(tester, selected: selected);
 
     expect(
-      tester.getSemantics(find.bySemanticsLabel('Rivedi modifiche')),
-      matchesSemantics(
-        label: 'Rivedi modifiche',
-        isButton: true,
-        hasSelectedState: true,
-        isSelected: true,
-      ),
+      tester.getSemantics(find.bySemanticsLabel('Review Changes')),
+      matchesSemantics(label: 'Review Changes', isButton: true, hasSelectedState: true, isSelected: true),
     );
     expect(
       tester.getSemantics(find.bySemanticsLabel('File')),
-      matchesSemantics(
-        label: 'File',
-        isButton: true,
-        hasSelectedState: true,
-        isSelected: false,
-      ),
+      matchesSemantics(label: 'File', isButton: true, hasSelectedState: true, isSelected: false),
     );
     expect(tester.takeException(), isNull);
     semantics.dispose();
@@ -126,9 +104,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('←/→ select the neighbouring tab and move focus to it', (
-    tester,
-  ) async {
+  testWidgets('←/→ select the neighbouring tab and move focus to it', (tester) async {
     final selected = <WorkspacePane>[];
     await pumpPane(tester, selected: selected);
 
@@ -169,19 +145,17 @@ void main() {
 
   // No overflow exception is ignored: every width must lay out cleanly.
   for (final width in [1600.0, 320.0]) {
-    testWidgets('tab header lays out without overflow at ${width.toInt()} px', (
-      tester,
-    ) async {
+    testWidgets('tab header lays out without overflow at ${width.toInt()} px', (tester) async {
       final semantics = tester.ensureSemantics();
       final selected = <WorkspacePane>[];
       await pumpPane(tester, selected: selected, width: width);
 
       // Every tab keeps its name for assistive tech, even when only its icon shows.
-      for (final label in ['File', 'Rivedi modifiche', 'Chat']) {
+      for (final label in ['File', 'Review Changes', 'Chat']) {
         expect(find.bySemanticsLabel(label), findsOneWidget);
       }
       // The active tab always shows its label; at 320 px the others are icon-only.
-      expect(find.text('RIVEDI MODIFICHE'), findsOneWidget);
+      expect(find.text('REVIEW CHANGES'), findsOneWidget);
       if (width < kCompanionTabLabelsMinWidth) {
         expect(find.text('File'), findsNothing);
         expect(find.text('Chat'), findsNothing);

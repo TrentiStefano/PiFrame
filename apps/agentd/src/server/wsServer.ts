@@ -4,7 +4,7 @@ import { Connection } from './connection.js';
 import { isLoopbackHost, isOriginAllowed, hasProxyHeaders } from './origin.js';
 import type { DaemonConfig } from '../config/config.js';
 import type { RemoteManager } from '../remote/RemoteManager.js';
-import type { ServerMessage, PcpEnvelope } from '@piframe/pcp-ts';
+import type { ServerMessage, PcpEnvelope, PcpCommand } from '@piframe/pcp-ts';
 
 export interface WsServerOptions {
   httpServer: http.Server;
@@ -16,7 +16,7 @@ export interface WsServerOptions {
   piInfo: { path: string; version: string; supported: boolean };
   port: number;
   remoteManager?: RemoteManager;
-  onCommand: (conn: Connection, cmd: any) => Promise<void>;
+  onCommand: (conn: Connection, cmd: PcpCommand) => Promise<void>;
   onAttach?: (conn: Connection, sessionId: string, lastSeq: number | null, commandId?: string) => Promise<void>;
   onDetach?: (conn: Connection, sessionId: string) => Promise<void>;
   onConnectionClose?: (conn: Connection) => void;
@@ -56,8 +56,10 @@ export class ConnectionManager {
 
   public broadcast(sessionId: string, msg: ServerMessage | PcpEnvelope<any>): void {
     for (const conn of this.connections.values()) {
-      if ((conn.state === 'ready' || conn.state === 'attached') &&
-          (sessionId === '@daemon' || conn.attachedSessions.has(sessionId))) {
+      if (
+        (conn.state === 'ready' || conn.state === 'attached') &&
+        (sessionId === '@daemon' || conn.attachedSessions.has(sessionId))
+      ) {
         conn.send(msg);
       }
     }
@@ -66,9 +68,11 @@ export class ConnectionManager {
   /** Broadcast ONLY to genuine local connections (never to remote devices). */
   public broadcastLocal(sessionId: string, msg: ServerMessage | PcpEnvelope<any>): void {
     for (const conn of this.connections.values()) {
-      if (!conn.isRemote &&
-          (conn.state === 'ready' || conn.state === 'attached') &&
-          (sessionId === '@daemon' || conn.attachedSessions.has(sessionId))) {
+      if (
+        !conn.isRemote &&
+        (conn.state === 'ready' || conn.state === 'attached') &&
+        (sessionId === '@daemon' || conn.attachedSessions.has(sessionId))
+      ) {
         conn.send(msg);
       }
     }
@@ -109,6 +113,12 @@ interface SocketUpgradeMetadata {
   clientIp: string;
   rateLimitKey: string;
 }
+
+// How often the failed-hello rate limiter drops expired entries.
+const FAILED_HELLO_PRUNE_INTERVAL_MS = 60_000;
+
+// How often a still-authenticating connection is checked, so its authentication slot is released once it is ready.
+const AUTH_SLOT_RELEASE_POLL_MS = 100;
 
 export function createWsServer(opts: WsServerOptions): { wss: WebSocketServer; manager: ConnectionManager } {
   const {
@@ -200,7 +210,7 @@ export function createWsServer(opts: WsServerOptions): { wss: WebSocketServer; m
         failedHelloPerKey.set(key, active);
       }
     }
-  }, 60_000);
+  }, FAILED_HELLO_PRUNE_INTERVAL_MS);
   pruneTimer.unref?.();
 
   // Concurrency cap on unauthenticated connections arriving over remote listener
@@ -341,7 +351,7 @@ export function createWsServer(opts: WsServerOptions): { wss: WebSocketServer; m
         releaseAuthSlot();
         clearInterval(checkReadyInterval);
       }
-    }, 100);
+    }, AUTH_SLOT_RELEASE_POLL_MS);
     checkReadyInterval.unref?.();
 
     manager.add(conn);

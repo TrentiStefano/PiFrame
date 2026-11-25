@@ -3,20 +3,35 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import * as readline from 'node:readline';
 import { getPiFrameBaseDir } from '../config/config.js';
+import { isRecord, type JsonRecord } from '../errors/errors.js';
 
 export function isTemporarySessionCwd(cwd: string, tempDir = os.tmpdir()): boolean {
   const pathApi = path.win32.isAbsolute(cwd) || path.win32.isAbsolute(tempDir) ? path.win32 : path;
   const relative = pathApi.relative(pathApi.resolve(tempDir), pathApi.resolve(cwd));
-  return relative === '' || (!relative.startsWith(`..${pathApi.sep}`) && relative !== '..' && !pathApi.isAbsolute(relative));
+  return (
+    relative === '' || (!relative.startsWith(`..${pathApi.sep}`) && relative !== '..' && !pathApi.isAbsolute(relative))
+  );
 }
 
-function messageText(message: any): string {
-  let text = typeof message.content === 'string' ? message.content :
-    (Array.isArray(message.content) ? message.content
-      .filter((block: any) => block.type === 'text')
-      .map((block: any) => block.text || '').join('') : '');
-  if (!text && message.role === 'bashExecution') text = message.command ? `!${message.command}` : (message.output || '');
-  if (!text && (message.role === 'branchSummary' || message.role === 'compactionSummary')) text = message.summary || '';
+/** A transcript entry or message as read from JSON. Fields are narrowed where they are read. */
+function messageText(message: unknown): string {
+  if (!isRecord(message)) return '';
+  const content = message.content;
+  let text =
+    typeof content === 'string'
+      ? content
+      : Array.isArray(content)
+        ? content
+            .filter((block): block is JsonRecord => isRecord(block) && block.type === 'text')
+            .map((block) => String(block.text || ''))
+            .join('')
+        : '';
+  if (!text && message.role === 'bashExecution') {
+    text = message.command ? `!${String(message.command)}` : String(message.output || '');
+  }
+  if (!text && (message.role === 'branchSummary' || message.role === 'compactionSummary')) {
+    text = String(message.summary || '');
+  }
   return text;
 }
 
@@ -24,17 +39,30 @@ function messageText(message: any): string {
 export const FIRST_PROMPT_MAX_LENGTH = 120;
 
 /** The prompt text when [message] is a user message, else an empty string. */
-function firstPromptOf(message: any): string {
-  if (message?.role !== 'user') return '';
+function firstPromptOf(message: unknown): string {
+  if (!isRecord(message) || message.role !== 'user') return '';
   return messageText(message).replace(/\s+/g, ' ').trim().slice(0, FIRST_PROMPT_MAX_LENGTH);
 }
 
 function parseCost(value: unknown): number | undefined {
-  const raw = typeof value === 'object' && value !== null
-    ? (value as any).total ?? (value as any).amount
-    : value;
+  const raw = isRecord(value) ? (value.total ?? value.amount) : value;
   return typeof raw === 'number' && Number.isFinite(raw) && raw >= 0 ? raw : undefined;
 }
+
+/** Token counts and cost one model (or the tools bucket) reported across a session. */
+export interface ModelUsage {
+  cost?: number;
+  tokens: { total: number; input: number; output: number };
+}
+
+/** Usage totals a session file reports; `byModel` and `models` hold the same per-model buckets. */
+export type SessionUsage = {
+  cost?: number;
+  totalTokens?: number;
+  tokens?: { total: number; input: number; output: number };
+  byModel?: Record<string, ModelUsage>;
+  models?: Record<string, ModelUsage>;
+};
 
 export interface SessionSummary {
   id: string;
@@ -81,9 +109,10 @@ export class SessionIndex {
   }
 
   public getCachedSnapshot(activeSessionIds = new Set<string>()): SessionSummary[] {
-    const summaries = this.fastSnapshotReady && this.fastSnapshotRevision === this.cacheRevisionValue
-      ? [...this.fastSnapshot.values()]
-      : [...this.cache.values()].map(({ summary }) => summary);
+    const summaries =
+      this.fastSnapshotReady && this.fastSnapshotRevision === this.cacheRevisionValue
+        ? [...this.fastSnapshot.values()]
+        : [...this.cache.values()].map(({ summary }) => summary);
     return summaries
       .filter((summary) => !isTemporarySessionCwd(summary.cwd) || !!summary.parentSession)
       .map((summary) => ({ ...summary, isActive: activeSessionIds.has(summary.id) }))
@@ -93,12 +122,18 @@ export class SessionIndex {
   private bumpCacheRevision(): void {
     const revision = ++this.cacheRevisionValue;
     for (const callback of [...this.scanProgressCallbacks]) {
-      try { callback(revision); } catch { /* Progress observers cannot interrupt indexing. */ }
+      try {
+        callback(revision);
+      } catch {
+        /* Progress observers cannot interrupt indexing. */
+      }
     }
   }
 
   constructor(opts: { sessionsDir?: string; cachePath?: string } = {}) {
-    this.sessionsDir = opts.sessionsDir || process.env.PI_CODING_AGENT_SESSION_DIR ||
+    this.sessionsDir =
+      opts.sessionsDir ||
+      process.env.PI_CODING_AGENT_SESSION_DIR ||
       path.join(process.env.PI_CODING_AGENT_DIR || path.join(os.homedir(), '.pi', 'agent'), 'sessions');
     this.cachePath = opts.cachePath || path.join(getPiFrameBaseDir(), 'index.json');
     this.loadCache();
@@ -121,26 +156,28 @@ export class SessionIndex {
   }
 
   private saveCacheAsync(): Promise<void> {
-    const write = this.cacheSavePromise.catch(() => {}).then(async () => {
-      while (true) {
-        const revision = this.cacheRevisionValue;
-        const list = Array.from(this.cache, ([id, value]) => ({ id, ...value }));
-        const temp = `${this.cachePath}.tmp.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}`;
-        try {
-          await fs.promises.mkdir(path.dirname(this.cachePath), { recursive: true });
-          await fs.promises.writeFile(temp, JSON.stringify(list, null, 2), 'utf8');
-          if (revision !== this.cacheRevisionValue) {
+    const write = this.cacheSavePromise
+      .catch(() => {})
+      .then(async () => {
+        while (true) {
+          const revision = this.cacheRevisionValue;
+          const list = Array.from(this.cache, ([id, value]) => ({ id, ...value }));
+          const temp = `${this.cachePath}.tmp.${process.pid}.${Date.now()}.${Math.random().toString(36).slice(2)}`;
+          try {
+            await fs.promises.mkdir(path.dirname(this.cachePath), { recursive: true });
+            await fs.promises.writeFile(temp, JSON.stringify(list, null, 2), 'utf8');
+            if (revision !== this.cacheRevisionValue) {
+              await fs.promises.unlink(temp).catch(() => {});
+              continue;
+            }
+            await fs.promises.rename(temp, this.cachePath);
+            if (revision === this.cacheRevisionValue) return;
+          } catch {
             await fs.promises.unlink(temp).catch(() => {});
-            continue;
+            return;
           }
-          await fs.promises.rename(temp, this.cachePath);
-          if (revision === this.cacheRevisionValue) return;
-        } catch {
-          await fs.promises.unlink(temp).catch(() => {});
-          return;
         }
-      }
-    });
+      });
     this.cacheSavePromise = write;
     return write;
   }
@@ -156,18 +193,24 @@ export class SessionIndex {
           const stat = await fs.promises.stat(fullPath);
           isDirectory = stat.isDirectory();
           isFile = stat.isFile();
-        } catch { return []; }
+        } catch {
+          return [];
+        }
       }
       if (isDirectory) {
         let children: fs.Dirent[];
-        try { children = await fs.promises.readdir(fullPath, { withFileTypes: true }); }
-        catch (cause) {
+        try {
+          children = await fs.promises.readdir(fullPath, { withFileTypes: true });
+        } catch (cause) {
           if ((cause as NodeJS.ErrnoException).code === 'ENOENT') return [];
-          const error = new Error(`Failed to enumerate session directory: ${fullPath}`, { cause }) as NodeJS.ErrnoException;
+          const error = new Error(`Failed to enumerate session directory: ${fullPath}`, {
+            cause
+          }) as NodeJS.ErrnoException;
           error.code = 'SESSION_DIRECTORY_READ_FAILED';
           throw error;
         }
-        return children.filter((child) => child.isFile() || child.isSymbolicLink())
+        return children
+          .filter((child) => child.isFile() || child.isSymbolicLink())
           .map((child) => ({ filePath: path.join(fullPath, child.name), dirName: entry.name }));
       }
       return isFile ? [{ filePath: fullPath, dirName: entry.name }] : [];
@@ -181,24 +224,35 @@ export class SessionIndex {
   private async mapBounded<T, R>(items: T[], concurrency: number, fn: (item: T) => Promise<R>): Promise<R[]> {
     const result = new Array<R>(items.length);
     let next = 0;
-    await Promise.all(Array.from({ length: Math.min(concurrency, items.length) }, async () => {
-      while (true) {
-        const index = next++;
-        if (index >= items.length) return;
-        result[index] = await fn(items[index]);
-      }
-    }));
+    await Promise.all(
+      Array.from({ length: Math.min(concurrency, items.length) }, async () => {
+        while (true) {
+          const index = next++;
+          if (index >= items.length) return;
+          // index was checked against items.length above, so the element exists.
+          result[index] = await fn(items[index]!);
+        }
+      })
+    );
     return result;
   }
 
   private cacheMatches(value: { mtime: number; ctime?: number; summary: SessionSummary }, stat: fs.Stats): boolean {
-    return value.mtime === stat.mtimeMs && value.summary.sizeBytes === stat.size &&
-      (value.ctime === undefined || value.ctime === stat.ctimeMs);
+    return (
+      value.mtime === stat.mtimeMs &&
+      value.summary.sizeBytes === stat.size &&
+      (value.ctime === undefined || value.ctime === stat.ctimeMs)
+    );
   }
 
   private touchCache(filePath: string, value: { mtime: number; ctime: number; summary: SessionSummary }): void {
     const previous = this.cache.get(filePath);
-    if (!previous || previous.mtime !== value.mtime || previous.ctime !== value.ctime || JSON.stringify(previous.summary) !== JSON.stringify(value.summary)) {
+    if (
+      !previous ||
+      previous.mtime !== value.mtime ||
+      previous.ctime !== value.ctime ||
+      JSON.stringify(previous.summary) !== JSON.stringify(value.summary)
+    ) {
       this.cache.set(filePath, value);
       this.bumpCacheRevision();
     }
@@ -213,7 +267,9 @@ export class SessionIndex {
     if (listener) this.scanProgressCallbacks.add(listener);
     try {
       if (!this.fullScanPromise) {
-        this.fullScanPromise = this.scanAuthoritative().finally(() => { this.fullScanPromise = undefined; });
+        this.fullScanPromise = this.scanAuthoritative().finally(() => {
+          this.fullScanPromise = undefined;
+        });
       }
       const summaries = await this.fullScanPromise;
       return summaries.map((summary) => ({ ...summary, isActive: activeSessionIds.has(summary.id) }));
@@ -226,8 +282,9 @@ export class SessionIndex {
     this.unstableFiles = false;
     const scanRevision = this.fileRevisionCounter;
     let files: Array<{ filePath: string; dirName: string }>;
-    try { files = await this.enumerateSessionFiles(); }
-    catch (err) {
+    try {
+      files = await this.enumerateSessionFiles();
+    } catch (err) {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
         if (this.cache.size) {
           this.cache.clear();
@@ -262,17 +319,22 @@ export class SessionIndex {
 
     type Candidate = { filePath: string; dirName: string; stat: fs.Stats };
     const candidates = await this.mapBounded(files, 8, async ({ filePath, dirName }): Promise<Candidate | null> => {
-      try { return { filePath, dirName, stat: await fs.promises.stat(filePath) }; }
-      catch (err) {
+      try {
+        return { filePath, dirName, stat: await fs.promises.stat(filePath) };
+      } catch (err) {
         if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-          if (this.cache.delete(filePath)) { this.bumpCacheRevision(); changed = true; }
+          if (this.cache.delete(filePath)) {
+            this.bumpCacheRevision();
+            changed = true;
+          }
           this.fastSnapshot.delete(filePath);
           this.fastScanVersion++;
         }
         return null;
       }
     });
-    const ordered = candidates.filter((candidate): candidate is Candidate => candidate !== null)
+    const ordered = candidates
+      .filter((candidate): candidate is Candidate => candidate !== null)
       .sort((a, b) => b.stat.mtimeMs - a.stat.mtimeMs);
     const summaries = await this.mapBounded(ordered, 8, async ({ filePath, dirName, stat: before }) => {
       try {
@@ -282,7 +344,10 @@ export class SessionIndex {
           summary = cached.summary;
         } else {
           summary = await this.parseSessionFileAsync(
-            path.basename(filePath, path.extname(filePath)), filePath, before, dirName
+            path.basename(filePath, path.extname(filePath)),
+            filePath,
+            before,
+            dirName
           );
           const after = await fs.promises.stat(filePath);
           if ((this.fileRemovalRevisions.get(filePath) ?? 0) > scanRevision) return null;
@@ -299,7 +364,10 @@ export class SessionIndex {
         return summary;
       } catch (err) {
         if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-          if (this.cache.delete(filePath)) { this.bumpCacheRevision(); changed = true; }
+          if (this.cache.delete(filePath)) {
+            this.bumpCacheRevision();
+            changed = true;
+          }
           this.fastSnapshot.delete(filePath);
           this.fastScanVersion++;
         }
@@ -307,24 +375,40 @@ export class SessionIndex {
       }
     });
 
-    const existing = await this.mapBounded(summaries.filter((summary): summary is SessionSummary => summary !== null), 8, async (summary) => {
-      try { await fs.promises.stat(summary.sessionFile); return summary; }
-      catch {
-        if (this.cache.delete(summary.sessionFile)) { this.bumpCacheRevision(); changed = true; }
-        this.fastSnapshot.delete(summary.sessionFile);
-        this.fastScanVersion++;
-        return null;
+    const existing = await this.mapBounded(
+      summaries.filter((summary): summary is SessionSummary => summary !== null),
+      8,
+      async (summary) => {
+        try {
+          await fs.promises.stat(summary.sessionFile);
+          return summary;
+        } catch {
+          if (this.cache.delete(summary.sessionFile)) {
+            this.bumpCacheRevision();
+            changed = true;
+          }
+          this.fastSnapshot.delete(summary.sessionFile);
+          this.fastScanVersion++;
+          return null;
+        }
       }
-    });
+    );
     if (changed) await this.saveCacheAsync();
-    return existing.filter((summary): summary is SessionSummary => summary !== null &&
-      (this.fileRemovalRevisions.get(summary.sessionFile) ?? 0) <= scanRevision)
+    return existing
+      .filter(
+        (summary): summary is SessionSummary =>
+          summary !== null && (this.fileRemovalRevisions.get(summary.sessionFile) ?? 0) <= scanRevision
+      )
       .sort((a, b) => b.lastActivityAt - a.lastActivityAt);
   }
 
-  public async scanFast(activeSessionIds = new Set<string>()): Promise<{ sessions: SessionSummary[]; needsRefresh: boolean }> {
+  public async scanFast(
+    activeSessionIds = new Set<string>()
+  ): Promise<{ sessions: SessionSummary[]; needsRefresh: boolean }> {
     if (!this.fastScanPromise) {
-      this.fastScanPromise = this.scanFastSnapshot().finally(() => { this.fastScanPromise = undefined; });
+      this.fastScanPromise = this.scanFastSnapshot().finally(() => {
+        this.fastScanPromise = undefined;
+      });
     }
     const result = await this.fastScanPromise;
     return {
@@ -339,10 +423,12 @@ export class SessionIndex {
     const scanCacheRevision = this.cacheRevisionValue;
     const snapshotAtStart = new Map(this.fastSnapshot);
     let files: Array<{ filePath: string; dirName: string }>;
-    try { files = await this.enumerateSessionFiles(); }
-    catch (err) {
+    try {
+      files = await this.enumerateSessionFiles();
+    } catch (err) {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-        const snapshotChanged = this.fastSnapshot.size !== snapshotAtStart.size ||
+        const snapshotChanged =
+          this.fastSnapshot.size !== snapshotAtStart.size ||
           [...snapshotAtStart].some(([filePath, summary]) => this.fastSnapshot.get(filePath) !== summary);
         if (scanVersion !== this.fastScanVersion || this.cacheRevisionValue !== scanCacheRevision || snapshotChanged) {
           return { sessions: this.getCachedSnapshot(), needsRefresh: true };
@@ -370,7 +456,8 @@ export class SessionIndex {
     let cacheChangedDuringScan = false;
     const present = new Set(files.map(({ filePath }) => filePath));
     const cacheChangedDuringEnumeration = this.cacheRevisionValue !== scanCacheRevision;
-    const snapshotChangedDuringEnumeration = this.fastSnapshot.size !== snapshotAtStart.size ||
+    const snapshotChangedDuringEnumeration =
+      this.fastSnapshot.size !== snapshotAtStart.size ||
       [...snapshotAtStart].some(([filePath, summary]) => this.fastSnapshot.get(filePath) !== summary);
     if (cacheChangedDuringEnumeration || snapshotChangedDuringEnumeration) needsRefresh = true;
     let removedCache = false;
@@ -398,7 +485,14 @@ export class SessionIndex {
         if (cached && this.cacheMatches(cached, stat)) {
           if (isTemporarySessionCwd(cached.summary.cwd) && !cached.summary.parentSession) return null;
           if (cached.ctime === undefined) needsRefresh = true;
-          return { summary: { ...cached.summary, sizeBytes: stat.size, lastActivityAt: cached.summary.lastActivityAt || stat.mtimeMs }, stat };
+          return {
+            summary: {
+              ...cached.summary,
+              sizeBytes: stat.size,
+              lastActivityAt: cached.summary.lastActivityAt || stat.mtimeMs
+            },
+            stat
+          };
         }
         const provisional = await this.parseSessionFileFast(filePath, stat, dirName);
         if (!provisional) return null;
@@ -406,30 +500,50 @@ export class SessionIndex {
         return { summary: provisional, stat };
       } catch (err) {
         if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-          if (this.cache.delete(filePath)) { this.bumpCacheRevision(); cacheChangedDuringScan = true; }
+          if (this.cache.delete(filePath)) {
+            this.bumpCacheRevision();
+            cacheChangedDuringScan = true;
+          }
           removedDuringScan.add(filePath);
         }
         return null;
       }
     });
 
-    const checked = await this.mapBounded(results.filter((item): item is { summary: SessionSummary; stat: fs.Stats } => item !== null), 32, async ({ summary, stat }) => {
-      try {
-        const current = await fs.promises.stat(summary.sessionFile);
-        if (current.mtimeMs !== stat.mtimeMs || current.ctimeMs !== stat.ctimeMs || current.size !== stat.size) needsRefresh = true;
-        return summary;
-      } catch {
-        if (this.cache.delete(summary.sessionFile)) { this.bumpCacheRevision(); cacheChangedDuringScan = true; }
-        removedDuringScan.add(summary.sessionFile);
-        return null;
+    const checked = await this.mapBounded(
+      results.filter((item): item is { summary: SessionSummary; stat: fs.Stats } => item !== null),
+      32,
+      async ({ summary, stat }) => {
+        try {
+          const current = await fs.promises.stat(summary.sessionFile);
+          if (current.mtimeMs !== stat.mtimeMs || current.ctimeMs !== stat.ctimeMs || current.size !== stat.size)
+            needsRefresh = true;
+          return summary;
+        } catch {
+          if (this.cache.delete(summary.sessionFile)) {
+            this.bumpCacheRevision();
+            cacheChangedDuringScan = true;
+          }
+          removedDuringScan.add(summary.sessionFile);
+          return null;
+        }
       }
-    });
+    );
     if (cacheChangedDuringScan) await this.saveCacheAsync();
-    const sessions = checked.filter((summary): summary is SessionSummary => summary !== null &&
-      (this.fileRemovalRevisions.get(summary.sessionFile) ?? 0) <= scanRemovalRevision)
+    const sessions = checked
+      .filter(
+        (summary): summary is SessionSummary =>
+          summary !== null && (this.fileRemovalRevisions.get(summary.sessionFile) ?? 0) <= scanRemovalRevision
+      )
       .sort((a, b) => b.lastActivityAt - a.lastActivityAt);
     if (this.cacheRevisionValue !== snapshotCacheRevision) needsRefresh = true;
-    if (scanVersion === this.fastScanVersion && !cacheChangedDuringEnumeration && !cacheChangedDuringSave && !cacheChangedDuringScan && this.cacheRevisionValue === snapshotCacheRevision) {
+    if (
+      scanVersion === this.fastScanVersion &&
+      !cacheChangedDuringEnumeration &&
+      !cacheChangedDuringSave &&
+      !cacheChangedDuringScan &&
+      this.cacheRevisionValue === snapshotCacheRevision
+    ) {
       const nextSnapshot = new Map(sessions.map((summary) => [summary.sessionFile, summary]));
       for (const [filePath, summary] of this.fastSnapshot) {
         if (snapshotAtStart.get(filePath) !== summary) nextSnapshot.set(filePath, summary);
@@ -450,10 +564,13 @@ export class SessionIndex {
 
   private findInFastSnapshot(sessionId: string): SessionSummary | undefined {
     const items = [...this.fastSnapshot.values()];
-    return items.find((summary) => summary.id === sessionId) || items.find((summary) => {
-      const basename = path.basename(summary.sessionFile, path.extname(summary.sessionFile));
-      return basename === sessionId || basename.startsWith(sessionId);
-    });
+    return (
+      items.find((summary) => summary.id === sessionId) ||
+      items.find((summary) => {
+        const basename = path.basename(summary.sessionFile, path.extname(summary.sessionFile));
+        return basename === sessionId || basename.startsWith(sessionId);
+      })
+    );
   }
 
   public async resolveFast(sessionId: string): Promise<SessionSummary | undefined> {
@@ -472,7 +589,10 @@ export class SessionIndex {
         return resolved;
       }
       const summary = await this.parseSessionFileAsync(
-        path.basename(filePath, path.extname(filePath)), filePath, before, path.basename(path.dirname(filePath))
+        path.basename(filePath, path.extname(filePath)),
+        filePath,
+        before,
+        path.basename(path.dirname(filePath))
       );
       const after = await fs.promises.stat(filePath);
       if (!summary || (isTemporarySessionCwd(summary.cwd) && !summary.parentSession)) return undefined;
@@ -564,33 +684,40 @@ export class SessionIndex {
    */
   public async readSessionText(filePath: string | null | undefined): Promise<string | undefined> {
     if (!filePath) return undefined;
-    try { return await fs.promises.readFile(filePath, 'utf8'); } catch { return undefined; }
+    try {
+      return await fs.promises.readFile(filePath, 'utf8');
+    } catch {
+      return undefined;
+    }
   }
 
   public readTranscript(filePath: string, content?: string): Array<Record<string, unknown>> {
-    const entries: any[] = [];
+    const entries: JsonRecord[] = [];
     for (const line of (content ?? fs.readFileSync(filePath, 'utf8')).split('\n')) {
       try {
-        const entry = JSON.parse(line);
-        if (entry.type !== 'session') entries.push(entry);
-      } catch { /* An active terminal may have an unfinished final line. */ }
+        const entry: unknown = JSON.parse(line);
+        if (isRecord(entry) && entry.type !== 'session') entries.push(entry);
+      } catch {
+        /* An active terminal may have an unfinished final line. */
+      }
     }
     return SessionIndex.projectTranscript(entries);
   }
 
-  public static projectTranscript(entries: any[]): Array<Record<string, unknown>> {
-    const byId = new Map(entries.filter((e) => e.id).map((e) => [e.id, e]));
-    const branch: any[] = [];
-    const visited = new Set<string>();
-    let cursor = entries.at(-1);
+  public static projectTranscript(entries: JsonRecord[]): Array<Record<string, unknown>> {
+    const byId = new Map<unknown, JsonRecord>(entries.filter((e) => e.id).map((e) => [e.id, e]));
+    const branch: JsonRecord[] = [];
+    const visited = new Set<unknown>();
+    let cursor: JsonRecord | undefined = entries.at(-1);
     while (cursor && cursor.id && !visited.has(cursor.id)) {
       visited.add(cursor.id);
       branch.unshift(cursor);
       cursor = byId.get(cursor.parentId);
     }
+    const messageOf = (entry: JsonRecord): JsonRecord => (isRecord(entry.message) ? entry.message : entry);
     return (branch.length ? branch : entries)
-      .filter((entry) => (entry.type === 'message' || entry.role) && (entry.message || entry).role !== 'system')
-      .map((entry) => ({ ...(entry.message || entry), id: entry.id }));
+      .filter((entry) => (entry.type === 'message' || entry.role) && messageOf(entry).role !== 'system')
+      .map((entry) => ({ ...messageOf(entry), id: entry.id }));
   }
 
   private makeSummary(
@@ -607,21 +734,44 @@ export class SessionIndex {
   ): SessionSummary | null {
     if (isTemporarySessionCwd(cwd) && !parentSession) return null;
     const isSubagentNameOrId =
-      Boolean(name && (name.includes('worker#') || /(?:^|_)(?:worker|reviewer|scout|oracle|delegate|researcher|evidence-auditor)#/i.test(name) || /#([0-9a-fA-F]+)/.test(name) || name.startsWith('subagent'))) ||
-      Boolean(sessionId && (sessionId.includes('worker#') || /(?:^|_)(?:worker|reviewer|scout|oracle|delegate|researcher|evidence-auditor)#/i.test(sessionId) || sessionId.startsWith('subagent') || filePath.includes('subagent')));
+      Boolean(
+        name &&
+        (name.includes('worker#') ||
+          /(?:^|_)(?:worker|reviewer|scout|oracle|delegate|researcher|evidence-auditor)#/i.test(name) ||
+          /#([0-9a-fA-F]+)/.test(name) ||
+          name.startsWith('subagent'))
+      ) ||
+      Boolean(
+        sessionId &&
+        (sessionId.includes('worker#') ||
+          /(?:^|_)(?:worker|reviewer|scout|oracle|delegate|researcher|evidence-auditor)#/i.test(sessionId) ||
+          sessionId.startsWith('subagent') ||
+          filePath.includes('subagent'))
+      );
     const summary: SessionSummary = {
-      id: sessionId, name, cwd, gitRoot: null, sessionFile: filePath,
+      id: sessionId,
+      name,
+      cwd,
+      gitRoot: null,
+      sessionFile: filePath,
       createdAt: stat.birthtimeMs || stat.mtimeMs,
       lastActivityAt: lastMessageTimestamp || stat.mtimeMs,
-      sizeBytes: stat.size, lastMessagePreview, firstUserPrompt, isActive: false, parentSession,
-      isSubsession: Boolean(isSubagentNameOrId || (parentSession && isTemporarySessionCwd(cwd))),
+      sizeBytes: stat.size,
+      lastMessagePreview,
+      firstUserPrompt,
+      isActive: false,
+      parentSession,
+      isSubsession: Boolean(isSubagentNameOrId || (parentSession && isTemporarySessionCwd(cwd)))
     };
     if (messageCount !== undefined) summary.messageCount = messageCount;
     return summary;
   }
 
   private async parseSessionFileAsync(
-    initialId: string, filePath: string, stat: fs.Stats, _dirName: string
+    initialId: string,
+    filePath: string,
+    stat: fs.Stats,
+    _dirName: string
   ): Promise<SessionSummary | null> {
     let sessionId = initialId;
     let cwd = process.cwd();
@@ -649,7 +799,9 @@ export class SessionIndex {
                 return null;
               }
             }
-          } catch { /* Legacy or incomplete headers use the normal parser below. */ }
+          } catch {
+            /* Legacy or incomplete headers use the normal parser below. */
+          }
         }
         if (!line.trim()) continue;
         try {
@@ -676,12 +828,29 @@ export class SessionIndex {
           }
         } catch {}
       }
-    } catch { readFailed = true; }
+    } catch {
+      readFailed = true;
+    }
     if (readFailed) return null;
-    return this.makeSummary(sessionId, filePath, stat, cwd, name, parentSession, messageCount, lastMessagePreview, firstUserPrompt, lastMessageTimestamp);
+    return this.makeSummary(
+      sessionId,
+      filePath,
+      stat,
+      cwd,
+      name,
+      parentSession,
+      messageCount,
+      lastMessagePreview,
+      firstUserPrompt,
+      lastMessageTimestamp
+    );
   }
 
-  private async parseSessionFileFast(filePath: string, stat: fs.Stats, _dirName: string): Promise<SessionSummary | null> {
+  private async parseSessionFileFast(
+    filePath: string,
+    stat: fs.Stats,
+    _dirName: string
+  ): Promise<SessionSummary | null> {
     let sessionId = path.basename(filePath, path.extname(filePath));
     let cwd = process.cwd();
     let name: string | undefined = sessionId;
@@ -705,7 +874,9 @@ export class SessionIndex {
             if (header.parentSession) parentSession = header.parentSession;
             if (header.cwd && isTemporarySessionCwd(header.cwd) && !parentSession) return null;
           }
-        } catch { /* An incomplete or legacy header uses filename defaults. */ }
+        } catch {
+          /* An incomplete or legacy header uses filename defaults. */
+        }
       }
 
       const tailLength = Math.min(64 * 1024, stat.size);
@@ -729,8 +900,14 @@ export class SessionIndex {
             if (entry.cwd) cwd = entry.cwd;
             if (entry.parentSession) parentSession = entry.parentSession;
           }
-          if (entry.type === 'session_info') { name = entry.name; hasTailTitle = true; }
-          if (entry.sessionName) { name = entry.sessionName; hasTailTitle = true; }
+          if (entry.type === 'session_info') {
+            name = entry.name;
+            hasTailTitle = true;
+          }
+          if (entry.sessionName) {
+            name = entry.sessionName;
+            hasTailTitle = true;
+          }
           if (entry.type === 'message' || entry.role) {
             const message = entry.message || entry;
             if (message.role === 'system') continue;
@@ -748,10 +925,23 @@ export class SessionIndex {
         const cached = this.cache.get(filePath);
         if (cached) name = cached.summary.name;
       }
-    } finally { await fd.close(); }
+    } finally {
+      await fd.close();
+    }
     const firstUserPrompt = await this.readFirstUserPrompt(filePath);
     const freshStat = await fs.promises.stat(filePath);
-    return this.makeSummary(sessionId, filePath, freshStat, cwd, name, parentSession, undefined, lastMessagePreview, firstUserPrompt, lastMessageTimestamp);
+    return this.makeSummary(
+      sessionId,
+      filePath,
+      freshStat,
+      cwd,
+      name,
+      parentSession,
+      undefined,
+      lastMessagePreview,
+      firstUserPrompt,
+      lastMessageTimestamp
+    );
   }
 
   /** The first user prompt in a session file. Reading stops at the first match. */
@@ -767,7 +957,9 @@ export class SessionIndex {
             const prompt = firstPromptOf(entry.message || entry);
             if (prompt) return prompt;
           }
-        } catch { /* Skip malformed lines, as the other parsers do. */ }
+        } catch {
+          /* Skip malformed lines, as the other parsers do. */
+        }
       }
       return '';
     } catch {
@@ -778,39 +970,45 @@ export class SessionIndex {
     }
   }
 
-  public async getSubagents(parentSessionId: string, parentSessionFile?: string | null): Promise<Array<{
-    id: string;
-    name: string;
-    model?: string;
-    cost?: number;
-    output: string;
-    status: string;
-    description?: string;
-    toolCallId?: string;
-    sessionId?: string;
-    unlinked?: boolean;
-    /** Child session details, so clients can show what a running agent is doing. */
-    agentType?: string;
-    prompt?: string;
-    activity?: string;
-    startedAt?: number;
-    updatedAt?: number;
-    finished?: boolean;
-  }>> {
+  public async getSubagents(
+    parentSessionId: string,
+    parentSessionFile?: string | null
+  ): Promise<
+    Array<{
+      id: string;
+      name: string;
+      model?: string;
+      cost?: number;
+      output: string;
+      status: string;
+      description?: string;
+      toolCallId?: string;
+      sessionId?: string;
+      unlinked?: boolean;
+      /** Child session details, so clients can show what a running agent is doing. */
+      agentType?: string;
+      prompt?: string;
+      activity?: string;
+      startedAt?: number;
+      updatedAt?: number;
+      finished?: boolean;
+    }>
+  > {
     const { sessions: all } = await this.scanFast();
-    const resolvedParent = parentSessionFile || all.find((session) =>
-      session.id === parentSessionId ||
-      path.basename(session.sessionFile) === parentSessionId ||
-      path.basename(session.sessionFile, path.extname(session.sessionFile)) === parentSessionId
-    )?.sessionFile;
+    const resolvedParent =
+      parentSessionFile ||
+      all.find(
+        (session) =>
+          session.id === parentSessionId ||
+          path.basename(session.sessionFile) === parentSessionId ||
+          path.basename(session.sessionFile, path.extname(session.sessionFile)) === parentSessionId
+      )?.sessionFile;
     const isChildOfParent = (child: SessionSummary): boolean => {
       const parent = child.parentSession;
       if (!parent) return false;
       if (parent === parentSessionId) return true;
       if (!resolvedParent) return false;
-      const parentPath = path.isAbsolute(parent)
-        ? parent
-        : path.resolve(path.dirname(child.sessionFile), parent);
+      const parentPath = path.isAbsolute(parent) ? parent : path.resolve(path.dirname(child.sessionFile), parent);
       return path.resolve(parentPath) === path.resolve(resolvedParent);
     };
     const children = all.filter(isChildOfParent);
@@ -838,71 +1036,100 @@ export class SessionIndex {
       try {
         const lines = readline.createInterface({
           input: fs.createReadStream(resolvedParent, { encoding: 'utf8' }),
-          crlfDelay: Infinity,
+          crlfDelay: Infinity
         });
         for await (const line of lines) {
           try {
             const entry = JSON.parse(line);
             const message = entry.message || entry;
-            if (message.role === 'user' ||
-                (entry.type === 'custom_message' && entry.customType === 'subagent-notification')) {
+            if (
+              message.role === 'user' ||
+              (entry.type === 'custom_message' && entry.customType === 'subagent-notification')
+            ) {
               const text = messageText(message);
               for (const match of text.matchAll(/<task-notification>([\s\S]*?)<\/task-notification>/g)) {
-                const notification = match[1];
+                const notification = match[1] ?? '';
                 const id = /<task-id>([^<]+)<\/task-id>/.exec(notification)?.[1]?.trim();
                 const status = /<status>([^<]+)<\/status>/.exec(notification)?.[1]?.trim().toLowerCase();
                 const toolCallId = /<tool-use-id>([^<]+)<\/tool-use-id>/.exec(notification)?.[1]?.trim();
                 const byToolCall = toolCallId
                   ? [...agentResults.values()].filter((item) => item.toolCallId === toolCallId)
                   : [];
-                const agent = (id ? agentResults.get(id) : undefined) ??
-                  (byToolCall.length === 1 ? byToolCall[0] : undefined);
+                const agent =
+                  (id ? agentResults.get(id) : undefined) ?? (byToolCall.length === 1 ? byToolCall[0] : undefined);
                 if (agent && status) {
-                  agent.status = /error|fail/.test(status) ? 'error' :
-                    /stop|cancel/.test(status) ? 'stopped' :
-                    /wrapped|steered/.test(status) ? 'steered' : 'completed';
+                  agent.status = /error|fail/.test(status)
+                    ? 'error'
+                    : /stop|cancel/.test(status)
+                      ? 'stopped'
+                      : /wrapped|steered/.test(status)
+                        ? 'steered'
+                        : 'completed';
                 }
               }
             }
-            if (entry.type === 'custom' && entry.customType === 'subagents:record' &&
-                typeof entry.data?.id === 'string') {
+            if (
+              entry.type === 'custom' &&
+              entry.customType === 'subagents:record' &&
+              typeof entry.data?.id === 'string'
+            ) {
               // pi-subagents persists a finished top-level agent's final state here.
               const agent = agentResults.get(entry.data.id);
               const status = String(entry.data.status ?? '').toLowerCase();
               if (agent && status) {
-                agent.status = /error|fail/.test(status) ? 'error' :
-                  /stop|cancel|abort/.test(status) ? 'stopped' :
-                  /steer/.test(status) ? 'steered' : 'completed';
+                agent.status = /error|fail/.test(status)
+                  ? 'error'
+                  : /stop|cancel|abort/.test(status)
+                    ? 'stopped'
+                    : /steer/.test(status)
+                      ? 'steered'
+                      : 'completed';
               }
             }
             const details = message.details || entry.details;
-            if (message.role !== 'toolResult' || message.toolName !== 'Agent' || typeof details?.agentId !== 'string') continue;
+            if (message.role !== 'toolResult' || message.toolName !== 'Agent' || typeof details?.agentId !== 'string')
+              continue;
             const previous = agentResults.get(details.agentId);
             const result: Subagent = {
               id: details.agentId,
               name: details.description || details.subagentType || previous?.name || details.agentId,
               output: typeof details.output === 'string' ? details.output : previous?.output || '',
-              status: details.status === 'background' ? 'running' :
-                typeof details.status === 'string' ? details.status : previous?.status || 'completed',
+              status:
+                details.status === 'background'
+                  ? 'running'
+                  : typeof details.status === 'string'
+                    ? details.status
+                    : previous?.status || 'completed',
               description: typeof details.description === 'string' ? details.description : previous?.description,
-              toolCallId: typeof message.toolCallId === 'string' ? message.toolCallId :
-                typeof entry.toolCallId === 'string' ? entry.toolCallId : previous?.toolCallId,
+              toolCallId:
+                typeof message.toolCallId === 'string'
+                  ? message.toolCallId
+                  : typeof entry.toolCallId === 'string'
+                    ? entry.toolCallId
+                    : previous?.toolCallId
             };
             agentResults.set(details.agentId, result);
-          } catch { /* Active session files can end with an incomplete line. */ }
+          } catch {
+            /* Active session files can end with an incomplete line. */
+          }
         }
-      } catch { /* Parent details are optional; persisted child sessions still work. */ }
+      } catch {
+        /* Parent details are optional; persisted child sessions still work. */
+      }
     }
 
-    const childData = new Map<string, {
-      child: SessionSummary;
-      output: string;
-      lastMessagePreview?: string;
-      model?: string;
-      cost?: number;
-      agentPrefix?: string;
-      live: ChildLiveState;
-    }>();
+    const childData = new Map<
+      string,
+      {
+        child: SessionSummary;
+        output: string;
+        lastMessagePreview?: string;
+        model?: string;
+        cost?: number;
+        agentPrefix?: string;
+        live: ChildLiveState;
+      }
+    >();
     for (const child of children) {
       let output = '';
       let lastMessagePreview = child.lastMessagePreview;
@@ -915,7 +1142,7 @@ export class SessionIndex {
         if (child.sessionFile && fs.existsSync(child.sessionFile)) {
           const lines = readline.createInterface({
             input: fs.createReadStream(child.sessionFile, { encoding: 'utf8' }),
-            crlfDelay: Infinity,
+            crlfDelay: Infinity
           });
           for await (const line of lines) {
             try {
@@ -953,11 +1180,17 @@ export class SessionIndex {
           }
         }
       } catch {}
-      try { live.updatedAt = (await fs.promises.stat(child.sessionFile)).mtimeMs; } catch {}
+      try {
+        live.updatedAt = (await fs.promises.stat(child.sessionFile)).mtimeMs;
+      } catch {}
       childData.set(child.sessionFile, {
         live,
-        child, output: output.trim(), lastMessagePreview,
-        model: messageModel || modelChange, cost, agentPrefix
+        child,
+        output: output.trim(),
+        lastMessagePreview,
+        model: messageModel || modelChange,
+        cost,
+        agentPrefix
       });
     }
 
@@ -966,9 +1199,12 @@ export class SessionIndex {
     for (const [file, data] of childData) {
       if (!data.agentPrefix) continue;
       const matches = [...agentResults.values()].filter((result) => result.id.startsWith(data.agentPrefix!));
-      const samePrefixChildren = [...childData.values()].filter((candidate) => candidate.agentPrefix === data.agentPrefix);
-      if (matches.length === 1 && samePrefixChildren.length === 1) {
-        childMatches.set(file, matches[0]);
+      const samePrefixChildren = [...childData.values()].filter(
+        (candidate) => candidate.agentPrefix === data.agentPrefix
+      );
+      const [onlyMatch] = matches;
+      if (matches.length === 1 && samePrefixChildren.length === 1 && onlyMatch) {
+        childMatches.set(file, onlyMatch);
       }
     }
 
@@ -981,7 +1217,7 @@ export class SessionIndex {
         activity: live.activity,
         startedAt: live.startedAt,
         updatedAt: live.updatedAt,
-        finished: live.finished,
+        finished: live.finished
       };
       const agent = childMatches.get(file);
       if (agent) {
@@ -995,10 +1231,13 @@ export class SessionIndex {
           // A background launch stays "running" in the parent until its
           // notification arrives; one that never comes (worker restarted, agent
           // killed) would stay running forever, so ask the child file instead.
-          status: child.isActive ? 'running' :
-            agent.status === 'running' ? childStatus(live, Date.now()) : agent.status,
+          status: child.isActive
+            ? 'running'
+            : agent.status === 'running'
+              ? childStatus(live, Date.now())
+              : agent.status,
           description: agent.description || lastMessagePreview,
-          ...liveFields,
+          ...liveFields
         };
         continue;
       }
@@ -1012,14 +1251,17 @@ export class SessionIndex {
         output: output || lastMessagePreview || '',
         status: child.isActive ? 'running' : childStatus(live, Date.now()),
         description: lastMessagePreview,
-        ...liveFields,
+        ...liveFields
       });
     }
     return result;
   }
 
-  public extractSessionMetadata(filePath: string, preloaded?: string): {
-    usage?: Record<string, unknown>;
+  public extractSessionMetadata(
+    filePath: string,
+    preloaded?: string
+  ): {
+    usage?: SessionUsage;
     model?: string | null;
     thinkingLevel?: string | null;
   } {
@@ -1062,7 +1304,9 @@ export class SessionIndex {
             if (u) {
               let lineCost = 0;
               let hasLineCost = false;
-              const parsedCost = parseCost(entry.usage?.cost !== undefined ? entry.usage.cost : entry.message?.usage?.cost);
+              const parsedCost = parseCost(
+                entry.usage?.cost !== undefined ? entry.usage.cost : entry.message?.usage?.cost
+              );
               if (parsedCost !== undefined) {
                 totalCost += parsedCost;
                 lineCost = parsedCost;
@@ -1098,22 +1342,26 @@ export class SessionIndex {
 
               if (hasLineCost || hasLineTokens) {
                 let modelKey = entry.message?.model || entry.model || entry.modelId || currentModel;
-                if (entry.type === 'compaction' || entry.role === 'compactionSummary' || entry.type === 'summary' ||
-                    ((entry.message?.role === 'toolResult' || entry.role === 'toolResult') && !entry.message?.model && !entry.model)) {
+                if (
+                  entry.type === 'compaction' ||
+                  entry.role === 'compactionSummary' ||
+                  entry.type === 'summary' ||
+                  ((entry.message?.role === 'toolResult' || entry.role === 'toolResult') &&
+                    !entry.message?.model &&
+                    !entry.model)
+                ) {
                   modelKey = 'Tools/summaries';
                 } else if (!modelKey) {
-                  modelKey = model || 'Modello Principale';
+                  modelKey = model || 'Main model';
                 }
-                if (!byModel[modelKey]) {
-                  byModel[modelKey] = { tokens: { total: 0, input: 0, output: 0 } };
-                }
+                const bucket = (byModel[modelKey] ??= { tokens: { total: 0, input: 0, output: 0 } });
                 if (hasLineCost) {
-                  byModel[modelKey].cost = (byModel[modelKey].cost ?? 0) + lineCost;
+                  bucket.cost = (bucket.cost ?? 0) + lineCost;
                 }
                 if (hasLineTokens) {
-                  byModel[modelKey].tokens.total += lineTotalTokens;
-                  byModel[modelKey].tokens.input += lineInputTokens;
-                  byModel[modelKey].tokens.output += lineOutputTokens;
+                  bucket.tokens.total += lineTotalTokens;
+                  bucket.tokens.input += lineInputTokens;
+                  bucket.tokens.output += lineOutputTokens;
                 }
               }
             }
@@ -1122,7 +1370,7 @@ export class SessionIndex {
       }
     } catch {}
 
-    const usage: Record<string, unknown> = {};
+    const usage: SessionUsage = {};
     if (hasCost) {
       usage.cost = totalCost;
     }
@@ -1131,7 +1379,7 @@ export class SessionIndex {
       usage.tokens = {
         total: totalTokens,
         input: inputTokens,
-        output: outputTokens,
+        output: outputTokens
       };
     }
     if (Object.keys(byModel).length > 0) {
@@ -1142,7 +1390,7 @@ export class SessionIndex {
     return {
       usage: Object.keys(usage).length > 0 ? usage : undefined,
       model,
-      thinkingLevel,
+      thinkingLevel
     };
   }
 }
@@ -1168,17 +1416,21 @@ function oneLine(text: string, max: number): string {
 }
 
 /** Folds one session-file entry into the child's live state. */
-export function trackChildLiveState(live: ChildLiveState, entry: any): void {
-  if (entry?.type === 'session' && typeof entry.timestamp === 'string') {
+export function trackChildLiveState(live: ChildLiveState, entry: unknown): void {
+  if (!isRecord(entry)) return;
+  if (entry.type === 'session' && typeof entry.timestamp === 'string') {
     const startedAt = Date.parse(entry.timestamp);
     if (Number.isFinite(startedAt)) live.startedAt = startedAt;
     return;
   }
-  const message = entry?.type === 'message' ? entry.message : undefined;
-  if (!message) return;
+  const message = entry.type === 'message' ? entry.message : undefined;
+  if (!isRecord(message)) return;
   if (message.role === 'user') {
     if (live.prompt === undefined) {
-      const lines = messageText(message).split('\n').map((line) => line.trim().replace(/^#+\s*/, '')).filter(Boolean);
+      const lines = messageText(message)
+        .split('\n')
+        .map((line) => line.trim().replace(/^#+\s*/, ''))
+        .filter(Boolean);
       live.promptLines = lines.slice(0, 400);
       // Skip short headings such as "CONTESTO" so the label says what the agent does.
       const text = lines.find((line) => line.length >= 24) ?? lines[0];
@@ -1192,17 +1444,27 @@ export function trackChildLiveState(live: ChildLiveState, entry: any): void {
     return;
   }
   if (message.role !== 'assistant') return;
-  const blocks = Array.isArray(message.content) ? message.content : [];
-  const calls = blocks.filter((block: any) => block?.type === 'toolCall');
+  const blocks: unknown[] = Array.isArray(message.content) ? message.content : [];
+  const calls = blocks.filter((block): block is JsonRecord => isRecord(block) && block.type === 'toolCall');
   const lastCall = calls[calls.length - 1];
   if (lastCall) {
-    const args = lastCall.arguments ?? {};
-    const key = ACTIVITY_ARG_KEYS.find((name) => typeof args[name] === 'string' && args[name].trim());
+    const args: JsonRecord = isRecord(lastCall.arguments) ? lastCall.arguments : {};
+    const key = ACTIVITY_ARG_KEYS.find((name) => {
+      const value = args[name];
+      return typeof value === 'string' && value.trim() !== '';
+    });
     live.activity = oneLine(key ? `${lastCall.name}: ${args[key]}` : String(lastCall.name ?? 'tool'), 140);
   } else {
-    const text = blocks.filter((block: any) => block?.type === 'text').map((block: any) => block.text).join('\n') ||
-      (typeof message.content === 'string' ? message.content : '');
-    const lastLine = text.split('\n').map((line: string) => line.trim()).filter(Boolean).pop();
+    const text =
+      blocks
+        .filter((block): block is JsonRecord => isRecord(block) && block.type === 'text')
+        .map((block) => block.text)
+        .join('\n') || (typeof message.content === 'string' ? message.content : '');
+    const lastLine = text
+      .split('\n')
+      .map((line: string) => line.trim())
+      .filter(Boolean)
+      .pop();
     if (lastLine) live.activity = oneLine(lastLine, 140);
   }
   live.finished = message.stopReason !== 'toolUse' && calls.length === 0;
@@ -1231,7 +1493,8 @@ export function labelSiblingPrompts(children: ChildLiveState[]): void {
     const sets = group.map((child) => new Set(child.promptLines));
     group.forEach((child, index) => {
       const own = (child.promptLines ?? []).filter((line) =>
-        sets.some((set, other) => other !== index && !set.has(line)));
+        sets.some((set, other) => other !== index && !set.has(line))
+      );
       const label = own.find((line) => TASK_LINE.test(line)) ?? own.find((line) => line.length >= 24) ?? own[0];
       if (label) child.prompt = oneLine(label, 160);
     });

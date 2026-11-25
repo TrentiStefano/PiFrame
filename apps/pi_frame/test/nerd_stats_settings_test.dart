@@ -34,8 +34,8 @@ void main() {
       expect(NerdStatsSettings.fromJson({'enabled': 'true'}).enabled, isFalse);
       expect(NerdStatsSettings.fromJson({'enabled': 1}).enabled, isFalse);
       expect(NerdStatsSettings.fromJson({'enabled': 0}).enabled, isFalse);
-      expect(NerdStatsSettings.fromJson({'enabled': []}).enabled, isFalse);
-      expect(NerdStatsSettings.fromJson({'enabled': {}}).enabled, isFalse);
+      expect(NerdStatsSettings.fromJson({'enabled': <dynamic>[]}).enabled, isFalse);
+      expect(NerdStatsSettings.fromJson({'enabled': <String, dynamic>{}}).enabled, isFalse);
       expect(NerdStatsSettings.fromJson({'otherKey': 'val'}).enabled, isFalse);
     });
 

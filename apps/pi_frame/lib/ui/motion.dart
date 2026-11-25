@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
-/// Shared motion timings and curves (DESIGN.md §07 "Motion").
+/// Shared motion timings and curves (root DESIGN.md, section "Motion").
 ///
 /// Reduced motion is decided by `MediaQuery.disableAnimationsOf`. `PiFrameApp`
 /// sets that flag when the user enables "Reduce motion" in Appearance, so
@@ -73,18 +73,15 @@ abstract final class FrameMotion {
   /// Ease-out with a soft landing: larger surfaces moving across the window.
   static const panelCurve = FrameMotionTokens.panelCurve;
 
-  static bool reduced(BuildContext context) =>
-      MediaQuery.disableAnimationsOf(context);
+  static bool reduced(BuildContext context) => MediaQuery.disableAnimationsOf(context);
 
   /// Duration for a fade or colour change: [token], or the cross-fade under
   /// reduced motion.
-  static Duration fade(BuildContext context, Duration token) =>
-      reduced(context) ? crossFade : token;
+  static Duration fade(BuildContext context, Duration token) => reduced(context) ? crossFade : token;
 
   /// Duration for movement, resizing or scaling: [token], or instant under
   /// reduced motion.
-  static Duration move(BuildContext context, Duration token) =>
-      reduced(context) ? instant : token;
+  static Duration move(BuildContext context, Duration token) => reduced(context) ? instant : token;
 }
 
 /// Fades a newly mounted subtree in and settles it from [offset] pixels below.
@@ -111,8 +108,7 @@ class FrameEnter extends StatefulWidget {
   State<FrameEnter> createState() => _FrameEnterState();
 }
 
-class _FrameEnterState extends State<FrameEnter>
-    with SingleTickerProviderStateMixin {
+class _FrameEnterState extends State<FrameEnter> with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   bool _reduced = false;
   bool _started = false;
@@ -142,10 +138,7 @@ class _FrameEnterState extends State<FrameEnter>
 
   @override
   Widget build(BuildContext context) {
-    final curve = CurvedAnimation(
-      parent: _controller,
-      curve: FrameMotion.enterCurve,
-    );
+    final curve = CurvedAnimation(parent: _controller, curve: FrameMotion.enterCurve);
     return AnimatedBuilder(
       animation: curve,
       child: widget.child,
@@ -171,27 +164,15 @@ class FrameExpandable extends StatefulWidget {
   final Widget child;
   final bool animate;
 
-  const FrameExpandable({
-    super.key,
-    required this.expanded,
-    required this.child,
-    this.animate = true,
-  });
+  const FrameExpandable({super.key, required this.expanded, required this.child, this.animate = true});
 
   @override
   State<FrameExpandable> createState() => _FrameExpandableState();
 }
 
-class _FrameExpandableState extends State<FrameExpandable>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    value: widget.expanded ? 1 : 0,
-  );
-  late final Animation<double> _curve = CurvedAnimation(
-    parent: _controller,
-    curve: FrameMotion.enterCurve,
-  );
+class _FrameExpandableState extends State<FrameExpandable> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(vsync: this, value: widget.expanded ? 1 : 0);
+  late final Animation<double> _curve = CurvedAnimation(parent: _controller, curve: FrameMotion.enterCurve);
   bool _everExpanded = false;
 
   @override
@@ -303,8 +284,7 @@ class FrameSwitcher extends StatelessWidget {
       switchOutCurve: curve,
       // The default stack centres children at their own size. Fill the space
       // instead, so a scrolling child keeps its full height.
-      layoutBuilder: (current, previous) =>
-          Stack(fit: StackFit.expand, children: [...previous, ?current]),
+      layoutBuilder: (current, previous) => Stack(fit: StackFit.expand, children: [...previous, ?current]),
       transitionBuilder: (widget, animation) {
         if (travel == 0) {
           return FadeTransition(opacity: animation, child: widget);
@@ -320,10 +300,7 @@ class FrameSwitcher extends StatelessWidget {
             animation: animation,
             child: widget,
             builder: (context, child) => Transform.translate(
-              offset: Offset(
-                Tween<double>(begin: start, end: 0).evaluate(animation),
-                0,
-              ),
+              offset: Offset(Tween<double>(begin: start, end: 0).evaluate(animation), 0),
               child: child,
             ),
           ),

@@ -2,8 +2,7 @@ import * as http from 'node:http';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import * as crypto from 'node:crypto';
-import { timingSafeEqualStrings, parseCookies } from './auth.js';
+import { timingSafeEqualStrings, parseCookies } from '../auth/auth.js';
 import { serveStaticFile } from './static.js';
 import { receiveBlob, sendBlob, getBlobsDir, pruneOldBlobs } from './blobs.js';
 import { isLoopbackHost, isOriginAllowed, hasProxyHeaders } from './origin.js';
@@ -11,6 +10,7 @@ import type { DaemonConfig } from '../config/config.js';
 import type { RemoteManager } from '../remote/RemoteManager.js';
 import type { RemoteDeviceMode } from '../remote/types.js';
 import { DEVICE_TTL_MS } from '../remote/RemoteAuthManager.js';
+import { errorCode, errorMessage, readProperty } from '../errors/errors.js';
 
 /** Persistent cookie (a session cookie is dropped by iOS when the web app is closed). */
 const DEVICE_COOKIE_MAX_AGE_S = Math.floor(DEVICE_TTL_MS / 1000);
@@ -40,7 +40,9 @@ function readJsonBody(req: http.IncomingMessage, maxBytes = 8192): Promise<any> 
     });
     req.on('end', () => {
       if (tooLarge) {
-        return reject(Object.assign(new Error('Payload Too Large (max 8KB)'), { code: 'PAYLOAD_TOO_LARGE', status: 413 }));
+        return reject(
+          Object.assign(new Error('Payload Too Large (max 8KB)'), { code: 'PAYLOAD_TOO_LARGE', status: 413 })
+        );
       }
       try {
         const parsed = JSON.parse(body || '{}');
@@ -66,7 +68,9 @@ export function createHttpServer(opts: HttpServerOptions): http.Server {
   // ---------------------------------------------------------------------------
 
   /** Local listener: accepts master token or valid device token. */
-  function getLocalIdentity(req: http.IncomingMessage): { isMaster: boolean; deviceId?: string; mode?: RemoteDeviceMode } | null {
+  function getLocalIdentity(
+    req: http.IncomingMessage
+  ): { isMaster: boolean; deviceId?: string; mode?: RemoteDeviceMode } | null {
     const currentToken = getToken();
     const cookies = parseCookies(req.headers['cookie']);
     const authHeader = req.headers['authorization'];
@@ -97,7 +101,9 @@ export function createHttpServer(opts: HttpServerOptions): http.Server {
   }
 
   /** Remote listener: accepts ONLY valid device tokens. Master token is NEVER accepted (H2). */
-  function getRemoteDeviceIdentity(req: http.IncomingMessage): { deviceId: string; mode: RemoteDeviceMode; tokenCandidate: string } | null {
+  function getRemoteDeviceIdentity(
+    req: http.IncomingMessage
+  ): { deviceId: string; mode: RemoteDeviceMode; tokenCandidate: string } | null {
     if (!opts.remoteManager) return null;
     const cookies = parseCookies(req.headers['cookie']);
     const authHeader = req.headers['authorization'];
@@ -166,11 +172,13 @@ export function createHttpServer(opts: HttpServerOptions): http.Server {
         const identity = getRemoteDeviceIdentity(req);
         if (!identity) {
           res.writeHead(401, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-          res.end(JSON.stringify({
-            ok: false,
-            error: 'Unauthorized remote device. Pairing required.',
-            needsPairing: true
-          }));
+          res.end(
+            JSON.stringify({
+              ok: false,
+              error: 'Unauthorized remote device. Pairing required.',
+              needsPairing: true
+            })
+          );
           return;
         }
 
@@ -179,12 +187,14 @@ export function createHttpServer(opts: HttpServerOptions): http.Server {
           'Cache-Control': 'no-store',
           'Set-Cookie': `pcp_device_token=${identity.tokenCandidate}; Path=/; Max-Age=${DEVICE_COOKIE_MAX_AGE_S}; HttpOnly; SameSite=Lax; Secure`
         });
-        res.end(JSON.stringify({
-          ok: true,
-          token: identity.tokenCandidate,
-          deviceId: identity.deviceId,
-          mode: identity.mode
-        }));
+        res.end(
+          JSON.stringify({
+            ok: true,
+            token: identity.tokenCandidate,
+            deviceId: identity.deviceId,
+            mode: identity.mode
+          })
+        );
         return;
       }
 
@@ -199,9 +209,12 @@ export function createHttpServer(opts: HttpServerOptions): http.Server {
 
         readJsonBody(req, 8192)
           .then((parsed) => {
-            const candidate = typeof parsed.pairingSecret === 'string'
-              ? parsed.pairingSecret.trim()
-              : (typeof parsed.secret === 'string' ? parsed.secret.trim() : '');
+            const candidate =
+              typeof parsed.pairingSecret === 'string'
+                ? parsed.pairingSecret.trim()
+                : typeof parsed.secret === 'string'
+                  ? parsed.secret.trim()
+                  : '';
 
             if (!candidate) {
               res.writeHead(400, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
@@ -219,17 +232,25 @@ export function createHttpServer(opts: HttpServerOptions): http.Server {
               'Cache-Control': 'no-store',
               'Set-Cookie': `pcp_device_token=${result.deviceToken}; Path=/; Max-Age=${DEVICE_COOKIE_MAX_AGE_S}; HttpOnly; SameSite=Lax; Secure`
             });
-            res.end(JSON.stringify({
-              ok: true,
-              deviceId: result.deviceId,
-              deviceToken: result.deviceToken,
-              device: result.device
-            }));
+            res.end(
+              JSON.stringify({
+                ok: true,
+                deviceId: result.deviceId,
+                deviceToken: result.deviceToken,
+                device: result.device
+              })
+            );
           })
-          .catch((err: any) => {
-            const status = err.status || (err.code === 'RATE_LIMITED' ? 429 : 401);
+          .catch((err: unknown) => {
+            const declaredStatus = readProperty(err, 'status');
+            const status =
+              typeof declaredStatus === 'number' && declaredStatus
+                ? declaredStatus
+                : errorCode(err) === 'RATE_LIMITED'
+                  ? 429
+                  : 401;
             res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-            res.end(JSON.stringify({ ok: false, error: err.message, code: err.code }));
+            res.end(JSON.stringify({ ok: false, error: errorMessage(err), code: errorCode(err) }));
           });
         return;
       }
@@ -240,20 +261,24 @@ export function createHttpServer(opts: HttpServerOptions): http.Server {
         const identity = getRemoteDeviceIdentity(req);
         if (identity) {
           res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-          res.end(JSON.stringify({
-            ok: true,
-            enabled: status.enabled,
-            state: status.state,
-            mode: identity.mode
-          }));
+          res.end(
+            JSON.stringify({
+              ok: true,
+              enabled: status.enabled,
+              state: status.state,
+              mode: identity.mode
+            })
+          );
         } else {
           res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-          res.end(JSON.stringify({
-            ok: true,
-            enabled: status.enabled,
-            state: status.state,
-            needsPairing: true
-          }));
+          res.end(
+            JSON.stringify({
+              ok: true,
+              enabled: status.enabled,
+              state: status.state,
+              needsPairing: true
+            })
+          );
         }
         return;
       }
@@ -268,11 +293,13 @@ export function createHttpServer(opts: HttpServerOptions): http.Server {
         }
         if (identity.mode !== 'control') {
           res.writeHead(403, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-          res.end(JSON.stringify({
-            ok: false,
-            code: 'REMOTE_FORBIDDEN',
-            error: 'File uploads require control mode permission'
-          }));
+          res.end(
+            JSON.stringify({
+              ok: false,
+              code: 'REMOTE_FORBIDDEN',
+              error: 'File uploads require control mode permission'
+            })
+          );
           req.resume();
           return;
         }
@@ -384,7 +411,7 @@ export function createHttpServer(opts: HttpServerOptions): http.Server {
       }
 
       const themesDir = path.join(os.homedir(), '.piframe', 'themes');
-      const themes: any[] = [];
+      const themes: unknown[] = [];
       if (fs.existsSync(themesDir)) {
         try {
           const files = fs.readdirSync(themesDir);

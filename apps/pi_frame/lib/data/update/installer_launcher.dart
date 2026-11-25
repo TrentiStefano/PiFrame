@@ -1,6 +1,8 @@
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:url_launcher/url_launcher.dart';
+
 import '../../domain/update/update_models.dart';
 
 abstract class InstallerLauncher {
@@ -12,10 +14,7 @@ class PlatformInstallerLauncher implements InstallerLauncher {
   const PlatformInstallerLauncher();
 
   @override
-  Future<void> launchInstaller(
-    String filePath, {
-    required AppRelease release,
-  }) async {
+  Future<void> launchInstaller(String filePath, {required AppRelease release}) async {
     if (kIsWeb) {
       await openReleasePage(release.htmlUrl);
       return;
@@ -23,7 +22,7 @@ class PlatformInstallerLauncher implements InstallerLauncher {
 
     final file = File(filePath);
     if (!await file.exists()) {
-      throw FileSystemException('File di installazione non trovato', filePath);
+      throw FileSystemException('Installer file not found', filePath);
     }
 
     if (Platform.isWindows) {

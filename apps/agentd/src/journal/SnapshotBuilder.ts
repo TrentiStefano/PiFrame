@@ -1,9 +1,4 @@
-import type {
-  PcpSnapshotPayload,
-  SessionMeta,
-  RuntimeMeta,
-  TranscriptMeta
-} from '@piframe/pcp-ts';
+import type { PcpSnapshotPayload, SessionMeta, RuntimeMeta, TranscriptMeta } from '@piframe/pcp-ts';
 
 export interface SnapshotContext {
   sessionMeta: SessionMeta;
@@ -39,17 +34,21 @@ export class SnapshotBuilder {
     let modified = false;
     const sanitized = { ...entry };
     if (typeof sanitized.text === 'string' && sanitized.text.length > SnapshotBuilder.MAX_ENTRY_TEXT_BYTES) {
-      sanitized.text = sanitized.text.slice(0, SnapshotBuilder.MAX_ENTRY_TEXT_BYTES) + '\n\n... [truncated in snapshot for performance]';
+      sanitized.text =
+        sanitized.text.slice(0, SnapshotBuilder.MAX_ENTRY_TEXT_BYTES) +
+        '\n\n... [truncated in snapshot for performance]';
       modified = true;
     }
     if (typeof sanitized.thinking === 'string' && sanitized.thinking.length > SnapshotBuilder.MAX_ENTRY_TEXT_BYTES) {
-      sanitized.thinking = sanitized.thinking.slice(0, SnapshotBuilder.MAX_ENTRY_TEXT_BYTES) + '\n\n... [truncated in snapshot for performance]';
+      sanitized.thinking =
+        sanitized.thinking.slice(0, SnapshotBuilder.MAX_ENTRY_TEXT_BYTES) +
+        '\n\n... [truncated in snapshot for performance]';
       modified = true;
     }
     return modified ? sanitized : entry;
   }
 
-  public static build(ctx: SnapshotContext, seq?: number): PcpSnapshotPayload {
+  public static build(ctx: SnapshotContext, _seq?: number): PcpSnapshotPayload {
     const runtime: RuntimeMeta = {
       status: ctx.runtimeStatus,
       model: ctx.model ?? null,

@@ -3,6 +3,7 @@ import * as assert from 'node:assert/strict';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import WebSocket from 'ws';
+import { dataOf, listeningPort, parseFrame, type Frame } from './support.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,7 +34,7 @@ test('E2E: System Metrics - Subscribe over real WS, receive events, unsubscribe 
     httpServer.on('error', reject);
   });
 
-  const port = (httpServer.address() as any).port;
+  const port = listeningPort(httpServer);
 
   let registry!: SessionRegistry;
   let dispatcher!: Dispatcher;
@@ -72,10 +73,10 @@ test('E2E: System Metrics - Subscribe over real WS, receive events, unsubscribe 
     client.on('error', reject);
   });
 
-  const receivedMessages: any[] = [];
+  const receivedMessages: Frame[] = [];
   client.on('message', (data) => {
     try {
-      receivedMessages.push(JSON.parse(data.toString()));
+      receivedMessages.push(parseFrame(data));
     } catch {}
   });
 
@@ -98,7 +99,7 @@ test('E2E: System Metrics - Subscribe over real WS, receive events, unsubscribe 
     );
 
     // Wait for welcome
-    const welcome = await new Promise<any>((resolve, reject) => {
+    const welcome = await new Promise<Frame>((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error('Timed out waiting for welcome')), 3000);
       const interval = setInterval(() => {
         const found = receivedMessages.find((m) => m.kind === 'welcome');
@@ -112,7 +113,7 @@ test('E2E: System Metrics - Subscribe over real WS, receive events, unsubscribe 
 
     assert.equal(welcome.kind, 'welcome');
     assert.ok(
-      welcome.payload.capabilities.includes('system.metrics.v1'),
+      (welcome.payload.capabilities as string[]).includes('system.metrics.v1'),
       'Welcome capabilities should include system.metrics.v1'
     );
 
@@ -131,7 +132,7 @@ test('E2E: System Metrics - Subscribe over real WS, receive events, unsubscribe 
     );
 
     // Wait for result
-    const subResult = await new Promise<any>((resolve, reject) => {
+    const subResult = await new Promise<Frame>((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error('Timed out waiting for subscribe result')), 3000);
       const interval = setInterval(() => {
         const found = receivedMessages.find((m) => m.kind === 'result' && m.commandId === 'cmd_sub_e2e_001');
@@ -144,10 +145,10 @@ test('E2E: System Metrics - Subscribe over real WS, receive events, unsubscribe 
     });
 
     assert.equal(subResult.payload.state, 'completed');
-    assert.equal(subResult.payload.data.intervalMs, 1000);
+    assert.equal(dataOf<{ intervalMs: number }>(subResult).intervalMs, 1000);
 
     // 3. Wait for >= 1 system.metrics event within ~3s
-    const metricsEvent = await new Promise<any>((resolve, reject) => {
+    const metricsEvent = await new Promise<Frame>((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error('Timed out waiting for system.metrics event')), 4000);
       const interval = setInterval(() => {
         const found = receivedMessages.find((m) => m.kind === 'event' && m.type === 'system.metrics');
@@ -168,7 +169,7 @@ test('E2E: System Metrics - Subscribe over real WS, receive events, unsubscribe 
     assert.ok('memory' in metricsEvent.payload);
     assert.ok('disk' in metricsEvent.payload);
     assert.ok('gpu' in metricsEvent.payload);
-    assert.ok('source' in metricsEvent.payload.gpu);
+    assert.ok('source' in (metricsEvent.payload.gpu as object));
 
     // 4. Send system.metrics.unsubscribe
     client.send(
@@ -184,7 +185,7 @@ test('E2E: System Metrics - Subscribe over real WS, receive events, unsubscribe 
       })
     );
 
-    const unsubResult = await new Promise<any>((resolve, reject) => {
+    const unsubResult = await new Promise<Frame>((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error('Timed out waiting for unsubscribe result')), 3000);
       const interval = setInterval(() => {
         const found = receivedMessages.find((m) => m.kind === 'result' && m.commandId === 'cmd_unsub_e2e_001');

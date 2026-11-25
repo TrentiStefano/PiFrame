@@ -1,11 +1,6 @@
 import 'dart:convert';
 
-enum AttachmentType {
-  repoFile,
-  externalFile,
-  webLink,
-  image,
-}
+enum AttachmentType { repoFile, externalFile, webLink, image }
 
 class ChatAttachment {
   final String id;
@@ -24,8 +19,7 @@ class ChatAttachment {
 
   bool get isImage => type == AttachmentType.image;
   bool get isWebLink => type == AttachmentType.webLink;
-  bool get isFile =>
-      type == AttachmentType.repoFile || type == AttachmentType.externalFile;
+  bool get isFile => type == AttachmentType.repoFile || type == AttachmentType.externalFile;
 
   Map<String, dynamic> toJson() => {
     'id': id,
@@ -38,10 +32,7 @@ class ChatAttachment {
   factory ChatAttachment.fromJson(Map<String, dynamic> json) {
     return ChatAttachment(
       id: json['id']?.toString() ?? '',
-      type: AttachmentType.values.firstWhere(
-        (e) => e.name == json['type'],
-        orElse: () => AttachmentType.externalFile,
-      ),
+      type: AttachmentType.values.firstWhere((e) => e.name == json['type'], orElse: () => AttachmentType.externalFile),
       name: json['name']?.toString() ?? '',
       pathOrUrl: json['pathOrUrl']?.toString() ?? '',
       sizeBytes: (json['sizeBytes'] as num?)?.toInt(),
@@ -51,10 +42,7 @@ class ChatAttachment {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is ChatAttachment &&
-          runtimeType == other.runtimeType &&
-          id == other.id &&
-          pathOrUrl == other.pathOrUrl;
+      other is ChatAttachment && runtimeType == other.runtimeType && id == other.id && pathOrUrl == other.pathOrUrl;
 
   @override
   int get hashCode => id.hashCode ^ pathOrUrl.hashCode;
@@ -84,9 +72,7 @@ String encodeAttachmentsTag(List<ChatAttachment> attachments) {
 final RegExp _attachmentsRegex = RegExp(r'<!--pi-attachments:(.*?)-->', dotAll: true);
 
 /// Parses attachments from message text and returns the clean text and list of attachments.
-(String cleanText, List<ChatAttachment> attachments) parseAttachmentsFromText(
-  String rawText,
-) {
+(String cleanText, List<ChatAttachment> attachments) parseAttachmentsFromText(String rawText) {
   if (rawText.isEmpty) return ('', const <ChatAttachment>[]);
   if (!rawText.contains('<!--pi-attachments:')) {
     return (rawText, const <ChatAttachment>[]);
@@ -106,9 +92,7 @@ final RegExp _attachmentsRegex = RegExp(r'<!--pi-attachments:(.*?)-->', dotAll: 
     if (decoded is List) {
       for (final item in decoded) {
         if (item is Map) {
-          attachments.add(
-            ChatAttachment.fromJson(Map<String, dynamic>.from(item)),
-          );
+          attachments.add(ChatAttachment.fromJson(Map<String, dynamic>.from(item)));
         }
       }
     }

@@ -54,16 +54,9 @@ class DaemonSection extends ConsumerWidget {
       context: context,
       dialog: FrameDialog<bool>(
         title: strings.daemonRestartConfirmTitle,
-        body: Text(
-          strings.daemonRestartConfirmBody,
-          key: const ValueKey('settings-daemon-restart-confirm-body'),
-        ),
+        body: Text(strings.daemonRestartConfirmBody, key: const ValueKey('settings-daemon-restart-confirm-body')),
         actions: [
-          FrameDialogAction<bool>(
-            label: strings.cancel,
-            role: FrameDialogActionRole.cancel,
-            value: false,
-          ),
+          FrameDialogAction<bool>(label: strings.cancel, role: FrameDialogActionRole.cancel, value: false),
           FrameDialogAction<bool>(
             label: strings.daemonRestartConfirmAction,
             role: FrameDialogActionRole.primary,
@@ -98,36 +91,21 @@ class DaemonSection extends ConsumerWidget {
                   Row(
                     children: [
                       Expanded(
-                        child: Text(
-                          strings.labelStatus,
-                          style: text.body.copyWith(
-                            color: tokens.textSecondary,
-                          ),
-                        ),
+                        child: Text(strings.labelStatus, style: text.body.copyWith(color: tokens.textSecondary)),
                       ),
                       FrameStatusTag(
                         key: const ValueKey('settings-daemon-status'),
-                        label: endpoint == null
-                            ? strings.labelNotConnected
-                            : strings.labelEndpointDetected,
-                        tone: endpoint == null
-                            ? FrameStatusTone.danger
-                            : FrameStatusTone.success,
+                        label: endpoint == null ? strings.labelNotConnected : strings.labelEndpointDetected,
+                        tone: endpoint == null ? FrameStatusTone.danger : FrameStatusTone.success,
                       ),
                     ],
                   ),
                   buildSettingsInfoRow(
                     tokens,
                     strings.labelHttpWsPort,
-                    endpoint != null
-                        ? '127.0.0.1:${endpoint.port}'
-                        : strings.labelConnecting,
+                    endpoint != null ? '127.0.0.1:${endpoint.port}' : strings.labelConnecting,
                   ),
-                  buildSettingsInfoRow(
-                    tokens,
-                    strings.labelProtocol,
-                    strings.protocolPcp1,
-                  ),
+                  buildSettingsInfoRow(tokens, strings.labelProtocol, strings.protocolPcp1),
                 ],
               ),
               const SizedBox(height: FrameSpace.x4),
@@ -142,23 +120,10 @@ class DaemonSection extends ConsumerWidget {
                       minimumSize: const Size(0, FrameSize.rowForm),
                     ),
                     icon: isRestartingDaemon
-                        ? FrameActivityIndicator(
-                            size: FrameSize.icon,
-                            strokeWidth: 2,
-                            color: tokens.accent,
-                          )
-                        : const Icon(
-                            Icons.restart_alt_outlined,
-                            size: FrameSize.icon,
-                          ),
-                    label: Text(
-                      isRestartingDaemon
-                          ? strings.restartingDaemonStatus
-                          : strings.restartDaemonBtn,
-                    ),
-                    onPressed: isRestartingDaemon
-                        ? null
-                        : () => _requestRestart(context),
+                        ? FrameActivityIndicator(size: FrameSize.icon, strokeWidth: 2, color: tokens.accent)
+                        : const Icon(Icons.restart_alt_outlined, size: FrameSize.icon),
+                    label: Text(isRestartingDaemon ? strings.restartingDaemonStatus : strings.restartDaemonBtn),
+                    onPressed: isRestartingDaemon ? null : () => _requestRestart(context),
                   ),
                 ),
               ),
@@ -178,11 +143,7 @@ class DaemonSection extends ConsumerWidget {
           child: isLoadingConfig
               ? Align(
                   alignment: Alignment.centerLeft,
-                  child: FrameActivityIndicator(
-                    size: FrameSize.iconLg,
-                    strokeWidth: 2,
-                    color: tokens.accent,
-                  ),
+                  child: FrameActivityIndicator(size: FrameSize.iconLg, strokeWidth: 2, color: tokens.accent),
                 )
               : Wrap(
                   spacing: FrameSpace.x4,
@@ -195,44 +156,20 @@ class DaemonSection extends ConsumerWidget {
                         tokens,
                         DropdownButtonHideUnderline(
                           child: DropdownButton<int>(
-                            key: const ValueKey(
-                              'settings-idle-timeout-dropdown',
-                            ),
+                            key: const ValueKey('settings-idle-timeout-dropdown'),
                             isExpanded: true,
                             isDense: true,
-                            borderRadius: BorderRadius.circular(
-                              tokens.radiusMd,
-                            ),
+                            borderRadius: BorderRadius.circular(tokens.radiusMd),
                             value: workerIdleTimeoutMinutes,
                             dropdownColor: tokens.surfaceElevated,
-                            style: text.body.copyWith(
-                              color: tokens.textPrimary,
-                            ),
+                            style: text.body.copyWith(color: tokens.textPrimary),
                             items: [
-                              DropdownMenuItem(
-                                value: 0,
-                                child: Text(strings.timeoutNever),
-                              ),
-                              DropdownMenuItem(
-                                value: 5,
-                                child: Text(strings.timeout5Min),
-                              ),
-                              DropdownMenuItem(
-                                value: 15,
-                                child: Text(strings.timeout15Min),
-                              ),
-                              DropdownMenuItem(
-                                value: 30,
-                                child: Text(strings.timeout30Min),
-                              ),
-                              DropdownMenuItem(
-                                value: 60,
-                                child: Text(strings.timeout1Hour),
-                              ),
-                              DropdownMenuItem(
-                                value: 120,
-                                child: Text(strings.timeout2Hours),
-                              ),
+                              DropdownMenuItem(value: 0, child: Text(strings.timeoutNever)),
+                              DropdownMenuItem(value: 5, child: Text(strings.timeout5Min)),
+                              DropdownMenuItem(value: 15, child: Text(strings.timeout15Min)),
+                              DropdownMenuItem(value: 30, child: Text(strings.timeout30Min)),
+                              DropdownMenuItem(value: 60, child: Text(strings.timeout1Hour)),
+                              DropdownMenuItem(value: 120, child: Text(strings.timeout2Hours)),
                             ],
                             onChanged: (val) {
                               if (val != null) {
@@ -244,10 +181,7 @@ class DaemonSection extends ConsumerWidget {
                       ),
                     ),
                     if (configStatusMessage != null)
-                      Text(
-                        configStatusMessage!,
-                        style: text.label.copyWith(color: tokens.textPrimary),
-                      ),
+                      Text(configStatusMessage!, style: text.label.copyWith(color: tokens.textPrimary)),
                   ],
                 ),
         ),
@@ -258,16 +192,9 @@ class DaemonSection extends ConsumerWidget {
           child: Material(
             type: MaterialType.transparency,
             child: SwitchListTile(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(tokens.radiusSm),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: FrameSpace.x2,
-              ),
-              title: Text(
-                strings.notificationsSwitchTitle,
-                style: text.body.copyWith(color: tokens.textPrimary),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2),
+              title: Text(strings.notificationsSwitchTitle, style: text.body.copyWith(color: tokens.textPrimary)),
               value: ref.watch(notificationsEnabledProvider),
               activeThumbColor: tokens.accent,
               onChanged: (val) {

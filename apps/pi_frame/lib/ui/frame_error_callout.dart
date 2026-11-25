@@ -54,10 +54,7 @@ class FrameErrorCallout extends StatelessWidget {
           if (hint != null)
             Padding(
               padding: const EdgeInsets.only(top: FrameSpace.x1),
-              child: Text(
-                hint,
-                style: text.caption.copyWith(color: tokens.textSecondary),
-              ),
+              child: Text(hint, style: text.caption.copyWith(color: tokens.textSecondary)),
             ),
         ],
       ),

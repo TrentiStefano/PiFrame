@@ -213,12 +213,7 @@ export class SystemMetricsService {
     let total = 0;
     for (const cpu of cpus) {
       idle += cpu.times.idle;
-      total +=
-        cpu.times.user +
-        cpu.times.nice +
-        cpu.times.sys +
-        cpu.times.idle +
-        cpu.times.irq;
+      total += cpu.times.user + cpu.times.nice + cpu.times.sys + cpu.times.idle + cpu.times.irq;
     }
 
     if (!this.lastCpuTimes) {
@@ -253,16 +248,13 @@ export class SystemMetricsService {
         const totalMatch = meminfo.match(/^MemTotal:\s*(\d+)\s*kB/m);
         const availMatch = meminfo.match(/^MemAvailable:\s*(\d+)\s*kB/m);
         if (totalMatch && availMatch) {
-          const totalKb = parseInt(totalMatch[1], 10);
-          const availKb = parseInt(availMatch[1], 10);
+          const totalKb = parseInt(totalMatch[1] ?? '', 10);
+          const availKb = parseInt(availMatch[1] ?? '', 10);
           if (!isNaN(totalKb) && !isNaN(availKb) && totalKb > 0) {
             const totalBytes = totalKb * 1024;
             const availableBytes = availKb * 1024;
             const usedBytes = Math.max(0, totalBytes - availableBytes);
-            const percent = Math.min(
-              100,
-              Math.max(0, Math.round(((usedBytes / totalBytes) * 100) * 10) / 10)
-            );
+            const percent = Math.min(100, Math.max(0, Math.round((usedBytes / totalBytes) * 100 * 10) / 10));
             return { usedBytes, totalBytes, percent };
           }
         }
@@ -276,10 +268,7 @@ export class SystemMetricsService {
       const freeBytes = os.freemem();
       if (totalBytes <= 0) return null;
       const usedBytes = Math.max(0, totalBytes - freeBytes);
-      const percent = Math.min(
-        100,
-        Math.max(0, Math.round(((usedBytes / totalBytes) * 100) * 10) / 10)
-      );
+      const percent = Math.min(100, Math.max(0, Math.round((usedBytes / totalBytes) * 100 * 10) / 10));
       return { usedBytes, totalBytes, percent };
     } catch {
       return null;
@@ -308,10 +297,7 @@ export class SystemMetricsService {
       const usedBytes = Number(usedBig);
       if (totalBytes <= 0) return null;
 
-      const percent = Math.min(
-        100,
-        Math.max(0, Math.round(((usedBytes / totalBytes) * 100) * 10) / 10)
-      );
+      const percent = Math.min(100, Math.max(0, Math.round((usedBytes / totalBytes) * 100 * 10) / 10));
       return { usedBytes, totalBytes, percent };
     } catch {
       return null;

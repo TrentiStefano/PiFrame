@@ -1,4 +1,4 @@
-import { WebSocketServer, WebSocket } from 'ws';
+import { WebSocketServer, WebSocket, type RawData } from 'ws';
 import * as http from 'node:http';
 
 export interface FaultProxyConfig {
@@ -29,7 +29,7 @@ export class FaultProxy {
       const upstreamWs = new WebSocket(targetUrl);
       this.activeSockets.add(upstreamWs);
 
-      const clientQueue: { data: any; isBinary: boolean }[] = [];
+      const clientQueue: { data: RawData; isBinary: boolean }[] = [];
       let upstreamOpen = false;
 
       upstreamWs.on('open', () => {
@@ -61,7 +61,7 @@ export class FaultProxy {
       });
 
       // Forward upstream -> client with fault injection
-      upstreamWs.on('message', async (data, isBinary) => {
+      const relayFrame = async (data: RawData, isBinary: boolean): Promise<void> => {
         this.frameCount++;
 
         // 1. Check frame drop
@@ -79,10 +79,7 @@ export class FaultProxy {
         if (clientWs.readyState !== WebSocket.OPEN) return;
 
         // 3. Check frame corruption
-        if (
-          this.config.corruptEveryNFrames &&
-          this.frameCount % this.config.corruptEveryNFrames === 0
-        ) {
+        if (this.config.corruptEveryNFrames && this.frameCount % this.config.corruptEveryNFrames === 0) {
           clientWs.send('{"protocol":1,"kind":"event","truncated":true', { binary: isBinary });
           return;
         }
@@ -94,6 +91,15 @@ export class FaultProxy {
         if (this.config.duplicateFrames && clientWs.readyState === WebSocket.OPEN) {
           clientWs.send(data, { binary: isBinary });
         }
+      };
+      // Each frame is relayed on its own, so injected latency delays one frame without holding back later ones.
+      // A send can throw, so a failed relay is logged and closes both sides rather than leaving a rejection unhandled.
+      upstreamWs.on('message', (data, isBinary) => {
+        relayFrame(data, isBinary).catch((err: unknown) => {
+          console.error('RELAY ERROR:', err);
+          clientWs.terminate();
+          upstreamWs.terminate();
+        });
       });
 
       clientWs.on('close', () => {
@@ -122,7 +128,11 @@ export class FaultProxy {
   public async start(): Promise<number> {
     return new Promise((resolve, reject) => {
       this.server.listen(0, '127.0.0.1', () => {
-        const addr = this.server.address() as any;
+        const addr = this.server.address();
+        if (addr === null || typeof addr === 'string') {
+          reject(new Error('fault proxy is not listening on a TCP port'));
+          return;
+        }
         resolve(addr.port);
       });
       this.server.on('error', reject);

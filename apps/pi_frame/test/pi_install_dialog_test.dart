@@ -46,17 +46,11 @@ class FakePiInstallService implements PiInstallService {
 }
 
 void main() {
-  Widget buildTestableWidget({
-    required PiInstallService service,
-  }) {
+  Widget buildTestableWidget({required PiInstallService service}) {
     return ProviderScope(
-      overrides: [
-        piInstallServiceProvider.overrideWithValue(service),
-      ],
+      overrides: [piInstallServiceProvider.overrideWithValue(service)],
       child: MaterialApp(
-        theme: ThemeData.dark().copyWith(
-          extensions: const [FrameTokens.dark],
-        ),
+        theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
         home: Scaffold(
           body: Builder(
             builder: (context) => ElevatedButton(
@@ -77,8 +71,8 @@ void main() {
     await tester.tap(find.text('Open Dialog'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Installazione Pi coding agent'), findsOneWidget);
-    expect(find.text('Pi coding agent non rilevato'), findsOneWidget);
+    expect(find.text('Pi Coding Agent Installation'), findsOneWidget);
+    expect(find.text('Pi Coding Agent not detected'), findsOneWidget);
     expect(find.byKey(const ValueKey('pi-install-later-btn')), findsOneWidget);
     expect(find.byKey(const ValueKey('pi-install-now-btn')), findsOneWidget);
   });
@@ -90,11 +84,11 @@ void main() {
     await tester.tap(find.text('Open Dialog'));
     await tester.pumpAndSettle();
 
-    // Click "Più tardi"
+    // Click "Later"
     await tester.tap(find.byKey(const ValueKey('pi-install-later-btn')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Installazione Pi coding agent'), findsNothing);
+    expect(find.text('Pi Coding Agent Installation'), findsNothing);
     expect(fakeService.markCompletedCalled, isTrue);
   });
 
@@ -105,12 +99,12 @@ void main() {
     await tester.tap(find.text('Open Dialog'));
     await tester.pumpAndSettle();
 
-    // Click "Installa adesso"
+    // Click "Install now"
     await tester.tap(find.byKey(const ValueKey('pi-install-now-btn')));
     await tester.pump(); // Start installation
     await tester.pumpAndSettle(); // Wait for stream to finish
 
-    expect(find.text('Installazione completata con successo!'), findsOneWidget);
+    expect(find.text('Installation completed successfully!'), findsOneWidget);
     expect(find.byKey(const ValueKey('pi-install-done-btn')), findsOneWidget);
     expect(fakeService.markCompletedCalled, isTrue);
     expect(fakeService.piInstalled, isTrue);
@@ -118,7 +112,7 @@ void main() {
     // Click done button
     await tester.tap(find.byKey(const ValueKey('pi-install-done-btn')));
     await tester.pumpAndSettle();
-    expect(find.text('Installazione completata con successo!'), findsNothing);
+    expect(find.text('Installation completed successfully!'), findsNothing);
   });
 
   testWidgets('PiInstallDialog handles install failure with retry option', (tester) async {
@@ -128,12 +122,12 @@ void main() {
     await tester.tap(find.text('Open Dialog'));
     await tester.pumpAndSettle();
 
-    // Click "Installa adesso"
+    // Click "Install now"
     await tester.tap(find.byKey(const ValueKey('pi-install-now-btn')));
     await tester.pump();
     await tester.pumpAndSettle();
 
-    expect(find.text('Installazione non riuscita. Verifica i log sottostanti.'), findsOneWidget);
+    expect(find.text('Installation failed. Check the logs below.'), findsOneWidget);
     expect(find.byKey(const ValueKey('pi-install-retry-btn')), findsOneWidget);
     expect(find.byKey(const ValueKey('pi-install-done-btn')), findsOneWidget);
   });

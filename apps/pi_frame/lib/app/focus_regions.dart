@@ -13,25 +13,13 @@ enum FocusRegion {
 
   /// The panes F6 cycles through. The transcript and the composer are one chat pane,
   /// and the composer takes the focus when the chat pane is chosen.
-  static const List<FocusRegion> panes = [
-    titleBar,
-    sessions,
-    repository,
-    composer,
-    companion,
-  ];
+  static const List<FocusRegion> panes = [titleBar, sessions, repository, composer, companion];
 
   /// The regions that make up a pane, in the order the pane should take focus.
-  List<FocusRegion> get paneRegions =>
-      this == composer ? const [composer, transcript] : [this];
+  List<FocusRegion> get paneRegions => this == composer ? const [composer, transcript] : [this];
 
   /// Keyboard shortcut number (Ctrl/Cmd+1…4) for the four panes the user can jump to.
-  static const Map<int, FocusRegion> numbered = {
-    1: sessions,
-    2: repository,
-    3: composer,
-    4: companion,
-  };
+  static const Map<int, FocusRegion> numbered = {1: sessions, 2: repository, 3: composer, 4: companion};
 }
 
 /// Puts [child] in the traversal position of [region].
@@ -40,12 +28,7 @@ enum FocusRegion {
 /// composer to a row in another pane. Nodes inside a region keep their top-to-bottom
 /// reading order, because the traversal sort is stable within equal orders.
 class FocusRegionMarker extends StatelessWidget {
-  const FocusRegionMarker({
-    super.key,
-    required this.region,
-    required this.regionKey,
-    required this.child,
-  });
+  const FocusRegionMarker({super.key, required this.region, required this.regionKey, required this.child});
 
   final FocusRegion region;
 

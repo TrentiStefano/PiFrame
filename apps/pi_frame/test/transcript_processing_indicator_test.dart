@@ -22,9 +22,7 @@ Future<AppStrings> _pumpTranscript(WidgetTester tester, StepGroupingMode mode) a
     ..state = SessionState(
       sessionId: _sid,
       cwd: '/repo',
-      entries: [
-        SessionEntry(id: 'u1', role: 'user', text: 'Fix the bug', timestamp: now),
-      ],
+      entries: [SessionEntry(id: 'u1', role: 'user', text: 'Fix the bug', timestamp: now)],
       agentStatus: AgentStatus.working,
       runStartedAt: now,
     );
@@ -33,9 +31,7 @@ Future<AppStrings> _pumpTranscript(WidgetTester tester, StepGroupingMode mode) a
       overrides: [
         daemonEndpointProvider.overrideWith((ref) async => null),
         sessionStateFamily(_sid).overrideWith((ref) => notifier),
-        stepGroupingSettingsProvider.overrideWith(
-          (ref) => StepGroupingSettingsNotifier()..setMode(mode),
-        ),
+        stepGroupingSettingsProvider.overrideWith((ref) => StepGroupingSettingsNotifier()..setMode(mode)),
       ],
       child: MaterialApp(
         theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
@@ -46,8 +42,7 @@ Future<AppStrings> _pumpTranscript(WidgetTester tester, StepGroupingMode mode) a
   for (int i = 0; i < 10; i++) {
     await tester.pump(const Duration(milliseconds: 16));
   }
-  return ProviderScope.containerOf(tester.element(find.byType(TranscriptView)))
-      .read(appStringsProvider);
+  return ProviderScope.containerOf(tester.element(find.byType(TranscriptView))).read(appStringsProvider);
 }
 
 /// The step group header drops the label's own trailing dots and adds "...".

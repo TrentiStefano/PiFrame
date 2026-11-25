@@ -8,23 +8,23 @@ test('JsonlFramer: handles basic single line and CRLF', () => {
   const results = framer.push(chunk);
 
   assert.equal(results.length, 2);
-  assert.equal(results[0].ok, true);
-  assert.deepEqual(results[0].value, { hello: 'world' });
-  assert.equal(results[1].ok, true);
-  assert.deepEqual(results[1].value, { foo: 'bar' });
+  assert.equal(results[0]!.ok, true);
+  assert.deepEqual(results[0]!.value, { hello: 'world' });
+  assert.equal(results[1]!.ok, true);
+  assert.deepEqual(results[1]!.value, { foo: 'bar' });
 });
 
 test('JsonlFramer: does NOT split on U+2028 or U+2029 within string', () => {
   const framer = new JsonlFramer();
   // U+2028 is LINE SEPARATOR (E2 80 A8 in UTF-8)
   // U+2029 is PARAGRAPH SEPARATOR (E2 80 A9 in UTF-8)
-  const content = JSON.stringify({ text: "Hello\u2028World\u2029Test" });
+  const content = JSON.stringify({ text: 'Hello\u2028World\u2029Test' });
   const chunk = Buffer.from(content + '\n');
   const results = framer.push(chunk);
 
   assert.equal(results.length, 1);
-  assert.equal(results[0].ok, true);
-  assert.equal(results[0].value.text, "Hello\u2028World\u2029Test");
+  assert.equal(results[0]!.ok, true);
+  assert.equal(results[0]!.value.text, 'Hello\u2028World\u2029Test');
 });
 
 test('JsonlFramer: handles multibyte UTF-8 split across chunks', () => {
@@ -34,7 +34,7 @@ test('JsonlFramer: handles multibyte UTF-8 split across chunks', () => {
   const fullBuf = Buffer.from(jsonStr, 'utf8');
 
   // Find index of first byte of emoji
-  const rocketIdx = fullBuf.indexOf(0xF0);
+  const rocketIdx = fullBuf.indexOf(0xf0);
 
   // Split chunk right in the middle of the 4-byte emoji sequence (after 2 bytes)
   const part1 = fullBuf.subarray(0, rocketIdx + 2);
@@ -45,8 +45,8 @@ test('JsonlFramer: handles multibyte UTF-8 split across chunks', () => {
 
   const res2 = framer.push(part2);
   assert.equal(res2.length, 1);
-  assert.equal(res2[0].ok, true);
-  assert.equal(res2[0].value.rocket, '🚀');
+  assert.equal(res2[0]!.ok, true);
+  assert.equal(res2[0]!.value.rocket, '🚀');
 });
 
 test('JsonlFramer: unparseable line returns ok: false without throwing', () => {
@@ -55,8 +55,8 @@ test('JsonlFramer: unparseable line returns ok: false without throwing', () => {
   const results = framer.push(chunk);
 
   assert.equal(results.length, 2);
-  assert.equal(results[0].ok, false);
-  assert.equal(results[0].raw, 'NOT A VALID JSON LINE');
-  assert.equal(results[1].ok, true);
-  assert.deepEqual(results[1].value, { ok: true });
+  assert.equal(results[0]!.ok, false);
+  assert.equal(results[0]!.raw, 'NOT A VALID JSON LINE');
+  assert.equal(results[1]!.ok, true);
+  assert.deepEqual(results[1]!.value, { ok: true });
 });

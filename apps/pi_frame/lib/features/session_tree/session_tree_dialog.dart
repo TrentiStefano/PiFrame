@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -30,12 +32,7 @@ class SessionTreeDialog extends ConsumerStatefulWidget {
       dialog: FrameDialog<void>(
         title: title,
         body: SessionTreeDialog(sessionId: sessionId),
-        actions: [
-          FrameDialogAction<void>(
-            label: strings.close,
-            role: FrameDialogActionRole.cancel,
-          ),
-        ],
+        actions: [FrameDialogAction<void>(label: strings.close, role: FrameDialogActionRole.cancel)],
       ),
     );
   }
@@ -58,7 +55,7 @@ class _SessionTreeDialogState extends ConsumerState<SessionTreeDialog> {
   @override
   void initState() {
     super.initState();
-    _loadTree();
+    unawaited(_loadTree());
   }
 
   Future<void> _loadTree() async {
@@ -113,10 +110,7 @@ class _SessionTreeDialogState extends ConsumerState<SessionTreeDialog> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      strings.sessionTreeIdLabel,
-                      style: text.caption.copyWith(color: tokens.textMuted),
-                    ),
+                    Text(strings.sessionTreeIdLabel, style: text.caption.copyWith(color: tokens.textMuted)),
                     SelectableText(
                       widget.sessionId,
                       key: const ValueKey('session-tree-id'),
@@ -130,9 +124,7 @@ class _SessionTreeDialogState extends ConsumerState<SessionTreeDialog> {
                 key: const ValueKey('session-tree-copy-id'),
                 icon: Icons.copy_outlined,
                 tooltip: strings.sessionTreeCopyIdTooltip,
-                onPressed: () => Clipboard.setData(
-                  ClipboardData(text: widget.sessionId),
-                ),
+                onPressed: () => Clipboard.setData(ClipboardData(text: widget.sessionId)),
               ),
               FrameIconAction(
                 key: const ValueKey('session-tree-refresh'),
@@ -180,10 +172,8 @@ class _SessionTreeDialogState extends ConsumerState<SessionTreeDialog> {
       final id = entry['id']?.toString();
       if (id != null) parentOf[id] = entry['parentId']?.toString();
     }
-    final nodes = (_treeData?['tree'] as List<dynamic>? ??
-            _treeData?['nodes'] as List<dynamic>? ??
-            const [])
-        .whereType<Map>()
+    final nodes = (_treeData?['tree'] as List<dynamic>? ?? _treeData?['nodes'] as List<dynamic>? ?? const [])
+        .whereType<Map<String, dynamic>>()
         .map((node) => Map<String, dynamic>.from(node))
         .toList();
     final rows = flattenSessionTree(nodes, parentOf);
@@ -207,12 +197,8 @@ class _SessionTreeDialogState extends ConsumerState<SessionTreeDialog> {
       child: ListView.builder(
         shrinkWrap: true,
         itemCount: rows.length,
-        itemBuilder: (context, index) => _TreeNodeTile(
-          row: rows[index],
-          tokens: tokens,
-          text: text,
-          activeBadge: strings.sessionTreeActiveBadge,
-        ),
+        itemBuilder: (context, index) =>
+            _TreeNodeTile(row: rows[index], tokens: tokens, text: text, activeBadge: strings.sessionTreeActiveBadge),
       ),
     );
   }
@@ -231,28 +217,19 @@ class SessionTreeRow {
   /// Whether this node is the last of its siblings (its elbow stops halfway).
   final bool isLast;
 
-  const SessionTreeRow({
-    required this.node,
-    required this.depth,
-    required this.guides,
-    required this.isLast,
-  });
+  const SessionTreeRow({required this.node, required this.depth, required this.guides, required this.isLast});
 }
 
 /// Flattens the tree depth-first. A node's parent comes from `parentId` on the
 /// node, else from [parentOf] (the entries of the session), else the node is a
 /// root. Cycles are cut so a bad payload cannot loop forever.
-List<SessionTreeRow> flattenSessionTree(
-  List<Map<String, dynamic>> nodes,
-  Map<String, String?> parentOf,
-) {
+List<SessionTreeRow> flattenSessionTree(List<Map<String, dynamic>> nodes, Map<String, String?> parentOf) {
   final ids = {for (final node in nodes) node['id']?.toString() ?? ''};
   final children = <String, List<Map<String, dynamic>>>{};
   final roots = <Map<String, dynamic>>[];
   for (final node in nodes) {
     final id = node['id']?.toString() ?? '';
-    final parent = (node['parentId'] ?? node['parent'])?.toString() ??
-        parentOf[id];
+    final parent = (node['parentId'] ?? node['parent'])?.toString() ?? parentOf[id];
     if (parent == null || parent.isEmpty || !ids.contains(parent)) {
       roots.add(node);
     } else {
@@ -262,12 +239,7 @@ List<SessionTreeRow> flattenSessionTree(
 
   final rows = <SessionTreeRow>[];
   final seen = <String>{};
-  void visit(
-    Map<String, dynamic> node,
-    int depth,
-    List<bool> guides,
-    bool isLast,
-  ) {
+  void visit(Map<String, dynamic> node, int depth, List<bool> guides, bool isLast) {
     final id = node['id']?.toString() ?? '';
     if (!seen.add(id)) return;
     rows.add(SessionTreeRow(node: node, depth: depth, guides: guides, isLast: isLast));
@@ -291,21 +263,13 @@ class _TreeNodeTile extends StatelessWidget {
   final FrameText text;
   final String activeBadge;
 
-  const _TreeNodeTile({
-    required this.row,
-    required this.tokens,
-    required this.text,
-    required this.activeBadge,
-  });
+  const _TreeNodeTile({required this.row, required this.tokens, required this.text, required this.activeBadge});
 
   @override
   Widget build(BuildContext context) {
     final node = row.node;
     final role = node['role']?.toString() ?? 'entry';
-    final summary = node['summary']?.toString() ??
-        node['text']?.toString() ??
-        node['id']?.toString() ??
-        '';
+    final summary = node['summary']?.toString() ?? node['text']?.toString() ?? node['id']?.toString() ?? '';
     final isLeaf = node['isLeaf'] == true;
     final isActive = node['isActive'] == true;
 
@@ -315,16 +279,12 @@ class _TreeNodeTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: isActive ? tokens.surfaceElevated : tokens.surface,
         borderRadius: BorderRadius.circular(tokens.radiusSm),
-        border: Border.all(
-          color: isActive ? tokens.accent : tokens.border,
-        ),
+        border: Border.all(color: isActive ? tokens.accent : tokens.border),
       ),
       child: Row(
         children: [
           Icon(
-            isActive
-                ? Icons.radio_button_checked_outlined
-                : (isLeaf ? Icons.nature_outlined : Icons.commit_outlined),
+            isActive ? Icons.radio_button_checked_outlined : (isLeaf ? Icons.nature_outlined : Icons.commit_outlined),
             color: isActive ? tokens.accent : tokens.textMuted,
             size: FrameSize.icon,
           ),
@@ -337,17 +297,12 @@ class _TreeNodeTile extends StatelessWidget {
                   children: [
                     Text(
                       role.toUpperCase(),
-                      style: text.caption.copyWith(
-                        color: tokens.textSecondary,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: text.caption.copyWith(color: tokens.textSecondary, fontWeight: FontWeight.bold),
                     ),
                     if (isActive) ...[
                       const SizedBox(width: FrameSpace.x1),
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: FrameSpace.x1,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x1),
                         decoration: BoxDecoration(
                           color: tokens.surfaceElevated,
                           borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -355,10 +310,7 @@ class _TreeNodeTile extends StatelessWidget {
                         ),
                         child: Text(
                           activeBadge,
-                          style: text.caption.copyWith(
-                            color: tokens.textPrimary,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          style: text.caption.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.bold),
                         ),
                       ),
                     ],
@@ -410,12 +362,7 @@ class _TreeConnectorPainter extends CustomPainter {
   final bool isLast;
   final Color color;
 
-  const _TreeConnectorPainter({
-    required this.depth,
-    required this.guides,
-    required this.isLast,
-    required this.color,
-  });
+  const _TreeConnectorPainter({required this.depth, required this.guides, required this.isLast, required this.color});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -434,22 +381,11 @@ class _TreeConnectorPainter extends CustomPainter {
     }
 
     final x = (depth - 1) * unit + unit / 2;
-    canvas.drawLine(
-      Offset(x, 0),
-      Offset(x, isLast ? centreY : size.height),
-      paint,
-    );
-    canvas.drawLine(
-      Offset(x, centreY),
-      Offset(depth * unit, centreY),
-      paint,
-    );
+    canvas.drawLine(Offset(x, 0), Offset(x, isLast ? centreY : size.height), paint);
+    canvas.drawLine(Offset(x, centreY), Offset(depth * unit, centreY), paint);
   }
 
   @override
   bool shouldRepaint(covariant _TreeConnectorPainter old) =>
-      old.depth != depth ||
-      old.isLast != isLast ||
-      old.color != color ||
-      !listEquals(old.guides, guides);
+      old.depth != depth || old.isLast != isLast || old.color != color || !listEquals(old.guides, guides);
 }

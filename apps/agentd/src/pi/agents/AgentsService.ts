@@ -6,7 +6,7 @@ import type {
   PiSubagentDefaults,
   PiSessionDefaults,
   PiAvailableModel,
-  PiAgentChange,
+  PiAgentChange
 } from '@piframe/pcp-ts';
 import { getPiFrameBaseDir } from '../../config/config.js';
 import { readSettingsFile, applyAgentSettingsChanges } from './settingsWriter.js';
@@ -16,22 +16,14 @@ import {
   applyAgentFileChanges,
   originalsKey,
   readAgentFileOriginals,
-  type AgentFileChange,
+  type AgentFileChange
 } from './agentFileOverrides.js';
 import type { LockOptions } from './lockfile.js';
+import { errorMessage } from '../../errors/errors.js';
 
-export const THINKING_LEVELS = [
-  'off',
-  'minimal',
-  'low',
-  'medium',
-  'high',
-  'xhigh',
-  'max',
-];
+export const THINKING_LEVELS = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
 
-export const TINTINWEB_CONTEXT_UNSUPPORTED =
-  '@tintinweb/pi-subagents does not support per-agent context limits';
+export const TINTINWEB_CONTEXT_UNSUPPORTED = '@tintinweb/pi-subagents does not support per-agent context limits';
 
 /**
  * Whether this agent's model/thinking overrides must be written into its own
@@ -62,10 +54,7 @@ export class AgentsService {
   private writeQueue = Promise.resolve();
 
   constructor(opts: AgentsServiceOptions = {}) {
-    this.agentDir =
-      opts.agentDir ||
-      process.env.PI_CODING_AGENT_DIR ||
-      path.join(os.homedir(), '.pi', 'agent');
+    this.agentDir = opts.agentDir || process.env.PI_CODING_AGENT_DIR || path.join(os.homedir(), '.pi', 'agent');
     this.piframeDir = opts.piframeDir || getPiFrameBaseDir();
     this.getAvailableModelsFn = opts.getAvailableModels;
     this.lockOptions = opts.lockOptions;
@@ -83,10 +72,10 @@ export class AgentsService {
     if (this.getAvailableModelsFn) {
       try {
         return await this.getAvailableModelsFn();
-      } catch (err: any) {
+      } catch (err: unknown) {
         return {
           models: [],
-          warning: `Failed to query available models from Pi: ${err?.message || 'unknown error'}`,
+          warning: `Failed to query available models from Pi: ${errorMessage(err) || 'unknown error'}`
         };
       }
     }
@@ -111,9 +100,7 @@ export class AgentsService {
       warnings.push(modelsWarning);
     }
 
-    const isPiSubagentsInstalled = packageDetection.packages.some(
-      (p) => p.id === 'pi-subagents' && p.installed
-    );
+    const isPiSubagentsInstalled = packageDetection.packages.some((p) => p.id === 'pi-subagents' && p.installed);
     const isTintinwebInstalled = packageDetection.packages.some(
       (p) => p.id === '@tintinweb/pi-subagents' && p.installed
     );
@@ -130,7 +117,7 @@ export class AgentsService {
     const checkModelAvailable = (modelStr: string | null): boolean | null => {
       if (!modelStr) return null;
       if (availableModels.length === 0) return null;
-      const base = modelStr.split(':')[0];
+      const base = modelStr.split(':')[0] ?? modelStr;
       return modelMap.has(base) || availableModels.some((m) => m.id === base || m.id === modelStr);
     };
 
@@ -143,7 +130,7 @@ export class AgentsService {
       const fileManaged = isFrontmatterManaged(agent, isTintinwebInstalled);
       const settingsOverrides = settings.subagents?.agentOverrides?.[agent.name];
       const recorded: Record<string, unknown> =
-        fileManaged && agent.filePath ? fileOriginals[originalsKey(agent.filePath)] ?? {} : {};
+        fileManaged && agent.filePath ? (fileOriginals[originalsKey(agent.filePath)] ?? {}) : {};
       // For frontmatter-managed agents the file is the truth: show what actually runs,
       // and call it an override only when PiFrame wrote it.
       const overrides = fileManaged && tintinwebOnly ? undefined : settingsOverrides;
@@ -189,15 +176,17 @@ export class AgentsService {
       // Context resolution
       const limit = contextLimits[agent.name] ?? null;
       const baseModel = effectiveModel ? effectiveModel.split(':')[0] : null;
-      const foundModel = baseModel ? (modelMap.get(baseModel) ?? availableModels.find((m) => m.id === baseModel)) : null;
+      const foundModel = baseModel
+        ? (modelMap.get(baseModel) ?? availableModels.find((m) => m.id === baseModel))
+        : null;
 
       const contextUnsupportedReason = tintinwebOnly ? TINTINWEB_CONTEXT_UNSUPPORTED : null;
-      const supported =
-        !contextUnsupportedReason && !!(foundModel && foundModel.tiers && foundModel.tiers.length > 0);
+      const supported = !contextUnsupportedReason && !!(foundModel && foundModel.tiers && foundModel.tiers.length > 0);
       const modelContextWindow = foundModel?.contextWindow ?? null;
-      const options = supported && foundModel
-        ? Array.from(new Set([...foundModel.tiers, foundModel.contextWindow])).sort((a, b) => a - b)
-        : [];
+      const options =
+        supported && foundModel
+          ? Array.from(new Set([...foundModel.tiers, foundModel.contextWindow])).sort((a, b) => a - b)
+          : [];
 
       return {
         name: agent.name,
@@ -210,19 +199,19 @@ export class AgentsService {
         model: {
           effective: effectiveModel,
           origin: modelOrigin,
-          available: checkModelAvailable(effectiveModel),
+          available: checkModelAvailable(effectiveModel)
         },
         thinking: {
           effective: effectiveThinking,
-          origin: thinkingOrigin,
+          origin: thinkingOrigin
         },
         context: {
           supported,
           limit,
           options: contextUnsupportedReason ? [] : options,
           modelContextWindow,
-          unsupportedReason: contextUnsupportedReason,
-        },
+          unsupportedReason: contextUnsupportedReason
+        }
       };
     });
 
@@ -249,7 +238,7 @@ export class AgentsService {
         model: defModel,
         thinking: defThinking,
         modelAvailable: checkModelAvailable(defModel),
-        fallbackAgent: null,
+        fallbackAgent: null
       };
     } else if (isTintinwebInstalled) {
       const fallback =
@@ -261,7 +250,7 @@ export class AgentsService {
         model: null,
         thinking: null,
         modelAvailable: null,
-        fallbackAgent: fallback,
+        fallbackAgent: fallback
       };
     } else {
       subagentDefaults = {
@@ -269,7 +258,7 @@ export class AgentsService {
         model: null,
         thinking: null,
         modelAvailable: null,
-        fallbackAgent: null,
+        fallbackAgent: null
       };
     }
 
@@ -296,7 +285,7 @@ export class AgentsService {
       provider: sessProvider,
       model: sessModel,
       thinking: sessThinking,
-      modelAvailable: checkModelAvailable(sessModel),
+      modelAvailable: checkModelAvailable(sessModel)
     };
 
     return {
@@ -306,7 +295,7 @@ export class AgentsService {
       sessionDefaults,
       thinkingLevels: THINKING_LEVELS,
       availableModels,
-      warnings,
+      warnings
     };
   }
 
@@ -315,12 +304,8 @@ export class AgentsService {
     const run = async (): Promise<PiAgentsGetResult> => {
       // 1. Get current state for validation
       const current = await this.getAgents(cwd);
-      const isPiSubagentsInstalled = current.packages.some(
-        (p) => p.id === 'pi-subagents' && p.installed
-      );
-      const isTintinwebInstalled = current.packages.some(
-        (p) => p.id === '@tintinweb/pi-subagents' && p.installed
-      );
+      const isPiSubagentsInstalled = current.packages.some((p) => p.id === 'pi-subagents' && p.installed);
+      const isTintinwebInstalled = current.packages.some((p) => p.id === '@tintinweb/pi-subagents' && p.installed);
 
       const agentMap = new Map<string, PiAgentInfo>();
       for (const ag of current.agents) {
@@ -357,9 +342,7 @@ export class AgentsService {
       const validationErrors: Array<{ field: string; message: string }> = [];
 
       // Check package requirements
-      const touchesSubagents = resolvedChanges.some(
-        (c) => c.kind === 'agent' || c.kind === 'subagentDefaults'
-      );
+      const touchesSubagents = resolvedChanges.some((c) => c.kind === 'agent' || c.kind === 'subagentDefaults');
       if (touchesSubagents && !isPiSubagentsInstalled && !isTintinwebInstalled) {
         const err = new Error('No subagent package installed');
         throw Object.assign(err, { code: 'AGENTS_PACKAGE_NOT_INSTALLED' });
@@ -371,7 +354,7 @@ export class AgentsService {
           if (!agent) {
             validationErrors.push({
               field: 'name',
-              message: `Unknown agent: ${change.name}`,
+              message: `Unknown agent: ${change.name}`
             });
             continue;
           }
@@ -379,14 +362,14 @@ export class AgentsService {
           if (!agent.editable) {
             validationErrors.push({
               field: 'agent',
-              message: `Agent "${change.name}" is not editable (${agent.readOnlyReason ?? 'read-only'})`,
+              message: `Agent "${change.name}" is not editable (${agent.readOnlyReason ?? 'read-only'})`
             });
             continue;
           }
 
           // Validate model if given
           if (change.model !== undefined && change.model !== null) {
-            const baseModel = change.model.split(':')[0];
+            const baseModel = change.model.split(':')[0] ?? change.model;
             if (
               current.availableModels.length > 0 &&
               !availableModelMap.has(baseModel) &&
@@ -394,14 +377,13 @@ export class AgentsService {
             ) {
               validationErrors.push({
                 field: 'model',
-                message: 'model not available with current credentials',
+                message: 'model not available with current credentials'
               });
             }
           }
 
           // Effective model for checking reasoning and tiers
-          const effectiveModel =
-            change.model !== undefined ? change.model : agent.model.effective;
+          const effectiveModel = change.model !== undefined ? change.model : agent.model.effective;
           const baseModel = effectiveModel ? effectiveModel.split(':')[0] : null;
           const modelInfo = baseModel ? availableModelMap.get(baseModel) : null;
 
@@ -410,12 +392,12 @@ export class AgentsService {
             if (!THINKING_LEVELS.includes(change.thinking)) {
               validationErrors.push({
                 field: 'thinking',
-                message: `Invalid thinking level: ${change.thinking}`,
+                message: `Invalid thinking level: ${change.thinking}`
               });
             } else if (modelInfo && modelInfo.reasoning === false && change.thinking !== 'off') {
               validationErrors.push({
                 field: 'thinking',
-                message: 'Thinking level must be "off" for models without reasoning support',
+                message: 'Thinking level must be "off" for models without reasoning support'
               });
             }
           }
@@ -425,21 +407,19 @@ export class AgentsService {
             if (agent.context.unsupportedReason) {
               validationErrors.push({
                 field: 'contextLimit',
-                message: agent.context.unsupportedReason,
+                message: agent.context.unsupportedReason
               });
             } else if (!modelInfo || !modelInfo.tiers || modelInfo.tiers.length === 0) {
               validationErrors.push({
                 field: 'contextLimit',
-                message: 'Context limit requires a model with pricing tiers',
+                message: 'Context limit requires a model with pricing tiers'
               });
             } else {
-              const allowedOptions = Array.from(
-                new Set([...modelInfo.tiers, modelInfo.contextWindow])
-              );
+              const allowedOptions = Array.from(new Set([...modelInfo.tiers, modelInfo.contextWindow]));
               if (!allowedOptions.includes(change.contextLimit)) {
                 validationErrors.push({
                   field: 'contextLimit',
-                  message: `Context limit must be one of [${allowedOptions.join(', ')}]`,
+                  message: `Context limit must be one of [${allowedOptions.join(', ')}]`
                 });
               }
             }
@@ -447,7 +427,7 @@ export class AgentsService {
         } else if (change.kind === 'subagentDefaults') {
           // Validate model
           if (change.model !== undefined && change.model !== null) {
-            const baseModel = change.model.split(':')[0];
+            const baseModel = change.model.split(':')[0] ?? change.model;
             if (
               current.availableModels.length > 0 &&
               !availableModelMap.has(baseModel) &&
@@ -455,7 +435,7 @@ export class AgentsService {
             ) {
               validationErrors.push({
                 field: 'model',
-                message: 'model not available with current credentials',
+                message: 'model not available with current credentials'
               });
             }
           }
@@ -465,19 +445,16 @@ export class AgentsService {
             if (!THINKING_LEVELS.includes(change.thinking)) {
               validationErrors.push({
                 field: 'thinking',
-                message: `Invalid thinking level: ${change.thinking}`,
+                message: `Invalid thinking level: ${change.thinking}`
               });
             } else {
-              const defModel =
-                change.model !== undefined
-                  ? change.model
-                  : current.subagentDefaults.model;
+              const defModel = change.model !== undefined ? change.model : current.subagentDefaults.model;
               const baseModel = defModel ? defModel.split(':')[0] : null;
               const modelInfo = baseModel ? availableModelMap.get(baseModel) : null;
               if (modelInfo && modelInfo.reasoning === false && change.thinking !== 'off') {
                 validationErrors.push({
                   field: 'thinking',
-                  message: 'Thinking level must be "off" for models without reasoning support',
+                  message: 'Thinking level must be "off" for models without reasoning support'
                 });
               }
             }
@@ -488,16 +465,14 @@ export class AgentsService {
             if (!isTintinwebInstalled) {
               validationErrors.push({
                 field: 'fallbackAgent',
-                message: 'tintinweb package is not installed',
+                message: 'tintinweb package is not installed'
               });
             } else {
-              const tintinwebAgents = current.agents.filter(
-                (a) => a.package === '@tintinweb/pi-subagents'
-              );
+              const tintinwebAgents = current.agents.filter((a) => a.package === '@tintinweb/pi-subagents');
               if (!tintinwebAgents.some((a) => a.name === change.fallbackAgent)) {
                 validationErrors.push({
                   field: 'fallbackAgent',
-                  message: `Fallback agent "${change.fallbackAgent}" does not exist in tintinweb package`,
+                  message: `Fallback agent "${change.fallbackAgent}" does not exist in tintinweb package`
                 });
               }
             }
@@ -509,10 +484,10 @@ export class AgentsService {
             if (slashIdx <= 0 || slashIdx === change.model.length - 1) {
               validationErrors.push({
                 field: 'model',
-                message: "Session default model must be in 'provider/id' format",
+                message: "Session default model must be in 'provider/id' format"
               });
             } else {
-              const baseModel = change.model.split(':')[0];
+              const baseModel = change.model.split(':')[0] ?? change.model;
               if (
                 current.availableModels.length > 0 &&
                 !availableModelMap.has(baseModel) &&
@@ -520,7 +495,7 @@ export class AgentsService {
               ) {
                 validationErrors.push({
                   field: 'model',
-                  message: 'model not available with current credentials',
+                  message: 'model not available with current credentials'
                 });
               }
             }
@@ -531,19 +506,16 @@ export class AgentsService {
             if (!THINKING_LEVELS.includes(change.thinking)) {
               validationErrors.push({
                 field: 'thinking',
-                message: `Invalid thinking level: ${change.thinking}`,
+                message: `Invalid thinking level: ${change.thinking}`
               });
             } else {
-              const sessModel =
-                change.model !== undefined
-                  ? change.model
-                  : current.sessionDefaults.model;
+              const sessModel = change.model !== undefined ? change.model : current.sessionDefaults.model;
               const baseModel = sessModel ? sessModel.split(':')[0] : null;
               const modelInfo = baseModel ? availableModelMap.get(baseModel) : null;
               if (modelInfo && modelInfo.reasoning === false && change.thinking !== 'off') {
                 validationErrors.push({
                   field: 'thinking',
-                  message: 'Thinking level must be "off" for models without reasoning support',
+                  message: 'Thinking level must be "off" for models without reasoning support'
                 });
               }
             }
@@ -555,7 +527,7 @@ export class AgentsService {
         const error = new Error('Agent settings validation failed');
         throw Object.assign(error, {
           code: 'AGENTS_VALIDATION_FAILED',
-          details: validationErrors,
+          details: validationErrors
         });
       }
 
@@ -568,11 +540,7 @@ export class AgentsService {
       const settingsChanges: PiAgentChange[] = [];
       if (isTintinwebInstalled) {
         const settings = readSettingsFile(path.join(this.agentDir, 'settings.json'));
-        const raw = discoverAgents(
-          this.agentDir,
-          detectSubagentPackages(this.agentDir, settings),
-          cwd
-        );
+        const raw = discoverAgents(this.agentDir, detectSubagentPackages(this.agentDir, settings), cwd);
         const rawByName = new Map(raw.map((a) => [a.name, a]));
         for (const change of resolvedChanges) {
           const rawAgent = change.kind === 'agent' ? rawByName.get(change.name) : undefined;
@@ -584,7 +552,7 @@ export class AgentsService {
             fileChanges.push({
               filePath: rawAgent.filePath!,
               model: change.model,
-              thinking: change.thinking,
+              thinking: change.thinking
             });
           }
           if (isPiSubagentsInstalled) {
@@ -603,12 +571,7 @@ export class AgentsService {
 
       await applyAgentFileChanges(this.piframeDir, fileChanges, this.lockOptions);
       if (settingsChanges.length > 0) {
-        await applyAgentSettingsChanges(
-          this.agentDir,
-          this.piframeDir,
-          settingsChanges,
-          this.lockOptions
-        );
+        await applyAgentSettingsChanges(this.agentDir, this.piframeDir, settingsChanges, this.lockOptions);
       }
 
       // 3. Return fresh state
@@ -617,7 +580,10 @@ export class AgentsService {
 
     // Serialize in-process
     const nextPromise = this.writeQueue.then(run, run);
-    this.writeQueue = nextPromise.then(() => {}, () => {});
+    this.writeQueue = nextPromise.then(
+      () => {},
+      () => {}
+    );
     return nextPromise;
   }
 }

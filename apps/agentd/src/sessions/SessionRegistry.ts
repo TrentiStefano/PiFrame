@@ -8,19 +8,33 @@ import { WorkerSupervisor } from './WorkerSupervisor.js';
 import type { ConnectionManager } from '../server/wsServer.js';
 import type { Connection } from '../server/connection.js';
 import type { PiCapabilities } from '../pi/piCommands.js';
-import type { PcpSnapshot, PcpSnapshotPayload } from '@piframe/pcp-ts';
+import type { PcpSnapshot, PcpSnapshotPayload, PcpEvent, PcpAck } from '@piframe/pcp-ts';
 import { hasInteractivePiInCwd } from './PiTerminalDetector.js';
 import { writeContextPolicy, deleteContextPolicy } from '../pi/contextPolicy.js';
 
 const SESSION_SUMMARY_FIELDS: (keyof SessionSummary)[] = [
-  'id', 'name', 'cwd', 'gitRoot', 'sessionFile', 'createdAt', 'lastActivityAt',
-  'sizeBytes', 'messageCount', 'lastMessagePreview', 'firstUserPrompt', 'isActive', 'parentSession',
-  'isSubsession', 'isProvisional'
+  'id',
+  'name',
+  'cwd',
+  'gitRoot',
+  'sessionFile',
+  'createdAt',
+  'lastActivityAt',
+  'sizeBytes',
+  'messageCount',
+  'lastMessagePreview',
+  'firstUserPrompt',
+  'isActive',
+  'parentSession',
+  'isSubsession',
+  'isProvisional'
 ];
 
 function sameSessionSummaries(a: SessionSummary[], b: SessionSummary[]): boolean {
-  return a.length === b.length && a.every((summary, index) =>
-    SESSION_SUMMARY_FIELDS.every((field) => summary[field] === b[index]?.[field]));
+  return (
+    a.length === b.length &&
+    a.every((summary, index) => SESSION_SUMMARY_FIELDS.every((field) => summary[field] === b[index]?.[field]))
+  );
 }
 
 export interface SessionRegistryOptions {
@@ -31,6 +45,12 @@ export interface SessionRegistryOptions {
   sessionIndex?: SessionIndex;
   checkTerminalOwner?: (cwd: string, sessionFile?: string | null, sessionId?: string) => Promise<boolean | null>;
 }
+
+// How long the fast session scan may run before the registry falls back to the full index.
+const FAST_SCAN_TIMEOUT_MS = 250;
+
+// Delay before an index-refresh progress event is broadcast; at most one is sent per delay.
+const INDEX_PROGRESS_EVENT_DELAY_MS = 1500;
 
 export class SessionRegistry {
   private sessions = new Map<string, Session>();
@@ -85,7 +105,11 @@ export class SessionRegistry {
   }
 
   public async listSessions(query?: string, limit = 50, includeSubsessions = false): Promise<SessionSummary[]> {
-    const activeIds = new Set(this.getAllSessions().filter((s) => !s.readOnly).map((s) => s.id));
+    const activeIds = new Set(
+      this.getAllSessions()
+        .filter((s) => !s.readOnly)
+        .map((s) => s.id)
+    );
     let sessions: SessionSummary[];
     let fastScan: Promise<{ sessions: SessionSummary[]; needsRefresh: boolean }> | undefined;
     let refreshFast = false;
@@ -100,7 +124,7 @@ export class SessionRegistry {
         const fastResult = await Promise.race([
           fastScan,
           new Promise<undefined>((resolve) => {
-            timer = setTimeout(() => resolve(undefined), 250);
+            timer = setTimeout(() => resolve(undefined), FAST_SCAN_TIMEOUT_MS);
             timer.unref();
           })
         ]);
@@ -146,7 +170,9 @@ export class SessionRegistry {
     const q = query?.trim().toLowerCase();
     return Array.from(merged.values())
       .filter((s) => includeSubsessions || !s.isSubsession)
-      .filter((s) => !q || [s.id, s.name, s.cwd, s.lastMessagePreview].some((value) => value?.toLowerCase().includes(q)))
+      .filter(
+        (s) => !q || [s.id, s.name, s.cwd, s.lastMessagePreview].some((value) => value?.toLowerCase().includes(q))
+      )
       .sort((a, b) => b.lastActivityAt - a.lastActivityAt)
       .slice(0, Math.max(0, Math.min(Number(limit) || 50, 1000)));
   }
@@ -165,28 +191,31 @@ export class SessionRegistry {
       return;
     }
     let needsRefresh = false;
-    this.indexRefresh = (scan ?? this.index.scanFast(activeSessionIds)).then((result) => {
-      needsRefresh = result.needsRefresh;
-      const updated = this.selectSessionList(result.sessions, query, limit, includeSubsessions);
-      if (this.closing || sameSessionSummaries(previous, updated)) return;
-      this.connectionManager.broadcast('@daemon', {
-        protocol: 1,
-        kind: 'event',
-        id: `evt_${ulid()}`,
-        ts: Date.now(),
-        sessionId: '@daemon',
-        seq: 0,
-        type: 'session.indexChanged',
-        payload: { updated: result.sessions }
-      } as any);
-    }).catch((error) => {
-      console.error('Error refreshing fast Pi sessions index:', error);
-    }).finally(() => {
-      const refreshAgain = this.indexRefreshRequested;
-      this.indexRefreshRequested = false;
-      this.indexRefresh = undefined;
-      if ((needsRefresh || refreshAgain) && !this.closing) this.refreshIndex();
-    });
+    this.indexRefresh = (scan ?? this.index.scanFast(activeSessionIds))
+      .then((result) => {
+        needsRefresh = result.needsRefresh;
+        const updated = this.selectSessionList(result.sessions, query, limit, includeSubsessions);
+        if (this.closing || sameSessionSummaries(previous, updated)) return;
+        this.connectionManager.broadcast('@daemon', {
+          protocol: 1,
+          kind: 'event',
+          id: `evt_${ulid()}`,
+          ts: Date.now(),
+          sessionId: '@daemon',
+          seq: 0,
+          type: 'session.indexChanged',
+          payload: { updated: result.sessions }
+        } as PcpEvent);
+      })
+      .catch((error) => {
+        console.error('Error refreshing fast Pi sessions index:', error);
+      })
+      .finally(() => {
+        const refreshAgain = this.indexRefreshRequested;
+        this.indexRefreshRequested = false;
+        this.indexRefresh = undefined;
+        if ((needsRefresh || refreshAgain) && !this.closing) this.refreshIndex();
+      });
   }
 
   private refreshIndex(): void {
@@ -212,81 +241,89 @@ export class SessionRegistry {
           seq: 0,
           type: 'session.indexChanged',
           payload: { refreshing: true }
-        } as any);
-      }, 1500);
+        } as PcpEvent);
+      }, INDEX_PROGRESS_EVENT_DELAY_MS);
       progressTimer.unref();
     };
-    this.indexRefresh = this.index.scan(new Set(), onProgress).then((sessions) => {
-      unstable = this.index.hasUnstableFiles;
-      if (this.closing) return;
-      let renamed = false;
-      for (const [id, pending] of this.pendingSessionNames) {
-        const live = this.sessions.get(id);
-        if (!live || live.name !== pending.name) {
-          this.pendingSessionNames.delete(id);
-          continue;
+    this.indexRefresh = this.index
+      .scan(new Set(), onProgress)
+      .then((sessions) => {
+        unstable = this.index.hasUnstableFiles;
+        if (this.closing) return;
+        let renamed = false;
+        for (const [id, pending] of this.pendingSessionNames) {
+          const live = this.sessions.get(id);
+          if (!live || live.name !== pending.name) {
+            this.pendingSessionNames.delete(id);
+            continue;
+          }
+          const summary = sessions.find((item) => item.sessionFile === pending.file);
+          if (summary) {
+            live.name = summary.name || id;
+            this.pendingSessionNames.delete(id);
+            renamed = true;
+          }
         }
-        const summary = sessions.find((item) => item.sessionFile === pending.file);
-        if (summary) {
-          live.name = summary.name || id;
-          this.pendingSessionNames.delete(id);
-          renamed = true;
+        if (!renamed && this.index.cacheRevision === revision) return;
+        const updated = sessions.map((summary) => {
+          const live = this.sessions.get(summary.id);
+          return live
+            ? {
+                ...summary,
+                ...live.getSessionMeta(),
+                sessionFile: live.sessionFile || '',
+                messageCount: live.entries.length,
+                isActive: !live.readOnly
+              }
+            : summary;
+        });
+        this.connectionManager.broadcast('@daemon', {
+          protocol: 1,
+          kind: 'event',
+          id: `evt_${ulid()}`,
+          ts: Date.now(),
+          sessionId: '@daemon',
+          seq: 0,
+          type: 'session.indexChanged',
+          payload: { updated }
+        } as PcpEvent);
+      })
+      .catch((error) => {
+        console.error('Error refreshing Pi sessions index:', error);
+      })
+      .finally(() => {
+        if (progressTimer) clearTimeout(progressTimer);
+        const refreshAgain = this.indexRefreshRequested;
+        this.indexRefreshRequested = false;
+        this.indexRefresh = undefined;
+        if (unstable && !this.closing) {
+          this.indexRetry = setTimeout(() => {
+            this.indexRetry = undefined;
+            this.refreshIndex();
+          }, this.indexRetryDelayMs);
+          this.indexRetry.unref();
+          this.indexRetryDelayMs = Math.min(this.indexRetryDelayMs * 2, 30_000);
+        } else {
+          this.indexRetryDelayMs = 2000;
+          if (refreshAgain) this.refreshIndex();
         }
-      }
-      if (!renamed && this.index.cacheRevision === revision) return;
-      const updated = sessions.map((summary) => {
-        const live = this.sessions.get(summary.id);
-        return live ? {
-          ...summary,
-          ...live.getSessionMeta(),
-          sessionFile: live.sessionFile || '',
-          messageCount: live.entries.length,
-          isActive: !live.readOnly
-        } : summary;
       });
-      this.connectionManager.broadcast('@daemon', {
-        protocol: 1,
-        kind: 'event',
-        id: `evt_${ulid()}`,
-        ts: Date.now(),
-        sessionId: '@daemon',
-        seq: 0,
-        type: 'session.indexChanged',
-        payload: { updated }
-      } as any);
-    }).catch((error) => {
-      console.error('Error refreshing Pi sessions index:', error);
-    }).finally(() => {
-      if (progressTimer) clearTimeout(progressTimer);
-      const refreshAgain = this.indexRefreshRequested;
-      this.indexRefreshRequested = false;
-      this.indexRefresh = undefined;
-      if (unstable && !this.closing) {
-        this.indexRetry = setTimeout(() => {
-          this.indexRetry = undefined;
-          this.refreshIndex();
-        }, this.indexRetryDelayMs);
-        this.indexRetry.unref();
-        this.indexRetryDelayMs = Math.min(this.indexRetryDelayMs * 2, 30_000);
-      } else {
-        this.indexRetryDelayMs = 2000;
-        if (refreshAgain) this.refreshIndex();
-      }
-    });
   }
 
-  public async getSubagents(sessionId: string): Promise<Array<{
-    id: string;
-    name: string;
-    model?: string;
-    cost?: number;
-    output: string;
-    status: string;
-    description?: string;
-    toolCallId?: string;
-    sessionId?: string;
-    unlinked?: boolean;
-  }>> {
+  public async getSubagents(sessionId: string): Promise<
+    Array<{
+      id: string;
+      name: string;
+      model?: string;
+      cost?: number;
+      output: string;
+      status: string;
+      description?: string;
+      toolCallId?: string;
+      sessionId?: string;
+      unlinked?: boolean;
+    }>
+  > {
     const session = this.getSession(sessionId);
     const subagents = await this.index.getSubagents(sessionId, session?.sessionFile);
     const runtime = this.subagentRuntime(sessionId);
@@ -301,9 +338,9 @@ export class SessionRegistry {
     const session = this.getSession(sessionId);
     const workerAlive = !!this.supervisor.liveWorker(sessionId);
     return {
-      live: workerAlive ? session?.liveSubagents ?? null : null,
+      live: workerAlive ? (session?.liveSubagents ?? null) : null,
       workerAlive,
-      workerGone: !workerAlive && session?.workerGoneAt != null,
+      workerGone: !workerAlive && session?.workerGoneAt != null
     };
   }
 
@@ -312,7 +349,11 @@ export class SessionRegistry {
    * calls pi-subagents' own stop (the one /agents uses). Resolves once the
    * bridge reports the agent no longer running.
    */
-  public async stopSubagent(sessionId: string, agentId: string, timeoutMs = 6000): Promise<{ stopped: boolean; reason?: string }> {
+  public async stopSubagent(
+    sessionId: string,
+    agentId: string,
+    timeoutMs = 6000
+  ): Promise<{ stopped: boolean; reason?: string }> {
     const session = this.getSession(sessionId);
     const worker = this.supervisor.liveWorker(sessionId);
     if (!session || !worker) {
@@ -360,7 +401,7 @@ export class SessionRegistry {
       payload: {
         added: [session.getSessionMeta()]
       }
-    } as any);
+    } as PcpEvent);
   }
 
   private async refreshTerminalOwnership(session: Session): Promise<boolean | null> {
@@ -396,7 +437,15 @@ export class SessionRegistry {
       fast = await this.index.resolveFast(id);
     }
     const summaries = fast ? [] : await this.index.scan();
-    const found = fast || summaries.find((s) => s.id === id || (s.sessionFile && (path.basename(s.sessionFile, path.extname(s.sessionFile)) === id || path.basename(s.sessionFile).startsWith(id))));
+    const found =
+      fast ||
+      summaries.find(
+        (s) =>
+          s.id === id ||
+          (s.sessionFile &&
+            (path.basename(s.sessionFile, path.extname(s.sessionFile)) === id ||
+              path.basename(s.sessionFile).startsWith(id)))
+      );
     if (!found) {
       throw Object.assign(new Error(`Session ${id} not found`), { code: 'SESSION_NOT_FOUND' });
     }
@@ -413,7 +462,7 @@ export class SessionRegistry {
     });
 
     // Pi RPC has no terminal attach API. Protect session files owned by interactive Pi.
-    const terminalOwner = await this.refreshTerminalOwnership(session);
+    await this.refreshTerminalOwnership(session);
     const text = await this.index.readSessionText(found.sessionFile);
     session.entries = this.index.readTranscript(found.sessionFile, text);
     if (found.sessionFile) {
@@ -437,7 +486,7 @@ export class SessionRegistry {
   }
 
   public async continueSession(id: string, confirmedAmbiguousOwner = false): Promise<Session> {
-    const session = this.sessions.get(id) || await this.openSession(id);
+    const session = this.sessions.get(id) || (await this.openSession(id));
     const owner = await this.checkTerminalOwner(session.cwd, session.sessionFile, session.id);
     if (owner === true) {
       session.readOnly = true;
@@ -454,7 +503,7 @@ export class SessionRegistry {
   }
 
   public async cloneSession(id: string, entryId?: string): Promise<Session> {
-    const source = this.sessions.get(id) || await this.openSession(id);
+    const source = this.sessions.get(id) || (await this.openSession(id));
     if (!source.sessionFile) await this.ensureWorkerForSession(id);
     if (!source.sessionFile) throw new Error('Pi has not persisted this session yet');
     if (source.isStreaming) throw new Error('Wait for the active run to settle before duplicating it.');
@@ -462,7 +511,9 @@ export class SessionRegistry {
       const persisted = this.index.readTranscript(source.sessionFile);
       if (!persisted.some((entry) => entry.id === entryId)) {
         const live = source.entries.find((entry) => entry.id === entryId);
-        const match = persisted.find((entry) => entry.role === 'user' && live?.timestamp != null && entry.timestamp === live.timestamp);
+        const match = persisted.find(
+          (entry) => entry.role === 'user' && live?.timestamp != null && entry.timestamp === live.timestamp
+        );
         if (!match?.id) throw new Error('Fork entry no longer exists on the active branch');
         entryId = String(match.id);
       }
@@ -483,7 +534,10 @@ export class SessionRegistry {
           // RPC fork changes Pi's identity before its new file is necessarily persisted.
           this.sessions.delete(clone.id);
           const final = new Session({
-            id: finalId, name: clone.name, cwd: clone.cwd, sessionFile: clone.sessionFile,
+            id: finalId,
+            name: clone.name,
+            cwd: clone.cwd,
+            sessionFile: clone.sessionFile,
             onBroadcast: (event) => this.connectionManager.broadcast(finalId, event)
           });
           final.entries = clone.entries;
@@ -571,7 +625,7 @@ export class SessionRegistry {
         type: 'command.ack',
         sessionId,
         payload: { state: 'resume' }
-      } as any);
+      } as PcpAck);
 
       if (lastSeq < currentSeq) {
         const events = session.journal.getRange(lastSeq + 1, currentSeq);
@@ -609,7 +663,7 @@ export class SessionRegistry {
           fromSeq: lastSeq,
           toSeq: minSeq
         }
-      } as any);
+      } as PcpEvent);
       return;
     }
 
@@ -640,7 +694,7 @@ export class SessionRegistry {
         toSeq: currentSeq,
         reset: true
       }
-    } as any);
+    } as PcpEvent);
   }
 
   public async detachClient(sessionId: string, conn: Connection): Promise<void> {
@@ -698,7 +752,7 @@ export class SessionRegistry {
       payload: {
         removed: [sessionId]
       }
-    } as any);
+    } as PcpEvent);
 
     return true;
   }

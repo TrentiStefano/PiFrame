@@ -54,20 +54,14 @@ class ComposerReviewButton extends StatelessWidget {
           onPressed: onPressed,
           style: TextButton.styleFrom(
             foregroundColor: color,
-            backgroundColor: reviewing
-                ? tokens.accent.withValues(alpha: 0.15)
-                : null,
+            backgroundColor: reviewing ? tokens.accent.withValues(alpha: 0.15) : null,
             minimumSize: const Size(0, _height),
             fixedSize: showLabel ? null : const Size(_height, _height),
-            padding: EdgeInsets.symmetric(
-              horizontal: showLabel ? FrameSpace.x2 : 0,
-            ),
+            padding: EdgeInsets.symmetric(horizontal: showLabel ? FrameSpace.x2 : 0),
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(tokens.radiusSm),
-              side: BorderSide(
-                color: reviewing ? tokens.accent : tokens.border,
-              ),
+              side: BorderSide(color: reviewing ? tokens.accent : tokens.border),
             ),
           ),
           child: showLabel
@@ -76,11 +70,7 @@ class ComposerReviewButton extends StatelessWidget {
                   children: [
                     icon,
                     const SizedBox(width: FrameSpace.x1),
-                    Text(
-                      label,
-                      maxLines: 1,
-                      style: text.label.copyWith(color: color),
-                    ),
+                    Text(label, maxLines: 1, style: text.label.copyWith(color: color)),
                   ],
                 )
               : icon,

@@ -1,7 +1,4 @@
 import 'dart:async';
-import 'dart:io';
-
-import 'package:flutter/foundation.dart' show kIsWeb;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +9,7 @@ import '../../ui/frame_dialog.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_composer.dart';
 import '../../data/pi_install/pi_install_service.dart';
+import '../../data/platform/host_environment_service.dart';
 import '../../ui/precision.dart';
 
 class PiInstallDialog extends ConsumerStatefulWidget {
@@ -19,10 +17,7 @@ class PiInstallDialog extends ConsumerStatefulWidget {
 
   const PiInstallDialog({super.key, this.customService});
 
-  static Future<bool?> show(
-    BuildContext context, {
-    PiInstallService? customService,
-  }) {
+  static Future<bool?> show(BuildContext context, {PiInstallService? customService}) {
     return showFrameDialogBuilder<bool>(
       context: context,
       barrierDismissible: false,
@@ -45,7 +40,7 @@ class _PiInstallDialogState extends ConsumerState<PiInstallDialog> {
 
   @override
   void dispose() {
-    _logSubscription?.cancel();
+    unawaited(_logSubscription?.cancel());
     _scrollController.dispose();
     super.dispose();
   }
@@ -60,8 +55,7 @@ class _PiInstallDialogState extends ConsumerState<PiInstallDialog> {
   }
 
   Future<void> _startInstall() async {
-    final PiInstallService service =
-        widget.customService ?? ref.read(piInstallServiceProvider);
+    final PiInstallService service = widget.customService ?? ref.read(piInstallServiceProvider);
     setState(() {
       _isInstalling = true;
       _isDone = false;
@@ -75,16 +69,16 @@ class _PiInstallDialogState extends ConsumerState<PiInstallDialog> {
           if (!mounted) return;
           setState(() {
             _logOutput += chunk;
-            if (chunk.contains('[SUCCESSO]')) {
+            if (chunk.contains('[SUCCESS]')) {
               _isSuccess = true;
             }
           });
           _scrollToBottom();
         },
-        onError: (err) {
+        onError: (Object err) {
           if (!mounted) return;
           setState(() {
-            _logOutput += '\n[ERRORE] $err\n';
+            _logOutput += '\n[ERROR] $err\n';
             _isSuccess = false;
           });
           _scrollToBottom();
@@ -115,8 +109,7 @@ class _PiInstallDialogState extends ConsumerState<PiInstallDialog> {
   }
 
   Future<void> _dismiss(bool completed) async {
-    final PiInstallService service =
-        widget.customService ?? ref.read(piInstallServiceProvider);
+    final PiInstallService service = widget.customService ?? ref.read(piInstallServiceProvider);
     await service.markFirstRunCompleted();
     if (mounted) {
       Navigator.of(context).pop(completed);
@@ -151,11 +144,7 @@ class _PiInstallDialogState extends ConsumerState<PiInstallDialog> {
                       color: tokens.accent.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(tokens.radiusMd),
                     ),
-                    child: Icon(
-                      Icons.terminal_outlined,
-                      color: tokens.accent,
-                      size: FrameSize.iconLg,
-                    ),
+                    child: Icon(Icons.terminal_outlined, color: tokens.accent, size: FrameSize.iconLg),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -173,8 +162,7 @@ class _PiInstallDialogState extends ConsumerState<PiInstallDialog> {
                         ),
                         Text(
                           strings.piInstallSubtitle,
-                          style: FrameText.of(context).label
-                              .copyWith(color: tokens.textMuted),
+                          style: FrameText.of(context).label.copyWith(color: tokens.textMuted),
                         ),
                       ],
                     ),
@@ -215,11 +203,7 @@ class _PiInstallDialogState extends ConsumerState<PiInstallDialog> {
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(
-                Icons.info_outlined,
-                color: tokens.info,
-                size: FrameSize.iconLg,
-              ),
+              Icon(Icons.info_outlined, color: tokens.info, size: FrameSize.iconLg),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -227,16 +211,13 @@ class _PiInstallDialogState extends ConsumerState<PiInstallDialog> {
                   children: [
                     Text(
                       strings.piInstallNotDetected,
-                      style: FrameText.of(context).bodyLarge.copyWith(
-                        fontWeight: FontWeight.w600,
-                        color: tokens.textPrimary,
-                      ),
+                      style: FrameText.of(context).bodyLarge
+                          .copyWith(fontWeight: FontWeight.w600, color: tokens.textPrimary),
                     ),
                     const SizedBox(height: 6),
                     Text(
                       strings.piInstallDescription,
-                      style: FrameText.of(context).body
-                          .copyWith(color: tokens.textSecondary, height: 1.4),
+                      style: FrameText.of(context).body.copyWith(color: tokens.textSecondary, height: 1.4),
                     ),
                   ],
                 ),
@@ -247,19 +228,14 @@ class _PiInstallDialogState extends ConsumerState<PiInstallDialog> {
         const SizedBox(height: 16),
         Text(
           strings.piInstallProceedPrompt,
-          style: FrameText.of(context).body
-              .copyWith(color: tokens.textPrimary, fontWeight: FontWeight.w500),
+          style: FrameText.of(context).body.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.w500),
         ),
         const SizedBox(height: 8),
         Text(
-          kIsWeb || !Platform.isWindows
-              ? strings.piInstallCommandUnix
-              : strings.piInstallCommandWindows,
-          style: FrameText.of(context).caption.copyWith(
-            fontFamily: tokens.monoFontFamily,
-
-            color: tokens.textMuted,
-          ),
+          ref.read(hostEnvironmentServiceProvider).isWindows
+              ? strings.piInstallCommandWindows
+              : strings.piInstallCommandUnix,
+          style: FrameText.of(context).caption.copyWith(fontFamily: tokens.monoFontFamily, color: tokens.textMuted),
         ),
       ],
     );
@@ -275,21 +251,14 @@ class _PiInstallDialogState extends ConsumerState<PiInstallDialog> {
               SizedBox(
                 width: 14,
                 height: 14,
-                child: FrameActivityIndicator(
-                  size: FrameSize.iconLg,
-                  strokeWidth: 2,
-                  color: tokens.accent,
-                ),
+                child: FrameActivityIndicator(size: FrameSize.iconLg, strokeWidth: 2, color: tokens.accent),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   strings.piInstallInProgress,
                   overflow: TextOverflow.ellipsis,
-                  style: FrameText.of(context).body.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: tokens.textPrimary,
-                  ),
+                  style: FrameText.of(context).body.copyWith(fontWeight: FontWeight.w500, color: tokens.textPrimary),
                 ),
               ),
             ],
@@ -299,15 +268,9 @@ class _PiInstallDialogState extends ConsumerState<PiInstallDialog> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: (_isSuccess ? tokens.success : tokens.danger).withValues(
-                alpha: 0.15,
-              ),
+              color: (_isSuccess ? tokens.success : tokens.danger).withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(tokens.radiusSm),
-              border: Border.all(
-                color: (_isSuccess ? tokens.success : tokens.danger).withValues(
-                  alpha: 0.4,
-                ),
-              ),
+              border: Border.all(color: (_isSuccess ? tokens.success : tokens.danger).withValues(alpha: 0.4)),
             ),
             child: Row(
               children: [
@@ -319,13 +282,9 @@ class _PiInstallDialogState extends ConsumerState<PiInstallDialog> {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    _isSuccess
-                        ? strings.piInstallSuccess
-                        : strings.piInstallFailure,
-                    style: FrameText.of(context).label.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: _isSuccess ? tokens.success : tokens.danger,
-                    ),
+                    _isSuccess ? strings.piInstallSuccess : strings.piInstallFailure,
+                    style: FrameText.of(context).label
+                        .copyWith(fontWeight: FontWeight.w600, color: _isSuccess ? tokens.success : tokens.danger),
                   ),
                 ),
               ],
@@ -345,15 +304,9 @@ class _PiInstallDialogState extends ConsumerState<PiInstallDialog> {
             child: SingleChildScrollView(
               controller: _scrollController,
               child: SelectableText(
-                _logOutput.isEmpty
-                    ? strings.piInstallWaitingOutput
-                    : _logOutput,
-                style: FrameText.of(context).caption.copyWith(
-                  fontFamily: tokens.monoFontFamily,
-
-                  color: tokens.textPrimary,
-                  height: 1.35,
-                ),
+                _logOutput.isEmpty ? strings.piInstallWaitingOutput : _logOutput,
+                style: FrameText.of(context).caption
+                    .copyWith(fontFamily: tokens.monoFontFamily, color: tokens.textPrimary, height: 1.35),
               ),
             ),
           ),
@@ -367,11 +320,7 @@ class _PiInstallDialogState extends ConsumerState<PiInstallDialog> {
       return Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: [
-          Text(
-            strings.piInstallPleaseWait,
-            style: FrameText.of(context).label
-                .copyWith(color: tokens.textMuted),
-          ),
+          Text(strings.piInstallPleaseWait, style: FrameText.of(context).label.copyWith(color: tokens.textMuted)),
         ],
       );
     }
@@ -393,10 +342,7 @@ class _PiInstallDialogState extends ConsumerState<PiInstallDialog> {
           PressFeedback(
             child: FilledButton(
               key: const ValueKey('pi-install-done-btn'),
-              style: FilledButton.styleFrom(
-                backgroundColor: tokens.accent,
-                foregroundColor: tokens.accentContrast,
-              ),
+              style: FilledButton.styleFrom(backgroundColor: tokens.accent, foregroundColor: tokens.accentContrast),
               onPressed: () => _dismiss(_isSuccess),
               child: Text(_isSuccess ? strings.piInstallStart : strings.close),
             ),
@@ -411,19 +357,13 @@ class _PiInstallDialogState extends ConsumerState<PiInstallDialog> {
         TextButton(
           key: const ValueKey('pi-install-later-btn'),
           onPressed: () => _dismiss(false),
-          child: Text(
-            strings.piInstallLater,
-            style: TextStyle(color: tokens.textMuted),
-          ),
+          child: Text(strings.piInstallLater, style: TextStyle(color: tokens.textMuted)),
         ),
         const SizedBox(width: 10),
         PressFeedback(
           child: FilledButton.icon(
             key: const ValueKey('pi-install-now-btn'),
-            style: FilledButton.styleFrom(
-              backgroundColor: tokens.accent,
-              foregroundColor: tokens.accentContrast,
-            ),
+            style: FilledButton.styleFrom(backgroundColor: tokens.accent, foregroundColor: tokens.accentContrast),
             icon: const Icon(Icons.download_outlined, size: FrameSize.iconLg),
             label: Text(strings.piInstallNow),
             onPressed: _startInstall,

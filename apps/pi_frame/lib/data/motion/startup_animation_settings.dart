@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../platform/runtime_mode.dart';
 import '../first_run/app_first_run_store.dart';
 
 /// Preference "Animazione di avvio": when on, the 1.4 s startup assemble
@@ -15,8 +16,7 @@ class StartupAnimationSettings {
 
   const StartupAnimationSettings({this.enabled = false});
 
-  StartupAnimationSettings copyWith({bool? enabled}) =>
-      StartupAnimationSettings(enabled: enabled ?? this.enabled);
+  StartupAnimationSettings copyWith({bool? enabled}) => StartupAnimationSettings(enabled: enabled ?? this.enabled);
 
   Map<String, dynamic> toJson() => {'enabled': enabled};
 
@@ -28,31 +28,27 @@ class StartupAnimationSettings {
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is StartupAnimationSettings && enabled == other.enabled;
+      identical(this, other) || other is StartupAnimationSettings && enabled == other.enabled;
 
   @override
   int get hashCode => enabled.hashCode;
 }
 
-class StartupAnimationSettingsNotifier
-    extends StateNotifier<StartupAnimationSettings> {
+class StartupAnimationSettingsNotifier extends StateNotifier<StartupAnimationSettings> {
   final File? _customStorageFile;
 
   StartupAnimationSettingsNotifier({File? storageFile})
-      : _customStorageFile = storageFile,
-        super(const StartupAnimationSettings()) {
+    : _customStorageFile = storageFile,
+      super(const StartupAnimationSettings()) {
     _load();
   }
 
   File? _storageFile() {
     if (_customStorageFile != null) return _customStorageFile;
-    if (kIsWeb || Platform.environment.containsKey('FLUTTER_TEST')) return null;
+    if (!usesHomeDirectoryStorage) return null;
     try {
       final env = Platform.environment;
-      final home = Platform.isWindows
-          ? (env['USERPROFILE'] ?? 'C:\\Users\\Default')
-          : (env['HOME'] ?? '/tmp');
+      final home = Platform.isWindows ? (env['USERPROFILE'] ?? 'C:\\Users\\Default') : (env['HOME'] ?? '/tmp');
       final dir = Directory('$home/.piframe');
       if (!dir.existsSync()) dir.createSync(recursive: true);
       return File('${dir.path}/startup_animation_settings.json');
@@ -88,16 +84,14 @@ class StartupAnimationSettingsNotifier
   }
 }
 
-final startupAnimationSettingsProvider = StateNotifierProvider<
-    StartupAnimationSettingsNotifier, StartupAnimationSettings>(
-  (ref) => StartupAnimationSettingsNotifier(),
-);
+final startupAnimationSettingsProvider =
+    StateNotifierProvider<StartupAnimationSettingsNotifier, StartupAnimationSettings>(
+      (ref) => StartupAnimationSettingsNotifier(),
+    );
 
 /// Whether this launch is the first run. Consumed once per provider scope
 /// (the store is marked played), so the startup animation and the welcome entrance agree.
-final appIntroFirstRunProvider = Provider<bool>(
-  (ref) => AppFirstRunStore.instance.consumeIntro(),
-);
+final appIntroFirstRunProvider = Provider<bool>((ref) => AppFirstRunStore.instance.consumeIntro());
 
 /// True when the startup assemble animation plays on this launch: the first
 /// run, or every launch while "Animazione di avvio" is on.

@@ -2,7 +2,7 @@
 
 - **Date:** 2026-09-18
 - **Target Pi Version Detected:** `v0.85.1`
-- **Minimum Supported Pi Version:** `v0.85.0` (D15)
+- **Minimum Supported Pi Version:** `v0.85.0` ([ADR 0015](adr/0015-minimum-supported-pi-version.md))
 - **Node.js Environment:** `v25.9.0` (x64)
 - **Host OS:** Windows 11 (win32 x64)
 - **Verification Status:** **CONFIRMED & COMPATIBLE** (All invariants verified against `@earendil-works/pi-coding-agent@0.85.1`)

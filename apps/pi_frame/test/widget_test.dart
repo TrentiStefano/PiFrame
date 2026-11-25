@@ -10,10 +10,9 @@ void main() {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
 
-    await tester.pumpWidget(ProviderScope(
-      overrides: [daemonEndpointProvider.overrideWith((ref) async => null)],
-      child: const PiFrameApp(),
-    ));
+    await tester.pumpWidget(
+      ProviderScope(overrides: [daemonEndpointProvider.overrideWith((ref) async => null)], child: const PiFrameApp()),
+    );
     await tester.pump(const Duration(milliseconds: 50));
 
     // Verify app starts and renders

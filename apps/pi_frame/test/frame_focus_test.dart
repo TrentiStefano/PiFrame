@@ -11,9 +11,7 @@ Finder _ring() => find.byKey(const ValueKey<String>('frame-focus-ring'));
 
 void main() {
   group('FrameFocusRing', () {
-    testWidgets('shows the ring when focus arrived by keyboard', (
-      tester,
-    ) async {
+    testWidgets('shows the ring when focus arrived by keyboard', (tester) async {
       final node = FocusNode(debugLabel: 'ring-target');
       addTearDown(node.dispose);
 
@@ -22,10 +20,7 @@ void main() {
           home: Scaffold(
             body: Center(
               child: FrameFocusRing(
-                child: Focus(
-                  focusNode: node,
-                  child: const SizedBox(width: 40, height: 40),
-                ),
+                child: Focus(focusNode: node, child: const SizedBox(width: 40, height: 40)),
               ),
             ),
           ),
@@ -37,10 +32,7 @@ void main() {
       node.requestFocus();
       await tester.pump();
 
-      expect(
-        FocusManager.instance.highlightMode,
-        FocusHighlightMode.traditional,
-      );
+      expect(FocusManager.instance.highlightMode, FocusHighlightMode.traditional);
       expect(_ring(), findsOneWidget);
     });
 
@@ -53,10 +45,7 @@ void main() {
           home: Scaffold(
             body: Center(
               child: FrameFocusRing(
-                child: Focus(
-                  focusNode: node,
-                  child: const SizedBox(width: 40, height: 40),
-                ),
+                child: Focus(focusNode: node, child: const SizedBox(width: 40, height: 40)),
               ),
             ),
           ),
@@ -66,8 +55,7 @@ void main() {
       node.requestFocus();
       await tester.pump();
 
-      final decoration =
-          tester.widget<DecoratedBox>(_ring()).decoration as BoxDecoration;
+      final decoration = tester.widget<DecoratedBox>(_ring()).decoration as BoxDecoration;
       final border = decoration.border! as Border;
       final tokens = FrameTokens.dark;
       expect(border.top.color, tokens.focusRing);
@@ -85,10 +73,7 @@ void main() {
           home: Scaffold(
             body: Center(
               child: FrameFocusRing(
-                child: Focus(
-                  focusNode: node,
-                  child: const SizedBox(width: 40, height: 40),
-                ),
+                child: Focus(focusNode: node, child: const SizedBox(width: 40, height: 40)),
               ),
             ),
           ),
@@ -111,9 +96,7 @@ void main() {
       await tester.pumpWidget(
         const MaterialApp(
           home: Scaffold(
-            body: Center(
-              child: FrameFocusRing(child: SizedBox(width: 40, height: 40)),
-            ),
+            body: Center(child: FrameFocusRing(child: SizedBox(width: 40, height: 40))),
           ),
         ),
       );
@@ -129,8 +112,7 @@ void main() {
 
       setUp(() {
         spec = ThemeSpec.fromJson(
-          jsonDecode(File('assets/themes/piframe-$variant.json').readAsStringSync())
-              as Map<String, dynamic>,
+          jsonDecode(File('assets/themes/piframe-$variant.json').readAsStringSync()) as Map<String, dynamic>,
         );
         tokens = spec.toTokens();
         theme = spec.toThemeData();
@@ -157,18 +139,12 @@ void main() {
       });
 
       test('focus overlay differs from the hover overlay on tabs and switches', () {
-        final tabFocus = theme.tabBarTheme.overlayColor!.resolve({
-          WidgetState.focused,
-        });
-        final tabHover = theme.tabBarTheme.overlayColor!.resolve({
-          WidgetState.hovered,
-        });
+        final tabFocus = theme.tabBarTheme.overlayColor!.resolve({WidgetState.focused});
+        final tabHover = theme.tabBarTheme.overlayColor!.resolve({WidgetState.hovered});
         expect(tabFocus, isNot(equals(tabHover)));
         expect(tabFocus, tokens.focusRing.withValues(alpha: 0.2));
 
-        final switchFocus = theme.switchTheme.overlayColor!.resolve({
-          WidgetState.focused,
-        });
+        final switchFocus = theme.switchTheme.overlayColor!.resolve({WidgetState.focused});
         expect(switchFocus, tokens.focusRing.withValues(alpha: 0.2));
       });
 

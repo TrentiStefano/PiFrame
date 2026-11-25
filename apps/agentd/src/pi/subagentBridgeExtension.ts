@@ -60,7 +60,7 @@ export function subagentBridgeExtension(pi: any): void {
       id,
       type: data.type ?? previous.type,
       description: data.description ?? previous.description,
-      status: status ?? data.status ?? previous.status ?? 'running',
+      status: status ?? data.status ?? previous.status ?? 'running'
     });
   };
 
@@ -68,12 +68,20 @@ export function subagentBridgeExtension(pi: any): void {
     const manager = registry();
     let anyRunning = false;
     if (manager && typeof manager.hasRunning === 'function') {
-      try { anyRunning = !!manager.hasRunning(); } catch { anyRunning = false; }
+      try {
+        anyRunning = !!manager.hasRunning();
+      } catch {
+        anyRunning = false;
+      }
     }
     const agents: any[] = [];
     for (const [id, info] of known) {
       let record: any;
-      try { record = manager ? manager.getRecord(id) : undefined; } catch { record = undefined; }
+      try {
+        record = manager ? manager.getRecord(id) : undefined;
+      } catch {
+        record = undefined;
+      }
       // A record leaves the manager about a minute after it settles; the last
       // status seen on the bus stands in for it then.
       agents.push({
@@ -83,7 +91,7 @@ export function subagentBridgeExtension(pi: any): void {
         description: record?.description ?? info.description,
         startedAt: typeof record?.startedAt === 'number' ? record.startedAt : info.startedAt,
         completedAt: typeof record?.completedAt === 'number' ? record.completedAt : info.completedAt,
-        toolUses: typeof record?.toolUses === 'number' ? record.toolUses : info.toolUses,
+        toolUses: typeof record?.toolUses === 'number' ? record.toolUses : info.toolUses
       });
     }
     if (anyRunning) idleSince = null;
@@ -95,10 +103,18 @@ export function subagentBridgeExtension(pi: any): void {
     const ui = ctxRef?.ui;
     if (!ui || typeof ui.setStatus !== 'function') return;
     let json: string;
-    try { json = JSON.stringify(snapshot()); } catch { return; }
+    try {
+      json = JSON.stringify(snapshot());
+    } catch {
+      return;
+    }
     if (json === lastSent) return;
     lastSent = json;
-    try { ui.setStatus(STATUS_KEY, json); } catch { /* the worker is going away */ }
+    try {
+      ui.setStatus(STATUS_KEY, json);
+    } catch {
+      /* the worker is going away */
+    }
   };
 
   const track = (ctx: any) => {
@@ -119,7 +135,11 @@ export function subagentBridgeExtension(pi: any): void {
       const finish = (result: { ok: boolean; error?: string }) => {
         if (settled) return;
         settled = true;
-        try { unsubscribe?.(); } catch { /* already gone */ }
+        try {
+          unsubscribe?.();
+        } catch {
+          /* already gone */
+        }
         publish();
         resolve(result);
       };
@@ -131,24 +151,36 @@ export function subagentBridgeExtension(pi: any): void {
     });
 
   if (pi.events && typeof pi.events.on === 'function') {
-    pi.events.on('subagents:created', (data: any) => { remember(data); publish(); });
+    pi.events.on('subagents:created', (data: any) => {
+      remember(data);
+      publish();
+    });
     pi.events.on('subagents:started', (data: any) => {
       remember(data, 'running');
       const info = known.get(data?.id);
       if (info && info.startedAt === undefined) info.startedAt = Date.now();
       publish();
     });
-    pi.events.on('subagents:steered', (data: any) => { remember(data); publish(); });
+    pi.events.on('subagents:steered', (data: any) => {
+      remember(data);
+      publish();
+    });
     pi.events.on('subagents:completed', (data: any) => {
       remember(data, data?.status ?? 'completed');
       const info = known.get(data?.id);
-      if (info) { info.completedAt = Date.now(); info.toolUses = data?.toolUses ?? info.toolUses; }
+      if (info) {
+        info.completedAt = Date.now();
+        info.toolUses = data?.toolUses ?? info.toolUses;
+      }
       publish();
     });
     pi.events.on('subagents:failed', (data: any) => {
       remember(data, data?.status ?? 'error');
       const info = known.get(data?.id);
-      if (info) { info.completedAt = Date.now(); info.toolUses = data?.toolUses ?? info.toolUses; }
+      if (info) {
+        info.completedAt = Date.now();
+        info.toolUses = data?.toolUses ?? info.toolUses;
+      }
       publish();
     });
   }
@@ -161,7 +193,7 @@ export function subagentBridgeExtension(pi: any): void {
       if (!agentId) throw new Error('Missing subagent id');
       const result = await stopAgent(agentId);
       if (!result.ok) throw new Error(result.error);
-    },
+    }
   });
 
   // pi-subagents gives the main agent no way to stop a background agent, so a
@@ -177,21 +209,21 @@ export function subagentBridgeExtension(pi: any): void {
         type: 'object',
         properties: { agent_id: { type: 'string', description: 'The agent ID returned by Agent.' } },
         required: ['agent_id'],
-        additionalProperties: false,
+        additionalProperties: false
       },
       execute: async (_toolCallId: string, params: any) => {
         const agentId = String(params?.agent_id ?? '').trim();
         const result = agentId ? await stopAgent(agentId) : { ok: false, error: 'Missing agent_id.' };
-        const text = result.ok
-          ? `Agent ${agentId} stopped.`
-          : `Agent ${agentId} was not stopped: ${result.error}`;
+        const text = result.ok ? `Agent ${agentId} stopped.` : `Agent ${agentId} was not stopped: ${result.error}`;
         return { content: [{ type: 'text', text }], details: { agentId, stopped: result.ok } };
-      },
+      }
     });
   }
 
   for (const event of ['session_start', 'before_agent_start', 'agent_settled', 'turn_end']) {
-    pi.on(event, (_event: unknown, ctx: any) => { track(ctx); });
+    pi.on(event, (_event: unknown, ctx: any) => {
+      track(ctx);
+    });
   }
   pi.on('session_start', (_event: unknown, ctx: any) => {
     ctxRef = ctx;
@@ -202,7 +234,10 @@ export function subagentBridgeExtension(pi: any): void {
     publish();
   });
   pi.on('session_shutdown', () => {
-    if (timer) { clearInterval(timer); timer = null; }
+    if (timer) {
+      clearInterval(timer);
+      timer = null;
+    }
     if (g[OWNER_KEY] === ownerToken) delete g[OWNER_KEY];
   });
 }

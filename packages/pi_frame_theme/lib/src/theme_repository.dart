@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
+
 import 'package:flutter/foundation.dart';
+
 import 'theme_spec.dart';
 import 'vscode_theme_converter.dart';
 
@@ -145,14 +147,12 @@ class ThemeRepository {
   }
 
   String get activeThemeId => _activeThemeId;
-  ThemeSpec get activeTheme =>
-      _resolvedThemes[_activeThemeId] ?? _resolvedThemes['piframe-dark']!;
+  ThemeSpec get activeTheme => _resolvedThemes[_activeThemeId] ?? _resolvedThemes['piframe-dark']!;
 
   List<ThemeSpec> get availableThemes => _resolvedThemes.values.toList();
   Stream<List<ThemeSpec>> watch() => _controller.stream;
 
-  bool hasTheme(String id) =>
-      _resolvedThemes.containsKey(id) || _rawThemes.containsKey(id);
+  bool hasTheme(String id) => _resolvedThemes.containsKey(id) || _rawThemes.containsKey(id);
 
   void setActiveTheme(String id) {
     if (_resolvedThemes.containsKey(id) && _activeThemeId != id) {
@@ -204,7 +204,8 @@ class ThemeRepository {
     if (visited.contains(parentId) || depth >= 3) {
       // Cycle or depth limit exceeded
       raw.diagnostics.add(
-          'Inheritance cycle or max depth exceeded for theme "$id" extending "$parentId". Aborting inheritance.');
+        'Inheritance cycle or max depth exceeded for theme "$id" extending "$parentId". Aborting inheritance.',
+      );
       return raw;
     }
 
@@ -216,7 +217,7 @@ class ThemeRepository {
   void watchDirectory(Directory dir) {
     if (!dir.existsSync()) return;
     try {
-      _watcherSubscription?.cancel();
+      unawaited(_watcherSubscription?.cancel());
       _watcherSubscription = dir.watch().listen((event) {
         if (event.path.endsWith('.json')) {
           _reloadFromDirectory(dir);
@@ -240,7 +241,7 @@ class ThemeRepository {
   }
 
   void dispose() {
-    _watcherSubscription?.cancel();
-    _controller.close();
+    unawaited(_watcherSubscription?.cancel());
+    unawaited(_controller.close());
   }
 }

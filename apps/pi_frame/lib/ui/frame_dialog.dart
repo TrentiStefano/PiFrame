@@ -70,9 +70,7 @@ class FrameDialog<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final text = FrameText.of(context);
-    final hasDestructive = actions.any(
-      (a) => a.role == FrameDialogActionRole.destructive,
-    );
+    final hasDestructive = actions.any((a) => a.role == FrameDialogActionRole.destructive);
     final maxHeight = MediaQuery.sizeOf(context).height * maxHeightFraction;
 
     return Dialog(
@@ -95,16 +93,10 @@ class FrameDialog<T> extends StatelessWidget {
                   Expanded(
                     child: Semantics(
                       header: true,
-                      child: Text(
-                        title,
-                        style: text.heading.copyWith(color: tokens.textPrimary),
-                      ),
+                      child: Text(title, style: text.heading.copyWith(color: tokens.textPrimary)),
                     ),
                   ),
-                  for (final action in headerActions) ...[
-                    const SizedBox(width: FrameSpace.x2),
-                    action,
-                  ],
+                  for (final action in headerActions) ...[const SizedBox(width: FrameSpace.x2), action],
                 ],
               ),
               const SizedBox(height: FrameSpace.x3),
@@ -132,8 +124,7 @@ class FrameDialog<T> extends StatelessWidget {
                         _buildAction(
                           context,
                           action,
-                          autofocus: hasDestructive &&
-                              action.role == FrameDialogActionRole.cancel,
+                          autofocus: hasDestructive && action.role == FrameDialogActionRole.cancel,
                         ),
                     ],
                   ),
@@ -146,11 +137,7 @@ class FrameDialog<T> extends StatelessWidget {
     );
   }
 
-  Widget _buildAction(
-    BuildContext context,
-    FrameDialogAction<T> action, {
-    required bool autofocus,
-  }) {
+  Widget _buildAction(BuildContext context, FrameDialogAction<T> action, {required bool autofocus}) {
     final tokens = context.tokens;
     final key = action.key ?? ValueKey('frame-dialog-${action.role.name}');
 
@@ -163,30 +150,18 @@ class FrameDialog<T> extends StatelessWidget {
 
     switch (action.role) {
       case FrameDialogActionRole.cancel:
-        return TextButton(
-          key: key,
-          autofocus: autofocus,
-          onPressed: onPressed,
-          child: Text(action.label),
-        );
+        return TextButton(key: key, autofocus: autofocus, onPressed: onPressed, child: Text(action.label));
       case FrameDialogActionRole.primary:
         return PressFeedback(
           enabled: onPressed != null,
-          child: FilledButton(
-            key: key,
-            onPressed: onPressed,
-            child: Text(action.label),
-          ),
+          child: FilledButton(key: key, onPressed: onPressed, child: Text(action.label)),
         );
       case FrameDialogActionRole.destructive:
         return PressFeedback(
           enabled: onPressed != null,
           child: FilledButton(
             key: key,
-            style: FilledButton.styleFrom(
-              backgroundColor: tokens.danger,
-              foregroundColor: tokens.surface,
-            ),
+            style: FilledButton.styleFrom(backgroundColor: tokens.danger, foregroundColor: tokens.surface),
             onPressed: onPressed,
             child: Text(action.label),
           ),
@@ -225,12 +200,8 @@ Future<T?> showFrameDialogBuilder<T>({
 }) {
   final reduced = FrameMotion.reduced(context);
   final tokens = context.tokens;
-  final enterDuration = instant
-      ? Duration.zero
-      : (reduced ? FrameMotion.crossFade : FrameMotion.dialog);
-  final exitDuration = instant
-      ? Duration.zero
-      : (reduced ? FrameMotion.crossFade : FrameMotion.dialogExit);
+  final enterDuration = instant ? Duration.zero : (reduced ? FrameMotion.crossFade : FrameMotion.dialog);
+  final exitDuration = instant ? Duration.zero : (reduced ? FrameMotion.crossFade : FrameMotion.dialogExit);
 
   return Navigator.of(context, rootNavigator: true).push<T>(
     _FrameDialogRoute<T>(
@@ -239,23 +210,16 @@ Future<T?> showFrameDialogBuilder<T>({
       barrierColor: tokens.overlay,
       transitionDuration: enterDuration,
       reverseDuration: exitDuration,
-      pageBuilder: (routeContext, animation, secondaryAnimation) =>
-          builder(routeContext),
+      pageBuilder: (routeContext, animation, secondaryAnimation) => builder(routeContext),
       transitionBuilder: (routeContext, animation, secondaryAnimation, child) {
         if (instant) return child;
-        final curved = CurvedAnimation(
-          parent: animation,
-          curve: FrameMotion.enterCurve,
-        );
+        final curved = CurvedAnimation(parent: animation, curve: FrameMotion.enterCurve);
         if (reduced) {
           return FadeTransition(opacity: curved, child: child);
         }
         return FadeTransition(
           opacity: curved,
-          child: ScaleTransition(
-            scale: Tween<double>(begin: 0.97, end: 1).animate(curved),
-            child: child,
-          ),
+          child: ScaleTransition(scale: Tween<double>(begin: 0.97, end: 1).animate(curved), child: child),
         );
       },
     ),

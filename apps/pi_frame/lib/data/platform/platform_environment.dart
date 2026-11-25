@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 
+import 'runtime_mode.dart';
+
 /// Centralized utility for resolving system environments, augmented PATHs,
 /// and CLI executables across macOS, Linux, and Windows.
 ///
@@ -35,15 +37,10 @@ class PlatformEnvironment {
     final separator = Platform.isWindows ? ';' : ':';
 
     // 1. On macOS desktop, if PATH is the bare launchd minimal set, probe login shell PATH
-    if (Platform.isMacOS &&
-        !Platform.environment.containsKey('FLUTTER_TEST')) {
+    if (Platform.isMacOS && !isRunningUnderTests) {
       try {
         final shell = Platform.environment['SHELL'] ?? '/bin/zsh';
-        final res = Process.runSync(
-          shell,
-          ['-l', '-c', 'printf "%s" "\$PATH"'],
-          runInShell: false,
-        );
+        final res = Process.runSync(shell, ['-l', '-c', 'printf "%s" "\$PATH"'], runInShell: false);
         if (res.exitCode == 0 && res.stdout is String && (res.stdout as String).isNotEmpty) {
           final shellPaths = (res.stdout as String).split(':');
           for (final p in shellPaths) {
@@ -61,9 +58,7 @@ class PlatformEnvironment {
     }
 
     // 3. User home-relative binary paths
-    final home = Platform.isWindows
-        ? Platform.environment['USERPROFILE']
-        : Platform.environment['HOME'];
+    final home = Platform.isWindows ? Platform.environment['USERPROFILE'] : Platform.environment['HOME'];
 
     if (home != null && home.isNotEmpty) {
       final sep = Platform.pathSeparator;
@@ -146,9 +141,7 @@ class PlatformEnvironment {
       if (f.existsSync()) return f.path;
     }
 
-    final extensions = Platform.isWindows
-        ? ['', '.cmd', '.exe', '.bat']
-        : [''];
+    final extensions = Platform.isWindows ? ['', '.cmd', '.exe', '.bat'] : [''];
 
     final sep = Platform.pathSeparator;
     for (final dir in searchPaths) {

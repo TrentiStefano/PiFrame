@@ -39,13 +39,16 @@ function main(extraArgs) {
   const env = { ...process.env, PI_FRAME_HOME: devHome, PIFRAME_DEV_LOG: '1' };
   const steps = [
     { cmd: 'pnpm', args: ['run', 'build:agentd'], cwd: repoRoot },
-    { cmd: 'flutter', args: ['run', ...extraArgs], cwd: path.join(repoRoot, 'apps', 'pi_frame') },
+    // The in-app changelog asset is generated, not committed.
+    { cmd: 'node', args: ['tools/scripts/sync-changelog.mjs'], cwd: repoRoot },
+    { cmd: 'flutter', args: ['run', ...extraArgs], cwd: path.join(repoRoot, 'apps', 'pi_frame') }
   ];
   for (const { cmd, args, cwd } of steps) {
     // Windows needs a shell to resolve pnpm.cmd and flutter.bat.
-    const result = process.platform === 'win32'
-      ? spawnSync([cmd, ...args].join(' '), { cwd, env, stdio: 'inherit', shell: true })
-      : spawnSync(cmd, args, { cwd, env, stdio: 'inherit' });
+    const result =
+      process.platform === 'win32'
+        ? spawnSync([cmd, ...args].join(' '), { cwd, env, stdio: 'inherit', shell: true })
+        : spawnSync(cmd, args, { cwd, env, stdio: 'inherit' });
     if (result.status !== 0) process.exit(result.status ?? 1);
   }
 }

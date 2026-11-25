@@ -22,9 +22,7 @@ void main() {
       UncontrolledProviderScope(
         container: container,
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: Scaffold(
             body: Center(
               child: SizedBox(
@@ -32,9 +30,7 @@ void main() {
                 height: 800,
                 child: const SideSplit(
                   sessionId: 'parent',
-                  main: SizedBox.expand(
-                    key: ValueKey('split-main'),
-                  ),
+                  main: SizedBox.expand(key: ValueKey('split-main')),
                 ),
               ),
             ),
@@ -46,9 +42,7 @@ void main() {
     return container;
   }
 
-  testWidgets('wide pane splits 40 % with the chat at least 720 px', (
-    tester,
-  ) async {
+  testWidgets('wide pane splits 40 % with the chat at least 720 px', (tester) async {
     await pumpSplit(tester, 1300);
 
     final side = tester.getSize(find.byKey(const ValueKey('side-split-panel')));
@@ -60,9 +54,7 @@ void main() {
     expect(find.byKey(const ValueKey('side-split-divider')), findsOneWidget);
   });
 
-  testWidgets('narrow chat shows the side thread full pane with a back button', (
-    tester,
-  ) async {
+  testWidgets('narrow chat shows the side thread full pane with a back button', (tester) async {
     await pumpSplit(tester, 900);
 
     final side = tester.getSize(find.byKey(const ValueKey('side-split-panel')));
@@ -70,14 +62,10 @@ void main() {
     expect(find.byKey(const ValueKey('side-back-btn')), findsOneWidget);
   });
 
-  testWidgets('30 repeated shows keep the split laid out with no errors', (
-    tester,
-  ) async {
+  testWidgets('30 repeated shows keep the split laid out with no errors', (tester) async {
     final container = await pumpSplit(tester, 1300);
     for (var i = 0; i < 30; i++) {
-      container.read(sideThreadFamily('parent').notifier).togglePanel(
-            instant: i.isEven,
-          );
+      container.read(sideThreadFamily('parent').notifier).togglePanel(instant: i.isEven);
       await tester.pumpAndSettle();
       if (i.isEven) {
         // Closed by the toggle: the side collapses and the chat takes the pane.

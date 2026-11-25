@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:file_selector/file_selector.dart' show XFile;
+import 'package:pi_frame/data/platform/file_dialog_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -65,39 +65,18 @@ void main() {
         ),
       );
       await expectLater(
-        uploadAttachmentBytes(
-          name: 'a.png',
-          bytes: Uint8List(1),
-          client: client,
-          base: Uri.parse('https://h/'),
-        ),
-        throwsA(
-          isA<AttachmentUploadException>().having(
-            (e) => e.requiresControlMode,
-            'requiresControlMode',
-            isTrue,
-          ),
-        ),
+        uploadAttachmentBytes(name: 'a.png', bytes: Uint8List(1), client: client, base: Uri.parse('https://h/')),
+        throwsA(isA<AttachmentUploadException>().having((e) => e.requiresControlMode, 'requiresControlMode', isTrue)),
       );
     });
 
     test('reports an oversized upload', () async {
       final client = MockClient(
-        (_) async => http.Response(
-          jsonEncode({'ok': false, 'error': 'Payload Too Large (max 50MB)'}),
-          413,
-        ),
+        (_) async => http.Response(jsonEncode({'ok': false, 'error': 'Payload Too Large (max 50MB)'}), 413),
       );
       await expectLater(
-        uploadAttachmentBytes(
-          name: 'a.bin',
-          bytes: Uint8List(1),
-          client: client,
-          base: Uri.parse('https://h/'),
-        ),
-        throwsA(
-          isA<AttachmentUploadException>().having((e) => e.code, 'code', 'TOO_LARGE'),
-        ),
+        uploadAttachmentBytes(name: 'a.bin', bytes: Uint8List(1), client: client, base: Uri.parse('https://h/')),
+        throwsA(isA<AttachmentUploadException>().having((e) => e.code, 'code', 'TOO_LARGE')),
       );
     });
   });
@@ -110,7 +89,7 @@ void main() {
     test('desktop keeps the local path and does not upload', () async {
       var uploads = 0;
       final attachment = await ingestPickedFile(
-        XFile('/tmp/notes.txt', name: 'notes.txt'),
+        PickedFile(path: '/tmp/notes.txt', name: 'notes.txt', readBytes: () async => Uint8List(0)),
         idPrefix: 'att',
         index: 0,
         isWeb: () => false,
@@ -128,18 +107,13 @@ void main() {
       final file = File('${tmp.path}/IMG_7660.png')..writeAsBytesSync([9, 9]);
       Uint8List? sent;
       final attachment = await ingestPickedFile(
-        XFile(file.path),
+        PickedFile(path: file.path, name: 'IMG_7660.png', readBytes: () async => Uint8List.fromList([9, 9])),
         idPrefix: 'att',
         index: 1,
         isWeb: () => true,
         uploader: (name, bytes, mime) async {
           sent = bytes;
-          return UploadedBlob(
-            blobId: _id,
-            name: name,
-            path: '/home/me/.piframe/blobs/$_id/$name',
-            size: bytes.length,
-          );
+          return UploadedBlob(blobId: _id, name: name, path: '/home/me/.piframe/blobs/$_id/$name', size: bytes.length);
         },
       );
       expect(sent, [9, 9]);

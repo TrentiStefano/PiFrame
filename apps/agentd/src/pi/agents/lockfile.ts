@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { errorCode } from '../../errors/errors.js';
 
 export interface LockOptions {
   staleMs?: number;
@@ -12,7 +13,7 @@ export const DEFAULT_LOCK_OPTIONS: Required<LockOptions> = {
   staleMs: 10_000,
   maxAttempts: 25,
   delayMs: 25,
-  updateIntervalMs: 5_000,
+  updateIntervalMs: 5_000
 };
 
 export function getLockfilePath(filePath: string): string {
@@ -40,15 +41,11 @@ export interface LockHandle {
  * - Never deletes a lock we don't own
  * - check() asserts ownership right before rename/commit and throws AGENTS_CONFIG_LOCKED if compromised
  */
-export async function acquireLock(
-  filePath: string,
-  options: LockOptions = {}
-): Promise<LockHandle> {
+export async function acquireLock(filePath: string, options: LockOptions = {}): Promise<LockHandle> {
   const staleMs = options.staleMs ?? DEFAULT_LOCK_OPTIONS.staleMs;
   const maxAttempts = options.maxAttempts ?? DEFAULT_LOCK_OPTIONS.maxAttempts;
   const delayMs = options.delayMs ?? DEFAULT_LOCK_OPTIONS.delayMs;
-  const updateIntervalMs =
-    options.updateIntervalMs ?? Math.max(10, Math.floor(staleMs / 2));
+  const updateIntervalMs = options.updateIntervalMs ?? Math.max(10, Math.floor(staleMs / 2));
   const lockfilePath = getLockfilePath(filePath);
 
   // Ensure parent directory exists
@@ -129,14 +126,14 @@ export async function acquireLock(
         }
       };
 
-      const handle: any = () => release();
+      const handle = (): void => release();
       handle.release = release;
       handle.check = checkOwnership;
       handle.isCompromised = () => compromised;
 
-      return handle as LockHandle;
-    } catch (err: any) {
-      if (err?.code !== 'EEXIST') {
+      return handle;
+    } catch (err: unknown) {
+      if (errorCode(err) !== 'EEXIST') {
         throw err;
       }
 
@@ -154,9 +151,9 @@ export async function acquireLock(
           }
           continue;
         }
-      } catch (statErr: any) {
+      } catch (statErr: unknown) {
         // Lock might have been released between mkdir and stat
-        if (statErr?.code === 'ENOENT') {
+        if (errorCode(statErr) === 'ENOENT') {
           continue;
         }
       }
@@ -184,4 +181,3 @@ export async function withFileLock<T>(
     lock.release();
   }
 }
-

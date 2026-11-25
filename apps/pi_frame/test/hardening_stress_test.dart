@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -27,11 +28,7 @@ void main() {
         daemonEndpointProvider.overrideWith((ref) async => null),
         connectionStateProvider.overrideWith((ref) => Stream.value(DaemonConnectionState.connected)),
       ],
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        theme: repo.activeTheme.toThemeData(),
-        home: child,
-      ),
+      child: MaterialApp(debugShowCheckedModeBanner: false, theme: repo.activeTheme.toThemeData(), home: child),
     );
   }
 
@@ -62,24 +59,13 @@ void main() {
         currentThinkingLevel: 'extreme-extended-depth-level-3',
         sessionStats: {
           'cost': 123.4567,
-          'contextUsage': {
-            'tokens': 1950000,
-            'contextWindow': 2000000,
-            'percent': 97.5,
-          },
+          'contextUsage': {'tokens': 1950000, 'contextWindow': 2000000, 'percent': 97.5},
         },
         extensionStatuses: {
           'very-long-extension-name-alpha': 'full-active-streaming-mode',
           'another-very-long-extension-name-beta': 'standby-awaiting-trigger',
         },
-        entries: [
-          SessionEntry(
-            id: 'e1',
-            role: 'user',
-            timestamp: 1,
-            text: 'Test entry',
-          ),
-        ],
+        entries: [SessionEntry(id: 'e1', role: 'user', timestamp: 1, text: 'Test entry')],
       );
 
       final json = File('assets/themes/piframe-dark.json').readAsStringSync();
@@ -94,9 +80,8 @@ void main() {
             daemonEndpointProvider.overrideWith((ref) async => null),
             connectionStateProvider.overrideWith((ref) => Stream.value(DaemonConnectionState.connected)),
             activeSessionIdProvider.overrideWith((ref) => worstSession.sessionId),
-            sessionStateFamily(worstSession.sessionId).overrideWith(
-              (ref) => SessionStateNotifier(worstSession.sessionId, null)..state = worstSession,
-            ),
+            sessionStateFamily(worstSession.sessionId)
+                .overrideWith((ref) => SessionStateNotifier(worstSession.sessionId, null)..state = worstSession),
           ],
           child: MaterialApp(
             debugShowCheckedModeBanner: false,
@@ -135,13 +120,11 @@ line 2 of code
 ''';
 
       await tester.pumpWidget(
-        MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
-          home: const Scaffold(
-            body: SingleChildScrollView(
-              child: RichContent(text: worstMarkdown),
+        ProviderScope(
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+            home: const Scaffold(
+              body: SingleChildScrollView(child: RichContent(text: worstMarkdown)),
             ),
           ),
         ),
@@ -157,9 +140,7 @@ line 2 of code
 
       await tester.pumpWidget(
         MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: Scaffold(
             body: SingleChildScrollView(
               child: CodeBlock(code: thousandLines, language: 'dart'),
@@ -182,9 +163,7 @@ line 2 of code
 
       await tester.pumpWidget(
         MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: Scaffold(
             body: SingleChildScrollView(
               child: DiffBlock(diffText: diffLines, filename: 'massive_file.dart'),
@@ -216,9 +195,7 @@ line 2 of code
             ],
             child: MaterialApp(
               theme: repo.activeTheme.toThemeData(),
-              home: Scaffold(
-                body: SettingsView(onClose: () {}),
-              ),
+              home: Scaffold(body: SettingsView(onClose: () {})),
             ),
           ),
         );
@@ -231,9 +208,7 @@ line 2 of code
               themeRepositoryProvider.overrideWithValue(repo),
               daemonEndpointProvider.overrideWith((ref) async => null),
             ],
-            child: const MaterialApp(
-              home: Scaffold(body: SizedBox.shrink()),
-            ),
+            child: const MaterialApp(home: Scaffold(body: SizedBox.shrink())),
           ),
         );
         await tester.pumpAndSettle();

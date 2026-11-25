@@ -1,3 +1,4 @@
+import { modelInfoOf, type PiModelInfo } from '../pi/piCommands.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -11,7 +12,13 @@ import { getPiFrameBaseDir, loadConfig, patchConfig } from '../config/config.js'
 import { WorkspaceService } from '../workspace/WorkspaceService.js';
 import { SessionIndex } from '../sessions/SessionIndex.js';
 import { applyContextPolicy, physicalModel } from '../pi/contextLimitExtension.js';
-import { DEFAULT_COMPACTION_RESERVE_PERCENT, readContextPolicy, validateContextLimit, validateReservePercent, writeContextPolicy } from '../pi/contextPolicy.js';
+import {
+  DEFAULT_COMPACTION_RESERVE_PERCENT,
+  readContextPolicy,
+  validateContextLimit,
+  validateReservePercent,
+  writeContextPolicy
+} from '../pi/contextPolicy.js';
 import { filterModelsByEnabledPatterns, readEnabledModelPatterns } from '../pi/modelScope.js';
 import { parsePiBuiltinCommand, PI_BUILTIN_SLASH_COMMANDS } from '../pi/builtinSlashCommands.js';
 import { getCopilotEntitlements } from '../pi/copilotModels.js';
@@ -26,9 +33,42 @@ import type {
   PcpCommand,
   PcpAck,
   PcpResult,
-  PcpError,
-  PiAvailableModel
+  PcpErrorCode,
+  PcpResultState,
+  PiAvailableModel,
+  PcpEvent
 } from '@piframe/pcp-ts';
+import { isPcpErrorCode } from '@piframe/pcp-ts';
+import { createCodedError, errorCode, errorMessage, isRecord, readProperty } from '../errors/errors.js';
+
+/** The display name: Pi's name, else its id. Empty when neither is set (never the string "undefined"). */
+export function modelName(model: PiModelInfo): string {
+  if (model.name != null) return String(model.name);
+  return model.id != null ? String(model.id) : '';
+}
+
+/** The sorted input-token thresholds of a model's price tiers; anything that is not a finite number is dropped. */
+export function inputTierThresholds(cost: unknown): number[] {
+  const tiers: unknown = readProperty(cost, 'tiers');
+  if (!Array.isArray(tiers)) return [];
+  return tiers
+    .map((tier: unknown) => readProperty(tier, 'inputTokensAbove'))
+    .filter((n): n is number => typeof n === 'number' && Number.isFinite(n))
+    .sort((a, b) => a - b);
+}
+
+/** The error hint a caught value carries, when it is a string. */
+function hintOf(err: unknown): string | undefined {
+  const hint = readProperty(err, 'hint');
+  return typeof hint === 'string' ? hint : undefined;
+}
+
+/** The structured details a caught value carries: an object or an array; anything else is dropped. */
+function detailsOf(err: unknown): Record<string, unknown> | unknown[] | undefined {
+  const details = readProperty(err, 'details');
+  if (Array.isArray(details)) return details;
+  return isRecord(details) ? details : undefined;
+}
 
 function getOrCreateAuthDeviceId(): string {
   const directory = getPiFrameBaseDir();
@@ -38,15 +78,15 @@ function getOrCreateAuthDeviceId(): string {
     const existing = fs.readFileSync(file, 'utf8').trim();
     if (/^[0-9a-f-]{36}$/i.test(existing)) return existing;
     throw new Error('Invalid PiFrame auth device ID file.');
-  } catch (error: any) {
-    if (error?.code !== 'ENOENT') throw error;
+  } catch (error: unknown) {
+    if (errorCode(error) !== 'ENOENT') throw error;
   }
   const id = randomUUID();
   try {
     fs.writeFileSync(file, id, { encoding: 'utf8', flag: 'wx', mode: 0o600 });
     return id;
-  } catch (error: any) {
-    if (error?.code !== 'EEXIST') throw error;
+  } catch (error: unknown) {
+    if (errorCode(error) !== 'EEXIST') throw error;
     const existing = fs.readFileSync(file, 'utf8').trim();
     if (/^[0-9a-f-]{36}$/i.test(existing)) return existing;
     throw new Error('Invalid PiFrame auth device ID file.');
@@ -54,8 +94,19 @@ function getOrCreateAuthDeviceId(): string {
 }
 
 const SHARED_READ_COMMANDS = new Set([
-  'workspace.refresh', 'workspace.listFiles', 'session.subagents', 'session.getStats', 'agent.getModels', 'agent.getCommands',
+  'workspace.refresh',
+  'workspace.listFiles',
+  'session.subagents',
+  'session.getStats',
+  'agent.getModels',
+  'agent.getCommands'
 ]);
+
+// How long a queued message waits for a running compaction to finish before it is delivered anyway.
+const COMPACTION_WAIT_MS = 10 * 60_000;
+
+// How often the queued message re-checks whether the compaction has ended.
+const COMPACTION_POLL_MS = 200;
 
 export class Dispatcher {
   private registry: SessionRegistry;
@@ -88,7 +139,7 @@ export class Dispatcher {
     this.agentsService =
       agentsService ??
       new AgentsService({
-        getAvailableModels: () => this.fetchAvailableModelsForAgents(),
+        getAvailableModels: () => this.fetchAvailableModelsForAgents()
       });
     this.sideManager =
       sideManager ??
@@ -114,7 +165,7 @@ export class Dispatcher {
           seq: 0,
           type: 'remote.statusChanged',
           payload: status
-        } as any);
+        } as PcpEvent);
       });
     }
   }
@@ -139,9 +190,7 @@ export class Dispatcher {
   private async reloadWorkerSession(sessionId: string): Promise<{ reloaded: true }> {
     const session = this.registry.getSession(sessionId);
     if (session?.isStreaming || session?.isCompacting) {
-      const err: any = new Error('Attendi la fine della risposta prima di ricaricare.');
-      err.code = 'COMMAND_REJECTED';
-      throw err;
+      throw createCodedError('Wait for the answer to finish before reloading.', 'COMMAND_REJECTED');
     }
     const worker = await this.registry.ensureWorkerForSession(sessionId);
     // The internal extension command calls Pi's ctx.reload(), which re-runs session_start and resets the context policy.
@@ -155,17 +204,20 @@ export class Dispatcher {
     const session = this.registry.getSession(sessionId);
     if (!session) throw Object.assign(new Error(`Session ${sessionId} not found`), { code: 'SESSION_NOT_FOUND' });
     if (session.isStreaming || session.isCompacting) {
-      throw Object.assign(new Error('Attendi la fine della risposta prima di gestire l’autenticazione.'), { code: 'COMMAND_REJECTED' });
+      throw Object.assign(new Error('Wait for the answer to finish before managing authentication.'), {
+        code: 'COMMAND_REJECTED'
+      });
     }
     const worker = await this.registry.ensureWorkerForSession(sessionId);
-    const message = action === 'login'
-      ? `/piframe-auth-login ${JSON.stringify({ deviceId: getOrCreateAuthDeviceId() })}`
-      : '/piframe-auth-logout';
+    const message =
+      action === 'login'
+        ? `/piframe-auth-login ${JSON.stringify({ deviceId: getOrCreateAuthDeviceId() })}`
+        : '/piframe-auth-logout';
     await worker.send({ command: 'prompt', arguments: { message }, timeoutMs: 11 * 60 * 1000 });
   }
 
   private async fetchAvailableModelsForAgents(): Promise<{ models: PiAvailableModel[]; warning?: string }> {
-    let rawModels: any[] = [];
+    let rawModels: PiModelInfo[] = [];
     let warning: string | undefined;
 
     const activeWorker = this.registry.getSupervisor().getActiveWorker();
@@ -175,8 +227,8 @@ export class Dispatcher {
         if (Array.isArray(res.data?.models)) {
           rawModels = res.data.models;
         }
-      } catch (err: any) {
-        warning = `Failed to get models from active worker: ${err?.message || 'unknown error'}`;
+      } catch (err: unknown) {
+        warning = `Failed to get models from active worker: ${errorMessage(err) || 'unknown error'}`;
       }
     } else {
       const piPath = this.registry.getPiExecutablePath();
@@ -185,15 +237,15 @@ export class Dispatcher {
         try {
           tempWorker = new StdioPiTransport({
             executablePath: piPath,
-            capabilities: this.registry.getSupervisor().getCapabilities(),
+            capabilities: this.registry.getSupervisor().getCapabilities()
           });
           await tempWorker.start({ cwd: os.tmpdir(), args: ['--mode', 'rpc'] });
           const res = await tempWorker.send({ command: 'get_available_models', timeoutMs: 10000 });
           if (Array.isArray(res.data?.models)) {
             rawModels = res.data.models;
           }
-        } catch (err: any) {
-          warning = `Pi is not available to query models: ${err?.message || 'unknown error'}`;
+        } catch (err: unknown) {
+          warning = `Pi is not available to query models: ${errorMessage(err) || 'unknown error'}`;
         } finally {
           if (tempWorker) {
             try {
@@ -212,33 +264,28 @@ export class Dispatcher {
 
     const entitlements = await getCopilotEntitlements().catch(() => ({
       diagnostic: { available: true, message: '' },
-      allowedModelIds: new Set<string>(),
+      allowedModelIds: new Set<string>()
     }));
 
     const filtered = filterModelsByEnabledPatterns(
-      rawModels.filter((model: Record<string, unknown>) =>
-        model.provider !== 'github-copilot' ||
-        (entitlements.diagnostic.available &&
-          typeof model.id === 'string' &&
-          entitlements.allowedModelIds.has(model.id))
+      rawModels.filter(
+        (model: PiModelInfo) =>
+          model.provider !== 'github-copilot' ||
+          (entitlements.diagnostic.available &&
+            typeof model.id === 'string' &&
+            entitlements.allowedModelIds.has(model.id))
       ),
       readEnabledModelPatterns()
     );
 
-    const mapped: PiAvailableModel[] = filtered.map((m: any) => {
+    const mapped: PiAvailableModel[] = filtered.map((m: PiModelInfo) => {
       const fullId = m.provider ? `${m.provider}/${m.id}` : String(m.id);
-      const tiers = Array.isArray(m.cost?.tiers)
-        ? m.cost.tiers
-            .map((t: any) => t.inputTokensAbove)
-            .filter((n: any) => typeof n === 'number' && Number.isFinite(n))
-            .sort((a: number, b: number) => a - b)
-        : [];
       return {
         id: fullId,
-        name: m.name ?? m.id,
+        name: modelName(m),
         contextWindow: typeof m.contextWindow === 'number' ? m.contextWindow : 0,
         reasoning: !!m.reasoning,
-        tiers,
+        tiers: inputTierThresholds(m.cost)
       };
     });
 
@@ -255,7 +302,13 @@ export class Dispatcher {
       if (existing.state === 'executing') {
         this.sendAck(conn, commandId);
         existing.waiters.push((payload) => {
-          this.sendResult(conn, commandId, payload.state === 'completed' ? 'deduplicated' : payload.state, payload.data, payload.error);
+          this.sendResult(
+            conn,
+            commandId,
+            payload.state === 'completed' ? 'deduplicated' : payload.state,
+            payload.data,
+            payload.error
+          );
         });
         return;
       }
@@ -264,7 +317,7 @@ export class Dispatcher {
       this.sendResult(
         conn,
         commandId,
-        existing.state === 'completed' ? 'deduplicated' : (existing.state as any),
+        existing.state === 'completed' ? 'deduplicated' : existing.state,
         existing.resultPayload?.data,
         existing.resultPayload?.error
       );
@@ -282,20 +335,24 @@ export class Dispatcher {
       const data = await this.executeShared(conn, cmd);
       const payload = this.deduplicator.complete(commandId, 'completed', data);
       this.sendResult(conn, commandId, 'completed', payload.data);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const rawCode = errorCode(err);
+      const code = typeof rawCode === 'string' ? rawCode : undefined;
       const isRejected =
-        err.code === 'COMMAND_REJECTED' ||
-        err.code === 'CONFIG_INVALID' ||
-        err.code === 'SESSION_NOT_FOUND' ||
-        err.code === 'BRANCH_INVALID_NAME' ||
-        err.code === 'BRANCH_NOT_FOUND' ||
-        err.code === 'WORKSPACE_DIRTY' ||
-        String(err.code || '').startsWith('WORKSPACE_') ||
-        String(err.code || '').startsWith('REMOTE_') ||
-        String(err.code || '').startsWith('SIDE_');
+        code === 'COMMAND_REJECTED' ||
+        code === 'CONFIG_INVALID' ||
+        code === 'SESSION_NOT_FOUND' ||
+        code === 'BRANCH_INVALID_NAME' ||
+        code === 'BRANCH_NOT_FOUND' ||
+        code === 'WORKSPACE_DIRTY' ||
+        (code ?? '').startsWith('WORKSPACE_') ||
+        (code ?? '').startsWith('REMOTE_') ||
+        (code ?? '').startsWith('SIDE_');
       const state = isRejected ? 'rejected' : 'failed';
-      const payload = this.deduplicator.complete(commandId, state, undefined, err.message);
+      const payload = this.deduplicator.complete(commandId, state, undefined, errorMessage(err));
 
+      // Codes outside the protocol list fall back to the generic code for their class.
+      const payloadCode: PcpErrorCode = isPcpErrorCode(code) ? code : isRejected ? 'COMMAND_REJECTED' : 'INTERNAL';
       // Send detailed PcpError envelope first, before terminal command.result
       conn.send({
         protocol: 1,
@@ -305,12 +362,12 @@ export class Dispatcher {
         commandId,
         type: 'error',
         payload: {
-          code: err.code || (isRejected ? 'COMMAND_REJECTED' : 'INTERNAL'),
-          message: err.message,
-          hint: err.hint,
-          details: err.details
+          code: payloadCode,
+          message: errorMessage(err),
+          hint: hintOf(err),
+          details: detailsOf(err)
         }
-      } as PcpError);
+      });
 
       this.sendResult(conn, commandId, state, undefined, payload.error);
     }
@@ -343,7 +400,7 @@ export class Dispatcher {
     } as PcpAck);
   }
 
-  private sendResult(conn: Connection, commandId: string, state: any, data?: any, error?: string): void {
+  private sendResult(conn: Connection, commandId: string, state: PcpResultState, data?: unknown, error?: string): void {
     conn.send({
       protocol: 1,
       kind: 'result',
@@ -355,8 +412,11 @@ export class Dispatcher {
     } as PcpResult);
   }
 
-  private async requireWorkspaceSession(sessionId?: string): Promise<NonNullable<ReturnType<SessionRegistry['getSession']>>> {
-    if (!sessionId) throw Object.assign(new Error('sessionId is required for workspace commands.'), { code: 'SESSION_NOT_FOUND' });
+  private async requireWorkspaceSession(
+    sessionId?: string
+  ): Promise<NonNullable<ReturnType<SessionRegistry['getSession']>>> {
+    if (!sessionId)
+      throw Object.assign(new Error('sessionId is required for workspace commands.'), { code: 'SESSION_NOT_FOUND' });
     let session = this.registry.getSession(sessionId);
     if (!session) {
       try {
@@ -369,11 +429,20 @@ export class Dispatcher {
 
   private assertWorkspaceWritable(session: NonNullable<ReturnType<SessionRegistry['getSession']>>): void {
     if (session.readOnly) {
-      throw Object.assign(new Error('Repository writes are disabled for read-only sessions.'), { code: 'COMMAND_REJECTED' });
+      throw Object.assign(new Error('Repository writes are disabled for read-only sessions.'), {
+        code: 'COMMAND_REJECTED'
+      });
     }
-    const activeTool = Array.from(session.activeTools.values()).some((tool: any) => tool.isRunning);
-    if (activeTool || session.isStreaming || session.isCompacting || ['working', 'retrying', 'compacting', 'awaiting_user'].includes(session.status)) {
-      throw Object.assign(new Error('Repository writes are disabled while the Pi worker is active.'), { code: 'COMMAND_REJECTED' });
+    const activeTool = Array.from(session.activeTools.values()).some((tool) => tool.isRunning);
+    if (
+      activeTool ||
+      session.isStreaming ||
+      session.isCompacting ||
+      ['working', 'retrying', 'compacting', 'awaiting_user'].includes(session.status)
+    ) {
+      throw Object.assign(new Error('Repository writes are disabled while the Pi worker is active.'), {
+        code: 'COMMAND_REJECTED'
+      });
     }
   }
 
@@ -541,12 +610,14 @@ export class Dispatcher {
         if (!this.remoteManager) {
           throw Object.assign(new Error('Remote manager is not initialized'), { code: 'COMMAND_REJECTED' });
         }
-        return await this.remoteManager.start(payload as any);
+        return await this.remoteManager.start(payload as Parameters<RemoteManager['start']>[0]);
       }
 
       case 'remote.installCloudflared': {
         if (conn.isRemote) {
-          throw Object.assign(new Error('remote.installCloudflared is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+          throw Object.assign(new Error('remote.installCloudflared is only available locally'), {
+            code: 'REMOTE_FORBIDDEN'
+          });
         }
         if (!this.remoteManager) {
           throw Object.assign(new Error('Remote manager is not initialized'), { code: 'COMMAND_REJECTED' });
@@ -556,7 +627,9 @@ export class Dispatcher {
 
       case 'remote.installTailscale': {
         if (conn.isRemote) {
-          throw Object.assign(new Error('remote.installTailscale is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+          throw Object.assign(new Error('remote.installTailscale is only available locally'), {
+            code: 'REMOTE_FORBIDDEN'
+          });
         }
         if (!this.remoteManager) {
           throw Object.assign(new Error('Remote manager is not initialized'), { code: 'COMMAND_REJECTED' });
@@ -566,7 +639,9 @@ export class Dispatcher {
 
       case 'remote.setTailscaleHostname': {
         if (conn.isRemote) {
-          throw Object.assign(new Error('remote.setTailscaleHostname is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+          throw Object.assign(new Error('remote.setTailscaleHostname is only available locally'), {
+            code: 'REMOTE_FORBIDDEN'
+          });
         }
         if (!this.remoteManager) {
           throw Object.assign(new Error('Remote manager is not initialized'), { code: 'COMMAND_REJECTED' });
@@ -587,7 +662,9 @@ export class Dispatcher {
 
       case 'remote.generatePairing': {
         if (conn.isRemote) {
-          throw Object.assign(new Error('remote.generatePairing is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+          throw Object.assign(new Error('remote.generatePairing is only available locally'), {
+            code: 'REMOTE_FORBIDDEN'
+          });
         }
         if (!this.remoteManager) {
           throw Object.assign(new Error('Remote manager is not initialized'), { code: 'COMMAND_REJECTED' });
@@ -597,7 +674,9 @@ export class Dispatcher {
 
       case 'remote.setDeviceMode': {
         if (conn.isRemote) {
-          throw Object.assign(new Error('remote.setDeviceMode is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+          throw Object.assign(new Error('remote.setDeviceMode is only available locally'), {
+            code: 'REMOTE_FORBIDDEN'
+          });
         }
         if (!this.remoteManager) {
           throw Object.assign(new Error('Remote manager is not initialized'), { code: 'COMMAND_REJECTED' });
@@ -643,7 +722,7 @@ export class Dispatcher {
         if (!this.remoteManager) {
           throw Object.assign(new Error('Remote manager is not initialized'), { code: 'COMMAND_REJECTED' });
         }
-        return this.remoteManager.setOptions(payload as any);
+        return this.remoteManager.setOptions(payload as Parameters<RemoteManager['setOptions']>[0]);
       }
 
       // -----------------------------------------------------------------------
@@ -671,10 +750,7 @@ export class Dispatcher {
         if (conn.isRemote) {
           throw Object.assign(new Error('pi.packages is only available locally'), { code: 'REMOTE_FORBIDDEN' });
         }
-        return await this.piPackages.pin(
-          String(payload.source ?? ''),
-          String(payload.version ?? '')
-        );
+        return await this.piPackages.pin(String(payload.source ?? ''), String(payload.version ?? ''));
 
       // -----------------------------------------------------------------------
       // Pi Subagents Management (LOCAL ONLY)
@@ -719,9 +795,7 @@ export class Dispatcher {
         if (patch.workerIdleTimeoutMs !== undefined) {
           const ms = Number(patch.workerIdleTimeoutMs);
           if (isNaN(ms) || ms < 0 || ms > 86400000) {
-            const err: any = new Error('workerIdleTimeoutMs must be between 0 and 86400000 ms');
-            err.code = 'CONFIG_INVALID';
-            throw err;
+            throw createCodedError('workerIdleTimeoutMs must be between 0 and 86400000 ms', 'CONFIG_INVALID');
           }
         }
         const updated = patchConfig(patch);
@@ -737,7 +811,7 @@ export class Dispatcher {
           seq: 0,
           type: 'daemon.configChanged',
           payload: { config: updated }
-        } as any);
+        } as PcpEvent);
 
         return updated;
       }
@@ -747,20 +821,28 @@ export class Dispatcher {
       // -----------------------------------------------------------------------
       case 'system.metrics.subscribe': {
         if (conn.isRemote) {
-          throw Object.assign(new Error('system.metrics.subscribe is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+          throw Object.assign(new Error('system.metrics.subscribe is only available locally'), {
+            code: 'REMOTE_FORBIDDEN'
+          });
         }
         if (payload && Object.keys(payload).length > 0) {
-          throw Object.assign(new Error('system.metrics.subscribe payload must be empty'), { code: 'COMMAND_REJECTED' });
+          throw Object.assign(new Error('system.metrics.subscribe payload must be empty'), {
+            code: 'COMMAND_REJECTED'
+          });
         }
         return await this.metricsService.subscribe(conn);
       }
 
       case 'system.metrics.unsubscribe': {
         if (conn.isRemote) {
-          throw Object.assign(new Error('system.metrics.unsubscribe is only available locally'), { code: 'REMOTE_FORBIDDEN' });
+          throw Object.assign(new Error('system.metrics.unsubscribe is only available locally'), {
+            code: 'REMOTE_FORBIDDEN'
+          });
         }
         if (payload && Object.keys(payload).length > 0) {
-          throw Object.assign(new Error('system.metrics.unsubscribe payload must be empty'), { code: 'COMMAND_REJECTED' });
+          throw Object.assign(new Error('system.metrics.unsubscribe payload must be empty'), {
+            code: 'COMMAND_REJECTED'
+          });
         }
         this.metricsService.unsubscribe(conn.id);
         return {};
@@ -812,10 +894,14 @@ export class Dispatcher {
       case 'session.open': {
         if (!sessionId) throw new Error('sessionId is required for session.open');
         const cwd = payload.cwd ? await this.validateSessionCwd(payload.cwd) : undefined;
-        const session = payload.continue === true
-          ? await this.registry.continueSession(sessionId, payload.confirmed === true)
-          : await this.registry.openSession(sessionId, cwd);
-        if (!session.readOnly && (session.status === 'worker_error' || !session.worker || !session.worker.health().alive)) {
+        const session =
+          payload.continue === true
+            ? await this.registry.continueSession(sessionId, payload.confirmed === true)
+            : await this.registry.openSession(sessionId, cwd);
+        if (
+          !session.readOnly &&
+          (session.status === 'worker_error' || !session.worker || !session.worker.health().alive)
+        ) {
           await this.registry.getSupervisor().reconcileAndRespawn(session);
         }
         return { session: session.getSessionMeta() };
@@ -833,7 +919,7 @@ export class Dispatcher {
         if (!sessionId) throw new Error('sessionId required for session.getStats');
         const worker = await this.registry.ensureWorkerForSession(sessionId);
         const res = await worker.send({ command: 'get_session_stats' });
-        const data = (res && res.data) ? { ...res.data } : {};
+        const data = res && res.data ? { ...res.data } : {};
         const session = this.registry.getSession(sessionId);
         const state = (await worker.send({ command: 'get_state' })).data;
         const usage = state?.model?.piframeContextUsage;
@@ -843,15 +929,18 @@ export class Dispatcher {
           data.contextUsage = {
             tokens,
             contextWindow: window,
-            percent: typeof tokens === 'number' ? tokens / window * 100 : null,
+            percent: typeof tokens === 'number' ? (tokens / window) * 100 : null
           };
         }
         const sessionFile = data.sessionFile || session?.sessionFile;
         if (sessionFile) {
-          const meta = this.sessionIndex.extractSessionMetadata(sessionFile, await this.sessionIndex.readSessionText(sessionFile));
-          if (meta.usage && (meta.usage as any).byModel) {
-            data.byModel = (meta.usage as any).byModel;
-            data.models = (meta.usage as any).models;
+          const meta = this.sessionIndex.extractSessionMetadata(
+            sessionFile,
+            await this.sessionIndex.readSessionText(sessionFile)
+          );
+          if (meta.usage?.byModel) {
+            data.byModel = meta.usage.byModel;
+            data.models = meta.usage.models;
           }
         }
         return data;
@@ -916,8 +1005,7 @@ export class Dispatcher {
         if (!sessionId) throw new Error('sessionId required for agent.prompt');
         const session = this.registry.getSession(sessionId);
         if (!session) {
-          const err: any = new Error(`Session ${sessionId} not found`);
-          err.code = 'SESSION_NOT_FOUND';
+          const err = createCodedError(`Session ${sessionId} not found`, 'SESSION_NOT_FOUND');
           throw err;
         }
 
@@ -927,23 +1015,27 @@ export class Dispatcher {
           if (builtin.name === 'reload' && !builtin.args && !payload.images?.length) {
             return this.reloadWorkerSession(sessionId);
           }
-          const err: any = new Error(`/${builtin.name} is a Pi built-in command and cannot be sent as model text.`);
-          err.code = 'COMMAND_REJECTED';
-          err.hint = 'Use the PiFrame slash-command action.';
+          const err = createCodedError(
+            `/${builtin.name} is a Pi built-in command and cannot be sent as model text.`,
+            'COMMAND_REJECTED',
+            'Use the PiFrame slash-command action.'
+          );
           throw err;
         }
 
         // §2.8 Rule: If streaming is active, require explicit streamingBehavior
         if (session.isStreaming && !payload.streamingBehavior) {
-          const err: any = new Error('Agent is streaming. Specify streamingBehavior ("steer" or "followUp").');
-          err.code = 'COMMAND_REJECTED';
-          err.hint = 'Usa Steer o Follow-up durante lo streaming.';
+          const err = createCodedError(
+            'Agent is streaming. Specify streamingBehavior ("steer" or "followUp").',
+            'COMMAND_REJECTED',
+            'Use Steer or Follow-up while the agent is streaming.'
+          );
           throw err;
         }
 
         // Pi refuses prompts while a compaction runs; deliver the message once it ends instead of failing it.
-        for (const deadline = Date.now() + 10 * 60_000; session.isCompacting && Date.now() < deadline;) {
-          await new Promise((resolve) => setTimeout(resolve, 200));
+        for (const deadline = Date.now() + COMPACTION_WAIT_MS; session.isCompacting && Date.now() < deadline;) {
+          await new Promise((resolve) => setTimeout(resolve, COMPACTION_POLL_MS));
         }
 
         const worker = await this.registry.ensureWorkerForSession(sessionId);
@@ -1012,7 +1104,7 @@ export class Dispatcher {
       case 'agent.interrupt': {
         if (!sessionId) throw new Error('sessionId required');
         const session = this.registry.getSession(sessionId);
-        let worker: any = session?.worker;
+        let worker = session?.worker;
         if (!worker) {
           try {
             worker = await this.registry.ensureWorkerForSession(sessionId);
@@ -1055,20 +1147,25 @@ export class Dispatcher {
         if (!sessionId) throw new Error('sessionId required');
         const session = this.registry.getSession(sessionId);
         if (!session) throw new Error('Session not found');
-        if (session.readOnly) throw Object.assign(new Error('Sessione in sola lettura.'), { code: 'COMMAND_REJECTED' });
-        if (session.isStreaming || session.isCompacting) throw Object.assign(new Error('Attendi la fine del turno o della compattazione.'), { code: 'COMMAND_REJECTED' });
+        if (session.readOnly) throw Object.assign(new Error('Read-only session.'), { code: 'COMMAND_REJECTED' });
+        if (session.isStreaming || session.isCompacting)
+          throw Object.assign(new Error('Wait for the turn or the compaction to finish.'), {
+            code: 'COMMAND_REJECTED'
+          });
         const worker = await this.registry.ensureWorkerForSession(sessionId);
         const previous = {
           contextWindowOverride: session.contextWindowOverride,
-          compactionReservePercent: session.compactionReservePercent,
+          compactionReservePercent: session.compactionReservePercent
         };
         const next = {
-          contextWindowOverride: cmd.type === 'agent.setContextWindowOverride'
-            ? validateContextLimit(payload.limit, session.model?.contextWindow)
-            : previous.contextWindowOverride,
-          compactionReservePercent: cmd.type === 'agent.setCompactionReservePercent'
-            ? validateReservePercent(payload.percent)
-            : previous.compactionReservePercent,
+          contextWindowOverride:
+            cmd.type === 'agent.setContextWindowOverride'
+              ? validateContextLimit(payload.limit, modelInfoOf(session.model)?.contextWindow)
+              : previous.contextWindowOverride,
+          compactionReservePercent:
+            cmd.type === 'agent.setCompactionReservePercent'
+              ? validateReservePercent(payload.percent)
+              : previous.compactionReservePercent
         };
         try {
           const model = await applyContextPolicy(worker, next);
@@ -1076,7 +1173,11 @@ export class Dispatcher {
           Object.assign(session, next, { model });
         } catch (error) {
           // Never acknowledge an unapplied policy; restore the previous runtime limit.
-          try { await applyContextPolicy(worker, previous); } catch { await this.registry.closeWorker(sessionId); }
+          try {
+            await applyContextPolicy(worker, previous);
+          } catch {
+            await this.registry.closeWorker(sessionId);
+          }
           throw error;
         }
         return { success: true, ...next };
@@ -1132,10 +1233,15 @@ export class Dispatcher {
         if (!sessionId) throw new Error('sessionId required');
         const session = this.registry.getSession(sessionId);
         if (!session) throw new Error('Session not found');
-        if (session.isStreaming || session.isCompacting) throw new Error('Attendi la fine del turno o della compattazione.');
+        if (session.isStreaming || session.isCompacting)
+          throw new Error('Wait for the turn or the compaction to finish.');
         if (payload.provider === 'github-copilot') {
           const entitlements = await getCopilotEntitlements();
-          if (!entitlements.diagnostic.available || typeof payload.modelId !== 'string' || !entitlements.allowedModelIds.has(payload.modelId)) {
+          if (
+            !entitlements.diagnostic.available ||
+            typeof payload.modelId !== 'string' ||
+            !entitlements.allowedModelIds.has(payload.modelId)
+          ) {
             throw new Error('GitHub Copilot model is not verified as available.');
           }
         }
@@ -1150,14 +1256,22 @@ export class Dispatcher {
           arguments: { provider: payload.provider, modelId: payload.modelId }
         });
         const selectedModel = physicalModel(res.data);
-        const modelChanged = previousModel?.provider !== selectedModel?.provider || previousModel?.id !== selectedModel?.id;
+        const previousInfo = modelInfoOf(previousModel);
+        const modelChanged =
+          previousInfo?.provider !== selectedModel?.provider || previousInfo?.id !== selectedModel?.id;
         // A context limit is chosen for one model: a different model starts from its own full window.
         // Carrying it over left e.g. Opus capped at Haiku's 100k and compacting in a loop.
-        const nextPolicy = { ...previousPolicy, contextWindowOverride: modelChanged ? null : previousPolicy.contextWindowOverride };
+        const nextPolicy = {
+          ...previousPolicy,
+          contextWindowOverride: modelChanged ? null : previousPolicy.contextWindowOverride
+        };
         try {
           Object.assign(session, nextPolicy);
           let model = selectedModel;
-          if (previousPolicy.contextWindowOverride !== null || session.compactionReservePercent !== DEFAULT_COMPACTION_RESERVE_PERCENT) {
+          if (
+            previousPolicy.contextWindowOverride !== null ||
+            session.compactionReservePercent !== DEFAULT_COMPACTION_RESERVE_PERCENT
+          ) {
             model = await applyContextPolicy(worker, session);
           }
           if (nextPolicy.contextWindowOverride !== previousPolicy.contextWindowOverride) {
@@ -1168,12 +1282,15 @@ export class Dispatcher {
         } catch (error) {
           Object.assign(session, previousPolicy, { model: previousModel });
           try {
-            if (previousModel?.provider && previousModel?.id) {
+            if (previousInfo?.provider && previousInfo?.id) {
               await worker.send({
                 command: 'set_model',
-                arguments: { provider: previousModel.provider, modelId: previousModel.id }
+                arguments: { provider: previousInfo.provider, modelId: previousInfo.id }
               });
-              if (previousPolicy.contextWindowOverride !== null || previousPolicy.compactionReservePercent !== DEFAULT_COMPACTION_RESERVE_PERCENT) {
+              if (
+                previousPolicy.contextWindowOverride !== null ||
+                previousPolicy.compactionReservePercent !== DEFAULT_COMPACTION_RESERVE_PERCENT
+              ) {
                 await applyContextPolicy(worker, session);
               }
             } else {
@@ -1210,12 +1327,21 @@ export class Dispatcher {
           currentModel: session?.model,
           currentThinkingLevel: session?.thinkingLevel,
           copilotEntitlement: entitlements.diagnostic,
-          warning: !entitlements.diagnostic.available && models.some((model: Record<string, unknown>) => model.provider === 'github-copilot')
-            ? `Modelli GitHub Copilot nascosti: ${entitlements.diagnostic.message}`
-            : undefined,
-          models: filterModelsByEnabledPatterns(models.filter((model: Record<string, unknown>) =>
-            model.provider !== 'github-copilot' ||
-            (entitlements.diagnostic.available && typeof model.id === 'string' && entitlements.allowedModelIds.has(model.id))), readEnabledModelPatterns())
+          warning:
+            !entitlements.diagnostic.available &&
+            models.some((model: Record<string, unknown>) => model.provider === 'github-copilot')
+              ? `GitHub Copilot models hidden: ${entitlements.diagnostic.message}`
+              : undefined,
+          models: filterModelsByEnabledPatterns(
+            models.filter(
+              (model: Record<string, unknown>) =>
+                model.provider !== 'github-copilot' ||
+                (entitlements.diagnostic.available &&
+                  typeof model.id === 'string' &&
+                  entitlements.allowedModelIds.has(model.id))
+            ),
+            readEnabledModelPatterns()
+          )
         };
       }
 
@@ -1246,8 +1372,10 @@ export class Dispatcher {
         const builtinNames = new Set(PI_BUILTIN_SLASH_COMMANDS.map(({ name }) => name));
         const commands = [
           ...PI_BUILTIN_SLASH_COMMANDS,
-          ...extensionCommands.filter((command: { name?: string }) =>
-            !builtinNames.has(command.name ?? '') && !command.name?.startsWith('piframe-')),
+          ...extensionCommands.filter(
+            (command: { name?: string }) =>
+              !builtinNames.has(command.name ?? '') && !command.name?.startsWith('piframe-')
+          )
         ];
         return { ...res.data, commands };
       }
@@ -1256,17 +1384,17 @@ export class Dispatcher {
         if (!sessionId) throw new Error('sessionId required for ui.claim');
         const session = this.registry.getSession(sessionId);
         if (!session) {
-          const err: any = new Error(`Session ${sessionId} not found`);
-          err.code = 'SESSION_NOT_FOUND';
+          const err = createCodedError(`Session ${sessionId} not found`, 'SESSION_NOT_FOUND');
           throw err;
         }
         if (conn.isRemote && session.uiBroker.isLocalOnly(payload.requestId)) {
-          throw Object.assign(new Error('This UI request is available only in the local PiFrame app.'), { code: 'REMOTE_FORBIDDEN' });
+          throw Object.assign(new Error('This UI request is available only in the local PiFrame app.'), {
+            code: 'REMOTE_FORBIDDEN'
+          });
         }
         const claimRes = session.uiBroker.claimRequest(payload.requestId, conn.id);
         if (!claimRes.success) {
-          const err: any = new Error(claimRes.reason || 'Failed to claim UI request');
-          err.code = 'UI_REQUEST_NOT_CLAIMED';
+          const err = createCodedError(claimRes.reason || 'Failed to claim UI request', 'UI_REQUEST_NOT_CLAIMED');
           throw err;
         }
         return { claimed: true, requestId: payload.requestId };
@@ -1276,13 +1404,14 @@ export class Dispatcher {
         if (!sessionId) throw new Error('sessionId required');
         const session = this.registry.getSession(sessionId);
         if (!session) {
-          const err: any = new Error(`Session ${sessionId} not found`);
-          err.code = 'SESSION_NOT_FOUND';
+          const err = createCodedError(`Session ${sessionId} not found`, 'SESSION_NOT_FOUND');
           throw err;
         }
 
         if (conn.isRemote && session.uiBroker.isLocalOnly(payload.requestId)) {
-          throw Object.assign(new Error('This UI request is available only in the local PiFrame app.'), { code: 'REMOTE_FORBIDDEN' });
+          throw Object.assign(new Error('This UI request is available only in the local PiFrame app.'), {
+            code: 'REMOTE_FORBIDDEN'
+          });
         }
         const resolveRes = session.uiBroker.resolveRequest(
           payload.requestId,
@@ -1290,8 +1419,7 @@ export class Dispatcher {
           payload.cancelled ? 'cancelled' : payload.confirmed ? 'confirmed' : 'value'
         );
         if (!resolveRes.success) {
-          const err: any = new Error(resolveRes.reason || 'Failed to resolve UI request');
-          err.code = 'UI_REQUEST_NOT_CLAIMED';
+          const err = createCodedError(resolveRes.reason || 'Failed to resolve UI request', 'UI_REQUEST_NOT_CLAIMED');
           throw err;
         }
 
@@ -1334,7 +1462,13 @@ export class Dispatcher {
       case 'workspace.saveFile': {
         const session = await this.requireWorkspaceSession(sessionId);
         const assertCanWrite = () => this.assertWorkspaceWritable(session);
-        return this.workspaceService.saveFile(session.cwd, payload.path, payload.content, payload.revision, assertCanWrite);
+        return this.workspaceService.saveFile(
+          session.cwd,
+          payload.path,
+          payload.content,
+          payload.revision,
+          assertCanWrite
+        );
       }
 
       case 'workspace.gitAction': {
@@ -1358,19 +1492,16 @@ export class Dispatcher {
       case 'workspace.switchBranch': {
         const session = await this.requireWorkspaceSession(sessionId);
         const assertCanWrite = () => this.assertWorkspaceWritable(session);
-        return this.workspaceService.switchBranch(
-          session.cwd,
-          payload.branch,
-          payload.onDirty,
-          assertCanWrite
-        );
+        return this.workspaceService.switchBranch(session.cwd, payload.branch, payload.onDirty, assertCanWrite);
       }
 
       case 'session.rename': {
         if (!sessionId) throw new Error('sessionId required');
         let session = this.registry.getSession(sessionId);
         if (!session) {
-          try { session = await this.registry.openSession(sessionId); } catch (_) {}
+          try {
+            session = await this.registry.openSession(sessionId);
+          } catch (_) {}
         }
         if (!session) throw new Error(`Session ${sessionId} not found`);
         if (session.readOnly) throw new Error('External session is read-only. Duplicate it first.');
@@ -1418,7 +1549,7 @@ export class Dispatcher {
         const allEntries = session.entries;
         let endIndex = allEntries.length;
         if (beforeId) {
-          const idx = allEntries.findIndex((e: any) => e.id === beforeId);
+          const idx = allEntries.findIndex((e) => e.id === beforeId);
           if (idx !== -1) {
             endIndex = idx;
           }
@@ -1438,9 +1569,12 @@ export class Dispatcher {
         };
       }
 
+      // Not dispatched by this switch: they fall through to the rejection below.
+      case 'agent.abortRetry':
+      case 'daemon.getStatus':
+      case 'session.getForkPoints':
       default: {
-        const err: any = new Error(`Unsupported command type: ${cmd.type}`);
-        err.code = 'COMMAND_REJECTED';
+        const err = createCodedError(`Unsupported command type: ${cmd.type}`, 'COMMAND_REJECTED');
         throw err;
       }
     }

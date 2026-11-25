@@ -1,20 +1,29 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
+import 'package:pi_frame/data/language/language_settings.dart';
+import 'package:pi_frame/data/platform/host_file_opener.dart';
 import 'package:pi_frame/features/transcript/rich_content.dart';
 import 'package:pi_frame/features/transcript/thinking_block.dart';
 import 'package:pi_frame/ui/code/code_block.dart';
 import 'package:pi_frame/ui/code/diff_block.dart';
 
+String _winPath(String rawPath, {String? cwd}) =>
+    resolvePathForOsExplorer(rawPath, cwd: cwd, operatingSystem: 'windows');
+
+String _posixPath(String rawPath, {String? cwd}) =>
+    resolvePathForOsExplorer(rawPath, cwd: cwd, operatingSystem: 'linux');
+
 void main() {
   Widget wrapWithTheme(Widget child) {
-    return MaterialApp(
-      theme: ThemeData.dark().copyWith(
-        extensions: const [FrameTokens.dark],
+    // These tests assert Italian copy, which the scope-less fallback used before.
+    return ProviderScope(
+      overrides: [appLanguageProvider.overrideWith((ref) => AppLanguageNotifier()..state = AppLanguage.it)],
+      child: MaterialApp(
+        theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+        home: Scaffold(body: SingleChildScrollView(child: child)),
       ),
-      home: Scaffold(body: SingleChildScrollView(child: child)),
     );
   }
 
@@ -39,15 +48,10 @@ void main() {
     expect(find.textContaining('Dettaglio lungo del ragionamento'), findsOneWidget);
   });
 
-  testWidgets('ThinkingBlock disappears completely when thinking text is empty or whitespace even when streaming', (tester) async {
-    await tester.pumpWidget(
-      wrapWithTheme(
-        const ThinkingBlock(
-          thinkingText: '   \n  \t ',
-          isStreaming: true,
-        ),
-      ),
-    );
+  testWidgets('ThinkingBlock disappears completely when thinking text is empty or whitespace even when streaming', (
+    tester,
+  ) async {
+    await tester.pumpWidget(wrapWithTheme(const ThinkingBlock(thinkingText: '   \n  \t ', isStreaming: true)));
 
     expect(find.text('Ragionamento'), findsNothing);
     expect(find.byType(ThinkingBlock), findsOneWidget);
@@ -68,11 +72,7 @@ void main() {}
 ```
 ''';
 
-    await tester.pumpWidget(
-      wrapWithTheme(
-        const RichContent(text: markdown),
-      ),
-    );
+    await tester.pumpWidget(wrapWithTheme(const RichContent(text: markdown)));
 
     expect(find.text('Titolo Principale'), findsOneWidget);
     expect(find.byType(CodeBlock), findsOneWidget);
@@ -96,11 +96,7 @@ void main() {}
   testWidgets('RichContent marks file code mentions with file icon and CTRL+click tooltip', (tester) async {
     const textWithFile = 'Ho modificato il file `lib/main.dart` e creato `README.md`.';
 
-    await tester.pumpWidget(
-      wrapWithTheme(
-        const RichContent(text: textWithFile, cwd: '/dummy/project'),
-      ),
-    );
+    await tester.pumpWidget(wrapWithTheme(const RichContent(text: textWithFile, cwd: '/dummy/project')));
 
     expect(find.textContaining('lib/main.dart', findRichText: true), findsWidgets);
     expect(find.textContaining('README.md', findRichText: true), findsWidgets);
@@ -115,18 +111,13 @@ void main() {}
     expect(find.byTooltip('CTRL+clic per aprire in esplora file'), findsWidgets);
 
     // Verify SelectionContainer.disabled is present so that SelectionArea does not override mouse cursor
-    final disabledContainers = find.descendant(
-      of: find.byType(RichContent),
-      matching: find.byType(SelectionContainer),
-    );
+    final disabledContainers = find.descendant(of: find.byType(RichContent), matching: find.byType(SelectionContainer));
     expect(disabledContainers, findsWidgets);
 
     // Verify MouseRegion with click cursor exists for file chips
     final clickMouseRegions = find.descendant(
       of: find.byType(RichContent),
-      matching: find.byWidgetPredicate(
-        (w) => w is MouseRegion && w.cursor == SystemMouseCursors.click,
-      ),
+      matching: find.byWidgetPredicate((w) => w is MouseRegion && w.cursor == SystemMouseCursors.click),
     );
     expect(clickMouseRegions, findsWidgets);
   });
@@ -134,70 +125,50 @@ void main() {}
   test('resolvePathForOsExplorer correctly resolves WSL and Windows paths', () {
     // 1. WSL UNC cwd with relative path
     const wslCwd = r'\\wsl.localhost\Ubuntu\home\user\Repos\my_repo';
-    final res1 = resolvePathForOsExplorer('lib/main.dart', cwd: wslCwd);
+    final res1 = _winPath('lib/main.dart', cwd: wslCwd);
     expect(res1, r'\\wsl.localhost\Ubuntu\home\user\Repos\my_repo\lib\main.dart');
 
     // 2. WSL UNC cwd with Linux absolute path
-    final res2 = resolvePathForOsExplorer('/home/user/Repos/my_repo/lib/main.dart', cwd: wslCwd);
+    final res2 = _winPath('/home/user/Repos/my_repo/lib/main.dart', cwd: wslCwd);
     expect(res2, r'\\wsl.localhost\Ubuntu\home\user\Repos\my_repo\lib\main.dart');
 
     // 3. WSL file:// URI
-    final res3 = resolvePathForOsExplorer('file:///home/user/Repos/my_repo/test.dart', cwd: wslCwd);
+    final res3 = _winPath('file:///home/user/Repos/my_repo/test.dart', cwd: wslCwd);
     expect(res3, r'\\wsl.localhost\Ubuntu\home\user\Repos\my_repo\test.dart');
 
     // 4. Already full WSL UNC path
-    final res4 = resolvePathForOsExplorer(r'\\wsl$\Ubuntu\home\user\file.txt');
+    final res4 = _winPath(r'\\wsl$\Ubuntu\home\user\file.txt');
     expect(res4, r'\\wsl$\Ubuntu\home\user\file.txt');
 
     // 5. Line numbers and anchor stripped
-    final res5 = resolvePathForOsExplorer('lib/main.dart:42:10#L42-L50', cwd: wslCwd);
+    final res5 = _winPath('lib/main.dart:42:10#L42-L50', cwd: wslCwd);
     expect(res5, r'\\wsl.localhost\Ubuntu\home\user\Repos\my_repo\lib\main.dart');
 
     // 6. Linux path without a WSL distro stays a Linux path (wslpath maps it)
-    expect(
-      resolvePathForOsExplorer('lib/main.dart', cwd: '/home/user/repo'),
-      '/home/user/repo/lib/main.dart',
-    );
+    expect(_winPath('lib/main.dart', cwd: '/home/user/repo'), '/home/user/repo/lib/main.dart');
 
     // 7. Windows cwd with relative path
     const winCwd = r'C:\Projects\my_repo';
-    final res6 = resolvePathForOsExplorer('lib/main.dart', cwd: winCwd);
+    final res6 = _winPath('lib/main.dart', cwd: winCwd);
     expect(res6, r'C:\Projects\my_repo\lib\main.dart');
-  }, skip: !Platform.isWindows);
+  });
 
   test('resolvePathForOsExplorer correctly resolves POSIX paths', () {
     const cwd = '/home/user/project';
-    expect(
-      resolvePathForOsExplorer('lib/main.dart', cwd: cwd),
-      '/home/user/project/lib/main.dart',
-    );
-    expect(
-      resolvePathForOsExplorer('lib/main.dart', cwd: '$cwd/'),
-      '/home/user/project/lib/main.dart',
-    );
-    expect(resolvePathForOsExplorer('/etc/hosts', cwd: cwd), '/etc/hosts');
-    expect(
-      resolvePathForOsExplorer('file:///tmp/file.dart', cwd: cwd),
-      '/tmp/file.dart',
-    );
-    expect(
-      resolvePathForOsExplorer('lib/main.dart:42:10#L42-L50', cwd: cwd),
-      '/home/user/project/lib/main.dart',
-    );
-    expect(resolvePathForOsExplorer('lib/main.dart'), 'lib/main.dart');
-  }, skip: Platform.isWindows);
+    expect(_posixPath('lib/main.dart', cwd: cwd), '/home/user/project/lib/main.dart');
+    expect(_posixPath('lib/main.dart', cwd: '$cwd/'), '/home/user/project/lib/main.dart');
+    expect(_posixPath('/etc/hosts', cwd: cwd), '/etc/hosts');
+    expect(_posixPath('file:///tmp/file.dart', cwd: cwd), '/tmp/file.dart');
+    expect(_posixPath('lib/main.dart:42:10#L42-L50', cwd: cwd), '/home/user/project/lib/main.dart');
+    expect(_posixPath('lib/main.dart'), 'lib/main.dart');
+  });
 
   testWidgets('RichContent renders raw file paths and markdown links with file chips', (tester) async {
     const textWithVariousLinks =
         'Vedi apps/pi_frame/lib/main.dart per i dettagli oppure consulta [la guida](docs/guide.md).';
 
     await tester.pumpWidget(
-      wrapWithTheme(
-        const RichContent(
-          text: textWithVariousLinks,
-          cwd: r'\\wsl.localhost\Ubuntu\home\user\repo',
-        ),
-      ),
+      wrapWithTheme(const RichContent(text: textWithVariousLinks, cwd: r'\\wsl.localhost\Ubuntu\home\user\repo')),
     );
 
     expect(find.textContaining('apps/pi_frame/lib/main.dart', findRichText: true), findsWidgets);
@@ -223,19 +194,18 @@ void main() {}
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
 
-      const wide = '| Column one with a long name | Column two with a long name | Column three | Four |\n'
+      const wide =
+          '| Column one with a long name | Column two with a long name | Column three | Four |\n'
           '| --- | --- | --- | --- |\n'
           '| a very long cell value that keeps going | another long cell value here | x | y |';
       await tester.pumpWidget(wrapWithTheme(const RichContent(text: wide)));
 
       expect(find.byType(Table), findsOneWidget);
       expect(tester.takeException(), isNull);
-      final horizontal = tester.widgetList<SingleChildScrollView>(
-        find.byType(SingleChildScrollView),
-      ).where((s) => s.scrollDirection == Axis.horizontal);
+      final horizontal = tester
+          .widgetList<SingleChildScrollView>(find.byType(SingleChildScrollView))
+          .where((s) => s.scrollDirection == Axis.horizontal);
       expect(horizontal, isNotEmpty);
     });
   });
 }
-
-

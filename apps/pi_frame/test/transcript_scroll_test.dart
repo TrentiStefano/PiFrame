@@ -26,9 +26,7 @@ void main() {
     expect(after, 500);
   });
 
-  testWidgets('long transcript lazily builds turns and remains scrollable', (
-    tester,
-  ) async {
+  testWidgets('long transcript lazily builds turns and remains scrollable', (tester) async {
     tester.view.physicalSize = const Size(1200, 760);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -38,8 +36,7 @@ void main() {
       (index) => SessionEntry(
         id: 'entry_$index',
         role: index.isEven ? 'user' : 'assistant',
-        text:
-            'Transcript entry $index\n${List.filled(index % 9 + 1, 'Variable height line').join('\n')}',
+        text: 'Transcript entry $index\n${List.filled(index % 9 + 1, 'Variable height line').join('\n')}',
         timestamp: index,
       ),
     );
@@ -48,18 +45,13 @@ void main() {
         overrides: [
           daemonEndpointProvider.overrideWith((ref) async => null),
           sessionStateFamily('scroll').overrideWith(
-            (ref) => SessionStateNotifier('scroll', null)
-              ..state = SessionState(
-                sessionId: 'scroll',
-                cwd: '/repo',
-                entries: entries,
-              ),
+            (ref) =>
+                SessionStateNotifier('scroll', null)
+                  ..state = SessionState(sessionId: 'scroll', cwd: '/repo', entries: entries),
           ),
         ],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: const Scaffold(body: TranscriptView(sessionId: 'scroll')),
         ),
       ),
@@ -76,13 +68,11 @@ void main() {
     expect(find.textContaining('Transcript entry 0'), findsNothing);
 
     // Scroll up to reveal the load previous messages button
-    final loadMoreFinder = find.textContaining('Carica messaggi precedenti');
+    final loadMoreFinder = find.textContaining('Load earlier messages');
     await tester.scrollUntilVisible(
       loadMoreFinder,
       -300,
-      scrollable: find
-          .descendant(of: scrollView, matching: find.byType(Scrollable))
-          .first,
+      scrollable: find.descendant(of: scrollView, matching: find.byType(Scrollable)).first,
     );
     expect(loadMoreFinder, findsOneWidget);
     // Before click, entry 60 is the first loaded message (the window keeps the last
@@ -99,21 +89,15 @@ void main() {
     expect(find.textContaining('Transcript entry 0'), findsNothing);
   });
 
-  testWidgets('expanding a live tool card does not move transcript content', (
-    tester,
-  ) async {
+  testWidgets('expanding a live tool card does not move transcript content', (tester) async {
     tester.view.physicalSize = const Size(1200, 760);
     tester.view.devicePixelRatio = 1.25;
     addTearDown(tester.view.resetPhysicalSize);
 
     final entries = List.generate(
       20,
-      (index) => SessionEntry(
-        id: 'entry_$index',
-        role: 'user',
-        text: 'Stable transcript message $index',
-        timestamp: index,
-      ),
+      (index) =>
+          SessionEntry(id: 'entry_$index', role: 'user', text: 'Stable transcript message $index', timestamp: index),
     );
     final notifier = SessionStateNotifier('streaming-scroll', null)
       ..state = SessionState(
@@ -139,17 +123,12 @@ void main() {
           daemonEndpointProvider.overrideWith((ref) async => null),
           sessionStateFamily('streaming-scroll').overrideWith((ref) => notifier),
           stepGroupingSettingsProvider.overrideWith(
-            (ref) => StepGroupingSettingsNotifier()
-              ..setMode(StepGroupingMode.off),
+            (ref) => StepGroupingSettingsNotifier()..setMode(StepGroupingMode.off),
           ),
         ],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
-          home: const Scaffold(
-            body: TranscriptView(sessionId: 'streaming-scroll'),
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+          home: const Scaffold(body: TranscriptView(sessionId: 'streaming-scroll')),
         ),
       ),
     );
@@ -159,17 +138,9 @@ void main() {
     final scrollController = tester.widget<ListView>(scrollView).controller!;
     final beforeOffset = scrollController.offset;
     // The live turn renders its prompt as rich text.
-    final anchor = find.textContaining(
-      'Stable transcript message 19',
-      findRichText: true,
-    );
+    final anchor = find.textContaining('Stable transcript message 19', findRichText: true);
     final before = tester.getTopLeft(anchor).dy;
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('tool-1')),
-        matching: find.byType(TextButton),
-      ),
-    );
+    await tester.tap(find.descendant(of: find.byKey(const ValueKey('tool-1')), matching: find.byType(TextButton)));
     await tester.pump(const Duration(milliseconds: 250));
     await tester.pump();
 
@@ -178,24 +149,76 @@ void main() {
     expect(find.byType(FloatingActionButton), findsOneWidget);
 
     notifier.state = notifier.state.copyWith(
-      streamingTextBlocks: {
-        0: List.filled(20, 'Additional streaming response line').join('\n'),
-      },
+      streamingTextBlocks: {0: List.filled(20, 'Additional streaming response line').join('\n')},
     );
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
     expect(tester.getTopLeft(anchor).dy, closeTo(before, 0.01));
     expect(scrollController.offset, closeTo(beforeOffset, 0.01));
 
-    await tester.tap(
-      find.descendant(
-        of: find.byKey(const ValueKey('tool-1')),
-        matching: find.byType(TextButton),
-      ),
-    );
+    await tester.tap(find.descendant(of: find.byKey(const ValueKey('tool-1')), matching: find.byType(TextButton)));
     await tester.pump(const Duration(milliseconds: 250));
     await tester.pump();
     expect(tester.getTopLeft(anchor).dy, closeTo(before, 0.01));
     expect(scrollController.offset, closeTo(beforeOffset, 0.01));
+  });
+
+  // While the agent streams the first answer of a turn the prompt is still the
+  // last committed entry. Re-enabling auto-follow on every such rebuild pulled
+  // a user who had scrolled up back to the bottom on each streaming update.
+  testWidgets('scrolling up while the agent streams its first answer stays where the user left it', (tester) async {
+    tester.view.physicalSize = const Size(1200, 760);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    const sid = 'read-while-streaming';
+    final entries = [
+      for (int i = 0; i < 12; i++) ...[
+        SessionEntry(id: 'u$i', role: 'user', text: 'Question $i', timestamp: i * 10),
+        SessionEntry(
+          id: 'a$i',
+          role: 'assistant',
+          text: List.filled(8, 'Earlier answer line $i').join('\n'),
+          timestamp: i * 10 + 5,
+        ),
+      ],
+      const SessionEntry(id: 'u_now', role: 'user', text: 'New question', timestamp: 500),
+    ];
+    final notifier = SessionStateNotifier(sid, null)
+      ..state = SessionState(sessionId: sid, cwd: '/repo', entries: entries, agentStatus: AgentStatus.working);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          daemonEndpointProvider.overrideWith((ref) async => null),
+          sessionStateFamily(sid).overrideWith((ref) => notifier),
+          stepGroupingSettingsProvider.overrideWith(
+            (ref) => StepGroupingSettingsNotifier()..setMode(StepGroupingMode.off),
+          ),
+        ],
+        child: MaterialApp(
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+          home: const Scaffold(body: TranscriptView(sessionId: sid)),
+        ),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    final scrollView = find.byKey(const ValueKey('transcript-scroll'));
+    final controller = tester.widget<ListView>(scrollView).controller!;
+    final atBottom = controller.offset;
+    await tester.drag(scrollView, const Offset(0, 400));
+    await tester.pump(const Duration(milliseconds: 300));
+    final reading = controller.offset;
+    expect((reading - atBottom).abs(), greaterThan(200), reason: 'the drag scrolled away from the bottom');
+
+    var answer = '';
+    for (int i = 0; i < 6; i++) {
+      answer += 'Streaming answer line $i\n';
+      notifier.state = notifier.state.copyWith(streamingTextBlocks: {0: answer});
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(controller.offset, closeTo(reading, 1), reason: 'update $i pulled the view back to the bottom');
+    }
   });
 }

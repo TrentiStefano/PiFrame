@@ -44,8 +44,10 @@ test('uninstallPreservation: uninstallation removes ~/.piframe/ while strictly p
   const piConfig = JSON.stringify({ defaultModel: 'claude-3-5-sonnet', extensions: ['git-tools'] }, null, 2);
   fs.writeFileSync(path.join(piDir, 'config.json'), piConfig, 'utf8');
 
-  const sessionContent1 = '{"type":"session_start","id":"sess_original_1","timestamp":1726000000}\n{"type":"message","role":"user","content":"Hello Pi"}\n';
-  const sessionContent2 = '{"type":"session_start","id":"sess_original_2","timestamp":1726001000}\n{"type":"message","role":"assistant","content":"Response"}\n';
+  const sessionContent1 =
+    '{"type":"session_start","id":"sess_original_1","timestamp":1726000000}\n{"type":"message","role":"user","content":"Hello Pi"}\n';
+  const sessionContent2 =
+    '{"type":"session_start","id":"sess_original_2","timestamp":1726001000}\n{"type":"message","role":"assistant","content":"Response"}\n';
   fs.writeFileSync(path.join(sessionsDir, 'sess_original_1.jsonl'), sessionContent1, 'utf8');
   fs.writeFileSync(path.join(sessionsDir, 'sess_original_2.jsonl'), sessionContent2, 'utf8');
 

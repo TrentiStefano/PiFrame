@@ -3,9 +3,9 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import type { PiCapabilities } from './piCommands.js';
 import { resolvePiLaunch } from './executable.js';
 import { getAugmentedPath, getAugmentedEnv } from './env.js';
+import { errorMessage } from '../errors/errors.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -21,7 +21,7 @@ export interface PiInstallation {
 export const MINIMUM_PI_VERSION = '0.85.0';
 
 export function compareSemver(a: string, b: string): number {
-  const parse = (v: string) => v.replace(/^v/, '').split('-')[0].split('.').map(n => parseInt(n, 10) || 0);
+  const parse = (v: string) => (v.replace(/^v/, '').split('-')[0] ?? '').split('.').map((n) => parseInt(n, 10) || 0);
   const pa = parse(a);
   const pb = parse(b);
   for (let i = 0; i < 3; i++) {
@@ -91,7 +91,7 @@ export async function discoverPi(customPath?: string): Promise<PiInstallation> {
       found: false,
       supported: false,
       error: 'PI_NOT_FOUND',
-      hint: 'Installa Pi (npm install -g @earendil-works/pi-coding-agent) o specifica il percorso nelle impostazioni.'
+      hint: 'Install Pi (npm install -g @earendil-works/pi-coding-agent) or set its path in the settings.'
     };
   }
 
@@ -111,7 +111,7 @@ export async function discoverPi(customPath?: string): Promise<PiInstallation> {
         path: foundPath,
         supported: false,
         error: 'PI_VERSION_UNPARSEABLE',
-        hint: `Impossibile determinare la versione di Pi da: "${stdout.trim()}"`
+        hint: `Could not determine the Pi version from: "${stdout.trim()}"`
       };
     }
 
@@ -123,15 +123,15 @@ export async function discoverPi(customPath?: string): Promise<PiInstallation> {
       version: rawVersion,
       supported: isSupported,
       error: isSupported ? undefined : 'PI_VERSION_UNSUPPORTED',
-      hint: isSupported ? undefined : `Versione ${rawVersion} rilevata. Richiesta >= ${MINIMUM_PI_VERSION}. Aggiorna Pi.`
+      hint: isSupported ? undefined : `Version ${rawVersion} found. Required >= ${MINIMUM_PI_VERSION}. Update Pi.`
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
     return {
       found: true,
       path: foundPath,
       supported: false,
       error: 'PI_EXECUTION_FAILED',
-      hint: `Errore durante l'esecuzione di ${foundPath} --version: ${err.message}`
+      hint: `Error running ${foundPath} --version: ${errorMessage(err)}`
     };
   }
 }

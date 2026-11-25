@@ -1,12 +1,9 @@
-import { execFile } from 'node:child_process';
+import { execFile, type ExecFileOptionsWithStringEncoding } from 'node:child_process';
 import { promisify } from 'node:util';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type {
-  WorkspaceBranchInfo,
-  WorkspaceListBranchesResult,
-  WorkspaceSwitchBranchResult
-} from '@piframe/pcp-ts';
+import type { WorkspaceBranchInfo, WorkspaceListBranchesResult, WorkspaceSwitchBranchResult } from '@piframe/pcp-ts';
+import { createCodedError, errorCode, errorMessage, readProperty, type CodedError } from '../errors/errors.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -42,11 +39,15 @@ export interface WslPathInfo {
 
 export function parseWslPath(cwd: string): WslPathInfo | null {
   if (process.platform !== 'win32') return null;
-  const normalized = cwd.trim().replace(/^[\\/]+/, '//').replace(/\\/g, '/').replace(/\/+$/, '');
+  const normalized = cwd
+    .trim()
+    .replace(/^[\\/]+/, '//')
+    .replace(/\\/g, '/')
+    .replace(/\/+$/, '');
   const match = normalized.match(/^\/\/(wsl(?:\.localhost|\$))\/([^\/]+)(?:\/(.*))?$/i);
   if (!match) return null;
-  const host = match[1];
-  const distro = match[2];
+  const host = match[1] ?? '';
+  const distro = match[2] ?? '';
   const rest = match[3] || '';
   const linuxPath = ('/' + rest).replace(/\/+/g, '/').replace(/(.)\/$/, '$1');
   const uncPrefix = `\\\\${host}\\${distro}`;
@@ -66,35 +67,39 @@ async function executeGit(
 ): Promise<string> {
   const wslInfo = parseWslPath(cwd);
   const gitArgs = ['-c', 'safe.directory=*', ...args];
-  const run = async (command: string, commandArgs: string[], options: any) => {
+  const run = async (
+    command: string,
+    commandArgs: string[],
+    options: ExecFileOptionsWithStringEncoding
+  ): Promise<string> => {
     try {
       return (await execFileAsync(command, commandArgs, options)).stdout;
-    } catch (error: any) {
-      if (acceptedExitCodes.includes(error?.code)) return error.stdout ?? '';
+    } catch (error: unknown) {
+      const code = errorCode(error);
+      if (typeof code === 'number' && acceptedExitCodes.includes(code)) {
+        const stdout = readProperty(error, 'stdout');
+        return typeof stdout === 'string' ? stdout : '';
+      }
       throw error;
     }
   };
 
   if (wslInfo) {
     try {
-      return await run(
-        'wsl.exe',
-        ['-d', wslInfo.distro, '--cd', wslInfo.linuxPath, 'git', ...gitArgs],
-        {
-          timeout: timeoutMs,
-          windowsHide: true,
-          maxBuffer: 10 * 1024 * 1024,
-          encoding: 'utf8',
-        }
-      );
-    } catch (wslError: any) {
-      if (wslError?.code === 'ENOENT') {
+      return await run('wsl.exe', ['-d', wslInfo.distro, '--cd', wslInfo.linuxPath, 'git', ...gitArgs], {
+        timeout: timeoutMs,
+        windowsHide: true,
+        maxBuffer: 10 * 1024 * 1024,
+        encoding: 'utf8'
+      });
+    } catch (wslError: unknown) {
+      if (errorCode(wslError) === 'ENOENT') {
         return await run('git', gitArgs, {
           cwd,
           timeout: timeoutMs,
           windowsHide: true,
           maxBuffer: 10 * 1024 * 1024,
-          encoding: 'utf8',
+          encoding: 'utf8'
         });
       }
       throw wslError;
@@ -108,7 +113,7 @@ async function executeGit(
     maxBuffer: 10 * 1024 * 1024,
     encoding: 'utf8',
     // Never block the daemon on a terminal credential prompt.
-    env: { ...process.env, GIT_TERMINAL_PROMPT: '0' },
+    env: { ...process.env, GIT_TERMINAL_PROMPT: '0' }
   });
 }
 
@@ -124,12 +129,12 @@ async function runGit(args: string[], cwd: string, trim = true, timeoutMs = EXEC
 export async function runGitStrict(args: string[], cwd: string, timeoutMs = EXEC_TIMEOUT_MS): Promise<string> {
   try {
     return await executeGit(args, cwd, [], timeoutMs);
-  } catch (cause: any) {
-    const rawStderr = (cause?.stderr || cause?.message || 'Git command failed').trim();
-    const error: any = new Error(rawStderr);
-    error.code = 'GIT_FAILED';
-    error.stderr = rawStderr;
-    error.details = { args, exitCode: cause?.code, signal: cause?.signal };
+  } catch (cause: unknown) {
+    const rawStderr = String(readProperty(cause, 'stderr') || errorMessage(cause) || 'Git command failed').trim();
+    const error = Object.assign(createCodedError(rawStderr, 'GIT_FAILED'), {
+      stderr: rawStderr,
+      details: { args, exitCode: errorCode(cause), signal: readProperty(cause, 'signal') }
+    });
     throw error;
   }
 }
@@ -190,13 +195,14 @@ function parseNumstatZ(output: string): Numstat[] {
   const entries = output.split('\0');
   const result: Numstat[] = [];
   for (let index = 0; index < entries.length; index++) {
-    if (!entries[index]) continue;
-    const firstTab = entries[index].indexOf('\t');
-    const secondTab = entries[index].indexOf('\t', firstTab + 1);
+    const entry = entries[index];
+    if (!entry) continue;
+    const firstTab = entry.indexOf('\t');
+    const secondTab = entry.indexOf('\t', firstTab + 1);
     if (firstTab < 0 || secondTab < 0) continue;
-    const additions = parseNumstatCount(entries[index].slice(0, firstTab));
-    const deletions = parseNumstatCount(entries[index].slice(firstTab + 1, secondTab));
-    let filePath = entries[index].slice(secondTab + 1);
+    const additions = parseNumstatCount(entry.slice(0, firstTab));
+    const deletions = parseNumstatCount(entry.slice(firstTab + 1, secondTab));
+    let filePath = entry.slice(secondTab + 1);
     if (!filePath) {
       const oldPath = entries[++index];
       const newPath = entries[++index];
@@ -205,16 +211,6 @@ function parseNumstatZ(output: string): Numstat[] {
     if (filePath) result.push({ path: filePath, additions, deletions });
   }
   return result;
-}
-
-function parseNumstat(output: string): { additions: number; deletions: number } {
-  const firstTab = output.indexOf('\t');
-  const secondTab = output.indexOf('\t', firstTab + 1);
-  if (firstTab < 0 || secondTab < 0) return { additions: 0, deletions: 0 };
-  return {
-    additions: parseNumstatCount(output.slice(0, firstTab)),
-    deletions: parseNumstatCount(output.slice(firstTab + 1, secondTab)),
-  };
 }
 
 async function hasHead(cwd: string): Promise<boolean> {
@@ -247,15 +243,13 @@ async function getNoIndexNumstats(cwd: string, filePaths: string[]): Promise<Num
   const batchSize = 16;
   for (let i = 0; i < filePaths.length; i += batchSize) {
     numstats.push(
-      ...await Promise.all(
-        filePaths.slice(i, i + batchSize).map((filePath) => countUntrackedLines(cwd, filePath))
-      )
+      ...(await Promise.all(filePaths.slice(i, i + batchSize).map((filePath) => countUntrackedLines(cwd, filePath))))
     );
   }
   return numstats;
 }
 
-function parseStatus(cwd: string, statusOutput: string): {
+function parseStatus(statusOutput: string): {
   changes: Map<string, GitFileChange>;
   renameSources: Map<string, string>;
 } {
@@ -265,8 +259,8 @@ function parseStatus(cwd: string, statusOutput: string): {
   for (let index = 0; index < entries.length; index++) {
     const entry = entries[index];
     if (!entry || entry.length < 4) continue;
-    const indexCode = entry[0];
-    const worktreeCode = entry[1];
+    const indexCode = entry.charAt(0);
+    const worktreeCode = entry.charAt(1);
     const filePath = entry.slice(3);
     const staged = indexCode !== ' ' && indexCode !== '?';
     const unstaged = worktreeCode !== ' ' || indexCode === '?';
@@ -279,7 +273,7 @@ function parseStatus(cwd: string, statusOutput: string): {
       stagedStatus: staged ? indexCode : null,
       unstagedStatus: unstaged ? worktreeCode : null,
       additions: 0,
-      deletions: 0,
+      deletions: 0
     });
     if (indexCode === 'R' || indexCode === 'C' || worktreeCode === 'R' || worktreeCode === 'C') {
       const sourcePath = entries[++index];
@@ -299,9 +293,9 @@ export function parseBranchHeader(output: string): { length: number; branch: str
   const text = output.slice(3, end < 0 ? undefined : end);
   const length = end < 0 ? output.length : end + 1;
   const unbornMatch = text.match(/^(?:No commits yet on|Initial commit on) (.+)$/);
-  if (unbornMatch) return { length, branch: unbornMatch[1], unborn: true };
+  if (unbornMatch) return { length, branch: unbornMatch[1] ?? '', unborn: true };
   if (text.startsWith('HEAD (no branch)')) return { length, branch: null, unborn: false };
-  return { length, branch: text.split('...')[0].split(' [')[0], unborn: false };
+  return { length, branch: (text.split('...')[0] ?? '').split(' [')[0] ?? '', unborn: false };
 }
 
 export async function getGitStatus(cwd: string): Promise<GitStatusResult> {
@@ -312,10 +306,11 @@ export async function getGitStatus(cwd: string): Promise<GitStatusResult> {
 
   // `-b` adds a "## <branch>" header, which replaces two extra git processes (branch and HEAD lookups).
   // Each git process is slow on Windows and WSL, and the status is refreshed often.
-  const statusOutput = await runGit(['status', '--porcelain=v1', '-z', '-b', '--untracked-files=all'], cwd, false) ?? '';
+  const statusOutput =
+    (await runGit(['status', '--porcelain=v1', '-z', '-b', '--untracked-files=all'], cwd, false)) ?? '';
   const header = parseBranchHeader(statusOutput);
-  const { changes } = parseStatus(cwd, header ? statusOutput.slice(header.length) : statusOutput);
-  const branch = header?.branch ?? await getCurrentBranch(cwd);
+  const { changes } = parseStatus(header ? statusOutput.slice(header.length) : statusOutput);
+  const branch = header?.branch ?? (await getCurrentBranch(cwd));
   const headExists = header ? !header.unborn : await hasHead(cwd);
   let numstats: Numstat[] = [];
   if (headExists) {
@@ -324,7 +319,7 @@ export async function getGitStatus(cwd: string): Promise<GitStatusResult> {
     const untrackedPaths = Array.from(changes.values())
       .filter((change) => change.status === 'untracked')
       .map((change) => change.path);
-    numstats.push(...await getNoIndexNumstats(cwd, untrackedPaths));
+    numstats.push(...(await getNoIndexNumstats(cwd, untrackedPaths)));
   } else {
     numstats = await getNoIndexNumstats(cwd, Array.from(changes.keys()));
   }
@@ -347,7 +342,7 @@ export async function getGitStatus(cwd: string): Promise<GitStatusResult> {
     branch: branch ?? undefined,
     files: Array.from(changes.values()),
     totalAdditions,
-    totalDeletions,
+    totalDeletions
   };
 }
 
@@ -363,21 +358,19 @@ export async function getGitDiff(cwd: string, filePath?: string): Promise<string
   }
 
   const normalizedPath = filePath.replace(/\\/g, '/');
-  const statusOutput = await runGit(
-    ['status', '--porcelain=v1', '-z', '--untracked-files=all', '--', `:(literal)${normalizedPath}`],
-    cwd,
-    false
-  ) ?? '';
-  let { changes, renameSources } = parseStatus(cwd, statusOutput);
+  const statusOutput =
+    (await runGit(
+      ['status', '--porcelain=v1', '-z', '--untracked-files=all', '--', `:(literal)${normalizedPath}`],
+      cwd,
+      false
+    )) ?? '';
+  let { changes, renameSources } = parseStatus(statusOutput);
   let change = changes.get(normalizedPath);
   const headExists = await hasHead(cwd);
   if (headExists && change?.stagedStatus === 'A') {
-    const fullStatusOutput = await runGit(
-      ['status', '--porcelain=v1', '-z', '--untracked-files=all'],
-      cwd,
-      false
-    ) ?? '';
-    ({ changes, renameSources } = parseStatus(cwd, fullStatusOutput));
+    const fullStatusOutput =
+      (await runGit(['status', '--porcelain=v1', '-z', '--untracked-files=all'], cwd, false)) ?? '';
+    ({ changes, renameSources } = parseStatus(fullStatusOutput));
     change = changes.get(normalizedPath) ?? change;
   }
   const args = ['diff', ...(headExists ? ['HEAD'] : [])];
@@ -392,16 +385,10 @@ export async function getGitDiff(cwd: string, filePath?: string): Promise<string
     if (diff) return diff.trim();
   }
 
-  const canUseNoIndex = headExists
-    ? change?.status === 'untracked'
-    : change !== undefined;
+  const canUseNoIndex = headExists ? change?.status === 'untracked' : change !== undefined;
   const fullPath = path.resolve(cwd, ...normalizedPath.split('/'));
   if (!canUseNoIndex || !fs.existsSync(fullPath)) return '';
-  return (await executeGit(
-    ['diff', '--no-index', '--', '/dev/null', normalizedPath],
-    cwd,
-    [1]
-  )).trim();
+  return (await executeGit(['diff', '--no-index', '--', '/dev/null', normalizedPath], cwd, [1])).trim();
 }
 
 // -----------------------------------------------------------------------------
@@ -437,7 +424,7 @@ export async function isDetachedHead(cwd: string): Promise<boolean> {
 
 export async function validateBranchName(cwd: string, name: unknown): Promise<string> {
   if (typeof name !== 'string') {
-    const err: any = new Error('Branch name must be a string.');
+    const err: CodedError = new Error('Branch name must be a string.');
     err.code = 'BRANCH_INVALID_NAME';
     throw err;
   }
@@ -449,7 +436,7 @@ export async function validateBranchName(cwd: string, name: unknown): Promise<st
     name === 'HEAD' ||
     name.includes('@{')
   ) {
-    const err: any = new Error(`Invalid branch name: '${name}'.`);
+    const err: CodedError = new Error(`Invalid branch name: '${name}'.`);
     err.code = 'BRANCH_INVALID_NAME';
     throw err;
   }
@@ -457,12 +444,12 @@ export async function validateBranchName(cwd: string, name: unknown): Promise<st
   try {
     const output = await executeGit(['check-ref-format', '--branch', name], cwd);
     if (output.trim() !== name) {
-      const err: any = new Error(`Invalid branch name: '${name}'.`);
+      const err: CodedError = new Error(`Invalid branch name: '${name}'.`);
       err.code = 'BRANCH_INVALID_NAME';
       throw err;
     }
   } catch {
-    const err: any = new Error(`Invalid branch name: '${name}'.`);
+    const err: CodedError = new Error(`Invalid branch name: '${name}'.`);
     err.code = 'BRANCH_INVALID_NAME';
     throw err;
   }
@@ -497,7 +484,7 @@ export async function getGitDirtyState(cwd: string): Promise<GitDirtyState> {
   return {
     isDirty: changedFiles + untrackedFiles > 0,
     changedFiles,
-    untrackedFiles,
+    untrackedFiles
   };
 }
 
@@ -505,7 +492,7 @@ export async function listGitBranches(cwd: string): Promise<WorkspaceListBranche
   const { isRepo, rootPath } = await checkIsGitRepo(cwd);
   if (!isRepo || !rootPath) {
     throw Object.assign(new Error('Working directory is not inside a Git repository.'), {
-      code: 'WORKSPACE_NOT_REPOSITORY',
+      code: 'WORKSPACE_NOT_REPOSITORY'
     });
   }
 
@@ -519,7 +506,7 @@ export async function listGitBranches(cwd: string): Promise<WorkspaceListBranche
       branches: [],
       currentBranch,
       detached: false,
-      headShortSha: null,
+      headShortSha: null
     };
   }
 
@@ -527,7 +514,7 @@ export async function listGitBranches(cwd: string): Promise<WorkspaceListBranche
     [
       'for-each-ref',
       '--format=%(refname:short)%00%(HEAD)%00%(upstream:short)%00%(upstream:track,nobracket)%00%(committerdate:unix)',
-      'refs/heads',
+      'refs/heads'
     ],
     rootPath,
     false
@@ -539,11 +526,11 @@ export async function listGitBranches(cwd: string): Promise<WorkspaceListBranche
     for (const line of lines) {
       const parts = line.split('\0');
       if (parts.length < 5) continue;
-      const name = parts[0];
-      const headFlag = parts[1].trim();
-      const upstreamRaw = parts[2].trim();
-      const trackRaw = parts[3].trim();
-      const dateRaw = parts[4].trim();
+      const name = parts[0] ?? '';
+      const headFlag = (parts[1] ?? '').trim();
+      const upstreamRaw = (parts[2] ?? '').trim();
+      const trackRaw = (parts[3] ?? '').trim();
+      const dateRaw = (parts[4] ?? '').trim();
 
       const isCurrent = currentBranch !== null && (name === currentBranch || headFlag === '*');
       const upstream = upstreamRaw.length > 0 ? upstreamRaw : null;
@@ -557,8 +544,8 @@ export async function listGitBranches(cwd: string): Promise<WorkspaceListBranche
         } else {
           const aheadMatch = trackRaw.match(/ahead\s+(\d+)/);
           const behindMatch = trackRaw.match(/behind\s+(\d+)/);
-          ahead = aheadMatch ? parseInt(aheadMatch[1], 10) : 0;
-          behind = behindMatch ? parseInt(behindMatch[1], 10) : 0;
+          ahead = aheadMatch ? parseInt(aheadMatch[1] ?? '', 10) : 0;
+          behind = behindMatch ? parseInt(behindMatch[1] ?? '', 10) : 0;
         }
       }
 
@@ -571,7 +558,7 @@ export async function listGitBranches(cwd: string): Promise<WorkspaceListBranche
         upstream,
         ahead,
         behind,
-        lastCommitUnix,
+        lastCommitUnix
       });
     }
   }
@@ -590,7 +577,7 @@ export async function listGitBranches(cwd: string): Promise<WorkspaceListBranche
     branches,
     currentBranch,
     detached,
-    headShortSha,
+    headShortSha
   };
 }
 
@@ -600,8 +587,8 @@ async function resolveStashRefBySha(cwd: string, targetSha: string): Promise<str
   for (const line of lines) {
     const parts = line.split('\0');
     if (parts.length >= 2) {
-      const ref = parts[0].trim();
-      const sha = parts[1].trim();
+      const ref = (parts[0] ?? '').trim();
+      const sha = (parts[1] ?? '').trim();
       if (sha === targetSha) {
         return ref;
       }
@@ -621,20 +608,20 @@ export async function switchGitBranch(
     return {
       currentBranch: branch,
       stashed: false,
-      stashMessage: null,
+      stashMessage: null
     };
   }
 
   const dirtyState = await getGitDirtyState(cwd);
   if (dirtyState.isDirty) {
     if (onDirty === 'block') {
-      const err: any = new Error(
+      const err: CodedError = new Error(
         `Working directory has uncommitted changes (${dirtyState.changedFiles} changed, ${dirtyState.untrackedFiles} untracked).`
       );
       err.code = 'WORKSPACE_DIRTY';
       err.details = {
         changedFiles: dirtyState.changedFiles,
-        untrackedFiles: dirtyState.untrackedFiles,
+        untrackedFiles: dirtyState.untrackedFiles
       };
       throw err;
     }
@@ -657,8 +644,8 @@ export async function switchGitBranch(
       for (const line of lines) {
         const parts = line.split('\0');
         if (parts.length >= 3) {
-          const sha = parts[1].trim();
-          const subject = parts[2].trim();
+          const sha = (parts[1] ?? '').trim();
+          const subject = (parts[2] ?? '').trim();
           if (sha === stashSha && subject.includes(stashMessage)) {
             createdStashSha = stashSha;
             effectiveStashMessage = stashMessage;
@@ -674,12 +661,12 @@ export async function switchGitBranch(
       } else {
         await runGitStrict(['switch', '--no-guess', '--', branch], cwd, 30000);
       }
-    } catch (switchError: any) {
-      const rawStderr = (switchError.stderr || switchError.message || '').trim();
+    } catch (switchError: unknown) {
+      const rawStderr = String(readProperty(switchError, 'stderr') || errorMessage(switchError) || '').trim();
       const stderrTrimmed = rawStderr.slice(0, 2048);
 
       if (!createdStashSha) {
-        const err: any = new Error(`Failed to switch to branch '${branch}': ${stderrTrimmed}`);
+        const err: CodedError = new Error(`Failed to switch to branch '${branch}': ${stderrTrimmed}`);
         err.code = 'BRANCH_SWITCH_FAILED';
         err.details = { stderr: stderrTrimmed };
         throw err;
@@ -687,14 +674,14 @@ export async function switchGitBranch(
 
       const targetRef = await resolveStashRefBySha(cwd, createdStashSha);
       if (!targetRef) {
-        const err: any = new Error(
+        const err: CodedError = new Error(
           `Failed to switch to branch '${branch}', and stash could not be restored: ${stderrTrimmed}`
         );
         err.code = 'BRANCH_SWITCH_FAILED';
         err.details = {
           stderr: stderrTrimmed,
           stashRetained: true,
-          stashMessage: effectiveStashMessage,
+          stashMessage: effectiveStashMessage
         };
         throw err;
       }
@@ -705,20 +692,20 @@ export async function switchGitBranch(
         } else {
           await runGitStrict(['stash', 'pop', targetRef], cwd, 30000);
         }
-      } catch (popError: any) {
-        const err: any = new Error(
+      } catch (popError: unknown) {
+        const err: CodedError = new Error(
           `Failed to switch to branch '${branch}', and stash could not be restored: ${stderrTrimmed}`
         );
         err.code = 'BRANCH_SWITCH_FAILED';
         err.details = {
           stderr: stderrTrimmed,
           stashRetained: true,
-          stashMessage: effectiveStashMessage,
+          stashMessage: effectiveStashMessage
         };
         throw err;
       }
 
-      const err: any = new Error(`Failed to switch to branch '${branch}': ${stderrTrimmed}`);
+      const err: CodedError = new Error(`Failed to switch to branch '${branch}': ${stderrTrimmed}`);
       err.code = 'BRANCH_SWITCH_FAILED';
       err.details = { stderr: stderrTrimmed };
       throw err;
@@ -727,7 +714,7 @@ export async function switchGitBranch(
     return {
       currentBranch: branch,
       stashed: createdStashSha !== null,
-      stashMessage: effectiveStashMessage,
+      stashMessage: effectiveStashMessage
     };
   }
 
@@ -738,10 +725,10 @@ export async function switchGitBranch(
     } else {
       await runGitStrict(['switch', '--no-guess', '--', branch], cwd, 30000);
     }
-  } catch (switchError: any) {
-    const rawStderr = (switchError.stderr || switchError.message || '').trim();
+  } catch (switchError: unknown) {
+    const rawStderr = String(readProperty(switchError, 'stderr') || errorMessage(switchError) || '').trim();
     const stderrTrimmed = rawStderr.slice(0, 2048);
-    const err: any = new Error(`Failed to switch to branch '${branch}': ${stderrTrimmed}`);
+    const err: CodedError = new Error(`Failed to switch to branch '${branch}': ${stderrTrimmed}`);
     err.code = 'BRANCH_SWITCH_FAILED';
     err.details = { stderr: stderrTrimmed };
     throw err;
@@ -750,6 +737,6 @@ export async function switchGitBranch(
   return {
     currentBranch: branch,
     stashed: false,
-    stashMessage: null,
+    stashMessage: null
   };
 }

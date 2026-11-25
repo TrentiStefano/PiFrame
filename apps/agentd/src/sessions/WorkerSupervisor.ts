@@ -1,3 +1,4 @@
+import { modelInfoOf } from '../pi/piCommands.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { getPiFrameBaseDir } from '../config/config.js';
@@ -7,6 +8,7 @@ import type { PiCapabilities } from '../pi/piCommands.js';
 import { SessionIndex } from './SessionIndex.js';
 import { ensureContextLimitExtension, applyContextPolicy, physicalModel } from '../pi/contextLimitExtension.js';
 import { DEFAULT_COMPACTION_RESERVE_PERCENT, writeContextPolicy } from '../pi/contextPolicy.js';
+import { errorMessage } from '../errors/errors.js';
 
 export interface WorkerSupervisorOptions {
   piExecutablePath: string;
@@ -38,9 +40,10 @@ export class WorkerSupervisor {
 
   public updateIdleTimeout(newTimeoutMs: number): void {
     this.idleTimeoutMs = newTimeoutMs;
-    // Reschedule all active idle timers with the new timeout immediately
-    for (const [sessionId, timer] of this.idleTimers.entries()) {
-      clearTimeout(timer);
+    // Reschedule every active idle timer with the new timeout. Iterate over a copy of the keys: rescheduling
+    // re-inserts each key, and a Map iterator visits re-inserted keys again, so iterating the live map never ends.
+    for (const sessionId of [...this.idleTimers.keys()]) {
+      clearTimeout(this.idleTimers.get(sessionId));
       this.idleTimers.delete(sessionId);
       this.scheduleIdleTimeout(sessionId);
     }
@@ -68,7 +71,11 @@ export class WorkerSupervisor {
     if (starting) return starting;
     const task = this.startWorker(session);
     this.startingWorkers.set(session.id, task);
-    try { return await task; } finally { this.startingWorkers.delete(session.id); }
+    try {
+      return await task;
+    } finally {
+      this.startingWorkers.delete(session.id);
+    }
   }
 
   private async startWorker(session: Session): Promise<StdioPiTransport> {
@@ -88,9 +95,11 @@ export class WorkerSupervisor {
       if (terminalOwner === true || (terminalOwner === null && !session.allowAmbiguousTerminal)) {
         session.readOnly = true;
         session.readOnlyReason = terminalOwner === true ? 'terminal' : 'unknown';
-        throw new Error(terminalOwner === true
-          ? 'An interactive Pi terminal is using this session. Duplicate it to continue safely.'
-          : 'PiFrame could not verify which session is open in this project. Confirm before continuing.');
+        throw new Error(
+          terminalOwner === true
+            ? 'An interactive Pi terminal is using this session. Duplicate it to continue safely.'
+            : 'PiFrame could not verify which session is open in this project. Confirm before continuing.'
+        );
       }
     }
 
@@ -124,9 +133,16 @@ export class WorkerSupervisor {
     void this.pumpEvents(session, worker);
     try {
       await this.refreshSession(session, worker);
-      if (session.contextWindowOverride !== null || session.compactionReservePercent !== DEFAULT_COMPACTION_RESERVE_PERCENT) {
-        const maximum = session.model?.contextWindow;
-        if (typeof maximum === 'number' && session.contextWindowOverride !== null && session.contextWindowOverride > maximum) {
+      if (
+        session.contextWindowOverride !== null ||
+        session.compactionReservePercent !== DEFAULT_COMPACTION_RESERVE_PERCENT
+      ) {
+        const maximum = modelInfoOf(session.model)?.contextWindow;
+        if (
+          typeof maximum === 'number' &&
+          session.contextWindowOverride !== null &&
+          session.contextWindowOverride > maximum
+        ) {
           session.contextWindowOverride = maximum;
           writeContextPolicy(session.id, session);
         }
@@ -176,10 +192,10 @@ export class WorkerSupervisor {
         this.touch(session.id);
         session.dispatchPiEvent(event);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       session.emitCustomEvent('worker.diagnostic', {
         level: 'warn',
-        message: `Event pump error: ${err.message}`,
+        message: `Event pump error: ${errorMessage(err)}`,
         source: 'supervisor'
       });
     } finally {
@@ -291,13 +307,19 @@ export class WorkerSupervisor {
     if (!worker) return;
 
     const session = this.sessions.get(sessionId);
-    if (session && session.sessionFile && fs.existsSync(session.sessionFile) &&
-        session.status === 'settled' && !session.isStreaming && !session.isCompacting &&
-        session.uiBroker.getPending().length === 0 &&
-        // Background subagents run inside this worker: stopping it while one
-        // works killed the agent with no result, leaving the main agent
-        // waiting on it forever.
-        !session.hasRunningSubagents) {
+    if (
+      session &&
+      session.sessionFile &&
+      fs.existsSync(session.sessionFile) &&
+      session.status === 'settled' &&
+      !session.isStreaming &&
+      !session.isCompacting &&
+      session.uiBroker.getPending().length === 0 &&
+      // Background subagents run inside this worker: stopping it while one
+      // works killed the agent with no result, leaving the main agent
+      // waiting on it forever.
+      !session.hasRunningSubagents
+    ) {
       await this.stopWorker(sessionId);
     } else {
       this.touch(sessionId);
@@ -309,7 +331,11 @@ export class WorkerSupervisor {
     if (pending) return pending;
     const stopping = this.stopWorkerNow(sessionId, graceMs);
     this.stoppingTasks.set(sessionId, stopping);
-    try { await stopping; } finally { this.stoppingTasks.delete(sessionId); }
+    try {
+      await stopping;
+    } finally {
+      this.stoppingTasks.delete(sessionId);
+    }
   }
 
   private async stopWorkerNow(sessionId: string, graceMs: number): Promise<void> {

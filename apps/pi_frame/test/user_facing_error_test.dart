@@ -10,16 +10,15 @@ import 'package:pi_frame/data/language/strings_workspace.dart';
 import 'package:pi_frame/data/update/github_update_client.dart';
 import 'package:pi_frame/domain/errors/user_facing_error.dart';
 
+import 'package:pi_frame/data/errors/user_facing_error_mapping.dart';
+
 void main() {
   const it = AppStrings(AppLanguage.it);
   const en = AppStrings(AppLanguage.en);
 
   group('describeError mapping (Italian)', () {
     test('an outdated daemon maps to the rebuild hint', () {
-      final e = describeError(
-        StateError('Unsupported command type: workspace.listFiles'),
-        it,
-      );
+      final e = describeError(StateError('Unsupported command type: workspace.listFiles'), it);
       expect(e.title, it.errorOutdatedDaemonTitle);
       expect(e.hint, it.repositoryDaemonOutdatedError);
       expect(e.retryable, isFalse);
@@ -27,10 +26,7 @@ void main() {
 
     test('a non-repository folder maps to the repository title', () {
       final e = describeError(
-        PcpException(
-          'Session working directory is not inside a Git repository.',
-          code: 'WORKSPACE_NOT_REPOSITORY',
-        ),
+        PcpException('Session working directory is not inside a Git repository.', code: 'WORKSPACE_NOT_REPOSITORY'),
         it,
       );
       expect(e.title, it.errorNotRepositoryTitle);
@@ -39,10 +35,7 @@ void main() {
     });
 
     test('a missing git executable maps to the install hint', () {
-      final e = describeError(
-        Exception('spawn git ENOENT'),
-        it,
-      );
+      final e = describeError(Exception('spawn git ENOENT'), it);
       expect(e.title, it.errorGitMissingTitle);
       expect(e.retryable, isFalse);
     });
@@ -53,50 +46,34 @@ void main() {
     });
 
     test('a disconnected daemon maps to the reachability hint', () {
-      final e = describeError(StateError('Daemon non connesso'), it);
+      final e = describeError(StateError('Daemon not connected'), it);
       expect(e.title, it.errorDaemonUnreachableTitle);
       expect(e.hint, it.errorDaemonUnreachableHint);
       expect(e.retryable, isTrue);
     });
 
     test('a refused connection is treated as an unreachable daemon', () {
-      final e = describeError(
-        const SocketException('Connection refused', osError: OSError()),
-        it,
-      );
+      final e = describeError(const SocketException('Connection refused', osError: OSError()), it);
       expect(e.title, it.errorDaemonUnreachableTitle);
       expect(e.retryable, isTrue);
     });
 
     test('a timeout maps to the timeout title and is retryable', () {
-      final e = describeError(
-        TimeoutException('Future not completed', const Duration(seconds: 10)),
-        it,
-      );
+      final e = describeError(TimeoutException('Future not completed', const Duration(seconds: 10)), it);
       expect(e.title, it.errorTimeoutTitle);
       expect(e.hint, it.errorTimeoutHint);
       expect(e.retryable, isTrue);
     });
 
     test('a read-only or busy daemon maps to the busy title', () {
-      final e = describeError(
-        PcpException(
-          'Workspace is read-only while Pi is working',
-          code: 'COMMAND_REJECTED',
-        ),
-        it,
-      );
+      final e = describeError(PcpException('Workspace is read-only while Pi is working', code: 'COMMAND_REJECTED'), it);
       expect(e.title, it.errorBusyTitle);
       expect(e.retryable, isTrue);
     });
 
     test('a permission error maps to the permission title', () {
       final e = describeError(
-        const FileSystemException(
-          'Cannot open file',
-          '/x',
-          OSError('Permission denied', 13),
-        ),
+        const FileSystemException('Cannot open file', '/x', OSError('Permission denied', 13)),
         it,
       );
       expect(e.title, it.errorPermissionTitle);
@@ -105,21 +82,14 @@ void main() {
 
     test('a missing file maps to the not-found title', () {
       final e = describeError(
-        const FileSystemException(
-          'Cannot open file',
-          '/x',
-          OSError('No such file or directory', 2),
-        ),
+        const FileSystemException('Cannot open file', '/x', OSError('No such file or directory', 2)),
         it,
       );
       expect(e.title, it.errorNotFoundTitle);
     });
 
     test('a network failure maps to the network title and is retryable', () {
-      final e = describeError(
-        const SocketException('Failed host lookup: api.github.com'),
-        it,
-      );
+      final e = describeError(const SocketException('Failed host lookup: api.github.com'), it);
       expect(e.title, it.errorNetworkTitle);
       expect(e.retryable, isTrue);
     });
@@ -138,10 +108,7 @@ void main() {
     });
 
     test('app-authored copy is shown as is', () {
-      final e = describeError(
-        const UserMessageException('Il daemon non ha verificato la versione.'),
-        it,
-      );
+      final e = describeError(const UserMessageException('Il daemon non ha verificato la versione.'), it);
       expect(e.title, 'Il daemon non ha verificato la versione.');
       expect(e.hint, isNull);
     });
@@ -155,8 +122,7 @@ void main() {
   group('protocol messages are shown, raw Dart exceptions are not', () {
     test('a daemon reply (PcpException) shows its message as the title', () {
       final e = describeError(
-        PcpException('installed version 0.1.15, expected 1.2.0',
-            code: 'PACKAGE_UPDATE_FAILED'),
+        PcpException('installed version 0.1.15, expected 1.2.0', code: 'PACKAGE_UPDATE_FAILED'),
         it,
       );
       expect(e.title, 'installed version 0.1.15, expected 1.2.0');
@@ -166,10 +132,7 @@ void main() {
     });
 
     test('an update client message (UpdateException) is shown as is', () {
-      final e = describeError(
-        const UpdateException('Download annullato dall\'utente.'),
-        it,
-      );
+      final e = describeError(const UpdateException('Download annullato dall\'utente.'), it);
       expect(e.title, 'Download annullato dall\'utente.');
       expect(e.isProtocolMessage, isTrue);
     });
@@ -181,32 +144,19 @@ void main() {
     });
 
     test('failureText keeps a provider message visible', () {
+      expect(failureText(it, 'Invio non riuscito', 'Model unavailable'), 'Invio non riuscito: Model unavailable');
       expect(
-        failureText(it, 'Invio non riuscito', 'Model unavailable'),
-        'Invio non riuscito: Model unavailable',
-      );
-      expect(
-        failureText(
-          it,
-          'Invio non riuscito',
-          PcpException('Model unavailable', code: 'PROVIDER_ERROR'),
-        ),
+        failureText(it, 'Invio non riuscito', PcpException('Model unavailable', code: 'PROVIDER_ERROR')),
         'Invio non riuscito: Model unavailable',
       );
     });
 
     test('an upload failure keeps the daemon reason and hides raw text', () {
       expect(
-        it.composerUploadFailed(
-          'a.png',
-          PcpException('Quota exceeded', code: 'UPLOAD_REJECTED'),
-        ),
+        it.composerUploadFailed('a.png', PcpException('Quota exceeded', code: 'UPLOAD_REJECTED')),
         'Caricamento di "a.png" non riuscito: Quota exceeded',
       );
-      expect(
-        it.composerUploadFailed('a.png', StateError('boom-9')),
-        'Caricamento di "a.png" non riuscito.',
-      );
+      expect(it.composerUploadFailed('a.png', StateError('boom-9')), 'Caricamento di "a.png" non riuscito.');
     });
 
     test('a raw Dart exception is still mapped, never shown', () {
@@ -223,11 +173,7 @@ void main() {
     });
 
     test('a known protocol failure still maps to its localized title', () {
-      final e = describeError(
-        PcpException('Workspace is read-only while Pi is working',
-            code: 'COMMAND_REJECTED'),
-        it,
-      );
+      final e = describeError(PcpException('Workspace is read-only while Pi is working', code: 'COMMAND_REJECTED'), it);
       expect(e.title, it.errorBusyTitle);
       expect(e.isProtocolMessage, isFalse);
     });
@@ -248,11 +194,7 @@ void main() {
 
   group('failureText', () {
     test('a known error appends the title and hint to the prefix', () {
-      final text = failureText(
-        it,
-        'Invio non riuscito',
-        StateError('Daemon non connesso'),
-      );
+      final text = failureText(it, 'Invio non riuscito', StateError('Daemon not connected'));
       expect(
         text,
         'Invio non riuscito: Daemon non raggiungibile. '
@@ -261,10 +203,7 @@ void main() {
     });
 
     test('an unknown error shows only the prefix, never the raw text', () {
-      expect(
-        failureText(it, 'Invio non riuscito', StateError('Model unavailable')),
-        'Invio non riuscito.',
-      );
+      expect(failureText(it, 'Invio non riuscito', StateError('Model unavailable')), 'Invio non riuscito.');
     });
   });
 }

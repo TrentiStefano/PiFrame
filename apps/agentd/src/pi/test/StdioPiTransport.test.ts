@@ -69,8 +69,7 @@ StdioPiTransport.prototype.start = function (this: StdioPiTransport, ...args: Pa
   return originalStart.apply(this, args);
 };
 test.afterEach(async () => {
-  await Promise.all(startedTransports.splice(0).map((transport) =>
-    transport.stop({ graceMs: 500 }).catch(() => {})));
+  await Promise.all(startedTransports.splice(0).map((transport) => transport.stop({ graceMs: 500 }).catch(() => {})));
 });
 
 async function waitFor(condition: () => boolean, timeoutMs = 5000): Promise<void> {
@@ -93,8 +92,8 @@ test('StdioPiTransport sends canonical flat RPC and clears both correlation queu
   assert.equal(response.data.request.command, undefined);
   assert.equal(response.data.request.arguments, undefined);
   assert.ok(response.data.request.id);
-  assert.equal((transport as any).pendingCommands.size, 0);
-  assert.equal((transport as any).fifoPendingCommands.length, 0);
+  assert.equal(transport['pendingCommands'].size, 0);
+  assert.equal(transport['fifoPendingCommands'].length, 0);
   await transport.stop({ graceMs: 1000 });
 });
 
@@ -116,8 +115,8 @@ test('StdioPiTransport rejects unsuccessful RPC responses', async () => {
   const transport = new StdioPiTransport({ executablePath: responderFixture() });
   await transport.start({ cwd: process.cwd() });
   await assert.rejects(transport.send({ command: 'fail' }), /deliberate failure/);
-  assert.equal((transport as any).pendingCommands.size, 0);
-  assert.equal((transport as any).fifoPendingCommands.length, 0);
+  assert.equal(transport['pendingCommands'].size, 0);
+  assert.equal(transport['fifoPendingCommands'].length, 0);
   await transport.stop({ graceMs: 1000 });
 });
 
@@ -134,8 +133,8 @@ test('StdioPiTransport sends UI response request id and does not await an RPC re
   assert.equal(event.request.id, 'ui-request-123');
   assert.equal(event.request.type, 'extension_ui_response');
   assert.equal(event.request.value, 'accepted');
-  assert.equal((transport as any).pendingCommands.size, 0);
-  assert.equal((transport as any).fifoPendingCommands.length, 0);
+  assert.equal(transport['pendingCommands'].size, 0);
+  assert.equal(transport['fifoPendingCommands'].length, 0);
   await transport.stop({ graceMs: 1000 });
 });
 
@@ -148,8 +147,8 @@ test('StdioPiTransport rejects startup failure and all pending work when child e
   await transport.start({ cwd: process.cwd() });
   const pending = transport.send({ command: 'exit_now' });
   await assert.rejects(pending, /exited/);
-  assert.equal((transport as any).pendingCommands.size, 0);
-  assert.equal((transport as any).fifoPendingCommands.length, 0);
+  assert.equal(transport['pendingCommands'].size, 0);
+  assert.equal(transport['fifoPendingCommands'].length, 0);
 });
 
 test('StdioPiTransport does not correlate late explicit IDs to another command', async () => {
@@ -157,12 +156,18 @@ test('StdioPiTransport does not correlate late explicit IDs to another command',
   await transport.start({ cwd: process.cwd() });
   // Simulate a timed-out request A and a still-pending same-type request B.
   let settled = false;
-  const entry = { resolve: () => { settled = true; }, reject: () => {}, command: 'get_state' };
-  (transport as any).pendingCommands.set('B', entry);
-  (transport as any).fifoPendingCommands.push({ id: 'B', ...entry });
-  (transport as any).handleIncomingObject({ type: 'response', id: 'A', command: 'get_state', success: true });
+  const entry = {
+    resolve: () => {
+      settled = true;
+    },
+    reject: () => {},
+    command: 'get_state'
+  };
+  transport['pendingCommands'].set('B', entry);
+  transport['fifoPendingCommands'].push({ id: 'B', ...entry });
+  transport['handleIncomingObject']({ type: 'response', id: 'A', command: 'get_state', success: true });
   assert.equal(settled, false);
-  (transport as any).handleIncomingObject({ type: 'response', id: 'B', command: 'get_state', success: true });
+  transport['handleIncomingObject']({ type: 'response', id: 'B', command: 'get_state', success: true });
   assert.equal(settled, true);
   await transport.stop({ graceMs: 1000 });
 });
@@ -211,9 +216,9 @@ test('StdioPiTransport treats a slow prompt acknowledgement as accepted, not as 
   assert.equal(response.success, true);
   assert.equal(response.data.disposition, 'pending');
   // The late acknowledgement (300 ms) must clear the pending entry; poll so a slow machine does not fail it.
-  await waitFor(() => (transport as any).pendingCommands.size === 0);
-  assert.equal((transport as any).pendingCommands.size, 0);
-  assert.equal((transport as any).fifoPendingCommands.length, 0);
+  await waitFor(() => transport['pendingCommands'].size === 0);
+  assert.equal(transport['pendingCommands'].size, 0);
+  assert.equal(transport['fifoPendingCommands'].length, 0);
   await transport.stop({ graceMs: 1000 });
 });
 
@@ -231,7 +236,7 @@ test('StdioPiTransport still rejects non-prompt commands that time out', async (
   const transport = new StdioPiTransport({ executablePath: slowFixture(), commandTimeoutMs: 80 });
   await transport.start({ cwd: process.cwd() });
   await assert.rejects(transport.send({ command: 'get_state' }), /timed out/);
-  assert.equal((transport as any).pendingCommands.size, 0);
+  assert.equal(transport['pendingCommands'].size, 0);
   await transport.stop({ graceMs: 1000 });
 });
 

@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -28,17 +29,12 @@ ProviderContainer _shellContainer() => ProviderContainer(
     desktopWindowLifecycleProvider.overrideWithValue(false),
     desktopChromeProvider.overrideWithValue(false),
     activeSessionIdProvider.overrideWith((ref) => 'session_1'),
-    connectionStateProvider.overrideWith(
-      (ref) => Stream.value(DaemonConnectionState.connected),
-    ),
+    connectionStateProvider.overrideWith((ref) => Stream.value(DaemonConnectionState.connected)),
     sessionListProvider.overrideWith((ref) async => const []),
     sessionStateFamily('session_1').overrideWith(
-      (ref) =>
-          SessionStateNotifier('session_1', null)
-            ..state = SessionState(sessionId: 'session_1', cwd: 'C:/repo'),
+      (ref) => SessionStateNotifier('session_1', null)..state = SessionState(sessionId: 'session_1', cwd: 'C:/repo'),
     ),
-    repositoryStateProvider('session_1')
-        .overrideWith((ref) => RepositoryController('session_1', () => null)),
+    repositoryStateProvider('session_1').overrideWith((ref) => RepositoryController('session_1', () => null)),
   ],
 );
 
@@ -47,10 +43,7 @@ SemanticsNode? _focusedSemantics() {
   SemanticsNode? found;
   void visit(SemanticsNode node) {
     if (found != null) return;
-    // hasFlag is deprecated in favour of flagsCollection, which reports the same flag
-    // for this tree; flagsCollection did not match the focused node here.
-    // ignore: deprecated_member_use
-    if (node.hasFlag(SemanticsFlag.isFocused)) {
+    if (node.flagsCollection.isFocused == ui.Tristate.isTrue) {
       found = node;
       return;
     }
@@ -63,8 +56,7 @@ SemanticsNode? _focusedSemantics() {
   // The binding's own pipeline owner is the one whose semantics tree the test tree
   // reports; rootPipelineOwner does not expose the focused flags here.
   // ignore: deprecated_member_use
-  final root = WidgetsBinding.instance.pipelineOwner.semanticsOwner
-      ?.rootSemanticsNode;
+  final root = WidgetsBinding.instance.pipelineOwner.semanticsOwner?.rootSemanticsNode;
   if (root != null) visit(root);
   return found;
 }
@@ -87,8 +79,7 @@ String _labelFor(FocusNode node) {
     final widget = ancestor.widget;
     if (widget is Tooltip && (widget.message ?? '').isNotEmpty) {
       above = widget.message;
-    } else if (widget is Semantics &&
-        (widget.properties.label ?? '').isNotEmpty) {
+    } else if (widget is Semantics && (widget.properties.label ?? '').isNotEmpty) {
       above = widget.properties.label;
     }
     return above == null;
@@ -143,10 +134,7 @@ class _Stop {
   /// True when a [FrameFocusRing] is painted for this stop right now (keyboard focus).
   final bool ringPainted;
 
-  bool get ok =>
-      label.trim().isNotEmpty &&
-      indicator != 'none' &&
-      (indicator != 'ring' || ringPainted);
+  bool get ok => label.trim().isNotEmpty && indicator != 'none' && (indicator != 'ring' || ringPainted);
 
   @override
   String toString() =>
@@ -159,9 +147,7 @@ void main() {
 
   setUp(() {
     tempDir = Directory.systemTemp.createTempSync('pi_frame_a11y_test_');
-    LayoutStore.instance.setStorageFileForTesting(
-      File('${tempDir.path}/layout.json'),
-    );
+    LayoutStore.instance.setStorageFileForTesting(File('${tempDir.path}/layout.json'));
   });
 
   tearDown(() {
@@ -169,63 +155,58 @@ void main() {
     if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
   });
 
-  testWidgets(
-    'Tab sweep: every focus stop has a label and a focus indicator',
-    (tester) async {
-      final handle = tester.ensureSemantics();
-      tester.view.physicalSize = const Size(1920, 1080);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(() => tester.view.resetPhysicalSize());
-      final container = _shellContainer();
-      addTearDown(container.dispose);
-      await tester.pumpWidget(
-        UncontrolledProviderScope(
-          container: container,
-          child: const MaterialApp(home: AppShell()),
+  testWidgets('Tab sweep: every focus stop has a label and a focus indicator', (tester) async {
+    final handle = tester.ensureSemantics();
+    tester.view.physicalSize = const Size(1920, 1080);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() => tester.view.resetPhysicalSize());
+    final container = _shellContainer();
+    addTearDown(container.dispose);
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: AppShell()),
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 500));
+
+    final stops = <_Stop>[];
+    FocusNode? first;
+    for (var step = 0; step < 150; step++) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump(const Duration(milliseconds: 50));
+      final node = FocusManager.instance.primaryFocus;
+      if (node == null) continue;
+      if (first == null) {
+        first = node;
+      } else if (identical(node, first)) {
+        break;
+      }
+      stops.add(
+        _Stop(
+          stops.length + 1,
+          node.debugLabel ?? node.context?.widget.runtimeType.toString() ?? '?',
+          _labelFor(node),
+          _indicatorFor(node),
+          find.byKey(const ValueKey<String>('frame-focus-ring')).evaluate().isNotEmpty,
         ),
       );
-      await tester.pump(const Duration(milliseconds: 500));
+    }
 
-      final stops = <_Stop>[];
-      FocusNode? first;
-      for (var step = 0; step < 150; step++) {
-        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-        await tester.pump(const Duration(milliseconds: 50));
-        final node = FocusManager.instance.primaryFocus;
-        if (node == null) continue;
-        if (first == null) {
-          first = node;
-        } else if (identical(node, first)) {
-          break;
-        }
-        stops.add(
-          _Stop(
-            stops.length + 1,
-            node.debugLabel ?? node.context?.widget.runtimeType.toString() ?? '?',
-            _labelFor(node),
-            _indicatorFor(node),
-            find.byKey(const ValueKey<String>('frame-focus-ring')).evaluate().isNotEmpty,
-          ),
-        );
-      }
+    debugPrint('TAB SWEEP ${stops.length} focus stops');
+    for (final stop in stops) {
+      debugPrint('TAB SWEEP $stop');
+    }
+    expect(stops.length, greaterThanOrEqualTo(25));
+    expect(
+      stops.where((s) => !s.ok).map((s) => s.toString()).toList(),
+      isEmpty,
+      reason: 'every Tab stop needs a label and a focus indicator',
+    );
 
-      // ignore: avoid_print
-      print('TAB SWEEP ${stops.length} focus stops');
-      for (final stop in stops) {
-        // ignore: avoid_print
-        print('TAB SWEEP $stop');
-      }
-      expect(stops.length, greaterThanOrEqualTo(25));
-      expect(
-        stops.where((s) => !s.ok).map((s) => s.toString()).toList(),
-        isEmpty,
-        reason: 'every Tab stop needs a label and a focus indicator',
-      );
-
-      // The whole screen: every tappable node has a label.
-      await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
-      handle.dispose();
-      expect(tester.takeException(), isNull);
-    },
-  );
+    // The whole screen: every tappable node has a label.
+    await expectLater(tester, meetsGuideline(labeledTapTargetGuideline));
+    handle.dispose();
+    expect(tester.takeException(), isNull);
+  });
 }

@@ -1,0 +1,5 @@
+# The Flutter tool writes these generated files with LF line endings on every platform. Pin them to LF so a Windows
+# checkout (core.autocrlf=true) does not convert them, and `flutter test` / `pub get` leave the tree clean.
+apps/pi_frame/**/generated_plugin_registrant.* text eol=lf
+apps/pi_frame/**/generated_plugins.cmake text eol=lf
+apps/pi_frame/macos/Flutter/GeneratedPluginRegistrant.swift text eol=lf

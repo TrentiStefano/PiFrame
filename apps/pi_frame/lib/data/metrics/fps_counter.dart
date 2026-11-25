@@ -5,6 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'nerd_stats_settings.dart';
 
+/// Length of one frames-per-second measurement window.
+const _fpsWindowDuration = Duration(seconds: 1);
+
 class FpsNotifier extends StateNotifier<int> {
   final Ref _ref;
   Timer? _windowTimer;
@@ -19,10 +22,7 @@ class FpsNotifier extends StateNotifier<int> {
   }
 
   void _init() {
-    _ref.listen<NerdStatsSettings>(
-      nerdStatsSettingsProvider,
-      (prev, next) => _evaluateRegistration(),
-    );
+    _ref.listen<NerdStatsSettings>(nerdStatsSettingsProvider, (prev, next) => _evaluateRegistration());
     _evaluateRegistration();
   }
 
@@ -48,7 +48,7 @@ class FpsNotifier extends StateNotifier<int> {
     }
 
     _windowTimer?.cancel();
-    _windowTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+    _windowTimer = Timer.periodic(_fpsWindowDuration, (timer) {
       final currentFps = _framesInCurrentWindow;
       _framesInCurrentWindow = 0;
       if (mounted && state != currentFps) {

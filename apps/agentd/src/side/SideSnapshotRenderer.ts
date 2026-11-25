@@ -13,45 +13,55 @@ You must never attempt to modify files, run bash commands, or alter the session 
 export const DEFAULT_MAX_SNAPSHOT_CHARS = 120_000;
 export const MAX_INDIVIDUAL_TOOL_OUTPUT_CHARS = 500;
 
+/** One entry of Pi's JSON transcript. Its fields are untyped until each read narrows them. */
+export type SnapshotEntry = Record<string, unknown>;
+
 export interface RenderSnapshotOptions {
-  messages: Array<any>;
+  messages: SnapshotEntry[];
   preamble?: string;
   maxChars?: number;
 }
 
-function extractText(content: any): string {
+function isRecord(value: unknown): value is SnapshotEntry {
+  return typeof value === 'object' && value !== null;
+}
+
+function extractText(content: unknown): string {
   if (typeof content === 'string') return content;
   if (Array.isArray(content)) {
     return content
-      .filter((block) => block && (block.type === 'text' || typeof block.text === 'string'))
-      .map((block) => block.text || '')
+      .filter(
+        (block): block is SnapshotEntry => isRecord(block) && (block.type === 'text' || typeof block.text === 'string')
+      )
+      .map((block) => String(block.text || ''))
       .join('\n');
   }
   return '';
 }
 
-function extractToolSummaries(msg: any): string[] {
+function extractToolSummaries(msg: SnapshotEntry): string[] {
   const summaries: string[] = [];
-  const calls: any[] = [];
+  const calls: unknown[] = [];
 
   if (Array.isArray(msg.toolCalls)) {
     calls.push(...msg.toolCalls);
   }
   if (Array.isArray(msg.content)) {
     for (const b of msg.content) {
-      if (b && (b.type === 'toolCall' || b.type === 'tool_call')) {
+      if (isRecord(b) && (b.type === 'toolCall' || b.type === 'tool_call')) {
         calls.push(b);
       }
     }
   }
 
-  for (const call of calls) {
+  for (const rawCall of calls) {
+    const call: SnapshotEntry = isRecord(rawCall) ? rawCall : {};
     const name = call.name || call.toolName || 'tool';
     const args = call.arguments || {};
-    let target = '';
+    let target: unknown = '';
     if (typeof args === 'string') {
       target = args;
-    } else if (typeof args === 'object' && args !== null) {
+    } else if (isRecord(args)) {
       target = args.pattern || args.path || args.file || args.command || Object.values(args)[0] || '';
       if (typeof target === 'object') {
         try {
@@ -61,15 +71,15 @@ function extractToolSummaries(msg: any): string[] {
         }
       }
     }
-    summaries.push(`tool(${name}): ${target}`);
+    summaries.push(`tool(${String(name)}): ${String(target)}`);
   }
 
   return summaries;
 }
 
-export function renderMessageBlock(entry: any): string {
-  const msg = entry.message || entry;
-  const role = msg.role || 'unknown';
+export function renderMessageBlock(entry: SnapshotEntry): string {
+  const msg: SnapshotEntry = entry.message ? (isRecord(entry.message) ? entry.message : {}) : entry;
+  const role = String(msg.role || 'unknown');
 
   if (role === 'user') {
     const text = extractText(msg.content);
@@ -133,7 +143,7 @@ export function renderConversationSnapshot(opts: RenderSnapshotOptions): string 
   let currentChars = 0;
 
   for (let i = renderedBlocks.length - 1; i >= 0; i--) {
-    const block = renderedBlocks[i];
+    const block = renderedBlocks[i] ?? '';
     if (currentChars + block.length <= maxChars) {
       keptBlocks.unshift(block);
       currentChars += block.length;
@@ -185,4 +195,3 @@ export function cleanStaleSideDirs(baseDir: string): void {
     console.warn('[SideConversationManager] Failed to clean stale side directories:', err);
   }
 }
-

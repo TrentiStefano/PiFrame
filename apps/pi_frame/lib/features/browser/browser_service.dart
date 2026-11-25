@@ -1,13 +1,14 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_workspace.dart';
+import '../../data/platform/http_service.dart';
 import 'browser_models.dart';
 
 class WebBrowserService {
-  final http.Client _client;
+  final HttpService http;
 
-  WebBrowserService({http.Client? client}) : _client = client ?? http.Client();
+  WebBrowserService({required this.http});
 
   static const _tlds = {
     'com',
@@ -54,16 +55,11 @@ class WebBrowserService {
     return false;
   }
 
-  String normalizeUrl(
-    String input, {
-    SearchEngine defaultEngine = SearchEngine.duckDuckGo,
-  }) {
+  String normalizeUrl(String input, {SearchEngine defaultEngine = SearchEngine.duckDuckGo}) {
     final trimmed = input.trim();
     if (trimmed.isEmpty || trimmed == 'about:home') return 'about:home';
     if (isUrl(trimmed)) {
-      if (trimmed.startsWith('http://') ||
-          trimmed.startsWith('https://') ||
-          trimmed.startsWith('about:')) {
+      if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('about:')) {
         return trimmed;
       }
       if (trimmed.startsWith('localhost') || trimmed.startsWith('127.0.0.1')) {
@@ -85,10 +81,7 @@ class WebBrowserService {
         url: 'about:home',
         title: 'Home',
         domain: 'about:home',
-        paragraphs: [
-          strings?.browserDefaultGreeting ??
-              'Benvenuto nel browser integrato di PiFrame.',
-        ],
+        paragraphs: [strings?.browserDefaultGreeting ?? 'Welcome to the PiFrame built-in browser.'],
       );
     }
 
@@ -97,10 +90,8 @@ class WebBrowserService {
 
     final uri = Uri.parse(targetUrl);
     final headers = {
-      'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-      'Accept':
-          'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
       'Accept-Language': 'it-IT,it;q=0.9,en-US;q=0.8,en;q=0.7',
       'Sec-Ch-Ua': '"Chromium";v="124", "Google Chrome";v="124"',
       'Sec-Ch-Ua-Mobile': '?0',
@@ -112,33 +103,25 @@ class WebBrowserService {
       'Upgrade-Insecure-Requests': '1',
     };
 
-    final response = await _client
-        .get(uri, headers: headers)
-        .timeout(const Duration(seconds: 15));
+    final response = await http.get(uri, headers: headers, timeout: const Duration(seconds: 15));
 
     if (response.statusCode >= 400) {
       throw Exception('HTTP ${response.statusCode}: ${response.reasonPhrase}');
     }
 
-    String html;
-    try {
-      html = utf8.decode(response.bodyBytes, allowMalformed: true);
-    } catch (_) {
-      html = response.body;
-    }
+    final html = utf8.decode(response.bodyBytes, allowMalformed: true);
 
-    final finalUri = response.request?.url ?? uri;
+    final finalUri = response.url;
     final finalUrl = finalUri.toString();
     final domain = finalUri.host.isNotEmpty ? finalUri.host : finalUrl;
-    final title = _extractTitle(html) ??
-        (queryText != null
-            ? (strings?.browserSearchTitle(queryText) ?? 'Ricerca: $queryText')
-            : domain);
+    final title =
+        _extractTitle(html) ??
+        (queryText != null ? (strings?.browserSearchTitle(queryText) ?? 'Search: $queryText') : domain);
     final description = _extractMetaDescription(html);
     final headings = _extractHeadings(html);
     final codeSnippets = _extractCodeSnippets(html);
     final links = _extractLinks(html, finalUri);
-    final searchResults = _extractSearchResults(html, finalUri, queryText);
+    final searchResults = _extractSearchResults(html, finalUri, queryText, strings);
     final paragraphs = _extractParagraphs(html);
     final rawText = _extractReadableText(html);
 
@@ -157,11 +140,7 @@ class WebBrowserService {
   }
 
   String? _extractTitle(String html) {
-    final match = RegExp(
-      r'<title[^>]*>(.*?)</title>',
-      caseSensitive: false,
-      dotAll: true,
-    ).firstMatch(html);
+    final match = RegExp(r'<title[^>]*>(.*?)</title>', caseSensitive: false, dotAll: true).firstMatch(html);
     if (match != null) {
       return _cleanText(match.group(1) ?? '');
     }
@@ -169,21 +148,22 @@ class WebBrowserService {
   }
 
   String? _extractMetaDescription(String html) {
-    final match = RegExp(
-      r'''<meta\s+[^>]*name=["']description["'][^>]*content=["'](.*?)["']''',
-      caseSensitive: false,
-      dotAll: true,
-    ).firstMatch(html) ??
-    RegExp(
-      r'''<meta\s+[^>]*content=["'](.*?)["'][^>]*name=["']description["']''',
-      caseSensitive: false,
-      dotAll: true,
-    ).firstMatch(html) ??
-    RegExp(
-      r'''<meta\s+[^>]*property=["']og:description["'][^>]*content=["'](.*?)["']''',
-      caseSensitive: false,
-      dotAll: true,
-    ).firstMatch(html);
+    final match =
+        RegExp(
+          r'''<meta\s+[^>]*name=["']description["'][^>]*content=["'](.*?)["']''',
+          caseSensitive: false,
+          dotAll: true,
+        ).firstMatch(html) ??
+        RegExp(
+          r'''<meta\s+[^>]*content=["'](.*?)["'][^>]*name=["']description["']''',
+          caseSensitive: false,
+          dotAll: true,
+        ).firstMatch(html) ??
+        RegExp(
+          r'''<meta\s+[^>]*property=["']og:description["'][^>]*content=["'](.*?)["']''',
+          caseSensitive: false,
+          dotAll: true,
+        ).firstMatch(html);
 
     if (match != null) {
       return _cleanText(match.group(1) ?? '');
@@ -193,11 +173,7 @@ class WebBrowserService {
 
   List<String> _extractHeadings(String html) {
     final headings = <String>[];
-    final regex = RegExp(
-      r'<h[1-4][^>]*>(.*?)</h[1-4]>',
-      caseSensitive: false,
-      dotAll: true,
-    );
+    final regex = RegExp(r'<h[1-4][^>]*>(.*?)</h[1-4]>', caseSensitive: false, dotAll: true);
     for (final match in regex.allMatches(html)) {
       final text = _cleanText(match.group(1) ?? '');
       if (text.isNotEmpty && !headings.contains(text) && text.length < 150) {
@@ -210,11 +186,7 @@ class WebBrowserService {
 
   List<String> _extractCodeSnippets(String html) {
     final codeSnippets = <String>[];
-    final regex = RegExp(
-      r'<pre[^>]*><code[^>]*>(.*?)</code></pre>',
-      caseSensitive: false,
-      dotAll: true,
-    );
+    final regex = RegExp(r'<pre[^>]*><code[^>]*>(.*?)</code></pre>', caseSensitive: false, dotAll: true);
     for (final match in regex.allMatches(html)) {
       final text = _cleanHtmlEntities(match.group(1) ?? '').trim();
       if (text.isNotEmpty && !codeSnippets.contains(text)) {
@@ -227,11 +199,7 @@ class WebBrowserService {
 
   List<WebLink> _extractLinks(String html, Uri baseUri) {
     final links = <WebLink>[];
-    final regex = RegExp(
-      r'''<a\s+[^>]*href=["']([^"'#]+)["'][^>]*>(.*?)</a>''',
-      caseSensitive: false,
-      dotAll: true,
-    );
+    final regex = RegExp(r'''<a\s+[^>]*href=["']([^"'#]+)["'][^>]*>(.*?)</a>''', caseSensitive: false, dotAll: true);
     for (final match in regex.allMatches(html)) {
       final href = match.group(1) ?? '';
       final text = _cleanText(match.group(2) ?? '');
@@ -257,7 +225,8 @@ class WebBrowserService {
     return links;
   }
 
-  List<WebSearchResult> _extractSearchResults(String html, Uri baseUri, String? query) {
+  List<WebSearchResult> _extractSearchResults(String html, Uri baseUri, String? query, [AppStrings? strings]) {
+    final s = strings ?? const AppStrings(AppLanguage.defaultLanguage);
     final results = <WebSearchResult>[];
 
     // 1. DuckDuckGo HTML search results
@@ -288,7 +257,7 @@ class WebBrowserService {
             WebSearchResult(
               title: title,
               url: actualUrl,
-              snippet: snippet.isNotEmpty ? snippet : 'Risultato DuckDuckGo per "${query ?? ''}"',
+              snippet: snippet.isNotEmpty ? snippet : s.browserDuckDuckGoResult(query ?? ''),
               domain: Uri.tryParse(actualUrl)?.host ?? '',
             ),
           );
@@ -325,14 +294,7 @@ class WebBrowserService {
         final title = _cleanText(match.group(2) ?? '');
         final snippet = _cleanText(match.group(3) ?? '');
         final actualUrl = baseUri.resolve(relHref).toString();
-        results.add(
-          WebSearchResult(
-            title: title,
-            url: actualUrl,
-            snippet: snippet,
-            domain: 'en.wikipedia.org',
-          ),
-        );
+        results.add(WebSearchResult(title: title, url: actualUrl, snippet: snippet, domain: 'en.wikipedia.org'));
         if (results.length >= 15) break;
       }
     }
@@ -375,16 +337,14 @@ class WebBrowserService {
       for (final match in h3Matches) {
         final href = match.group(1) ?? '';
         final title = _cleanText(match.group(2) ?? '');
-        final resolved = Uri.tryParse(href)?.isAbsolute == true
-            ? href
-            : baseUri.resolve(href).toString();
+        final resolved = Uri.tryParse(href)?.isAbsolute == true ? href : baseUri.resolve(href).toString();
         final linkUri = Uri.tryParse(resolved);
         if (linkUri != null && title.isNotEmpty && !results.any((r) => r.url == resolved)) {
           results.add(
             WebSearchResult(
               title: title,
               url: resolved,
-              snippet: 'Risultato da ${linkUri.host}',
+              snippet: s.browserResultFrom(linkUri.host),
               domain: linkUri.host,
             ),
           );
@@ -403,7 +363,7 @@ class WebBrowserService {
             WebSearchResult(
               title: link.text,
               url: link.url,
-              snippet: 'Risultato correlato per "$query" da ${linkUri.host}',
+              snippet: s.browserRelatedResult(query, linkUri.host),
               domain: linkUri.host,
             ),
           );
@@ -430,11 +390,7 @@ class WebBrowserService {
 
   List<String> _extractParagraphs(String html) {
     final paragraphs = <String>[];
-    final regex = RegExp(
-      r'<p[^>]*>(.*?)</p>',
-      caseSensitive: false,
-      dotAll: true,
-    );
+    final regex = RegExp(r'<p[^>]*>(.*?)</p>', caseSensitive: false, dotAll: true);
     for (final match in regex.allMatches(html)) {
       final text = _cleanText(match.group(1) ?? '');
       if (text.length > 20 &&
@@ -482,10 +438,7 @@ class WebBrowserService {
   }
 
   String _cleanText(String input) {
-    return _cleanHtmlEntities(input)
-        .replaceAll(RegExp(r'<[^>]*>'), ' ')
-        .replaceAll(RegExp(r'\s+'), ' ')
-        .trim();
+    return _cleanHtmlEntities(input).replaceAll(RegExp(r'<[^>]*>'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
   }
 
   String _cleanHtmlEntities(String input) {

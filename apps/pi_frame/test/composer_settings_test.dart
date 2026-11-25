@@ -34,8 +34,8 @@ void main() {
       expect(ComposerSettings.fromJson({'sendWithEnter': 'true'}).sendWithEnter, isFalse);
       expect(ComposerSettings.fromJson({'sendWithEnter': 1}).sendWithEnter, isFalse);
       expect(ComposerSettings.fromJson({'sendWithEnter': 0}).sendWithEnter, isFalse);
-      expect(ComposerSettings.fromJson({'sendWithEnter': []}).sendWithEnter, isFalse);
-      expect(ComposerSettings.fromJson({'sendWithEnter': {}}).sendWithEnter, isFalse);
+      expect(ComposerSettings.fromJson({'sendWithEnter': <dynamic>[]}).sendWithEnter, isFalse);
+      expect(ComposerSettings.fromJson({'sendWithEnter': <String, dynamic>{}}).sendWithEnter, isFalse);
       expect(ComposerSettings.fromJson({'otherKey': 'val'}).sendWithEnter, isFalse);
     });
 

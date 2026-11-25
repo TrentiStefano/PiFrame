@@ -1,9 +1,9 @@
 import test from 'node:test';
 import * as assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { Connection } from '../connection.js';
+import { Connection, type ConnectionSocket } from '../connection.js';
 
-class MockWebSocket extends EventEmitter {
+class MockWebSocket extends EventEmitter implements ConnectionSocket {
   public readyState = 1; // WebSocket.OPEN
   public sentMessages: string[] = [];
   public closedCode?: number;
@@ -26,14 +26,16 @@ test('Connection: closes with 4003 if token is invalid', () => {
   const ws = new MockWebSocket();
   let closed = false;
 
-  const conn = new Connection({
-    ws: ws as any,
+  new Connection({
+    ws,
     expectedToken: 'secret_valid_token',
     daemonVersion: '0.1.0',
     startedAt: Date.now(),
     piInfo: { path: 'pi', version: '0.85.1', supported: true },
     onCommand: async () => {},
-    onClose: () => { closed = true; }
+    onClose: () => {
+      closed = true;
+    }
   });
 
   // Client sends hello with wrong token
@@ -69,7 +71,7 @@ test('Connection: authenticates successfully and sends welcome frame', () => {
   const token = 'correct_token_12345';
 
   const conn = new Connection({
-    ws: ws as any,
+    ws,
     expectedToken: token,
     daemonVersion: '0.1.0',
     startedAt: Date.now(),
@@ -103,7 +105,7 @@ test('Connection: authenticates successfully and sends welcome frame', () => {
 
   assert.equal(conn.state, 'ready');
   assert.ok(ws.sentMessages.length >= 1);
-  const welcome = JSON.parse(ws.sentMessages[0]);
+  const welcome = JSON.parse(ws.sentMessages[0]!);
   assert.equal(welcome.kind, 'welcome');
   assert.equal(welcome.payload.daemon.version, '0.1.0');
   assert.equal(welcome.payload.pi.version, '0.85.1');
@@ -118,15 +120,27 @@ function frame(value: Record<string, unknown>): Buffer {
 function readyConnection() {
   const ws = new MockWebSocket();
   const conn = new Connection({
-    ws: ws as any, expectedToken: 'tok', daemonVersion: '0.1.0', startedAt: Date.now(),
-    piInfo: { path: 'pi', version: '0.85.1', supported: true }, onCommand: async () => {}, onClose: () => {},
+    ws,
+    expectedToken: 'tok',
+    daemonVersion: '0.1.0',
+    startedAt: Date.now(),
+    piInfo: { path: 'pi', version: '0.85.1', supported: true },
+    onCommand: async () => {},
+    onClose: () => {}
   });
   return { ws, conn };
 }
 
 const hello = frame({
-  kind: 'hello', id: 'h', type: 'connection.hello',
-  payload: { token: 'tok', client: { name: 't', version: '1', platform: 'desktop' }, encoding: 'json', capabilities: [] },
+  kind: 'hello',
+  id: 'h',
+  type: 'connection.hello',
+  payload: {
+    token: 'tok',
+    client: { name: 't', version: '1', platform: 'desktop' },
+    encoding: 'json',
+    capabilities: []
+  }
 });
 
 // Timers are mocked, setImmediate is real: it models the socket reads that run after a late timer.

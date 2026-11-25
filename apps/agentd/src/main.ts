@@ -1,4 +1,3 @@
-import * as http from 'node:http';
 import * as path from 'node:path';
 import { acquireSingleInstanceLock } from './config/lock.js';
 import { loadConfig } from './config/config.js';
@@ -39,7 +38,9 @@ async function main() {
 
   // 3. Discover Pi installation and capabilities
   const piInstall = await discoverPi(config.piPath);
-  console.log(`[agentd] Pi discovery result: found=${piInstall.found}, version=${piInstall.version || 'none'}, supported=${piInstall.supported}`);
+  console.log(
+    `[agentd] Pi discovery result: found=${piInstall.found}, version=${piInstall.version || 'none'}, supported=${piInstall.supported}`
+  );
   if (piInstall.path) {
     console.log(`[agentd] Using Pi executable: ${piInstall.path}`);
   }
@@ -61,7 +62,7 @@ async function main() {
   // Read cli args for optional --port
   const portArgIdx = process.argv.indexOf('--port');
   if (portArgIdx !== -1 && process.argv[portArgIdx + 1]) {
-    port = parseInt(process.argv[portArgIdx + 1], 10) || 0;
+    port = parseInt(process.argv[portArgIdx + 1] ?? '', 10) || 0;
   }
 
   const remoteManager = new RemoteManager(config);
@@ -84,7 +85,8 @@ async function main() {
     httpServer.on('error', reject);
   });
 
-  const boundAddr = httpServer.address() as any;
+  const boundAddr = httpServer.address();
+  if (!boundAddr || typeof boundAddr === 'string') throw new Error('Local HTTP server has no TCP address');
   const actualPort = boundAddr.port;
   console.log(`[agentd] Local HTTP/WS server bound strictly to 127.0.0.1:${actualPort}`);
 
@@ -105,7 +107,10 @@ async function main() {
     remoteHttpServer.on('error', reject);
   });
 
-  const remoteBoundAddr = remoteHttpServer.address() as any;
+  const remoteBoundAddr = remoteHttpServer.address();
+  if (!remoteBoundAddr || typeof remoteBoundAddr === 'string') {
+    throw new Error('Remote HTTP server has no TCP address');
+  }
   const actualRemotePort = remoteBoundAddr.port;
   console.log(`[agentd] Dedicated remote listener bound to 127.0.0.1:${actualRemotePort}`);
   remoteManager.setListenerPort(actualRemotePort);

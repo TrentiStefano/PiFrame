@@ -27,13 +27,7 @@ class ToolExecutionState {
     return elapsed < 0 ? 0 : elapsed;
   }
 
-  ToolExecutionState copyWith({
-    String? output,
-    bool? isRunning,
-    bool? isError,
-    int? durationMs,
-    int? startedAt,
-  }) {
+  ToolExecutionState copyWith({String? output, bool? isRunning, bool? isError, int? durationMs, int? startedAt}) {
     return ToolExecutionState(
       toolCallId: toolCallId,
       toolName: toolName,
@@ -107,13 +101,12 @@ class SessionEntry {
 
   /// Tool calls that ran after [text]; an assistant text is final only if
   /// this is empty.
-  List<ToolExecutionState> get toolCallsAfterText =>
-      toolCalls.sublist(toolCallsBeforeText);
+  List<ToolExecutionState> get toolCallsAfterText => toolCalls.sublist(toolCallsBeforeText);
 }
 
 /// Returns the turn-ending metadata (`stopReason`, `errorMessage`) of an
 /// assistant [message] that ended in error or was aborted, or null.
-Map<String, dynamic>? terminalStopMetadata(Map message) {
+Map<String, dynamic>? terminalStopMetadata(Map<String, dynamic> message) {
   final stopReason = message['stopReason']?.toString();
   if (stopReason != 'error' && stopReason != 'aborted') return null;
   final errorMessage = message['errorMessage']?.toString();
@@ -126,28 +119,19 @@ Map<String, dynamic>? terminalStopMetadata(Map message) {
 /// With a previous assistant entry the stop is kept on it. A provider error
 /// that ends the turn before any reply marks the user message as failed, so the
 /// transcript shows the error and a retry instead of a silent missing reply.
-List<SessionEntry>? applyTerminalStop(
-  List<SessionEntry> entries,
-  Map<String, dynamic> terminal,
-) {
+List<SessionEntry>? applyTerminalStop(List<SessionEntry> entries, Map<String, dynamic> terminal) {
   if (entries.isEmpty) return null;
   final last = entries.last;
   if (last.role == 'assistant') {
     return List<SessionEntry>.from(entries)
-      ..[entries.length - 1] = last.copyWith(
-        metadata: {...?last.metadata, ...terminal},
-      );
+      ..[entries.length - 1] = last.copyWith(metadata: {...?last.metadata, ...terminal});
   }
   final error = terminal['errorMessage']?.toString() ?? '';
-  if (last.role != 'user' ||
-      terminal['stopReason'] != 'error' ||
-      error.isEmpty) {
+  if (last.role != 'user' || terminal['stopReason'] != 'error' || error.isEmpty) {
     return null;
   }
   return List<SessionEntry>.from(entries)
-    ..[entries.length - 1] = last.copyWith(
-      metadata: {...?last.metadata, 'sendError': error},
-    );
+    ..[entries.length - 1] = last.copyWith(metadata: {...?last.metadata, 'sendError': error});
 }
 
 /// Metadata key that records how many leading tool calls precede the text.
@@ -160,10 +144,7 @@ const toolsBeforeTextKey = 'toolsBeforeText';
 /// The merged entry records in [toolsBeforeTextKey] that the tool calls of
 /// [prev] ran before the text, so step grouping can keep the chronological
 /// order and still recognise the text as the final answer.
-SessionEntry mergeTextIntoTextlessAssistant(
-  SessionEntry prev,
-  SessionEntry entry,
-) {
+SessionEntry mergeTextIntoTextlessAssistant(SessionEntry prev, SessionEntry entry) {
   final mergedTools = List<ToolExecutionState>.from(prev.toolCalls);
   for (final t in entry.toolCalls) {
     if (!mergedTools.any((e) => e.toolCallId == t.toolCallId)) {
@@ -172,10 +153,7 @@ SessionEntry mergeTextIntoTextlessAssistant(
   }
   final prevThinking = prev.thinking?.trim();
   final entryThinking = entry.thinking?.trim();
-  final combinedThinking =
-      prevThinking != null &&
-          entryThinking != null &&
-          prevThinking != entryThinking
+  final combinedThinking = prevThinking != null && entryThinking != null && prevThinking != entryThinking
       ? '$prevThinking\n\n$entryThinking'
       : (prevThinking ?? entryThinking);
   return SessionEntry(
@@ -185,11 +163,7 @@ SessionEntry mergeTextIntoTextlessAssistant(
     thinking: combinedThinking,
     toolCalls: mergedTools,
     timestamp: prev.timestamp,
-    metadata: {
-      ...?prev.metadata,
-      ...?entry.metadata,
-      toolsBeforeTextKey: prev.toolCalls.length,
-    },
+    metadata: {...?prev.metadata, ...?entry.metadata, toolsBeforeTextKey: prev.toolCalls.length},
   );
 }
 
@@ -201,17 +175,8 @@ bool isInternalOrJunkMessageText(String text) {
     return true;
   }
   // 3. Git CRLF replacement warnings
-  final lines = trimmed
-      .split('\n')
-      .map((l) => l.trim())
-      .where((l) => l.isNotEmpty)
-      .toList();
-  if (lines.isNotEmpty &&
-      lines.every(
-        (l) =>
-            l.startsWith('warning:') &&
-            l.contains('LF will be replaced by CRLF'),
-      )) {
+  final lines = trimmed.split('\n').map((l) => l.trim()).where((l) => l.isNotEmpty).toList();
+  if (lines.isNotEmpty && lines.every((l) => l.startsWith('warning:') && l.contains('LF will be replaced by CRLF'))) {
     return true;
   }
   return false;
@@ -284,16 +249,13 @@ class SessionState {
 
   bool matchesModel(Map<String, dynamic> model) {
     final provider = currentModelProvider;
-    if (provider != null &&
-        provider.isNotEmpty &&
-        model['provider']?.toString() != provider) {
+    if (provider != null && provider.isNotEmpty && model['provider']?.toString() != provider) {
       return false;
     }
     if (currentModelId != null) {
       return model['id']?.toString() == currentModelId;
     }
-    return model['id']?.toString() == currentModel ||
-        model['name']?.toString() == currentModel;
+    return model['id']?.toString() == currentModel || model['name']?.toString() == currentModel;
   }
 
   bool get isStreaming =>
@@ -343,8 +305,7 @@ class SessionState {
       runStartedAt: clearRunStartedAt ? null : (runStartedAt ?? this.runStartedAt),
       entries: entries ?? this.entries,
       streamingTextBlocks: streamingTextBlocks ?? this.streamingTextBlocks,
-      streamingThinkingBlocks:
-          streamingThinkingBlocks ?? this.streamingThinkingBlocks,
+      streamingThinkingBlocks: streamingThinkingBlocks ?? this.streamingThinkingBlocks,
       activeToolCalls: activeToolCalls ?? this.activeToolCalls,
       toolOutputs: toolOutputs ?? this.toolOutputs,
       steeringQueue: steeringQueue ?? this.steeringQueue,
@@ -357,16 +318,12 @@ class SessionState {
       usage: usage ?? this.usage,
       sessionStats: sessionStats ?? this.sessionStats,
       extensionStatuses: extensionStatuses ?? this.extensionStatuses,
-      contextWindowOverride: clearContextWindowOverride
-          ? null
-          : contextWindowOverride ?? this.contextWindowOverride,
-      compactionReservePercent:
-          compactionReservePercent ?? this.compactionReservePercent,
+      contextWindowOverride: clearContextWindowOverride ? null : contextWindowOverride ?? this.contextWindowOverride,
+      compactionReservePercent: compactionReservePercent ?? this.compactionReservePercent,
       autoCompaction: autoCompaction ?? this.autoCompaction,
       lastAppliedSeq: lastAppliedSeq ?? this.lastAppliedSeq,
       hasMoreHistory: hasMoreHistory ?? this.hasMoreHistory,
-      totalTranscriptEntries:
-          totalTranscriptEntries ?? this.totalTranscriptEntries,
+      totalTranscriptEntries: totalTranscriptEntries ?? this.totalTranscriptEntries,
     );
   }
 }

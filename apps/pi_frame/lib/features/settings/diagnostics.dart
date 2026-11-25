@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
-import '../../app/app_version.dart';
+import '../../data/runtime/app_version.dart';
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/daemon/pcp_client.dart';
 import '../../data/language/language_settings.dart';
@@ -55,10 +55,7 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
         'app': {'name': 'PiFrame', 'version': piFrameVersion, 'protocol': 1},
         'daemon': {
           'status': client?.state.toString() ?? 'unknown',
-          'config': {
-            'workerIdleTimeoutMs':
-                daemonHealth['workerIdleTimeoutMs'] ?? 1800000,
-          },
+          'config': {'workerIdleTimeoutMs': daemonHealth['workerIdleTimeoutMs'] ?? 1800000},
           'token': '[REDACTED]',
         },
         'environment': {
@@ -105,9 +102,7 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final strings = ref.watch(appStringsProvider);
-    final connState =
-        ref.watch(connectionStateProvider).value ??
-        DaemonConnectionState.disconnected;
+    final connState = ref.watch(connectionStateProvider).value ?? DaemonConnectionState.disconnected;
     final sessions = ref.watch(sessionListProvider).value ?? [];
     final fixtureLabel = ref.watch(diagnosticsFixtureLabelProvider);
 
@@ -129,15 +124,9 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
           const SizedBox(height: FrameSpace.x4),
         ],
         // Title & description
-        Text(
-          strings.diagTitle,
-          style: text.title.copyWith(color: tokens.textPrimary),
-        ),
+        Text(strings.diagTitle, style: text.title.copyWith(color: tokens.textPrimary)),
         const SizedBox(height: FrameSpace.x2),
-        Text(
-          strings.diagSubtitle,
-          style: text.body.copyWith(color: tokens.textSecondary),
-        ),
+        Text(strings.diagSubtitle, style: text.body.copyWith(color: tokens.textSecondary)),
         const SizedBox(height: FrameSpace.x6),
 
         // System state card
@@ -157,21 +146,9 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
                   _ => FrameStatusTone.warning,
                 },
               ),
-              _buildMetricRow(
-                strings.diagAppVersionLabel,
-                'v$piFrameVersion',
-                tokens,
-              ),
-              _buildMetricRow(
-                strings.diagPcpProtocol,
-                'PCP/1 (JSON over WebSocket)',
-                tokens,
-              ),
-              _buildMetricRow(
-                strings.diagArchivedSessions,
-                '${sessions.length}',
-                tokens,
-              ),
+              _buildMetricRow(strings.diagAppVersionLabel, 'v$piFrameVersion', tokens),
+              _buildMetricRow(strings.diagPcpProtocol, 'PCP/1 (JSON over WebSocket)', tokens),
+              _buildMetricRow(strings.diagArchivedSessions, '${sessions.length}', tokens),
               _buildMetricRow(
                 strings.diagRemoteTelemetry,
                 strings.diagTelemetryDisabled,
@@ -197,22 +174,12 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
                   key: const ValueKey('diagnostics-copy-bundle-btn'),
                   style: FilledButton.styleFrom(
                     minimumSize: const Size(0, FrameSize.rowForm),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: FrameSpace.x4,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x4),
                   ),
                   icon: _isExporting
-                      ? FrameActivityIndicator(
-                          size: FrameSize.icon,
-                          strokeWidth: 2,
-                          color: tokens.accentContrast,
-                        )
+                      ? FrameActivityIndicator(size: FrameSize.icon, strokeWidth: 2, color: tokens.accentContrast)
                       : const Icon(Icons.copy_outlined, size: FrameSize.icon),
-                  label: Text(
-                    _isExporting
-                        ? strings.diagGenerating
-                        : strings.diagCopyBundleBtn,
-                  ),
+                  label: Text(_isExporting ? strings.diagGenerating : strings.diagCopyBundleBtn),
                   onPressed: _isExporting ? null : _exportBundle,
                 ),
               ),
@@ -220,17 +187,10 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
                 const SizedBox(height: FrameSpace.x2 + 2),
                 Row(
                   children: [
-                    Icon(
-                      Icons.check_circle_outlined,
-                      size: FrameSize.icon,
-                      color: tokens.agentSettled,
-                    ),
+                    Icon(Icons.check_circle_outlined, size: FrameSize.icon, color: tokens.agentSettled),
                     const SizedBox(width: FrameSpace.x2),
                     Expanded(
-                      child: Text(
-                        _exportSuccess!,
-                        style: text.caption.copyWith(color: tokens.textPrimary),
-                      ),
+                      child: Text(_exportSuccess!, style: text.caption.copyWith(color: tokens.textPrimary)),
                     ),
                   ],
                 ),
@@ -247,18 +207,9 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                strings.privacyCardContent,
-                style: text.body.copyWith(color: tokens.textPrimary),
-              ),
+              Text(strings.privacyCardContent, style: text.body.copyWith(color: tokens.textPrimary)),
               const SizedBox(height: FrameSpace.x2),
-              Text(
-                strings.privacyBulletPoints,
-                style: text.caption.copyWith(
-                  color: tokens.textSecondary,
-                  height: 1.6,
-                ),
-              ),
+              Text(strings.privacyBulletPoints, style: text.caption.copyWith(color: tokens.textSecondary, height: 1.6)),
             ],
           ),
         ),
@@ -266,31 +217,18 @@ class _DiagnosticsSectionState extends ConsumerState<DiagnosticsSection> {
     );
   }
 
-  Widget _buildMetricRow(
-    String label,
-    String value,
-    FrameTokens tokens, {
-    FrameStatusTone? tone,
-  }) {
+  Widget _buildMetricRow(String label, String value, FrameTokens tokens, {FrameStatusTone? tone}) {
     final text = FrameText.fromTokens(tokens);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: FrameSpace.x1),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final labelWidget = Text(
-            label,
-            style: text.body.copyWith(color: tokens.textSecondary),
-          );
+          final labelWidget = Text(label, style: text.body.copyWith(color: tokens.textSecondary));
           final valueText = Text(
             value,
-            style: text.body.copyWith(
-              color: tokens.textPrimary,
-              fontWeight: FontWeight.w600,
-            ),
+            style: text.body.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.w600),
           );
-          final valueWidget = tone == null
-              ? valueText
-              : FrameStatusTag(label: value, tone: tone);
+          final valueWidget = tone == null ? valueText : FrameStatusTag(label: value, tone: tone);
           if (constraints.maxWidth < 520) {
             return Padding(
               padding: const EdgeInsets.only(bottom: FrameSpace.x2),

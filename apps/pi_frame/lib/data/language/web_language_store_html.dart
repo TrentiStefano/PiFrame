@@ -1,5 +1,4 @@
-// ignore_for_file: deprecated_member_use, avoid_web_libraries_in_flutter
-import 'dart:html' as html;
+import 'package:web/web.dart' as web;
 
 const _key = 'piframe.language';
 
@@ -7,7 +6,7 @@ const _key = 'piframe.language';
 /// ~/.piframe, so the language choice lives in the browser's localStorage.
 String? readWebLanguage() {
   try {
-    final value = html.window.localStorage[_key];
+    final value = web.window.localStorage.getItem(_key);
     return (value == null || value.isEmpty) ? null : value;
   } catch (_) {
     return null;
@@ -16,13 +15,15 @@ String? readWebLanguage() {
 
 void writeWebLanguage(String code) {
   try {
-    html.window.localStorage[_key] = code;
+    web.window.localStorage.setItem(_key, code);
   } catch (_) {}
 }
 
-String? browserLanguage() {
+/// The browser's preferred language (`navigator.language`, such as `it-IT`), or null when it gives none.
+String? readBrowserLanguage() {
   try {
-    return html.window.navigator.language;
+    final value = web.window.navigator.language;
+    return value.isEmpty ? null : value;
   } catch (_) {
     return null;
   }

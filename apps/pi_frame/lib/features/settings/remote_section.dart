@@ -1,4 +1,5 @@
 import '../../domain/errors/user_facing_error.dart';
+import '../../data/errors/user_facing_error_mapping.dart';
 import '../../ui/frame_activity_indicator.dart';
 import '../../ui/frame_callout.dart';
 import '../../ui/frame_dialog.dart';
@@ -11,14 +12,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:pi_frame_protocol/pi_frame_protocol.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_errors.dart';
 import '../../data/language/strings_settings.dart';
+import '../../data/platform/link_service.dart';
 import '../../ui/frame_snack_bar.dart';
 import '../../ui/precision.dart';
 
@@ -28,6 +30,9 @@ class RemoteSection extends ConsumerStatefulWidget {
   @override
   ConsumerState<RemoteSection> createState() => _RemoteSectionState();
 }
+
+/// One tick of the pairing-code countdown, which counts the code expiry down in whole seconds.
+const _pairingCountdownTickInterval = Duration(seconds: 1);
 
 class _RemoteSectionState extends ConsumerState<RemoteSection> {
   /// Keeps [e] as a mapped error for the callout. [title] is its context line.
@@ -65,7 +70,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
   List<Map<String, dynamic>> _devices = [];
 
   Timer? _countdownTimer;
-  StreamSubscription? _eventSub;
+  StreamSubscription<PcpEvent>? _eventSub;
 
   final _customUrlController = TextEditingController();
   final _customCommandController = TextEditingController();
@@ -73,13 +78,13 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
   @override
   void initState() {
     super.initState();
-    _fetchStatus();
+    unawaited(_fetchStatus());
     _subscribeEvents();
   }
 
   void _startCountdownIfNeeded() {
     if (_countdownTimer != null || _pairingExpiresAt == null) return;
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+    _countdownTimer = Timer.periodic(_pairingCountdownTickInterval, (_) {
       if (!mounted) return;
       if (_pairingExpiresAt != null) {
         setState(() {});
@@ -93,7 +98,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
   @override
   void dispose() {
     _countdownTimer?.cancel();
-    _eventSub?.cancel();
+    unawaited(_eventSub?.cancel());
     _customUrlController.dispose();
     _customCommandController.dispose();
     _tailscaleHostnameController.dispose();
@@ -126,8 +131,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
         _tailscaleRunning = ts['running'] as bool? ?? false;
         _tailscaleHostname = ts['hostname'] as String?;
         _tailscaleDomain = ts['domain'] as String?;
-        if (_tailscaleHostname != null &&
-            _tailscaleHostnameController.text.isEmpty) {
+        if (_tailscaleHostname != null && _tailscaleHostnameController.text.isEmpty) {
           _tailscaleHostnameController.text = _tailscaleHostname!;
         }
       }
@@ -148,9 +152,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
       }
 
       final devs = data['devices'] as List?;
-      _devices = devs != null
-          ? devs.map((d) => Map<String, dynamic>.from(d as Map)).toList()
-          : [];
+      _devices = devs != null ? devs.map((d) => Map<String, dynamic>.from(d as Map)).toList() : [];
       _isLoading = false;
     });
   }
@@ -188,8 +190,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
     try {
       final res = await client.installCloudflared();
       final data = res['data'] as Map<String, dynamic>? ?? res;
-      final installedPath =
-          data['path'] as String? ?? '~/.piframe/bin/cloudflared';
+      final installedPath = data['path'] as String? ?? '~/.piframe/bin/cloudflared';
       if (mounted) {
         final strings = ref.read(appStringsProvider);
         final tokens = context.tokens;
@@ -203,12 +204,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
     } catch (e) {
       if (mounted) {
         final strings = ref.read(appStringsProvider);
-        setState(
-          () => _showError(
-            e,
-            title: strings.remoteInstallFailedTitle('cloudflared'),
-          ),
-        );
+        setState(() => _showError(e, title: strings.remoteInstallFailedTitle('cloudflared')));
       }
     } finally {
       if (mounted) {
@@ -234,9 +230,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
         final tokens = context.tokens;
         FrameSnackBar.show(
           context,
-          message:
-              data['message'] as String? ??
-              strings.remoteTailscaleInstallDefaultToast,
+          message: data['message'] as String? ?? strings.remoteTailscaleInstallDefaultToast,
           backgroundColor: tokens.accent,
         );
       }
@@ -244,12 +238,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
     } catch (e) {
       if (mounted) {
         final strings = ref.read(appStringsProvider);
-        setState(
-          () => _showError(
-            e,
-            title: strings.remoteInstallFailedTitle('Tailscale'),
-          ),
-        );
+        setState(() => _showError(e, title: strings.remoteInstallFailedTitle('Tailscale')));
       }
     } finally {
       if (mounted) {
@@ -276,9 +265,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
         final tokens = context.tokens;
         FrameSnackBar.show(
           context,
-          message: strings.remoteTailscaleDomainUpdatedToast(
-            data['domain']?.toString() ?? text,
-          ),
+          message: strings.remoteTailscaleDomainUpdatedToast(data['domain']?.toString() ?? text),
           backgroundColor: tokens.success,
         );
       }
@@ -307,11 +294,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
           title: strings.remoteTailscaleMissingDialogTitle,
           body: Text(strings.remoteTailscaleMissingDialogContent),
           actions: [
-            FrameDialogAction(
-              label: strings.cancel,
-              role: FrameDialogActionRole.cancel,
-              value: false,
-            ),
+            FrameDialogAction(label: strings.cancel, role: FrameDialogActionRole.cancel, value: false),
             FrameDialogAction(
               label: strings.remoteInstallTailscaleBtn,
               role: FrameDialogActionRole.primary,
@@ -334,11 +317,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
           title: strings.remoteCloudflaredMissingDialogTitle,
           body: Text(strings.remoteCloudflaredMissingDialogContent),
           actions: [
-            FrameDialogAction(
-              label: strings.cancel,
-              role: FrameDialogActionRole.cancel,
-              value: false,
-            ),
+            FrameDialogAction(label: strings.cancel, role: FrameDialogActionRole.cancel, value: false),
             FrameDialogAction(
               label: strings.remoteInstallAndStartBtn,
               role: FrameDialogActionRole.primary,
@@ -366,12 +345,8 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
           tunnelProvider: _tunnelProvider,
           customUrl: _tunnelProvider == 'tailscale'
               ? (_tailscaleDomain != null ? 'https://$_tailscaleDomain' : null)
-              : (_customUrlController.text.trim().isEmpty
-                    ? null
-                    : _customUrlController.text.trim()),
-          customCommand: _customCommandController.text.trim().isEmpty
-              ? null
-              : _customCommandController.text.trim(),
+              : (_customUrlController.text.trim().isEmpty ? null : _customUrlController.text.trim()),
+          customCommand: _customCommandController.text.trim().isEmpty ? null : _customCommandController.text.trim(),
         );
         final data = res['data'] as Map<String, dynamic>? ?? res;
         _applyStatusData(data);
@@ -417,16 +392,8 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
         title: strings.remoteRevokeDeviceDialogTitle,
         body: Text(strings.remoteRevokeDeviceDialogContent(name)),
         actions: [
-          FrameDialogAction(
-            label: strings.cancel,
-            role: FrameDialogActionRole.cancel,
-            value: false,
-          ),
-          FrameDialogAction(
-            label: strings.remoteRevokeBtn,
-            role: FrameDialogActionRole.destructive,
-            value: true,
-          ),
+          FrameDialogAction(label: strings.cancel, role: FrameDialogActionRole.cancel, value: false),
+          FrameDialogAction(label: strings.remoteRevokeBtn, role: FrameDialogActionRole.destructive, value: true),
         ],
       ),
     );
@@ -451,16 +418,8 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
         title: strings.remoteRevokeAllDialogTitle,
         body: Text(strings.remoteRevokeAllDialogContent),
         actions: [
-          FrameDialogAction(
-            label: strings.cancel,
-            role: FrameDialogActionRole.cancel,
-            value: false,
-          ),
-          FrameDialogAction(
-            label: strings.remoteRevokeAllBtn,
-            role: FrameDialogActionRole.destructive,
-            value: true,
-          ),
+          FrameDialogAction(label: strings.cancel, role: FrameDialogActionRole.cancel, value: false),
+          FrameDialogAction(label: strings.remoteRevokeAllBtn, role: FrameDialogActionRole.destructive, value: true),
         ],
       ),
     );
@@ -489,12 +448,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
     }
   }
 
-  Future<void> _changeDeviceMode(
-    String deviceId,
-    String currentMode,
-    String newMode,
-    String deviceName,
-  ) async {
+  Future<void> _changeDeviceMode(String deviceId, String currentMode, String newMode, String deviceName) async {
     if (newMode == currentMode) return;
 
     if (newMode == 'control') {
@@ -505,11 +459,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
           title: strings.remoteControlConfirmTitle,
           body: Text(strings.remoteControlConfirmContent(deviceName)),
           actions: [
-            FrameDialogAction(
-              label: strings.cancel,
-              role: FrameDialogActionRole.cancel,
-              value: false,
-            ),
+            FrameDialogAction(label: strings.cancel, role: FrameDialogActionRole.cancel, value: false),
             FrameDialogAction(
               label: strings.remoteGrantControlBtn,
               role: FrameDialogActionRole.destructive,
@@ -548,17 +498,11 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
     final strings = ref.watch(appStringsProvider);
     // A missing optional binary is informational while remote access is off,
     // and only needs attention once remote access is on.
-    final missingBinaryTone = _enabled
-        ? FrameCalloutTone.warning
-        : FrameCalloutTone.info;
+    final missingBinaryTone = _enabled ? FrameCalloutTone.warning : FrameCalloutTone.info;
 
     if (_isLoading) {
       return Center(
-        child: FrameActivityIndicator(
-          size: FrameSize.iconLg,
-          strokeWidth: 2,
-          color: tokens.accent,
-        ),
+        child: FrameActivityIndicator(size: FrameSize.iconLg, strokeWidth: 2, color: tokens.accent),
       );
     }
 
@@ -571,25 +515,15 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              Icons.phonelink_ring_outlined,
-              size: FrameSize.iconLg,
-              color: tokens.accent,
-            ),
+            Icon(Icons.phonelink_ring_outlined, size: FrameSize.iconLg, color: tokens.accent),
             const SizedBox(width: FrameSpace.x3),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    strings.remoteTitle,
-                    style: text.title.copyWith(color: tokens.textPrimary),
-                  ),
+                  Text(strings.remoteTitle, style: text.title.copyWith(color: tokens.textPrimary)),
                   const SizedBox(height: FrameSpace.x1),
-                  Text(
-                    strings.remoteSubtitle,
-                    style: text.body.copyWith(color: tokens.textSecondary),
-                  ),
+                  Text(strings.remoteSubtitle, style: text.body.copyWith(color: tokens.textSecondary)),
                 ],
               ),
             ),
@@ -612,17 +546,12 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
         // Main toggle
         FrameSection(
           title: strings.remoteEnableTitle,
-          description: _enabled
-              ? strings.remoteEnabledDesc
-              : strings.remoteDisabledDesc,
+          description: _enabled ? strings.remoteEnabledDesc : strings.remoteDisabledDesc,
           child: Row(
             children: [
               _buildStatusBadge(colorScheme, tokens, strings),
               const Spacer(),
-              Switch(
-                value: _enabled,
-                onChanged: isStarting ? null : (val) => _toggleRemote(val),
-              ),
+              Switch(value: _enabled, onChanged: isStarting ? null : (val) => _toggleRemote(val)),
             ],
           ),
         ),
@@ -656,10 +585,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                           dataModuleShape: QrDataModuleShape.square,
                           color: tokens.textPrimary,
                         ),
-                        eyeStyle: QrEyeStyle(
-                          eyeShape: QrEyeShape.square,
-                          color: tokens.textPrimary,
-                        ),
+                        eyeStyle: QrEyeStyle(eyeShape: QrEyeShape.square, color: tokens.textPrimary),
                       ),
                     );
 
@@ -668,35 +594,20 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                       children: [
                         Text(
                           strings.remotePairStep1,
-                          style: text.bodyLarge.copyWith(
-                            color: tokens.textPrimary,
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: text.bodyLarge.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.w600),
                         ),
                         const SizedBox(height: FrameSpace.x1),
-                        Text(
-                          strings.remotePairStep1Desc,
-                          style: text.body.copyWith(
-                            color: tokens.textSecondary,
-                          ),
-                        ),
+                        Text(strings.remotePairStep1Desc, style: text.body.copyWith(color: tokens.textSecondary)),
                         const SizedBox(height: FrameSpace.x3),
 
                         if (_pairingExpiresAt != null) ...[
                           Row(
                             children: [
-                              Icon(
-                                Icons.timer_outlined,
-                                size: FrameSize.icon,
-                                color: tokens.accent,
-                              ),
+                              Icon(Icons.timer_outlined, size: FrameSize.icon, color: tokens.accent),
                               const SizedBox(width: FrameSpace.x2),
                               Text(
                                 _formatExpires(_pairingExpiresAt, strings),
-                                style: text.label.copyWith(
-                                  color: tokens.accent,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                                style: text.label.copyWith(color: tokens.accent, fontWeight: FontWeight.w600),
                               ),
                             ],
                           ),
@@ -710,40 +621,25 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                           children: [
                             PressFeedback(
                               child: OutlinedButton.icon(
-                                icon: const Icon(
-                                  Icons.refresh_outlined,
-                                  size: FrameSize.icon,
-                                ),
+                                icon: const Icon(Icons.refresh_outlined, size: FrameSize.icon),
                                 label: Text(strings.remoteNewQrBtn),
                                 onPressed: _generateNewPairing,
                               ),
                             ),
                             PressFeedback(
                               child: OutlinedButton.icon(
-                                icon: const Icon(
-                                  Icons.copy_outlined,
-                                  size: FrameSize.icon,
-                                ),
+                                icon: const Icon(Icons.copy_outlined, size: FrameSize.icon),
                                 label: Text(strings.remoteCopyPairLinkBtn),
                                 onPressed: () {
-                                  Clipboard.setData(
-                                    ClipboardData(text: _pairingUrl ?? _url!),
-                                  );
-                                  FrameSnackBar.show(
-                                    context,
-                                    message:
-                                        strings.remotePairLinkCopiedSnackBar,
-                                  );
+                                  unawaited(Clipboard.setData(ClipboardData(text: _pairingUrl ?? _url!)));
+                                  FrameSnackBar.show(context, message: strings.remotePairLinkCopiedSnackBar);
                                 },
                               ),
                             ),
                             IconButton(
-                              icon: const Icon(
-                                Icons.open_in_browser_outlined,
-                                size: FrameSize.iconLg,
-                              ),
+                              icon: const Icon(Icons.open_in_browser_outlined, size: FrameSize.iconLg),
                               tooltip: strings.remoteOpenInBrowserTooltip,
-                              onPressed: () => launchUrl(Uri.parse(_url!)),
+                              onPressed: () => ref.read(linkServiceProvider).openExternal(Uri.parse(_url!)),
                             ),
                           ],
                         ),
@@ -777,24 +673,14 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
 
                 Row(
                   children: [
-                    Icon(
-                      Icons.link_outlined,
-                      size: FrameSize.icon,
-                      color: tokens.accent,
-                    ),
+                    Icon(Icons.link_outlined, size: FrameSize.icon, color: tokens.accent),
                     const SizedBox(width: FrameSpace.x2),
                     Text(
                       strings.remotePublicUrlLabel,
-                      style: text.label.copyWith(
-                        color: tokens.textSecondary,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: text.label.copyWith(color: tokens.textSecondary, fontWeight: FontWeight.w600),
                     ),
                     Expanded(
-                      child: SelectableText(
-                        _url!,
-                        style: text.mono.copyWith(color: tokens.accent),
-                      ),
+                      child: SelectableText(_url!, style: text.mono.copyWith(color: tokens.accent)),
                     ),
                   ],
                 ),
@@ -826,18 +712,13 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                 ],
                 selected: {_defaultMode},
                 onSelectionChanged: (set) {
-                  if (set.isNotEmpty) _updateDefaultMode(set.first);
+                  if (set.isNotEmpty) unawaited(_updateDefaultMode(set.first));
                 },
               ),
               const SizedBox(height: FrameSpace.x2),
               Text(
-                _defaultMode == 'view'
-                    ? strings.remoteModeViewExplanation
-                    : strings.remoteModeControlExplanation,
-                style: text.caption.copyWith(
-                  fontStyle: FontStyle.italic,
-                  color: tokens.textSecondary,
-                ),
+                _defaultMode == 'view' ? strings.remoteModeViewExplanation : strings.remoteModeControlExplanation,
+                style: text.caption.copyWith(fontStyle: FontStyle.italic, color: tokens.textSecondary),
               ),
             ],
           ),
@@ -855,15 +736,8 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                 Align(
                   alignment: AlignmentDirectional.centerEnd,
                   child: TextButton.icon(
-                    icon: Icon(
-                      Icons.delete_forever_outlined,
-                      size: FrameSize.icon,
-                      color: tokens.danger,
-                    ),
-                    label: Text(
-                      strings.remoteRevokeAllBtn,
-                      style: text.label.copyWith(color: tokens.danger),
-                    ),
+                    icon: Icon(Icons.delete_forever_outlined, size: FrameSize.icon, color: tokens.danger),
+                    label: Text(strings.remoteRevokeAllBtn, style: text.label.copyWith(color: tokens.danger)),
                     onPressed: _revokeAllDevices,
                   ),
                 ),
@@ -877,25 +751,17 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                 )
               else
                 ..._devices.map((dev) {
-                  final name =
-                      dev['name'] as String? ?? strings.remoteUnknownDevice;
+                  final name = dev['name'] as String? ?? strings.remoteUnknownDevice;
                   final deviceId = dev['deviceId'] as String? ?? '';
                   final mode = dev['mode'] as String? ?? 'view';
-                  final ip =
-                      dev['remoteIp'] as String? ?? strings.remoteLocalIp;
+                  final ip = dev['remoteIp'] as String? ?? strings.remoteLocalIp;
                   final lastUsed = dev['lastUsedAt'] as int?;
                   final expiresAt = dev['expiresAt'] as int?;
                   final lastStr = lastUsed != null
-                      ? DateTime.fromMillisecondsSinceEpoch(lastUsed)
-                            .toLocal()
-                            .toString()
-                            .split('.')[0]
+                      ? DateTime.fromMillisecondsSinceEpoch(lastUsed).toLocal().toString().split('.')[0]
                       : strings.remoteNeverUsed;
                   final expiresStr = expiresAt != null
-                      ? DateTime.fromMillisecondsSinceEpoch(expiresAt)
-                            .toLocal()
-                            .toString()
-                            .split(' ')[0]
+                      ? DateTime.fromMillisecondsSinceEpoch(expiresAt).toLocal().toString().split(' ')[0]
                       : '-';
 
                   final isControl = mode == 'control';
@@ -931,31 +797,20 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                                     child: Text(
                                       name,
                                       overflow: TextOverflow.ellipsis,
-                                      style: text.body.copyWith(
-                                        color: tokens.textPrimary,
-                                        fontWeight: FontWeight.w600,
-                                      ),
+                                      style: text.body.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.w600),
                                     ),
                                   ),
                                   const SizedBox(width: FrameSpace.x2),
                                   FrameStatusTag(
                                     label: isControl ? 'CONTROL' : 'VIEW',
-                                    tone: isControl
-                                        ? FrameStatusTone.warning
-                                        : FrameStatusTone.info,
+                                    tone: isControl ? FrameStatusTone.warning : FrameStatusTone.info,
                                   ),
                                 ],
                               ),
                               const SizedBox(height: FrameSpace.x1 / 2),
                               Text(
-                                strings.remoteDeviceInfoLine(
-                                  ip,
-                                  lastStr,
-                                  expiresStr,
-                                ),
-                                style: text.caption.copyWith(
-                                  color: tokens.textSecondary,
-                                ),
+                                strings.remoteDeviceInfoLine(ip, lastStr, expiresStr),
+                                style: text.caption.copyWith(color: tokens.textSecondary),
                               ),
                             ],
                           ),
@@ -966,22 +821,16 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                           items: [
                             DropdownMenuItem(
                               value: 'view',
-                              child: Text(
-                                strings.remoteDeviceModeViewLabel,
-                                style: text.label,
-                              ),
+                              child: Text(strings.remoteDeviceModeViewLabel, style: text.label),
                             ),
                             DropdownMenuItem(
                               value: 'control',
-                              child: Text(
-                                strings.remoteDeviceModeControlLabel,
-                                style: text.label,
-                              ),
+                              child: Text(strings.remoteDeviceModeControlLabel, style: text.label),
                             ),
                           ],
                           onChanged: (newMode) {
                             if (newMode != null) {
-                              _changeDeviceMode(deviceId, mode, newMode, name);
+                              unawaited(_changeDeviceMode(deviceId, mode, newMode, name));
                             }
                           },
                         ),
@@ -990,9 +839,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                           child: OutlinedButton(
                             style: OutlinedButton.styleFrom(
                               foregroundColor: tokens.danger,
-                              side: BorderSide(
-                                color: tokens.danger.withValues(alpha: 0.5),
-                              ),
+                              side: BorderSide(color: tokens.danger.withValues(alpha: 0.5)),
                               padding: const EdgeInsets.symmetric(
                                 horizontal: FrameSpace.x2 + FrameSpace.x1 / 2,
                                 vertical: FrameSpace.x1,
@@ -1000,10 +847,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                               visualDensity: VisualDensity.compact,
                             ),
                             onPressed: () => _revokeDevice(deviceId, name),
-                            child: Text(
-                              strings.remoteRevokeBtn,
-                              style: text.label,
-                            ),
+                            child: Text(strings.remoteRevokeBtn, style: text.label),
                           ),
                         ),
                       ],
@@ -1035,22 +879,11 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                     isExpanded: true,
                     value: _tunnelProvider,
                     items: [
-                      DropdownMenuItem(
-                        value: 'tailscale',
-                        child: Text(strings.remoteProviderTailscale),
-                      ),
-                      DropdownMenuItem(
-                        value: 'cloudflared',
-                        child: Text(strings.remoteProviderCloudflared),
-                      ),
-                      DropdownMenuItem(
-                        value: 'custom',
-                        child: Text(strings.remoteProviderCustom),
-                      ),
+                      DropdownMenuItem(value: 'tailscale', child: Text(strings.remoteProviderTailscale)),
+                      DropdownMenuItem(value: 'cloudflared', child: Text(strings.remoteProviderCloudflared)),
+                      DropdownMenuItem(value: 'custom', child: Text(strings.remoteProviderCustom)),
                     ],
-                    onChanged: _enabled
-                        ? null
-                        : (val) => setState(() => _tunnelProvider = val!),
+                    onChanged: _enabled ? null : (val) => setState(() => _tunnelProvider = val!),
                   ),
                 ),
               ),
@@ -1065,28 +898,17 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                     strings: strings,
                     body: Text(strings.remoteTailscaleNotInstalledDesc),
                     action: PressFeedback(
-                      enabled:
-                          (_isInstallingTailscale ? null : _installTailscale) !=
-                          null,
+                      enabled: (_isInstallingTailscale ? null : _installTailscale) != null,
                       child: OutlinedButton.icon(
                         icon: _isInstallingTailscale
-                            ? FrameActivityIndicator(
-                                size: FrameSize.icon,
-                                strokeWidth: 2,
-                                color: tokens.accent,
-                              )
-                            : const Icon(
-                                Icons.download_outlined,
-                                size: FrameSize.icon,
-                              ),
+                            ? FrameActivityIndicator(size: FrameSize.icon, strokeWidth: 2, color: tokens.accent)
+                            : const Icon(Icons.download_outlined, size: FrameSize.icon),
                         label: Text(
                           _isInstallingTailscale
                               ? strings.remoteTailscaleInstallingBtn
                               : strings.remoteTailscaleInstallAutoBtn,
                         ),
-                        onPressed: _isInstallingTailscale
-                            ? null
-                            : _installTailscale,
+                        onPressed: _isInstallingTailscale ? null : _installTailscale,
                       ),
                     ),
                   )
@@ -1108,20 +930,14 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                       children: [
                         if (_tailscaleDomain != null) ...[
                           Text(
-                            strings.remoteTailscalePermanentAddress(
-                              _tailscaleDomain!,
-                            ),
-                            style: text.mono.copyWith(
-                              color: tokens.textPrimary,
-                            ),
+                            strings.remoteTailscalePermanentAddress(_tailscaleDomain!),
+                            style: text.mono.copyWith(color: tokens.textPrimary),
                           ),
                           const SizedBox(height: FrameSpace.x3),
                         ],
                         Text(
                           strings.remoteTailscaleCustomizeHostname,
-                          style: text.label.copyWith(
-                            color: tokens.textSecondary,
-                          ),
+                          style: text.label.copyWith(color: tokens.textSecondary),
                         ),
                         const SizedBox(height: FrameSpace.x1),
                         Row(
@@ -1130,8 +946,7 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                               child: TextField(
                                 controller: _tailscaleHostnameController,
                                 decoration: InputDecoration(
-                                  labelText:
-                                      strings.remoteTailscaleHostnameLabel,
+                                  labelText: strings.remoteTailscaleHostnameLabel,
                                   border: const OutlineInputBorder(),
                                   isDense: true,
                                 ),
@@ -1139,15 +954,9 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                             ),
                             const SizedBox(width: FrameSpace.x3),
                             PressFeedback(
-                              enabled:
-                                  (_isSavingTailscaleHostname
-                                      ? null
-                                      : _saveTailscaleHostname) !=
-                                  null,
+                              enabled: (_isSavingTailscaleHostname ? null : _saveTailscaleHostname) != null,
                               child: FilledButton(
-                                onPressed: _isSavingTailscaleHostname
-                                    ? null
-                                    : _saveTailscaleHostname,
+                                onPressed: _isSavingTailscaleHostname ? null : _saveTailscaleHostname,
                                 child: _isSavingTailscaleHostname
                                     ? FrameActivityIndicator(
                                         size: FrameSize.icon,
@@ -1179,15 +988,11 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                         const SizedBox(width: FrameSpace.x2),
                         Expanded(
                           child: Padding(
-                            padding: const EdgeInsets.only(
-                              top: FrameSpace.x2 / 2,
-                            ),
+                            padding: const EdgeInsets.only(top: FrameSpace.x2 / 2),
                             child: Text(
                               _cloudflaredPath!,
                               overflow: TextOverflow.ellipsis,
-                              style: text.mono.copyWith(
-                                color: tokens.textMuted,
-                              ),
+                              style: text.mono.copyWith(color: tokens.textMuted),
                             ),
                           ),
                         ),
@@ -1207,38 +1012,22 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
                         const SizedBox(height: FrameSpace.x1),
                         Text(
                           strings.remoteCloudflaredInstallNote,
-                          style: text.caption.copyWith(
-                            fontStyle: FontStyle.italic,
-                            color: tokens.textSecondary,
-                          ),
+                          style: text.caption.copyWith(fontStyle: FontStyle.italic, color: tokens.textSecondary),
                         ),
                       ],
                     ),
                     action: PressFeedback(
-                      enabled:
-                          (_isInstallingCloudflared
-                              ? null
-                              : _installCloudflared) !=
-                          null,
+                      enabled: (_isInstallingCloudflared ? null : _installCloudflared) != null,
                       child: OutlinedButton.icon(
                         icon: _isInstallingCloudflared
-                            ? FrameActivityIndicator(
-                                size: FrameSize.icon,
-                                strokeWidth: 2,
-                                color: tokens.accent,
-                              )
-                            : const Icon(
-                                Icons.download_outlined,
-                                size: FrameSize.icon,
-                              ),
+                            ? FrameActivityIndicator(size: FrameSize.icon, strokeWidth: 2, color: tokens.accent)
+                            : const Icon(Icons.download_outlined, size: FrameSize.icon),
                         label: Text(
                           _isInstallingCloudflared
                               ? strings.remoteCloudflaredInstallingBtn
                               : strings.remoteCloudflaredInstallAutoBtn,
                         ),
-                        onPressed: _isInstallingCloudflared
-                            ? null
-                            : _installCloudflared,
+                        onPressed: _isInstallingCloudflared ? null : _installCloudflared,
                       ),
                     ),
                   ),
@@ -1280,21 +1069,13 @@ class _RemoteSectionState extends ConsumerState<RemoteSection> {
   }
 
   /// Remote status uses the shared [FrameStatusTag] vocabulary.
-  Widget _buildStatusBadge(
-    ColorScheme colorScheme,
-    FrameTokens tokens,
-    AppStrings strings,
-  ) {
+  Widget _buildStatusBadge(ColorScheme colorScheme, FrameTokens tokens, AppStrings strings) {
     final (label, tone) = switch (_state) {
       'running' => (strings.remoteStatusActive, FrameStatusTone.success),
       'starting' => (strings.remoteStatusStarting, FrameStatusTone.warning),
       'error' => (strings.remoteStatusError, FrameStatusTone.danger),
       _ => (strings.remoteStatusDisabled, FrameStatusTone.neutral),
     };
-    return FrameStatusTag(
-      key: const ValueKey('remote-status-tag'),
-      label: label,
-      tone: tone,
-    );
+    return FrameStatusTag(key: const ValueKey('remote-status-tag'), label: label, tone: tone);
   }
 }

@@ -3,7 +3,10 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 const args = process.argv.slice(2);
-const agentDir = path.resolve(process.env.PI_CODING_AGENT_DIR || path.join(process.env.HOME || process.env.USERPROFILE || process.cwd(), '.pi', 'agent'));
+const agentDir = path.resolve(
+  process.env.PI_CODING_AGENT_DIR ||
+    path.join(process.env.HOME || process.env.USERPROFILE || process.cwd(), '.pi', 'agent')
+);
 const packagesPath = path.join(agentDir, 'fake-packages.json');
 
 function packageName(spec: string): string {
@@ -27,7 +30,11 @@ function main(): void {
       const name = packageName(args[1]);
       const item = packages.find((entry) => entry.source?.startsWith('npm:') && packageName(entry.source) === name);
       const requested = requestedVersion(args[1]);
-      const version = (requested && requested !== 'latest' && requested !== '*') || item?.latest || item?.source?.split('@').at(-1) || '1.0.0';
+      const version =
+        (requested && requested !== 'latest' && requested !== '*') ||
+        item?.latest ||
+        item?.source?.split('@').at(-1) ||
+        '1.0.0';
       console.log(JSON.stringify(version));
       return;
     } catch {

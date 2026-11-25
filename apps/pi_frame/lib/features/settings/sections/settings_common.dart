@@ -1,12 +1,5 @@
-import 'dart:io';
-
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
-
-/// `dart:io` Platform throws `UnsupportedError` on the web build, so every OS
-/// branch in settings goes through this web-safe helper.
-bool get isWindowsOs => !kIsWeb && Platform.isWindows;
 
 /// A form field box at the form row height (`FrameSize.rowForm`), with the
 /// input outline. Dropdowns and text fields in settings sit inside one.
@@ -30,16 +23,10 @@ Widget buildSettingsInfoRow(FrameTokens tokens, String label, String value) {
     padding: const EdgeInsets.symmetric(vertical: FrameSpace.x2),
     child: LayoutBuilder(
       builder: (context, constraints) {
-        final labelWidget = Text(
-          label,
-          style: text.body.copyWith(color: tokens.textSecondary),
-        );
+        final labelWidget = Text(label, style: text.body.copyWith(color: tokens.textSecondary));
         final valueWidget = Text(
           value,
-          style: text.body.copyWith(
-            color: tokens.textPrimary,
-            fontWeight: FontWeight.w600,
-          ),
+          style: text.body.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.w600),
         );
         if (constraints.maxWidth < 520) {
           return Column(

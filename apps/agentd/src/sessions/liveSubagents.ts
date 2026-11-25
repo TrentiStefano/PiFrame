@@ -1,3 +1,5 @@
+import { isRecord } from '../errors/errors.js';
+
 /**
  * Live subagent state reported by PiFrame's bridge inside a Pi worker
  * (src/pi/subagentBridgeExtension.ts), and the rules that combine it with what
@@ -49,12 +51,17 @@ const num = (value: unknown): number | undefined =>
 /** Parses the bridge's status text; null when it is not a valid report. */
 export function parseLiveSubagents(text: unknown, now = Date.now()): LiveSubagentState | null {
   if (typeof text !== 'string' || !text) return null;
-  let raw: any;
-  try { raw = JSON.parse(text); } catch { return null; }
-  if (!raw || raw.v !== 1 || !Array.isArray(raw.agents)) return null;
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (!isRecord(raw) || raw.v !== 1 || !Array.isArray(raw.agents)) return null;
+  const rawAgents: unknown[] = raw.agents;
   const agents: LiveSubagent[] = [];
-  for (const agent of raw.agents) {
-    if (!agent || typeof agent.id !== 'string' || !agent.id) continue;
+  for (const agent of rawAgents) {
+    if (!isRecord(agent) || typeof agent.id !== 'string' || !agent.id) continue;
     agents.push({
       id: agent.id,
       status: typeof agent.status === 'string' ? agent.status : 'running',
@@ -62,7 +69,7 @@ export function parseLiveSubagents(text: unknown, now = Date.now()): LiveSubagen
       description: typeof agent.description === 'string' ? agent.description : undefined,
       startedAt: num(agent.startedAt),
       completedAt: num(agent.completedAt),
-      toolUses: num(agent.toolUses),
+      toolUses: num(agent.toolUses)
     });
   }
   return {
@@ -71,7 +78,7 @@ export function parseLiveSubagents(text: unknown, now = Date.now()): LiveSubagen
     idleSince: num(raw.idleSince) ?? null,
     bridgeStartedAt: num(raw.bridgeStartedAt) ?? now,
     agents,
-    receivedAt: now,
+    receivedAt: now
   };
 }
 
@@ -101,7 +108,7 @@ export function mapLiveStatus(status: string): string {
  */
 export function resolveSubagentStatus(
   item: { id: string; status: string; unlinked?: boolean; finished?: boolean },
-  runtime: SubagentRuntime,
+  runtime: SubagentRuntime
 ): string {
   const ended = item.finished ? 'completed' : 'stopped';
   const live = runtime.live;
@@ -131,7 +138,7 @@ export async function awaitSubagentStopped(
   read: () => LiveSubagentState | null,
   agentId: string,
   timeoutMs: number,
-  pollMs = 150,
+  pollMs = 150
 ): Promise<boolean> {
   const deadline = Date.now() + timeoutMs;
   for (;;) {

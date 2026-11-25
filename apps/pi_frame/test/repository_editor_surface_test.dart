@@ -34,10 +34,7 @@ class _EditorFakeClient extends PcpClient {
   };
 
   @override
-  Future<Map<String, dynamic>> readWorkspaceFile(
-    String sessionId,
-    String path,
-  ) async => {
+  Future<Map<String, dynamic>> readWorkspaceFile(String sessionId, String path) async => {
     'data': {
       'rootPath': '/repo',
       'path': path,
@@ -48,10 +45,7 @@ class _EditorFakeClient extends PcpClient {
   };
 
   @override
-  Future<Map<String, dynamic>> saveWorkspaceFile(
-    String sessionId,
-    Map<String, dynamic> payload,
-  ) async {
+  Future<Map<String, dynamic>> saveWorkspaceFile(String sessionId, Map<String, dynamic> payload) async {
     saveCount++;
     diskContent = payload['content'] as String;
     diskRevision = 'revision-$saveCount';
@@ -68,18 +62,14 @@ Future<_EditorFakeClient> _pumpPane(WidgetTester tester) async {
       overrides: [
         pcpClientProvider.overrideWithValue(client),
         sessionStateFamily('session-a').overrideWith(
-          (ref) => SessionStateNotifier('session-a', null)
-            ..state = const SessionState(sessionId: 'session-a', cwd: '/repo'),
+          (ref) =>
+              SessionStateNotifier('session-a', null)..state = const SessionState(sessionId: 'session-a', cwd: '/repo'),
         ),
       ],
       child: MaterialApp(
         theme: ThemeData.light().copyWith(extensions: const [FrameTokens.light]),
         home: const Scaffold(
-          body: SizedBox(
-            width: 900,
-            height: 600,
-            child: RepositoryPane(sessionId: 'session-a'),
-          ),
+          body: SizedBox(width: 900, height: 600, child: RepositoryPane(sessionId: 'session-a')),
         ),
       ),
     ),
@@ -95,8 +85,7 @@ Future<void> _openMainDart(WidgetTester tester) async {
 
 Finder get _editorField => find.byKey(const ValueKey('repository-editor-session-a'));
 
-TextEditingController _editorController(WidgetTester tester) =>
-    tester.widget<TextField>(_editorField).controller!;
+TextEditingController _editorController(WidgetTester tester) => tester.widget<TextField>(_editorField).controller!;
 
 Future<void> _pressCtrl(WidgetTester tester, LogicalKeyboardKey key) async {
   await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
@@ -106,24 +95,19 @@ Future<void> _pressCtrl(WidgetTester tester, LogicalKeyboardKey key) async {
 }
 
 void main() {
-  testWidgets('gutter has one number per logical line and a 44 px width', (
-    tester,
-  ) async {
+  testWidgets('gutter has one number per logical line and a 44 px width', (tester) async {
     await _pumpPane(tester);
     await _openMainDart(tester);
 
     final gutter = find.byKey(const ValueKey('repository-editor-gutter'));
     expect(gutter, findsOneWidget);
-    final painter =
-        tester.widget<CustomPaint>(gutter).painter! as CodeLineGutterPainter;
+    final painter = tester.widget<CustomPaint>(gutter).painter! as CodeLineGutterPainter;
     expect(painter.lineCount, _fileContent.split('\n').length);
     expect(tester.getSize(gutter).width, 44);
     expect(painter.heights.length, painter.lineCount);
   });
 
-  testWidgets('markdown wraps by default, code does not, toggle is kept', (
-    tester,
-  ) async {
+  testWidgets('markdown wraps by default, code does not, toggle is kept', (tester) async {
     await _pumpPane(tester);
     await _openMainDart(tester);
     final wrapToggle = find.byKey(const ValueKey('repository-editor-wrap-btn'));
@@ -141,9 +125,7 @@ void main() {
     expect(tester.widget<FrameIconAction>(wrapToggle).selected, isFalse);
   });
 
-  testWidgets('add to chat from a selection passes the real line range', (
-    tester,
-  ) async {
+  testWidgets('add to chat from a selection passes the real line range', (tester) async {
     final client = await _pumpPane(tester);
     await _openMainDart(tester);
     expect(client.saveCount, 0);
@@ -153,34 +135,21 @@ void main() {
     editor.selection = const TextSelection(baseOffset: 6, extentOffset: 16);
     await tester.pump();
 
-    final editableFinder = find.descendant(
-      of: _editorField,
-      matching: find.byType(EditableText),
-    );
+    final editableFinder = find.descendant(of: _editorField, matching: find.byType(EditableText));
     final editorState = tester.state<EditableTextState>(editableFinder);
-    final menu =
-        tester.widget<TextField>(_editorField).contextMenuBuilder!(
-              tester.element(_editorField),
-              editorState,
-            )
-            as AdaptiveTextSelectionToolbar;
-    menu.buttonItems!
-        .singleWhere(
-          (item) => item.label == 'Aggiungi alla chat (main.dart:L2–L3)',
-        )
-        .onPressed!
-        .call();
+    final menu = tester.widget<TextField>(_editorField).contextMenuBuilder!(
+      tester.element(_editorField),
+      editorState,
+    ) as AdaptiveTextSelectionToolbar;
+    menu.buttonItems!.singleWhere((item) => item.label == 'Add to chat (main.dart:L2–L3)').onPressed!.call();
 
-    final draft = ProviderScope.containerOf(
-      tester.element(find.byType(RepositoryPane)),
-    ).read(composerDraftProvider('session-a'));
+    final draft = ProviderScope.containerOf(tester.element(find.byType(RepositoryPane)))
+        .read(composerDraftProvider('session-a'));
     expect(draft, contains('main.dart:2-3'));
     expect(draft, contains('beta\ngamma'));
   });
 
-  testWidgets('dirty file shows the dot and a filled Salva; Ctrl+S saves it', (
-    tester,
-  ) async {
+  testWidgets('dirty file shows the dot and a filled Salva; Ctrl+S saves it', (tester) async {
     final client = await _pumpPane(tester);
     await _openMainDart(tester);
 
@@ -213,11 +182,8 @@ void main() {
     await tester.pumpAndSettle();
 
     await _pressCtrl(tester, LogicalKeyboardKey.keyG);
-    expect(find.text('Vai alla riga'), findsOneWidget);
-    await tester.enterText(
-      find.byKey(const ValueKey('repository-goto-line-field')),
-      '3',
-    );
+    expect(find.text('Go to line'), findsOneWidget);
+    await tester.enterText(find.byKey(const ValueKey('repository-goto-line-field')), '3');
     await tester.tap(find.byKey(const ValueKey('repository-goto-line-confirm')));
     await tester.pumpAndSettle();
 
@@ -225,9 +191,7 @@ void main() {
     expect(_editorController(tester).selection.baseOffset, 11);
   });
 
-  testWidgets('closing a dirty file asks Salva / Non salvare / Annulla', (
-    tester,
-  ) async {
+  testWidgets('closing a dirty file asks Salva / Non salvare / Annulla', (tester) async {
     final client = await _pumpPane(tester);
     await _openMainDart(tester);
     await tester.tap(_editorField);
@@ -235,13 +199,13 @@ void main() {
     await tester.enterText(_editorField, 'changed\n');
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('Chiudi file'));
+    await tester.tap(find.byTooltip('Close file'));
     await tester.pumpAndSettle();
-    expect(find.text('Modifiche non salvate'), findsOneWidget);
-    expect(find.text('Non salvare'), findsOneWidget);
-    expect(find.text('Salva'), findsWidgets);
+    expect(find.text('Unsaved changes'), findsOneWidget);
+    expect(find.text('Don\'t save'), findsOneWidget);
+    expect(find.text('Save'), findsWidgets);
 
-    await tester.tap(find.text('Annulla'));
+    await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
     expect(_editorField, findsOneWidget);
     expect(client.saveCount, 0);

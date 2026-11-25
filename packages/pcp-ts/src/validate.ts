@@ -1,13 +1,14 @@
-import Ajv2020 from 'ajv/dist/2020.js';
-import addFormats from 'ajv-formats';
-import type { ClientMessage, PcpEnvelope, PcpError, PcpMessage } from './types.js';
+import { Ajv2020 } from 'ajv/dist/2020.js';
+import * as ajvFormats from 'ajv-formats';
+import type { FormatsPlugin } from 'ajv-formats';
+import type { ClientMessage, PcpEnvelope, PcpError } from './types.js';
 
-const ajv = new (Ajv2020 as any)({ strict: false, allErrors: true });
-(addFormats as any)(ajv);
+// ajv-formats is CommonJS: under NodeNext its default import is typed as the module namespace, so the plugin is `.default`.
+const addFormats: FormatsPlugin = ajvFormats.default.default;
+const ajv = new Ajv2020({ strict: false, allErrors: true });
+addFormats(ajv);
 
-export type Result<T, E> =
-  | { ok: true; value: T }
-  | { ok: false; error: E };
+export type Result<T, E> = { ok: true; value: T } | { ok: false; error: E };
 
 export function isEnvelope(value: unknown): value is PcpEnvelope {
   if (typeof value !== 'object' || value === null) return false;
@@ -44,7 +45,7 @@ export function validateIncoming(obj: unknown): Result<ClientMessage, PcpError> 
 
   // Kind-specific validations
   if (obj.kind === 'hello') {
-    const p = obj.payload as Record<string, unknown>;
+    const p = obj.payload;
     if (!p || typeof p.token !== 'string' || typeof p.client !== 'object' || p.encoding !== 'json') {
       return {
         ok: false,

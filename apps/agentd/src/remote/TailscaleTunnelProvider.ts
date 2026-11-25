@@ -1,6 +1,7 @@
 import * as child_process from 'node:child_process';
 import * as fs from 'node:fs';
 import { BaseTunnelProvider, type TunnelStartResult } from './TunnelProvider.js';
+import { errorMessage } from '../errors/errors.js';
 
 export interface TailscaleStatusInfo {
   installed: boolean;
@@ -17,11 +18,7 @@ export class TailscaleTunnelProvider extends BaseTunnelProvider {
     const isWin = process.platform === 'win32';
     const standardPaths = isWin
       ? ['C:\\Program Files\\Tailscale\\tailscale.exe', 'C:\\Program Files (x86)\\Tailscale\\tailscale.exe']
-      : [
-          '/Applications/Tailscale.app/Contents/MacOS/Tailscale',
-          '/usr/local/bin/tailscale',
-          '/usr/bin/tailscale'
-        ];
+      : ['/Applications/Tailscale.app/Contents/MacOS/Tailscale', '/usr/local/bin/tailscale', '/usr/bin/tailscale'];
 
     for (const p of standardPaths) {
       if (fs.existsSync(p)) return p;
@@ -73,11 +70,14 @@ export class TailscaleTunnelProvider extends BaseTunnelProvider {
 
   public static setHostname(newHostname: string): { ok: boolean; domain?: string } {
     const bin = TailscaleTunnelProvider.findBinary();
-    if (!bin) throw new Error('Tailscale non è installato sul computer.');
+    if (!bin) throw new Error('Tailscale is not installed on this computer.');
 
-    const clean = newHostname.trim().toLowerCase().replace(/[^a-z0-9-]/g, '');
+    const clean = newHostname
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, '');
     if (!clean || clean.length < 2 || clean.length > 32) {
-      throw new Error('Il nome host deve contenere tra 2 e 32 caratteri alfanumerici (lettere minuscole, numeri, trattini).');
+      throw new Error('The host name must have 2 to 32 alphanumeric characters (lower-case letters, digits, hyphens).');
     }
 
     try {
@@ -87,8 +87,8 @@ export class TailscaleTunnelProvider extends BaseTunnelProvider {
         timeout: 5000,
         windowsHide: true
       });
-    } catch (err: any) {
-      throw new Error(`Errore durante l'aggiornamento del nome host in Tailscale: ${err.message}`);
+    } catch (err: unknown) {
+      throw new Error(`Error updating the Tailscale host name: ${errorMessage(err)}`);
     }
 
     const info = TailscaleTunnelProvider.getTailscaleInfo();
@@ -103,13 +103,15 @@ export class TailscaleTunnelProvider extends BaseTunnelProvider {
           ['install', '--id', 'Tailscale.Tailscale', '-e', '--accept-package-agreements', '--accept-source-agreements'],
           { windowsHide: true },
           (err) => {
-            if (err) return reject(new Error(`Errore durante l'installazione di Tailscale via winget: ${err.message}`));
-            resolve({ ok: true, message: 'Installazione di Tailscale avviata con successo.' });
+            if (err) return reject(new Error(`Error installing Tailscale with winget: ${errorMessage(err)}`));
+            resolve({ ok: true, message: 'Tailscale installation started.' });
           }
         );
       });
     }
-    throw new Error('L\'installazione automatica è supportata su Windows via winget. Su macOS puoi scaricarla dal Mac App Store o tramite brew.');
+    throw new Error(
+      'Automatic install is supported on Windows with winget. On macOS, get it from the Mac App Store or with brew.'
+    );
   }
 
   protected async doStart(localPort: number): Promise<TunnelStartResult> {
@@ -117,20 +119,21 @@ export class TailscaleTunnelProvider extends BaseTunnelProvider {
 
     const bin = TailscaleTunnelProvider.findBinary();
     if (!bin) {
-      const msg = 'Tailscale non è installato. Installalo per utilizzare il tunnel permanente privato Tailscale.';
+      const msg = 'Tailscale is not installed. Install it to use the private permanent Tailscale tunnel.';
       this.setState('error', { error: msg });
       throw new Error(msg);
     }
 
     const info = TailscaleTunnelProvider.getTailscaleInfo();
     if (!info.running) {
-      const msg = 'Tailscale non è connesso. Apri l\'applicazione Tailscale ed effettua il login per attivare la rete.';
+      const msg = 'Tailscale is not connected. Open the Tailscale app and sign in to turn on the network.';
       this.setState('error', { error: msg });
       throw new Error(msg);
     }
 
     if (!info.domain) {
-      const msg = 'Impossibile determinare il dominio Tailscale della macchina. Verifica che MagicDNS sia abilitato nella dashboard di Tailscale.';
+      const msg =
+        'Could not determine the Tailscale domain of this machine. Check that MagicDNS is on in the Tailscale dashboard.';
       this.setState('error', { error: msg });
       throw new Error(msg);
     }
@@ -142,8 +145,8 @@ export class TailscaleTunnelProvider extends BaseTunnelProvider {
         timeout: 6000,
         windowsHide: true
       });
-    } catch (err: any) {
-      const msg = `Errore durante l'avvio di tailscale serve: ${err.message}`;
+    } catch (err: unknown) {
+      const msg = `Error starting tailscale serve: ${errorMessage(err)}`;
       this.setState('error', { error: msg });
       throw new Error(msg);
     }

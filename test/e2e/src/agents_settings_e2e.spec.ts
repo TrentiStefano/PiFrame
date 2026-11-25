@@ -5,6 +5,18 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import WebSocket from 'ws';
+import { dataOf, listeningPort, parseFrame, type Frame } from './support.js';
+
+/** The data of a pi.agents.get or pi.agents.update result that the test reads. */
+interface AgentsView {
+  packages: Array<{ id: string; installed: boolean }>;
+  agents: Array<{
+    name: string;
+    model: { effective: string };
+    thinking: { effective: string };
+    context: { limit: number };
+  }>;
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,7 +37,7 @@ function createTempDir(prefix: string): { root: string; cleanup: () => void } {
       try {
         fs.rmSync(dir, { recursive: true, force: true });
       } catch {}
-    },
+    }
   };
 }
 
@@ -42,10 +54,7 @@ test('E2E: Subagent Settings - pi.agents.get and pi.agents.update over WebSocket
   const nicoDir = path.join(tempAgent.root, 'npm', 'node_modules', 'pi-subagents');
   const nicoAgentsDir = path.join(nicoDir, 'agents');
   fs.mkdirSync(nicoAgentsDir, { recursive: true });
-  fs.writeFileSync(
-    path.join(nicoDir, 'package.json'),
-    JSON.stringify({ name: 'pi-subagents', version: '0.9.5' })
-  );
+  fs.writeFileSync(path.join(nicoDir, 'package.json'), JSON.stringify({ name: 'pi-subagents', version: '0.9.5' }));
   fs.writeFileSync(
     path.join(nicoAgentsDir, 'worker.md'),
     `---
@@ -64,7 +73,7 @@ Worker prompt.
     token,
     version,
     startedAt,
-    listener: 'local',
+    listener: 'local'
   });
 
   await new Promise<void>((resolve, reject) => {
@@ -72,7 +81,7 @@ Worker prompt.
     httpServer.on('error', reject);
   });
 
-  const port = (httpServer.address() as any).port;
+  const port = listeningPort(httpServer);
 
   let registry!: SessionRegistry;
   let dispatcher!: Dispatcher;
@@ -93,14 +102,14 @@ Worker prompt.
     },
     onDetach: async (conn, sid) => {
       await registry.detachClient(sid, conn);
-    },
+    }
   });
 
   registry = new SessionRegistry({
     piExecutablePath: fakePiPath,
     capabilities: { version: '0.85.1', supported: true, modes: ['rpc'], features: [] },
     workerIdleTimeoutMs: 60000,
-    connectionManager: manager,
+    connectionManager: manager
   });
 
   const agentsService = new AgentsService({
@@ -113,20 +122,13 @@ Worker prompt.
           name: 'Fake Pi Model',
           contextWindow: 128000,
           reasoning: true,
-          tiers: [64000],
-        },
-      ],
-    }),
+          tiers: [64000]
+        }
+      ]
+    })
   });
 
-  dispatcher = new Dispatcher(
-    registry,
-    manager,
-    undefined,
-    undefined,
-    undefined,
-    agentsService
-  );
+  dispatcher = new Dispatcher(registry, manager, undefined, undefined, undefined, agentsService);
 
   const client = new WebSocket(`ws://127.0.0.1:${port}/api/ws`);
   await new Promise<void>((resolve, reject) => {
@@ -134,12 +136,12 @@ Worker prompt.
     client.on('error', reject);
   });
 
-  const receivedMessages: any[] = [];
+  const receivedMessages: Frame[] = [];
   client.on('message', (data) => {
-    receivedMessages.push(JSON.parse(data.toString()));
+    receivedMessages.push(parseFrame(data));
   });
 
-  const waitForMessage = async (predicate: (msg: any) => boolean, timeoutMs = 5000): Promise<any> => {
+  const waitForMessage = async (predicate: (msg: Frame) => boolean, timeoutMs = 5000): Promise<Frame> => {
     const start = Date.now();
     while (Date.now() - start < timeoutMs) {
       const found = receivedMessages.find(predicate);
@@ -162,14 +164,14 @@ Worker prompt.
           token,
           client: { name: 'e2e-test', version: '1.0.0', platform: 'test' },
           encoding: 'json',
-          capabilities: ['replay.v1'],
-        },
+          capabilities: ['replay.v1']
+        }
       })
     );
 
     const welcome = await waitForMessage((m) => m.kind === 'welcome');
     assert.equal(welcome.kind, 'welcome');
-    assert.ok(welcome.payload.capabilities.includes('pi.agents.v1'));
+    assert.ok((welcome.payload.capabilities as string[]).includes('pi.agents.v1'));
 
     // 2. pi.agents.get
     const getCmdId = `cmd_get_${Date.now()}`;
@@ -182,7 +184,7 @@ Worker prompt.
         commandId: getCmdId,
         sessionId: '@daemon',
         type: 'pi.agents.get',
-        payload: {},
+        payload: {}
       })
     );
 
@@ -191,9 +193,9 @@ Worker prompt.
 
     const getResult = await waitForMessage((m) => m.kind === 'result' && m.commandId === getCmdId);
     assert.equal(getResult.payload.state, 'completed');
-    const getData = getResult.payload.data;
-    assert.equal(getData.packages.find((p: any) => p.id === 'pi-subagents')?.installed, true);
-    assert.ok(getData.agents.some((a: any) => a.name === 'worker'));
+    const getData = dataOf<AgentsView>(getResult);
+    assert.equal(getData.packages.find((p) => p.id === 'pi-subagents')?.installed, true);
+    assert.ok(getData.agents.some((a) => a.name === 'worker'));
 
     // 3. pi.agents.update
     const updCmdId = `cmd_upd_${Date.now()}`;
@@ -213,15 +215,15 @@ Worker prompt.
               name: 'worker',
               model: 'fake/fake-model',
               thinking: 'low',
-              contextLimit: 64000,
+              contextLimit: 64000
             },
             {
               kind: 'sessionDefaults',
               model: 'fake/fake-model',
-              thinking: 'low',
-            },
-          ],
-        },
+              thinking: 'low'
+            }
+          ]
+        }
       })
     );
 
@@ -230,17 +232,15 @@ Worker prompt.
 
     const updResult = await waitForMessage((m) => m.kind === 'result' && m.commandId === updCmdId);
     assert.equal(updResult.payload.state, 'completed');
-    const updData = updResult.payload.data;
-    const updatedWorker = updData.agents.find((a: any) => a.name === 'worker');
+    const updData = dataOf<AgentsView>(updResult);
+    const updatedWorker = updData.agents.find((a) => a.name === 'worker');
     assert.ok(updatedWorker);
     assert.equal(updatedWorker.model.effective, 'fake/fake-model');
     assert.equal(updatedWorker.thinking.effective, 'low');
     assert.equal(updatedWorker.context.limit, 64000);
 
     // Verify settings on disk
-    const settingsOnDisk = JSON.parse(
-      fs.readFileSync(path.join(tempAgent.root, 'settings.json'), 'utf8')
-    );
+    const settingsOnDisk = JSON.parse(fs.readFileSync(path.join(tempAgent.root, 'settings.json'), 'utf8'));
     assert.equal(settingsOnDisk.defaultProvider, 'fake');
     assert.equal(settingsOnDisk.defaultModel, 'fake-model');
     assert.equal(settingsOnDisk.defaultThinkingLevel, 'low');
@@ -263,16 +263,16 @@ Worker prompt.
             {
               kind: 'agent',
               name: 'worker',
-              model: 'nonexistent/model',
-            },
-          ],
-        },
+              model: 'nonexistent/model'
+            }
+          ]
+        }
       })
     );
 
     const badResult = await waitForMessage((m) => m.kind === 'result' && m.commandId === badCmdId);
     assert.equal(badResult.payload.state, 'failed');
-    assert.ok(badResult.payload.error.includes('validation failed'));
+    assert.ok(String(badResult.payload.error).includes('validation failed'));
   } finally {
     client.close();
     httpServer.close();

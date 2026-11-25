@@ -14,10 +14,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 class FixtureClient extends PcpClient {
   FixtureClient() : super(port: 0, token: 'fixture');
   @override
-  Future<Map<String, dynamic>> claimUiRequest(
-    String sessionId,
-    String requestId,
-  ) async => {
+  Future<Map<String, dynamic>> claimUiRequest(String sessionId, String requestId) async => {
     'state': 'completed',
     'data': {'claimed': true},
   };
@@ -27,18 +24,11 @@ void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
     for (final font in ['SchibstedGrotesk', 'SourceCodePro']) {
-      await (FontLoader(
-        font,
-      )..addFont(rootBundle.load('assets/fonts/$font.ttf'))).load();
+      await (FontLoader(font)..addFont(rootBundle.load('assets/fonts/$font.ttf'))).load();
     }
-    await (FontLoader(
-      'MaterialIcons',
-    )..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
+    await (FontLoader('MaterialIcons')..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'))).load();
   });
-  for (final (name, size) in [
-    ('wide', const Size(960, 600)),
-    ('narrow', const Size(400, 600)),
-  ]) {
+  for (final (name, size) in [('wide', const Size(960, 600)), ('narrow', const Size(400, 600))]) {
     testWidgets('capture $name', (tester) async {
       tester.view.physicalSize = size;
       tester.view.devicePixelRatio = 1;
@@ -82,14 +72,10 @@ void main() {
       );
       await tester.pumpAndSettle();
       await tester.runAsync(() async {
-        final image =
-            await (key.currentContext!.findRenderObject()!
-                    as RenderRepaintBoundary)
-                .toImage();
+        final image = await (key.currentContext!.findRenderObject()! as RenderRepaintBoundary).toImage();
         final data = await image.toByteData(format: ui.ImageByteFormat.png);
-        await File(
-          '../../docs/design-evidence/question-preview-$name-fixture.png',
-        ).writeAsBytes(data!.buffer.asUint8List());
+        await File('../../docs/design-evidence/question-preview-$name-fixture.png')
+            .writeAsBytes(data!.buffer.asUint8List());
         image.dispose();
       });
     }, skip: Platform.environment['PIFRAME_CAPTURE_QUESTION'] != '1');

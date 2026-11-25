@@ -1,10 +1,13 @@
-import 'package:file_selector/file_selector.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../../data/language/language_settings.dart';
 import '../../../data/language/strings_settings.dart';
+import '../../../data/platform/file_dialog_service.dart';
+import '../../../data/platform/file_system_service.dart';
 import '../../../data/metrics/nerd_stats_settings.dart';
 import '../../../data/motion/reduced_motion_settings.dart';
 import '../../../data/motion/startup_animation_settings.dart';
@@ -25,11 +28,7 @@ enum _ThemeChoice { system, light, dark }
 /// Appearance tab: language, theme choice and editor, display toggles.
 /// Each block is one [FrameSection]; fields sit at the form row height.
 class AppearanceSection extends ConsumerWidget {
-  const AppearanceSection({
-    super.key,
-    required this.tokens,
-    required this.strings,
-  });
+  const AppearanceSection({super.key, required this.tokens, required this.strings});
 
   final FrameTokens tokens;
   final AppStrings strings;
@@ -47,17 +46,14 @@ class AppearanceSection extends ConsumerWidget {
 
     final choice = settings.useSystemTheme
         ? _ThemeChoice.system
-        : (activeTheme.variant == 'light'
-              ? _ThemeChoice.light
-              : _ThemeChoice.dark);
+        : (activeTheme.variant == 'light' ? _ThemeChoice.light : _ThemeChoice.dark);
 
     // Defaults fall back to the first theme of their variant when the saved
     // id no longer exists.
     final darkValue = darkThemes.any((t) => t.id == settings.defaultDarkThemeId)
         ? settings.defaultDarkThemeId
         : (darkThemes.isNotEmpty ? darkThemes.first.id : null);
-    final lightValue =
-        lightThemes.any((t) => t.id == settings.defaultLightThemeId)
+    final lightValue = lightThemes.any((t) => t.id == settings.defaultLightThemeId)
         ? settings.defaultLightThemeId
         : (lightThemes.isNotEmpty ? lightThemes.first.id : null);
 
@@ -159,29 +155,17 @@ class AppearanceSection extends ConsumerWidget {
                   showSelectedIcon: false,
                   style: SegmentedButton.styleFrom(
                     minimumSize: const Size(0, FrameSize.rowForm),
-                    selectedBackgroundColor: tokens.accent.withValues(
-                      alpha: 0.18,
-                    ),
+                    selectedBackgroundColor: tokens.accent.withValues(alpha: 0.18),
                     selectedForegroundColor: tokens.textPrimary,
                     side: BorderSide(color: tokens.borderStrong),
                   ),
                   segments: [
-                    ButtonSegment(
-                      value: _ThemeChoice.system,
-                      label: Text(strings.themeModeSystem),
-                    ),
-                    ButtonSegment(
-                      value: _ThemeChoice.light,
-                      label: Text(strings.themeModeLight),
-                    ),
-                    ButtonSegment(
-                      value: _ThemeChoice.dark,
-                      label: Text(strings.themeModeDark),
-                    ),
+                    ButtonSegment(value: _ThemeChoice.system, label: Text(strings.themeModeSystem)),
+                    ButtonSegment(value: _ThemeChoice.light, label: Text(strings.themeModeLight)),
+                    ButtonSegment(value: _ThemeChoice.dark, label: Text(strings.themeModeDark)),
                   ],
                   selected: {choice},
-                  onSelectionChanged: (selection) =>
-                      selectChoice(selection.first),
+                  onSelectionChanged: (selection) => selectChoice(selection.first),
                 ),
               ),
               const SizedBox(height: FrameSpace.x4),
@@ -194,19 +178,14 @@ class AppearanceSection extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            strings.defaultDarkTheme,
-                            style: fieldLabelStyle,
-                          ),
+                          Text(strings.defaultDarkTheme, style: fieldLabelStyle),
                           const SizedBox(height: FrameSpace.x1),
                           if (darkValue != null)
                             themeSelect(
                               keyName: 'settings-dark-theme-dropdown',
                               options: darkThemes,
                               value: darkValue,
-                              onChanged: (id) => ref
-                                  .read(themeSettingsProvider.notifier)
-                                  .setDefaultDarkTheme(id),
+                              onChanged: (id) => ref.read(themeSettingsProvider.notifier).setDefaultDarkTheme(id),
                             ),
                         ],
                       ),
@@ -216,19 +195,14 @@ class AppearanceSection extends ConsumerWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            strings.defaultLightTheme,
-                            style: fieldLabelStyle,
-                          ),
+                          Text(strings.defaultLightTheme, style: fieldLabelStyle),
                           const SizedBox(height: FrameSpace.x1),
                           if (lightValue != null)
                             themeSelect(
                               keyName: 'settings-light-theme-dropdown',
                               options: lightThemes,
                               value: lightValue,
-                              onChanged: (id) => ref
-                                  .read(themeSettingsProvider.notifier)
-                                  .setDefaultLightTheme(id),
+                              onChanged: (id) => ref.read(themeSettingsProvider.notifier).setDefaultLightTheme(id),
                             ),
                         ],
                       ),
@@ -244,9 +218,7 @@ class AppearanceSection extends ConsumerWidget {
                     options: lightThemes,
                     value: lightValue,
                     onChanged: (id) {
-                      ref
-                          .read(themeSettingsProvider.notifier)
-                          .setDefaultLightTheme(id);
+                      ref.read(themeSettingsProvider.notifier).setDefaultLightTheme(id);
                       ref.read(activeThemeSpecProvider.notifier).setTheme(id);
                     },
                   ),
@@ -259,9 +231,7 @@ class AppearanceSection extends ConsumerWidget {
                     options: darkThemes,
                     value: darkValue,
                     onChanged: (id) {
-                      ref
-                          .read(themeSettingsProvider.notifier)
-                          .setDefaultDarkTheme(id);
+                      ref.read(themeSettingsProvider.notifier).setDefaultDarkTheme(id);
                       ref.read(activeThemeSpecProvider.notifier).setTheme(id);
                     },
                   ),
@@ -277,24 +247,13 @@ class AppearanceSection extends ConsumerWidget {
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(color: tokens.accent),
                         minimumSize: const Size(0, FrameSize.rowForm),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: FrameSpace.x4,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(tokens.radiusSm),
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x4),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm)),
                       ),
-                      icon: Icon(
-                        Icons.palette_outlined,
-                        size: FrameSize.icon,
-                        color: tokens.accent,
-                      ),
-                      label: Text(
-                        strings.openThemeEditorBtn,
-                        style: text.label.copyWith(color: tokens.accent),
-                      ),
+                      icon: Icon(Icons.palette_outlined, size: FrameSize.icon, color: tokens.accent),
+                      label: Text(strings.openThemeEditorBtn, style: text.label.copyWith(color: tokens.accent)),
                       onPressed: () {
-                        ThemeEditorDialog.show(context);
+                        unawaited(ThemeEditorDialog.show(context));
                       },
                     ),
                   ),
@@ -304,54 +263,33 @@ class AppearanceSection extends ConsumerWidget {
                       style: OutlinedButton.styleFrom(
                         side: BorderSide(color: tokens.borderStrong),
                         minimumSize: const Size(0, FrameSize.rowForm),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: FrameSpace.x4,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(tokens.radiusSm),
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x4),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm)),
                       ),
-                      icon: Icon(
-                        Icons.file_upload_outlined,
-                        size: FrameSize.icon,
-                        color: tokens.accent,
-                      ),
-                      label: Text(
-                        strings.importThemeBtn,
-                        style: text.label.copyWith(color: tokens.textPrimary),
-                      ),
+                      icon: Icon(Icons.file_upload_outlined, size: FrameSize.icon, color: tokens.accent),
+                      label: Text(strings.importThemeBtn, style: text.label.copyWith(color: tokens.textPrimary)),
                       onPressed: () async {
                         try {
-                          final file = await openFile(
-                            acceptedTypeGroups: [
-                              XTypeGroup(
+                          final picked = await ref
+                              .read(fileDialogServiceProvider)
+                              .pickFiles(
                                 label: strings.themeJsonFilterLabel,
                                 extensions: const ['json'],
-                              ),
-                            ],
-                          );
-                          if (file == null || !context.mounted) {
+                                multiple: false,
+                              );
+                          if (picked.isEmpty || !context.mounted) {
                             return;
                           }
-                          final content = await file.readAsString();
+                          final content = await ref.read(fileSystemServiceProvider).readText(picked.first.path);
                           final importedSpec = await ref
                               .read(activeThemeSpecProvider.notifier)
                               .importThemeFromJson(content);
                           if (context.mounted) {
-                            FrameSnackBar.show(
-                              context,
-                              message: strings.themeImportSuccess(
-                                importedSpec.name,
-                              ),
-                            );
+                            FrameSnackBar.show(context, message: strings.themeImportSuccess(importedSpec.name));
                           }
                         } catch (e) {
                           if (context.mounted) {
-                            FrameSnackBar.show(
-                              context,
-                              message: strings.themeImportError(e),
-                              isError: true,
-                            );
+                            FrameSnackBar.show(context, message: strings.themeImportError(e), isError: true);
                           }
                         }
                       },
@@ -361,16 +299,10 @@ class AppearanceSection extends ConsumerWidget {
               ),
               if (activeTheme.diagnostics.isNotEmpty) ...[
                 const SizedBox(height: FrameSpace.x4),
-                Text(
-                  strings.themeDiagnosticsHeader,
-                  style: text.label.copyWith(color: tokens.textPrimary),
-                ),
+                Text(strings.themeDiagnosticsHeader, style: text.label.copyWith(color: tokens.textPrimary)),
                 const SizedBox(height: FrameSpace.x1),
                 ...activeTheme.diagnostics.map(
-                  (d) => Text(
-                    '• $d',
-                    style: text.caption.copyWith(color: tokens.textMuted),
-                  ),
+                  (d) => Text('• $d', style: text.caption.copyWith(color: tokens.textMuted)),
                 ),
               ],
             ],
@@ -384,22 +316,13 @@ class AppearanceSection extends ConsumerWidget {
             type: MaterialType.transparency,
             child: SwitchListTile(
               key: const ValueKey('settings-composer-send-with-enter-switch'),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(tokens.radiusSm),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: FrameSpace.x2,
-              ),
-              title: Text(
-                strings.sendWithEnterTitle,
-                style: text.body.copyWith(color: tokens.textPrimary),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2),
+              title: Text(strings.sendWithEnterTitle, style: text.body.copyWith(color: tokens.textPrimary)),
               activeThumbColor: tokens.accent,
               value: ref.watch(composerSettingsProvider).sendWithEnter,
               onChanged: (val) {
-                ref
-                    .read(composerSettingsProvider.notifier)
-                    .setSendWithEnter(val);
+                ref.read(composerSettingsProvider.notifier).setSendWithEnter(val);
               },
             ),
           ),
@@ -412,22 +335,13 @@ class AppearanceSection extends ConsumerWidget {
             type: MaterialType.transparency,
             child: SwitchListTile(
               key: const ValueKey('settings-reduced-motion-switch'),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(tokens.radiusSm),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: FrameSpace.x2,
-              ),
-              title: Text(
-                strings.reducedMotionTitle,
-                style: text.body.copyWith(color: tokens.textPrimary),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2),
+              title: Text(strings.reducedMotionTitle, style: text.body.copyWith(color: tokens.textPrimary)),
               activeThumbColor: tokens.accent,
               value: ref.watch(reducedMotionSettingsProvider).enabled,
               onChanged: (val) {
-                ref
-                    .read(reducedMotionSettingsProvider.notifier)
-                    .setEnabled(val);
+                ref.read(reducedMotionSettingsProvider.notifier).setEnabled(val);
               },
             ),
           ),
@@ -440,22 +354,13 @@ class AppearanceSection extends ConsumerWidget {
             type: MaterialType.transparency,
             child: SwitchListTile(
               key: const ValueKey('settings-startup-animation-switch'),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(tokens.radiusSm),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: FrameSpace.x2,
-              ),
-              title: Text(
-                strings.startupAnimationTitle,
-                style: text.body.copyWith(color: tokens.textPrimary),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2),
+              title: Text(strings.startupAnimationTitle, style: text.body.copyWith(color: tokens.textPrimary)),
               activeThumbColor: tokens.accent,
               value: ref.watch(startupAnimationSettingsProvider).enabled,
               onChanged: (val) {
-                ref
-                    .read(startupAnimationSettingsProvider.notifier)
-                    .setEnabled(val);
+                ref.read(startupAnimationSettingsProvider.notifier).setEnabled(val);
               },
             ),
           ),
@@ -468,16 +373,9 @@ class AppearanceSection extends ConsumerWidget {
             type: MaterialType.transparency,
             child: SwitchListTile(
               key: const ValueKey('settings-nerd-stats-switch'),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(tokens.radiusSm),
-              ),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: FrameSpace.x2,
-              ),
-              title: Text(
-                strings.nerdStatsTitle,
-                style: text.body.copyWith(color: tokens.textPrimary),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2),
+              title: Text(strings.nerdStatsTitle, style: text.body.copyWith(color: tokens.textPrimary)),
               activeThumbColor: tokens.accent,
               value: ref.watch(nerdStatsSettingsProvider).enabled,
               onChanged: (val) {
@@ -489,14 +387,10 @@ class AppearanceSection extends ConsumerWidget {
         const SizedBox(height: FrameSpace.x8),
         Builder(
           builder: (context) {
-            final stepGroupingSettings = ref.watch(
-              stepGroupingSettingsProvider,
-            );
+            final stepGroupingSettings = ref.watch(stepGroupingSettingsProvider);
             return FrameSection(
               title: strings.stepGroupingSectionTitle,
-              description: strings.stepGroupingModeDescription(
-                stepGroupingSettings.mode,
-              ),
+              description: strings.stepGroupingModeDescription(stepGroupingSettings.mode),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -504,9 +398,7 @@ class AppearanceSection extends ConsumerWidget {
                     tokens,
                     DropdownButtonHideUnderline(
                       child: DropdownButton<StepGroupingMode>(
-                        key: const ValueKey(
-                          'settings-step-grouping-mode-dropdown',
-                        ),
+                        key: const ValueKey('settings-step-grouping-mode-dropdown'),
                         isExpanded: true,
                         isDense: true,
                         borderRadius: BorderRadius.circular(tokens.radiusMd),
@@ -521,9 +413,7 @@ class AppearanceSection extends ConsumerWidget {
                               alignment: AlignmentDirectional.centerStart,
                               child: Text(
                                 strings.stepGroupingModeLabel(mode),
-                                style: text.body.copyWith(
-                                  color: tokens.textPrimary,
-                                ),
+                                style: text.body.copyWith(color: tokens.textPrimary),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -536,15 +426,10 @@ class AppearanceSection extends ConsumerWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Text(
-                                  strings.stepGroupingModeLabel(mode),
-                                  style: text.label,
-                                ),
+                                Text(strings.stepGroupingModeLabel(mode), style: text.label),
                                 Text(
                                   strings.stepGroupingModeDescription(mode),
-                                  style: text.caption.copyWith(
-                                    color: tokens.textMuted,
-                                  ),
+                                  style: text.caption.copyWith(color: tokens.textMuted),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                 ),
@@ -554,9 +439,7 @@ class AppearanceSection extends ConsumerWidget {
                         }).toList(),
                         onChanged: (newMode) {
                           if (newMode != null) {
-                            ref
-                                .read(stepGroupingSettingsProvider.notifier)
-                                .setMode(newMode);
+                            ref.read(stepGroupingSettingsProvider.notifier).setMode(newMode);
                           }
                         },
                       ),
@@ -566,15 +449,9 @@ class AppearanceSection extends ConsumerWidget {
                   Material(
                     type: MaterialType.transparency,
                     child: SwitchListTile(
-                      key: const ValueKey(
-                        'settings-step-grouping-auto-collapse-switch',
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(tokens.radiusSm),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: FrameSpace.x2,
-                      ),
+                      key: const ValueKey('settings-step-grouping-auto-collapse-switch'),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2),
                       title: Text(
                         strings.stepGroupingAutoCollapseTitle,
                         style: text.body.copyWith(color: tokens.textPrimary),
@@ -586,9 +463,7 @@ class AppearanceSection extends ConsumerWidget {
                       activeThumbColor: tokens.accent,
                       value: stepGroupingSettings.autoCollapse,
                       onChanged: (val) {
-                        ref
-                            .read(stepGroupingSettingsProvider.notifier)
-                            .setAutoCollapse(val);
+                        ref.read(stepGroupingSettingsProvider.notifier).setAutoCollapse(val);
                       },
                     ),
                   ),
@@ -596,15 +471,9 @@ class AppearanceSection extends ConsumerWidget {
                   Material(
                     type: MaterialType.transparency,
                     child: SwitchListTile(
-                      key: const ValueKey(
-                        'settings-step-grouping-show-intermediate-answers-switch',
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(tokens.radiusSm),
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: FrameSpace.x2,
-                      ),
+                      key: const ValueKey('settings-step-grouping-show-intermediate-answers-switch'),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm)),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2),
                       title: Text(
                         strings.stepGroupingShowIntermediateAnswersTitle,
                         style: text.body.copyWith(
@@ -615,9 +484,7 @@ class AppearanceSection extends ConsumerWidget {
                       ),
                       subtitle: Text(
                         stepGroupingSettings.mode == StepGroupingMode.full
-                            ? (strings.isItalian
-                                ? 'Non applicabile in modalità Completo (tutte le risposte intermedie sono raggruppate nei passaggi).'
-                                : 'Not applicable in Full mode (all intermediate answers are compacted into steps).')
+                            ? strings.stepGroupingIntermediateNotApplicable
                             : strings.stepGroupingShowIntermediateAnswersSubtitle,
                         style: text.caption.copyWith(color: tokens.textMuted),
                       ),
@@ -628,9 +495,7 @@ class AppearanceSection extends ConsumerWidget {
                       onChanged: stepGroupingSettings.mode == StepGroupingMode.full
                           ? null
                           : (val) {
-                              ref
-                                  .read(stepGroupingSettingsProvider.notifier)
-                                  .setShowIntermediateAnswers(val);
+                              ref.read(stepGroupingSettingsProvider.notifier).setShowIntermediateAnswers(val);
                             },
                     ),
                   ),

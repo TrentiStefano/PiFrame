@@ -63,6 +63,9 @@ export abstract class BaseTunnelProvider extends EventEmitter implements TunnelP
   }
 }
 
+// How long after the SIGKILL escalation the stop waits for the tunnel process to exit before it gives up waiting.
+const EXIT_WAIT_AFTER_SIGKILL_MS = 1500;
+
 /**
  * Terminates a child process AND its descendants.
  * - Windows: `taskkill /T /F` (a plain kill only terminates the direct child).
@@ -100,7 +103,7 @@ export function killProcessTree(proc: child_process.ChildProcess, graceMs = 3000
 
     signal('SIGTERM');
     const forceTimer = setTimeout(() => signal('SIGKILL'), graceMs);
-    const giveUpTimer = setTimeout(finish, graceMs + 1500);
+    const giveUpTimer = setTimeout(finish, graceMs + EXIT_WAIT_AFTER_SIGKILL_MS);
     forceTimer.unref?.();
     giveUpTimer.unref?.();
   });

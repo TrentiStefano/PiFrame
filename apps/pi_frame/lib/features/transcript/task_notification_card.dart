@@ -1,10 +1,12 @@
+import 'dart:async';
 import 'dart:ui' show BoxWidthStyle;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../../data/language/strings_transcript.dart';
-import 'rich_content.dart';
+import '../../data/platform/host_file_opener.dart';
 
 class TaskNotificationData {
   final String taskId;
@@ -45,10 +47,7 @@ class TaskNotificationData {
     final xmlContent = notifMatch.group(1) ?? '';
 
     String extractTag(String tag) {
-      final m = RegExp(
-        '<$tag>([\\s\\S]*?)</$tag>',
-        caseSensitive: false,
-      ).firstMatch(xmlContent);
+      final m = RegExp('<$tag>([\\s\\S]*?)</$tag>', caseSensitive: false).firstMatch(xmlContent);
       return m?.group(1)?.trim() ?? '';
     }
 
@@ -80,10 +79,7 @@ class TaskNotificationData {
     // Check for trailing transcript path:
     // "Full transcript available at: ..."
     String? transcriptPath;
-    final transcriptMatch = RegExp(
-      r'Full transcript available at:\s*([^\r\n]+)',
-      caseSensitive: false,
-    ).firstMatch(raw);
+    final transcriptMatch = RegExp(r'Full transcript available at:\s*([^\r\n]+)', caseSensitive: false).firstMatch(raw);
     if (transcriptMatch != null) {
       transcriptPath = transcriptMatch.group(1)?.trim();
     } else if (outputFile.isNotEmpty) {
@@ -106,21 +102,17 @@ class TaskNotificationData {
   }
 }
 
-class TaskNotificationCard extends StatefulWidget {
+class TaskNotificationCard extends ConsumerStatefulWidget {
   final TaskNotificationData data;
   final String? cwd;
 
-  const TaskNotificationCard({
-    super.key,
-    required this.data,
-    this.cwd,
-  });
+  const TaskNotificationCard({super.key, required this.data, this.cwd});
 
   @override
-  State<TaskNotificationCard> createState() => _TaskNotificationCardState();
+  ConsumerState<TaskNotificationCard> createState() => _TaskNotificationCardState();
 }
 
-class _TaskNotificationCardState extends State<TaskNotificationCard> {
+class _TaskNotificationCardState extends ConsumerState<TaskNotificationCard> {
   bool _isResultExpanded = false;
 
   String _formatDuration(int? ms) {
@@ -145,16 +137,15 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
     final strings = safeTranscriptStrings(context);
     final data = widget.data;
 
-    final isWrappedUp = data.status.toLowerCase().contains('turn limit') ||
-        data.status.toLowerCase().contains('wrapped');
-    final isError = data.status.toLowerCase().contains('error') ||
-        data.status.toLowerCase().contains('failed');
+    final isWrappedUp =
+        data.status.toLowerCase().contains('turn limit') || data.status.toLowerCase().contains('wrapped');
+    final isError = data.status.toLowerCase().contains('error') || data.status.toLowerCase().contains('failed');
 
     final Color statusColor = isError
         ? tokens.agentError
         : isWrappedUp
-            ? tokens.signalWarning
-            : tokens.success;
+        ? tokens.signalWarning
+        : tokens.success;
 
     final durationText = _formatDuration(data.durationMs);
     final tokensText = _formatNumber(data.totalTokens);
@@ -165,16 +156,9 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
       decoration: BoxDecoration(
         color: tokens.surfaceElevated,
         borderRadius: BorderRadius.circular(tokens.radiusMd),
-        border: Border.all(
-          color: statusColor.withValues(alpha: 0.35),
-          width: 1.2,
-        ),
+        border: Border.all(color: statusColor.withValues(alpha: 0.35), width: 1.2),
         boxShadow: [
-          BoxShadow(
-            color: tokens.overlay.withValues(alpha: 0.08),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
+          BoxShadow(color: tokens.overlay.withValues(alpha: 0.08), blurRadius: 6, offset: const Offset(0, 2)),
         ],
       ),
       child: Column(
@@ -186,22 +170,12 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: statusColor.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.vertical(
-                top: Radius.circular(tokens.radiusMd),
-              ),
-              border: Border(
-                bottom: BorderSide(
-                  color: tokens.border.withValues(alpha: 0.5),
-                ),
-              ),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(tokens.radiusMd)),
+              border: Border(bottom: BorderSide(color: tokens.border.withValues(alpha: 0.5))),
             ),
             child: Row(
               children: [
-                Icon(
-                  Icons.hub_outlined,
-                  size: FrameSize.icon,
-                  color: statusColor,
-                ),
+                Icon(Icons.hub_outlined, size: FrameSize.icon, color: statusColor),
                 const SizedBox(width: 8),
                 Flexible(
                   child: Text(
@@ -222,10 +196,7 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
                     decoration: BoxDecoration(
                       color: statusColor.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(tokens.radiusSm),
-                      border: Border.all(
-                        color: statusColor.withValues(alpha: 0.4),
-                        width: 0.8,
-                      ),
+                      border: Border.all(color: statusColor.withValues(alpha: 0.4), width: 0.8),
                     ),
                     child: Text(
                       data.status.toUpperCase(),
@@ -256,11 +227,7 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
                     children: [
                       Padding(
                         padding: const EdgeInsets.only(top: 2),
-                        child: Icon(
-                          Icons.format_quote_outlined,
-                          size: FrameSize.icon,
-                          color: tokens.accent,
-                        ),
+                        child: Icon(Icons.format_quote_outlined, size: FrameSize.icon, color: tokens.accent),
                       ),
                       const SizedBox(width: 6),
                       Expanded(
@@ -376,11 +343,7 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(
-                                        Icons.terminal_outlined,
-                                        size: 13,
-                                        color: tokens.textSecondary,
-                                      ),
+                                      Icon(Icons.terminal_outlined, size: 13, color: tokens.textSecondary),
                                       const SizedBox(width: 6),
                                       Flexible(
                                         child: Text(
@@ -461,29 +424,22 @@ class _TaskNotificationCardState extends State<TaskNotificationCard> {
                         ),
                       ),
                     ),
-                    if (data.fullTranscriptPath != null &&
-                        data.fullTranscriptPath!.isNotEmpty) ...[
+                    if (data.fullTranscriptPath != null && data.fullTranscriptPath!.isNotEmpty) ...[
                       InkWell(
                         onTap: () {
-                          openInOsFileExplorer(
-                            data.fullTranscriptPath!,
-                            cwd: widget.cwd,
+                          unawaited(
+                            ref
+                                .read(hostFileOpenerProvider)
+                                .openInOsFileExplorer(data.fullTranscriptPath!, cwd: widget.cwd),
                           );
                         },
                         borderRadius: BorderRadius.circular(tokens.radiusSm),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 3,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(
-                                Icons.open_in_new_outlined,
-                                size: 12,
-                                color: tokens.accent,
-                              ),
+                              Icon(Icons.open_in_new_outlined, size: 12, color: tokens.accent),
                               const SizedBox(width: 4),
                               Text(
                                 strings.taskNotifOpenFullTranscript,

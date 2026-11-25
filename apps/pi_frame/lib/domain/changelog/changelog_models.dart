@@ -1,4 +1,4 @@
-import 'package:flutter/foundation.dart';
+import 'package:meta/meta.dart';
 
 /// Single item within a changelog release (either a feature or a bug fix).
 @immutable
@@ -18,13 +18,7 @@ class ChangelogItem {
   /// Whether this item is a feature (`true`) or a bug fix (`false`).
   final bool isFeature;
 
-  const ChangelogItem({
-    this.scope,
-    required this.message,
-    this.commitHash,
-    this.commitUrl,
-    required this.isFeature,
-  });
+  const ChangelogItem({this.scope, required this.message, this.commitHash, this.commitUrl, required this.isFeature});
 
   @override
   bool operator ==(Object other) =>
@@ -49,12 +43,7 @@ class ChangelogRelease {
   final List<ChangelogItem> features;
   final List<ChangelogItem> fixes;
 
-  const ChangelogRelease({
-    required this.version,
-    this.date,
-    this.features = const [],
-    this.fixes = const [],
-  });
+  const ChangelogRelease({required this.version, this.date, this.features = const [], this.fixes = const []});
 
   bool get isEmpty => features.isEmpty && fixes.isEmpty;
   bool get isNotEmpty => !isEmpty;
@@ -68,12 +57,11 @@ class ChangelogRelease {
           runtimeType == other.runtimeType &&
           version == other.version &&
           date == other.date &&
-          listEquals(features, other.features) &&
-          listEquals(fixes, other.fixes);
+          _sameItems(features, other.features) &&
+          _sameItems(fixes, other.fixes);
 
   @override
-  int get hashCode =>
-      Object.hash(version, date, Object.hashAll(features), Object.hashAll(fixes));
+  int get hashCode => Object.hash(version, date, Object.hashAll(features), Object.hashAll(fixes));
 }
 
 enum _SectionType { none, feature, fix, other }
@@ -83,29 +71,19 @@ enum _SectionType { none, feature, fix, other }
 class ChangelogParser {
   const ChangelogParser();
 
-  static final _versionHeaderRegex = RegExp(
-    r'^##\s+\[?v?(\d+\.\d+\.\d+)\]?(?:\([^)]+\))?(?:\s*\(([^)]+)\))?',
-  );
+  static final _versionHeaderRegex = RegExp(r'^##\s+\[?v?(\d+\.\d+\.\d+)\]?(?:\([^)]+\))?(?:\s*\(([^)]+)\))?');
 
   static final _sectionHeaderRegex = RegExp(r'^###\s+(.*)$');
 
   static final _bulletItemRegex = RegExp(r'^\s*[\*\-]\s+(.*)$');
 
-  static final _commitLinkRegex = RegExp(
-    r'\(\[([a-f0-9]{7,})\]\((https?://[^)]+)\)\)',
-  );
+  static final _commitLinkRegex = RegExp(r'\(\[([a-f0-9]{7,})\]\((https?://[^)]+)\)\)');
 
-  static final _commitHashOnlyRegex = RegExp(
-    r'\(\[([a-f0-9]{7,})\]\)',
-  );
+  static final _commitHashOnlyRegex = RegExp(r'\(\[([a-f0-9]{7,})\]\)');
 
-  static final _scopedMessageRegex = RegExp(
-    r'^\*\*\(?([a-zA-Z0-9_\-]+)\)?\:\*\*\s*(.*)$',
-  );
+  static final _scopedMessageRegex = RegExp(r'^\*\*\(?([a-zA-Z0-9_\-]+)\)?\:\*\*\s*(.*)$');
 
-  static final _plainScopedRegex = RegExp(
-    r'^([a-zA-Z0-9_\-]+)\:\s*(.*)$',
-  );
+  static final _plainScopedRegex = RegExp(r'^([a-zA-Z0-9_\-]+)\:\s*(.*)$');
 
   static const _ignoredScopes = {
     'ci',
@@ -178,14 +156,10 @@ class ChangelogParser {
       }
 
       // Check bullet items under feat/fix section
-      if (currentSection == _SectionType.feature ||
-          currentSection == _SectionType.fix) {
+      if (currentSection == _SectionType.feature || currentSection == _SectionType.fix) {
         final bMatch = _bulletItemRegex.firstMatch(trimmed);
         if (bMatch != null) {
-          final item = _parseItem(
-            bMatch.group(1)!,
-            isFeature: currentSection == _SectionType.feature,
-          );
+          final item = _parseItem(bMatch.group(1)!, isFeature: currentSection == _SectionType.feature);
           if (item != null) {
             if (item.isFeature) {
               currentFeatures.add(item);
@@ -224,14 +198,10 @@ class ChangelogParser {
         continue;
       }
 
-      if (currentSection == _SectionType.feature ||
-          currentSection == _SectionType.fix) {
+      if (currentSection == _SectionType.feature || currentSection == _SectionType.fix) {
         final bMatch = _bulletItemRegex.firstMatch(trimmed);
         if (bMatch != null) {
-          final item = _parseItem(
-            bMatch.group(1)!,
-            isFeature: currentSection == _SectionType.feature,
-          );
+          final item = _parseItem(bMatch.group(1)!, isFeature: currentSection == _SectionType.feature);
           if (item != null) {
             if (item.isFeature) {
               features.add(item);
@@ -305,4 +275,13 @@ class ChangelogParser {
       isFeature: isFeature,
     );
   }
+}
+
+/// Element-wise equality for the item lists of a release.
+bool _sameItems<T>(List<T> a, List<T> b) {
+  if (a.length != b.length) return false;
+  for (var i = 0; i < a.length; i++) {
+    if (a[i] != b[i]) return false;
+  }
+  return true;
 }

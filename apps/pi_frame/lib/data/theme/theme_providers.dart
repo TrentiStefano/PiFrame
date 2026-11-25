@@ -23,9 +23,7 @@ final themeRepositoryProvider = Provider<ThemeRepository>((ref) {
   final repo = ThemeRepository();
   final brightness = PlatformDispatcher.instance.platformBrightness;
   final initialTheme = savedSettings.useSystemTheme
-      ? (brightness == Brightness.dark
-          ? savedSettings.defaultDarkThemeId
-          : savedSettings.defaultLightThemeId)
+      ? (brightness == Brightness.dark ? savedSettings.defaultDarkThemeId : savedSettings.defaultLightThemeId)
       : savedSettings.activeThemeId;
 
   if (repo.hasTheme(initialTheme)) {
@@ -33,49 +31,45 @@ final themeRepositoryProvider = Provider<ThemeRepository>((ref) {
   }
 
   // Load bundled asset themes & user themes
-  Future.microtask(() async {
-    final assetThemes = [
-      'assets/themes/piframe-dark.json',
-      'assets/themes/piframe-light.json',
-    ];
-    for (final path in assetThemes) {
-      try {
-        final content = await rootBundle.loadString(path);
-        repo.registerThemeJson(content);
-      } catch (_) {}
-    }
-
-    // Attempt to watch and load user ~/.piframe/themes/
-    try {
-      final userThemesDir = storage.resolveUserThemesDir();
-      if (userThemesDir != null && userThemesDir.existsSync()) {
-        final files = userThemesDir
-            .listSync()
-            .whereType<File>()
-            .where((f) => f.path.endsWith('.json'));
-        for (final file in files) {
-          try {
-            final content = file.readAsStringSync();
-            repo.registerThemeJson(content);
-          } catch (_) {}
-        }
-        repo.watchDirectory(userThemesDir);
+  unawaited(
+    Future.microtask(() async {
+      final assetThemes = ['assets/themes/piframe-dark.json', 'assets/themes/piframe-light.json'];
+      for (final path in assetThemes) {
+        try {
+          final content = await rootBundle.loadString(path);
+          repo.registerThemeJson(content);
+        } catch (_) {}
       }
-    } catch (_) {}
 
-    // Ensure the saved theme or intended theme is activated once all themes are loaded
-    final settingsToRestore = storage.loadSettingsSync();
-    final currentBrightness = PlatformDispatcher.instance.platformBrightness;
-    final activeToRestore = settingsToRestore.useSystemTheme
-        ? (currentBrightness == Brightness.dark
-            ? settingsToRestore.defaultDarkThemeId
-            : settingsToRestore.defaultLightThemeId)
-        : settingsToRestore.activeThemeId;
+      // Attempt to watch and load user ~/.piframe/themes/
+      try {
+        final userThemesDir = storage.resolveUserThemesDir();
+        if (userThemesDir != null && userThemesDir.existsSync()) {
+          final files = userThemesDir.listSync().whereType<File>().where((f) => f.path.endsWith('.json'));
+          for (final file in files) {
+            try {
+              final content = file.readAsStringSync();
+              repo.registerThemeJson(content);
+            } catch (_) {}
+          }
+          repo.watchDirectory(userThemesDir);
+        }
+      } catch (_) {}
 
-    if (repo.hasTheme(activeToRestore)) {
-      repo.setActiveTheme(activeToRestore);
-    }
-  });
+      // Ensure the saved theme or intended theme is activated once all themes are loaded
+      final settingsToRestore = storage.loadSettingsSync();
+      final currentBrightness = PlatformDispatcher.instance.platformBrightness;
+      final activeToRestore = settingsToRestore.useSystemTheme
+          ? (currentBrightness == Brightness.dark
+                ? settingsToRestore.defaultDarkThemeId
+                : settingsToRestore.defaultLightThemeId)
+          : settingsToRestore.activeThemeId;
+
+      if (repo.hasTheme(activeToRestore)) {
+        repo.setActiveTheme(activeToRestore);
+      }
+    }),
+  );
 
   ref.onDispose(() => repo.dispose());
   return repo;
@@ -87,9 +81,7 @@ class ThemeNotifier extends StateNotifier<ThemeSpec> {
   ThemeSettings _settings;
   late final StreamSubscription<List<ThemeSpec>> _subscription;
 
-  ThemeNotifier(this._repo, this._storage)
-      : _settings = _storage.loadSettingsSync(),
-        super(_repo.activeTheme) {
+  ThemeNotifier(this._repo, this._storage) : _settings = _storage.loadSettingsSync(), super(_repo.activeTheme) {
     _subscription = _repo.watch().listen((_) {
       if (state.id != _repo.activeTheme.id) {
         state = _repo.activeTheme;
@@ -116,16 +108,12 @@ class ThemeNotifier extends StateNotifier<ThemeSpec> {
       return _settings.activeThemeId;
     }
     final brightness = PlatformDispatcher.instance.platformBrightness;
-    return brightness == Brightness.dark
-        ? _settings.defaultDarkThemeId
-        : _settings.defaultLightThemeId;
+    return brightness == Brightness.dark ? _settings.defaultDarkThemeId : _settings.defaultLightThemeId;
   }
 
   void onPlatformBrightnessChanged(Brightness brightness) {
     if (_settings.useSystemTheme) {
-      final targetId = brightness == Brightness.dark
-          ? _settings.defaultDarkThemeId
-          : _settings.defaultLightThemeId;
+      final targetId = brightness == Brightness.dark ? _settings.defaultDarkThemeId : _settings.defaultLightThemeId;
       if (_repo.activeThemeId != targetId && _repo.hasTheme(targetId)) {
         _repo.setActiveTheme(targetId);
       }
@@ -137,13 +125,13 @@ class ThemeNotifier extends StateNotifier<ThemeSpec> {
 
   @override
   void dispose() {
-    _subscription.cancel();
+    unawaited(_subscription.cancel());
     super.dispose();
   }
 
   void setTheme(String themeId) {
     _settings = _settings.copyWith(activeThemeId: themeId);
-    _storage.saveSettings(_settings);
+    unawaited(_storage.saveSettings(_settings));
     if (_repo.activeThemeId != themeId && _repo.hasTheme(themeId)) {
       _repo.setActiveTheme(themeId);
     }
@@ -154,19 +142,19 @@ class ThemeNotifier extends StateNotifier<ThemeSpec> {
 
   void setUseSystemTheme(bool useSystem) {
     _settings = _settings.copyWith(useSystemTheme: useSystem);
-    _storage.saveSettings(_settings);
+    unawaited(_storage.saveSettings(_settings));
     _applyResolvedTheme();
   }
 
   void setDefaultDarkTheme(String themeId) {
     _settings = _settings.copyWith(defaultDarkThemeId: themeId);
-    _storage.saveSettings(_settings);
+    unawaited(_storage.saveSettings(_settings));
     _applyResolvedTheme();
   }
 
   void setDefaultLightTheme(String themeId) {
     _settings = _settings.copyWith(defaultLightThemeId: themeId);
-    _storage.saveSettings(_settings);
+    unawaited(_storage.saveSettings(_settings));
     _applyResolvedTheme();
   }
 
@@ -189,42 +177,38 @@ class ThemeNotifier extends StateNotifier<ThemeSpec> {
   }
 }
 
-final activeThemeSpecProvider = StateNotifierProvider<ThemeNotifier, ThemeSpec>(
-  (ref) {
-    final repo = ref.watch(themeRepositoryProvider);
-    final storage = ref.watch(themeStorageProvider);
-    return ThemeNotifier(repo, storage);
-  },
-);
+final activeThemeSpecProvider = StateNotifierProvider<ThemeNotifier, ThemeSpec>((ref) {
+  final repo = ref.watch(themeRepositoryProvider);
+  final storage = ref.watch(themeStorageProvider);
+  return ThemeNotifier(repo, storage);
+});
 
 class ThemeSettingsNotifier extends StateNotifier<ThemeSettings> {
   final ThemeStorage _storage;
   final ThemeNotifier _themeNotifier;
 
-  ThemeSettingsNotifier(this._storage, this._themeNotifier)
-      : super(_storage.loadSettingsSync());
+  ThemeSettingsNotifier(this._storage, this._themeNotifier) : super(_storage.loadSettingsSync());
 
   void setUseSystemTheme(bool useSystem) {
     state = state.copyWith(useSystemTheme: useSystem);
-    _storage.saveSettings(state);
+    unawaited(_storage.saveSettings(state));
     _themeNotifier.setUseSystemTheme(useSystem);
   }
 
   void setDefaultDarkTheme(String themeId) {
     state = state.copyWith(defaultDarkThemeId: themeId);
-    _storage.saveSettings(state);
+    unawaited(_storage.saveSettings(state));
     _themeNotifier.setDefaultDarkTheme(themeId);
   }
 
   void setDefaultLightTheme(String themeId) {
     state = state.copyWith(defaultLightThemeId: themeId);
-    _storage.saveSettings(state);
+    unawaited(_storage.saveSettings(state));
     _themeNotifier.setDefaultLightTheme(themeId);
   }
 }
 
-final themeSettingsProvider =
-    StateNotifierProvider<ThemeSettingsNotifier, ThemeSettings>((ref) {
+final themeSettingsProvider = StateNotifierProvider<ThemeSettingsNotifier, ThemeSettings>((ref) {
   final storage = ref.watch(themeStorageProvider);
   final themeNotifier = ref.watch(activeThemeSpecProvider.notifier);
   return ThemeSettingsNotifier(storage, themeNotifier);
@@ -234,4 +218,3 @@ final currentThemeDataProvider = Provider<ThemeData>((ref) {
   final spec = ref.watch(activeThemeSpecProvider);
   return spec.toThemeData();
 });
-

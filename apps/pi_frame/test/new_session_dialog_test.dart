@@ -19,9 +19,7 @@ Future<void> _openDialog(
 }) async {
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [
-        sessionListProvider.overrideWith((ref) async => sessions),
-      ],
+      overrides: [sessionListProvider.overrideWith((ref) async => sessions)],
       child: MaterialApp(
         theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
         home: Builder(
@@ -52,8 +50,7 @@ Future<void> _type(WidgetTester tester, String path) async {
   await tester.pumpAndSettle();
 }
 
-bool _createEnabled(WidgetTester tester) =>
-    tester.widget<FilledButton>(find.byKey(_createKey)).onPressed != null;
+bool _createEnabled(WidgetTester tester) => tester.widget<FilledButton>(find.byKey(_createKey)).onPressed != null;
 
 void main() {
   late Directory root;
@@ -78,19 +75,17 @@ void main() {
   testWidgets('starts empty with Create disabled', (tester) async {
     await _openDialog(tester, results: []);
 
-    expect(find.text('Nuova sessione'), findsWidgets);
+    expect(find.text('New session'), findsWidgets);
     expect(find.byKey(_fieldKey), findsOneWidget);
     expect(_createEnabled(tester), isFalse);
   });
 
-  testWidgets('a missing path shows Cartella non trovata and keeps Create disabled', (
-    tester,
-  ) async {
+  testWidgets('a missing path shows Cartella non trovata and keeps Create disabled', (tester) async {
     await _openDialog(tester, results: []);
 
     await _type(tester, '${root.path}/does-not-exist');
 
-    expect(find.text('Cartella non trovata'), findsOneWidget);
+    expect(find.text('Folder not found'), findsOneWidget);
     expect(_createEnabled(tester), isFalse);
   });
 
@@ -101,7 +96,7 @@ void main() {
 
     await _type(tester, repo.path);
 
-    expect(find.text('Repository Git rilevato · main'), findsOneWidget);
+    expect(find.text('Git repository detected · main'), findsOneWidget);
     expect(_createEnabled(tester), isTrue);
 
     await tester.tap(find.byKey(_createKey));
@@ -115,7 +110,7 @@ void main() {
     await _openDialog(tester, results: results);
 
     await _type(tester, folder.path);
-    expect(find.text('Cartella trovata'), findsOneWidget);
+    expect(find.text('Folder found'), findsOneWidget);
 
     // Enter in a single-line field arrives as the text input action.
     await tester.testTextInput.receiveAction(TextInputAction.done);

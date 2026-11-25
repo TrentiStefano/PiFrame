@@ -8,14 +8,17 @@
  *   pnpm run pr -- --title "..." --body "..."   forwarded to `gh pr create`
  *
  * Flags understood by `verify` (--release, --e2e, --force, --no-merge, --verbose) are passed to it; every
- * other argument goes to `gh pr create`. Without --title/--body, `gh pr create --fill` uses the commits.
+ * other argument goes to `gh pr create`. A body is required: --body, or --body-file (`-` reads stdin), filled in from
+ * .github/pull_request_template.md. The body is checked (tools/guardrails/src/pr-body.mjs) before anything else runs.
  * Nothing is pushed and no PR is created unless every verification step passed.
  * See docs/pr-verification.md.
  */
 import { spawnSync, execFileSync } from 'node:child_process';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildPrCreateArgs, splitArgs } from './pr-args.mjs';
+import { readFileSync } from 'node:fs';
+import { buildPrCreateArgs, prBodyText, splitArgs } from './pr-args.mjs';
+import { checkPrBody } from '../guardrails/src/index.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 // No shell anywhere: on Windows a shell re-splits arguments that contain spaces (e.g. --title "fix(ui): ...").
@@ -35,10 +38,36 @@ const branch = out('git', ['branch', '--show-current']);
 if (!branch) fail('Detached HEAD: check out a branch first.');
 if (branch === 'main') fail('You are on main. Create a feature branch, commit there, then run `pnpm run pr`.');
 
+// The body is the review shape the maintainer reads (the PR template). Refused here, before any push or gh call.
+const readBody = (file) => {
+  try {
+    return readFileSync(file === '-' ? 0 : file, 'utf8');
+  } catch (err) {
+    return fail(`Cannot read --body-file ${file}: ${err.message}`);
+  }
+};
+const body = prBodyText(ghArgs, readBody);
+if (body === undefined) {
+  fail(
+    'No pull request body. Pass --body "..." or --body-file <file> with the filled-in template (.github/pull_request_template.md). The commits are not used.'
+  );
+}
+const bodyCheck = checkPrBody(body);
+if (!bodyCheck.ok) {
+  fail(
+    [
+      'The pull request body is incomplete, so no pull request was opened:',
+      ...bodyCheck.problems.map((p) => `  - ${p}`)
+    ].join('\n')
+  );
+}
+
 try {
   out('gh', ['--version']);
 } catch {
-  fail('GitHub CLI (gh) not found. Install it from https://cli.github.com and run `gh auth login`, or open the PR by hand after `pnpm run verify`.');
+  fail(
+    'GitHub CLI (gh) not found. Install it from https://cli.github.com and run `gh auth login`, or open the PR by hand after `pnpm run verify`.'
+  );
 }
 try {
   out('gh', ['auth', 'status']);
@@ -59,7 +88,8 @@ const verify = spawnSync(process.execPath, [path.join(REPO, 'tools/scripts/verif
   cwd: REPO,
   stdio: 'inherit'
 });
-if (verify.status !== 0) fail('Verification failed: no push, no pull request. Fix the problem and run `pnpm run pr` again.');
+if (verify.status !== 0)
+  fail('Verification failed: no push, no pull request. Fix the problem and run `pnpm run pr` again.');
 
 // 3. Push and open the PR.
 console.log(`\nPushing ${branch} ...`);

@@ -3,33 +3,36 @@ import 'package:flutter/foundation.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app/desktop_chrome.dart';
-import 'app/harness_mode.dart';
+import 'data/runtime/harness_mode.dart';
 import 'ui/precision.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app/router.dart';
+import 'data/language/language_settings.dart';
 import 'data/theme/theme_providers.dart';
 import 'data/notifications/desktop_notification_service.dart';
+import 'data/platform/host_environment_service.dart';
+import 'data/platform/native_audio_service.dart';
 import 'data/window/window_state_service.dart';
 import 'data/motion/reduced_motion_settings.dart';
 import 'data/motion/startup_animation_settings.dart';
 import 'ui/motion.dart';
 import 'ui/startup_assemble_animation.dart';
+import 'ui/startup_audio.dart';
 
 Future<void> main() => runPiFrame();
 
-Future<void> runPiFrame({
-  Future<void> Function()? configureWindow,
-  Widget Function(Widget child)? rootWrapper,
-}) async {
+Future<void> runPiFrame({Future<void> Function()? configureWindow, Widget Function(Widget child)? rootWrapper}) async {
   WidgetsFlutterBinding.ensureInitialized();
-  final isWindows =
-      !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
-  final isMacOS =
-      !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS;
+  // Decide (and save) the language before anything else writes a settings
+  // file, so a new install is not mistaken for an existing user.
+  LanguageSettingsStore.standard().load();
+  final isWindows = !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+  final isMacOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS;
   final customDesktopChrome = isWindows || isMacOS;
-  final desktopWindowLifecycle = !kIsWeb &&
+  final desktopWindowLifecycle =
+      !kIsWeb &&
       (defaultTargetPlatform == TargetPlatform.windows ||
           defaultTargetPlatform == TargetPlatform.macOS ||
           defaultTargetPlatform == TargetPlatform.linux);
@@ -38,15 +41,9 @@ Future<void> runPiFrame({
     await windowManager.setTitle('PiFrame');
     await windowManager.setMinimumSize(const Size(680, 560));
     if (isWindows) {
-      await windowManager.setTitleBarStyle(
-        TitleBarStyle.hidden,
-        windowButtonVisibility: false,
-      );
+      await windowManager.setTitleBarStyle(TitleBarStyle.hidden, windowButtonVisibility: false);
     } else if (isMacOS) {
-      await windowManager.setTitleBarStyle(
-        TitleBarStyle.hidden,
-        windowButtonVisibility: true,
-      );
+      await windowManager.setTitleBarStyle(TitleBarStyle.hidden, windowButtonVisibility: true);
     }
     await DesktopNotificationService.instance.initialize();
     if (configureWindow != null) {
@@ -98,6 +95,9 @@ class PiFrameApp extends ConsumerWidget {
               // 620 ms reveal alone.
               child: playStartupIntro
                   ? StartupAssembleOverlay(
+                      // The intro is skipped under the test runner only; the web build plays it.
+                      skipIntro: ref.read(hostEnvironmentServiceProvider).variable('FLUTTER_TEST') != null,
+                      onSound: (sound) => ref.read(nativeAudioServiceProvider).playWav(StartupAudio.wavFor(sound)),
                       child: child ?? const SizedBox.shrink(),
                     )
                   : (child ?? const SizedBox.shrink()),

@@ -1,49 +1,84 @@
-import assert from 'node:assert/strict';
-import { readFile, writeFile } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
+// Checks that every version string release-please manages matches .release-please-manifest.json, and that the
+// in-app changelog is an up-to-date copy of CHANGELOG.md (check mode: it never writes). `pnpm run check:version`.
+// Each failure says what fixes it.
+import { readFile } from 'node:fs/promises';
+import { runChangelogSync } from './sync-changelog.mjs';
 
 const read = (path) => readFile(path, 'utf8');
+const problems = [];
+
 const manifest = JSON.parse(await read('.release-please-manifest.json'));
 const releaseConfig = JSON.parse(await read('release-please-config.json'));
 const packageConfig = releaseConfig.packages['.'];
 const version = manifest['.'];
-assert.equal(packageConfig['release-type'], 'node');
-for (const path of [
-  'apps/pi_frame/pubspec.yaml',
-  'apps/agentd/package.json',
-  'apps/agentd/src/main.ts',
-  'apps/pi_frame/lib/app/app_version.dart',
-]) {
-  assert.ok(
-    packageConfig['extra-files'].some((file) => file.path === path),
-    `${path} is missing from release-please extra-files`,
+if (packageConfig['release-type'] !== 'node') {
+  problems.push(
+    `release-please-config.json: packages["."]["release-type"] is "${packageConfig['release-type']}"; set it to "node".`
   );
 }
-assert.match(version, /^\d+\.\d+\.\d+$/, 'manifest must contain a SemVer version');
+const EXTRA_FILES = {
+  'apps/pi_frame/pubspec.yaml': { type: 'yaml', path: 'apps/pi_frame/pubspec.yaml', jsonpath: '$.version' },
+  'apps/agentd/package.json': { type: 'json', path: 'apps/agentd/package.json', jsonpath: '$.version' },
+  'apps/agentd/src/main.ts': { type: 'generic', path: 'apps/agentd/src/main.ts' },
+  'apps/pi_frame/lib/data/runtime/app_version.dart': {
+    type: 'generic',
+    path: 'apps/pi_frame/lib/data/runtime/app_version.dart'
+  }
+};
+for (const [path, entry] of Object.entries(EXTRA_FILES)) {
+  if (!packageConfig['extra-files'].some((file) => file.path === path)) {
+    problems.push(
+      `${path} is missing from release-please extra-files: add ${JSON.stringify(entry)} to ` +
+        `packages["."]["extra-files"] in release-please-config.json.`
+    );
+  }
+}
+if (!/^\d+\.\d+\.\d+$/.test(version ?? '')) {
+  problems.push(
+    `.release-please-manifest.json: "." is "${version}", not a SemVer version; set it to the released version ` +
+      `(for example "1.5.1").`
+  );
+}
 
 const rootPackage = JSON.parse(await read('package.json'));
 const agentPackage = JSON.parse(await read('apps/agentd/package.json'));
 const pubspec = await read('apps/pi_frame/pubspec.yaml');
 const daemon = await read('apps/agentd/src/main.ts');
-const dartVersion = await read('apps/pi_frame/lib/app/app_version.dart');
-const pubspecVersion = pubspec.match(/^version:\s*(\d+\.\d+\.\d+)(?:\+\d+)?\s*$/m)?.[1];
-const daemonVersion = daemon.match(/const VERSION = '([^']+)';\s*\/\/ x-release-please-version/)?.[1];
-const appVersion = dartVersion.match(/const piFrameVersionDefault = '([^']+)';\s*\/\/ x-release-please-version/)?.[1];
-
-assert.equal(rootPackage.version, version, 'root package.json version is out of sync');
-assert.equal(agentPackage.version, version, 'agentd package.json version is out of sync');
-assert.equal(pubspecVersion, version, 'Flutter pubspec version is out of sync');
-assert.equal(daemonVersion, version, 'daemon source version is out of sync');
-assert.equal(appVersion, version, 'Flutter app fallback version is out of sync');
-
-if (existsSync('CHANGELOG.md')) {
-  const rootChangelog = await read('CHANGELOG.md');
-  const assetChangelogPath = 'apps/pi_frame/assets/CHANGELOG.md';
-  const currentAsset = existsSync(assetChangelogPath) ? await read(assetChangelogPath) : null;
-  if (currentAsset !== rootChangelog) {
-    await writeFile(assetChangelogPath, rootChangelog, 'utf8');
-    console.log('Synchronized CHANGELOG.md to apps/pi_frame/assets/CHANGELOG.md');
+const dartVersion = await read('apps/pi_frame/lib/data/runtime/app_version.dart');
+const versions = [
+  ['package.json', '"version"', rootPackage.version],
+  ['apps/agentd/package.json', '"version"', agentPackage.version],
+  [
+    'apps/pi_frame/pubspec.yaml',
+    '`version:` (keep any `+build` suffix)',
+    pubspec.match(/^version:\s*(\d+\.\d+\.\d+)(?:\+\d+)?\s*$/m)?.[1]
+  ],
+  [
+    'apps/agentd/src/main.ts',
+    "`const VERSION = '...'; // x-release-please-version`",
+    daemon.match(/const VERSION = '([^']+)';\s*\/\/ x-release-please-version/)?.[1]
+  ],
+  [
+    'apps/pi_frame/lib/data/runtime/app_version.dart',
+    "`const piFrameVersionDefault = '...'; // x-release-please-version`",
+    dartVersion.match(/const piFrameVersionDefault = '([^']+)';\s*\/\/ x-release-please-version/)?.[1]
+  ]
+];
+for (const [file, field, found] of versions) {
+  if (found !== version) {
+    problems.push(
+      `${file}: version is ${found === undefined ? 'not found' : `"${found}"`}, but .release-please-manifest.json ` +
+        `says "${version}". Set ${field} in ${file} to ${version} (release-please keeps them in sync on release).`
+    );
   }
 }
 
-console.log(`Version metadata is synchronized at ${version}`);
+// Check mode only: the in-app changelog is generated by Flutter setup and the Flutter test scripts, never here.
+const changelog = runChangelogSync('check');
+if (changelog.status === 'fail') problems.push(changelog.message);
+
+if (problems.length > 0) {
+  console.error(`✖ Version check failed:\n${problems.map((p) => `- ${p}`).join('\n')}`);
+  process.exit(1);
+}
+console.log(`Version metadata is synchronized at ${version}; ${changelog.message}`);

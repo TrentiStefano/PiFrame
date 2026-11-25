@@ -13,20 +13,15 @@ bool hasVariableContextPricing(Map<String, dynamic> model) {
   final id = (model['id'] ?? '').toString().toLowerCase();
   final name = (model['name'] ?? '').toString().toLowerCase();
 
-  return id.contains('luna') ||
-      name.contains('luna') ||
-      id.contains('haiku') ||
-      name.contains('haiku');
+  return id.contains('luna') || name.contains('luna') || id.contains('haiku') || name.contains('haiku');
 }
 
-int? modelContextWindow(Map<String, dynamic> model) =>
-    (model['contextWindow'] as num?)?.toInt();
+int? modelContextWindow(Map<String, dynamic> model) => (model['contextWindow'] as num?)?.toInt();
 
 bool isValidContextWindowLimit(int limit, int? modelMaximum) =>
     limit > 0 && modelMaximum != null && limit <= modelMaximum;
 
-double usableContextWindow(int limit, double reservePercent) =>
-    limit * (1 - reservePercent / 100);
+double usableContextWindow(int limit, double reservePercent) => limit * (1 - reservePercent / 100);
 
 List<int> getVariableContextSizes(Map<String, dynamic> model) {
   final fullWindow = modelContextWindow(model);
@@ -75,9 +70,7 @@ String formatTokens(dynamic count) {
   }
   if (numVal >= 1000000) {
     final m = numVal / 1000000.0;
-    return m % 1 == 0
-        ? '${m.toInt()}M'
-        : '${m.toStringAsFixed(2).replaceAll(RegExp(r'0+$'), '')}M';
+    return m % 1 == 0 ? '${m.toInt()}M' : '${m.toStringAsFixed(2).replaceAll(RegExp(r'0+$'), '')}M';
   }
   if (numVal % 1000 == 0) {
     return '${numVal ~/ 1000}k';
@@ -90,12 +83,4 @@ String formatTokens(dynamic count) {
     return '${k}k';
   }
   return numVal.toInt().toString();
-}
-
-String formatContextSize(int size, int fullWindow, {bool italian = true}) {
-  final formatted = formatTokens(size);
-  if (size >= fullWindow) {
-    return italian ? '$formatted (Max / Tier esteso)' : '$formatted (Max / extended tier)';
-  }
-  return italian ? '$formatted (Tier base)' : '$formatted (Base tier)';
 }

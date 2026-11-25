@@ -13,7 +13,7 @@ class _MockAgentsClient extends PcpClient {
   _MockAgentsClient({required this.config}) : super(port: 1, token: 'test');
 
   PiAgentsConfig config;
-  List<Map>? lastUpdateChanges;
+  List<Map<String, dynamic>>? lastUpdateChanges;
 
   @override
   Future<PiAgentsConfig> getAgentsConfig({String? cwd}) async {
@@ -21,17 +21,14 @@ class _MockAgentsClient extends PcpClient {
   }
 
   @override
-  Future<PiAgentsConfig> updateAgentsConfig(List<Map> changes) async {
+  Future<PiAgentsConfig> updateAgentsConfig(List<Map<String, dynamic>> changes) async {
     lastUpdateChanges = changes;
     return config;
   }
 }
 
 void main() {
-  Widget buildTestApp({
-    required PcpClient client,
-    AppLanguage language = AppLanguage.it,
-  }) {
+  Widget buildTestApp({required PcpClient client, AppLanguage language = AppLanguage.it}) {
     return ProviderScope(
       overrides: [
         daemonEndpointProvider.overrideWith((ref) async => null),
@@ -39,19 +36,13 @@ void main() {
         appStringsProvider.overrideWithValue(AppStrings(language)),
       ],
       child: MaterialApp(
-        theme: ThemeData.dark().copyWith(
-          extensions: [FrameTokens.dark],
-        ),
-        home: const Scaffold(
-          body: AgentsSection(),
-        ),
+        theme: ThemeData.dark().copyWith(extensions: [FrameTokens.dark]),
+        home: const Scaffold(body: AgentsSection()),
       ),
     );
   }
 
-  testWidgets(
-      'renders real agents from fake result without hardcoded agent list',
-      (tester) async {
+  testWidgets('renders real agents from fake result without hardcoded agent list', (tester) async {
     tester.view.physicalSize = const Size(1200, 2400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -59,12 +50,7 @@ void main() {
     final fakeNames = ['custom-agent-alpha', 'custom-agent-beta', 'custom-agent-gamma'];
     final config = PiAgentsConfig(
       packages: [
-        const PiSubagentPackageInfo(
-          id: 'pi-subagents',
-          version: '1.2.3',
-          installed: true,
-          configFile: '/config.json',
-        ),
+        const PiSubagentPackageInfo(id: 'pi-subagents', version: '1.2.3', installed: true, configFile: '/config.json'),
       ],
       agents: fakeNames.map((name) {
         return PiAgentInfo(
@@ -73,18 +59,9 @@ void main() {
           source: 'user',
           description: 'Description for $name',
           editable: true,
-          model: const PiAgentModelInfo(
-            effective: 'anthropic/claude-3-5-sonnet',
-            origin: 'default',
-            available: true,
-          ),
-          thinking: const PiAgentThinkingInfo(
-            effective: 'medium',
-            origin: 'default',
-          ),
-          context: const PiAgentContextInfo(
-            supported: false,
-          ),
+          model: const PiAgentModelInfo(effective: 'anthropic/claude-3-5-sonnet', origin: 'default', available: true),
+          thinking: const PiAgentThinkingInfo(effective: 'medium', origin: 'default'),
+          context: const PiAgentContextInfo(supported: false),
         );
       }).toList(),
       availableModels: [
@@ -109,37 +86,21 @@ void main() {
     }
   });
 
-  testWidgets('displays unavailable model warning when model.available == false',
-      (tester) async {
+  testWidgets('displays unavailable model warning when model.available == false', (tester) async {
     tester.view.physicalSize = const Size(1200, 2400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
 
     final config = PiAgentsConfig(
-      packages: [
-        const PiSubagentPackageInfo(
-          id: 'pi-subagents',
-          installed: true,
-        ),
-      ],
+      packages: [const PiSubagentPackageInfo(id: 'pi-subagents', installed: true)],
       agents: [
         const PiAgentInfo(
           name: 'restricted-agent',
           editable: true,
-          model: PiAgentModelInfo(
-            effective: 'uncredentialed/super-llm',
-            origin: 'override',
-            available: false,
-          ),
+          model: PiAgentModelInfo(effective: 'uncredentialed/super-llm', origin: 'override', available: false),
         ),
       ],
-      availableModels: [
-        const PiAvailableModel(
-          id: 'available/model',
-          name: 'Available Model',
-          contextWindow: 128000,
-        ),
-      ],
+      availableModels: [const PiAvailableModel(id: 'available/model', name: 'Available Model', contextWindow: 128000)],
     );
 
     final client = _MockAgentsClient(config: config);
@@ -150,20 +111,13 @@ void main() {
     expect(find.text('Not available with current credentials'), findsWidgets);
   });
 
-  testWidgets(
-      'context dropdown is shown only when supported, otherwise shows n/d with tooltip',
-      (tester) async {
+  testWidgets('context dropdown is shown only when supported, otherwise shows n/d with tooltip', (tester) async {
     tester.view.physicalSize = const Size(1200, 2400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
 
     final config = PiAgentsConfig(
-      packages: [
-        const PiSubagentPackageInfo(
-          id: 'pi-subagents',
-          installed: true,
-        ),
-      ],
+      packages: [const PiSubagentPackageInfo(id: 'pi-subagents', installed: true)],
       agents: [
         const PiAgentInfo(
           name: 'context-tier-agent',
@@ -175,13 +129,7 @@ void main() {
             modelContextWindow: 1048576,
           ),
         ),
-        const PiAgentInfo(
-          name: 'single-tier-agent',
-          editable: true,
-          context: PiAgentContextInfo(
-            supported: false,
-          ),
-        ),
+        const PiAgentInfo(name: 'single-tier-agent', editable: true, context: PiAgentContextInfo(supported: false)),
       ],
     );
 
@@ -194,35 +142,22 @@ void main() {
 
     expect(find.text('single-tier-agent'), findsOneWidget);
     expect(find.text('N/A'), findsOneWidget);
-    expect(
-      find.byTooltip('Model has a single context tier'),
-      findsOneWidget,
-    );
+    expect(find.byTooltip('Model has a single context tier'), findsOneWidget);
   });
 
-  testWidgets('read-only row is disabled and displays readOnlyReason tooltip',
-      (tester) async {
+  testWidgets('read-only row is disabled and displays readOnlyReason tooltip', (tester) async {
     tester.view.physicalSize = const Size(1200, 2400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
 
     final config = PiAgentsConfig(
-      packages: [
-        const PiSubagentPackageInfo(
-          id: 'pi-subagents',
-          installed: true,
-        ),
-      ],
+      packages: [const PiSubagentPackageInfo(id: 'pi-subagents', installed: true)],
       agents: [
         const PiAgentInfo(
           name: 'locked-agent',
           editable: false,
           readOnlyReason: 'external CLI runner',
-          model: PiAgentModelInfo(
-            effective: 'some/model',
-            origin: 'frontmatter',
-            available: true,
-          ),
+          model: PiAgentModelInfo(effective: 'some/model', origin: 'frontmatter', available: true),
         ),
       ],
     );
@@ -235,32 +170,13 @@ void main() {
     expect(find.byTooltip('external CLI runner'), findsWidgets);
   });
 
-  testWidgets('session default save sends sessionDefaults change',
-      (tester) async {
+  testWidgets('session default save sends sessionDefaults change', (tester) async {
     final config = PiAgentsConfig(
-      packages: [
-        const PiSubagentPackageInfo(
-          id: 'pi-subagents',
-          installed: true,
-        ),
-      ],
-      sessionDefaults: const PiSessionDefaults(
-        model: 'model-a',
-        thinking: 'off',
-      ),
+      packages: [const PiSubagentPackageInfo(id: 'pi-subagents', installed: true)],
+      sessionDefaults: const PiSessionDefaults(model: 'model-a', thinking: 'off'),
       availableModels: [
-        const PiAvailableModel(
-          id: 'model-a',
-          name: 'Model A',
-          contextWindow: 100000,
-          reasoning: true,
-        ),
-        const PiAvailableModel(
-          id: 'model-b',
-          name: 'Model B',
-          contextWindow: 100000,
-          reasoning: true,
-        ),
+        const PiAvailableModel(id: 'model-a', name: 'Model A', contextWindow: 100000, reasoning: true),
+        const PiAvailableModel(id: 'model-b', name: 'Model B', contextWindow: 100000, reasoning: true),
       ],
       thinkingLevels: ['off', 'low', 'medium', 'high'],
     );
@@ -294,49 +210,29 @@ void main() {
     expect(client.lastUpdateChanges!.first['model'], 'model-b');
   });
 
-  testWidgets('shows empty state when no package is installed',
-      (tester) async {
-    final config = const PiAgentsConfig(
-      packages: [],
-      agents: [],
-    );
+  testWidgets('shows empty state when no package is installed', (tester) async {
+    final config = const PiAgentsConfig(packages: [], agents: []);
 
     final client = _MockAgentsClient(config: config);
     await tester.pumpWidget(buildTestApp(client: client));
     await tester.pumpAndSettle();
 
-    expect(
-      find.text('Nessun pacchetto di sottoagenti installato'),
-      findsOneWidget,
-    );
-    expect(
-      find.textContaining('Installa un pacchetto di sottoagenti come pi-subagents'),
-      findsOneWidget,
-    );
+    expect(find.text('Nessun pacchetto di sottoagenti installato'), findsOneWidget);
+    expect(find.textContaining('Installa un pacchetto di sottoagenti come pi-subagents'), findsOneWidget);
   });
 
-  testWidgets('context dropdown follows selected model tiers',
-      (tester) async {
+  testWidgets('context dropdown follows selected model tiers', (tester) async {
     tester.view.physicalSize = const Size(1200, 2400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
 
     final config = PiAgentsConfig(
-      packages: [
-        const PiSubagentPackageInfo(
-          id: 'pi-subagents',
-          installed: true,
-        ),
-      ],
+      packages: [const PiSubagentPackageInfo(id: 'pi-subagents', installed: true)],
       agents: [
         const PiAgentInfo(
           name: 'worker',
           editable: true,
-          model: PiAgentModelInfo(
-            effective: 'model-a',
-            origin: 'override',
-            available: true,
-          ),
+          model: PiAgentModelInfo(effective: 'model-a', origin: 'override', available: true),
           context: PiAgentContextInfo(
             supported: true,
             limit: 20000,
@@ -353,13 +249,7 @@ void main() {
           reasoning: true,
           tiers: [20000, 100000],
         ),
-        const PiAvailableModel(
-          id: 'model-b',
-          name: 'Model B',
-          contextWindow: 50000,
-          reasoning: false,
-          tiers: [],
-        ),
+        const PiAvailableModel(id: 'model-b', name: 'Model B', contextWindow: 50000, reasoning: false, tiers: []),
       ],
     );
 
@@ -381,32 +271,20 @@ void main() {
     expect(find.byTooltip('Model has a single context tier'), findsOneWidget);
   });
 
-  testWidgets(
-      'context control is disabled with the runtime reason when unsupported',
-      (tester) async {
+  testWidgets('context control is disabled with the runtime reason when unsupported', (tester) async {
     tester.view.physicalSize = const Size(1200, 2400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
 
-    const reason =
-        '@tintinweb/pi-subagents does not support per-agent context limits';
+    const reason = '@tintinweb/pi-subagents does not support per-agent context limits';
     final config = PiAgentsConfig(
-      packages: [
-        const PiSubagentPackageInfo(
-          id: '@tintinweb/pi-subagents',
-          installed: true,
-        ),
-      ],
+      packages: [const PiSubagentPackageInfo(id: '@tintinweb/pi-subagents', installed: true)],
       agents: [
         const PiAgentInfo(
           name: 'reviewer',
           source: 'user',
           editable: true,
-          model: PiAgentModelInfo(
-            effective: 'model-a',
-            origin: 'override',
-            available: true,
-          ),
+          model: PiAgentModelInfo(effective: 'model-a', origin: 'override', available: true),
           context: PiAgentContextInfo(unsupportedReason: reason),
         ),
       ],
@@ -422,8 +300,7 @@ void main() {
     );
 
     final client = _MockAgentsClient(config: config);
-    await tester.pumpWidget(
-        buildTestApp(client: client, language: AppLanguage.en));
+    await tester.pumpWidget(buildTestApp(client: client, language: AppLanguage.en));
     await tester.pumpAndSettle();
 
     // The model has tiers, but the runtime cannot apply a limit: no dropdown.
@@ -432,33 +309,20 @@ void main() {
     expect(find.byTooltip(reason), findsOneWidget);
   });
 
-  testWidgets('narrow layout at 480px width renders without overflow',
-      (tester) async {
+  testWidgets('narrow layout at 480px width renders without overflow', (tester) async {
     tester.view.physicalSize = const Size(480, 1200);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
 
     final config = PiAgentsConfig(
-      packages: [
-        const PiSubagentPackageInfo(
-          id: 'pi-subagents',
-          installed: true,
-        ),
-      ],
+      packages: [const PiSubagentPackageInfo(id: 'pi-subagents', installed: true)],
       agents: [
         const PiAgentInfo(
           name: 'worker',
           aliases: ['advisor', 'helper'],
           editable: true,
-          model: PiAgentModelInfo(
-            effective: 'model-a',
-            origin: 'override',
-            available: true,
-          ),
-          thinking: PiAgentThinkingInfo(
-            effective: 'high',
-            origin: 'override',
-          ),
+          model: PiAgentModelInfo(effective: 'model-a', origin: 'override', available: true),
+          thinking: PiAgentThinkingInfo(effective: 'high', origin: 'override'),
           context: PiAgentContextInfo(
             supported: true,
             limit: 20000,
@@ -490,23 +354,10 @@ void main() {
 
   testWidgets('aliases parsed and shown in agent row', (tester) async {
     final config = PiAgentsConfig(
-      packages: [
-        const PiSubagentPackageInfo(
-          id: 'pi-subagents',
-          installed: true,
-        ),
-      ],
+      packages: [const PiSubagentPackageInfo(id: 'pi-subagents', installed: true)],
       agents: [
-        const PiAgentInfo(
-          name: 'advisor-agent',
-          aliases: ['advisor'],
-          editable: true,
-        ),
-        const PiAgentInfo(
-          name: 'multi-alias-agent',
-          aliases: ['alpha', 'beta'],
-          editable: true,
-        ),
+        const PiAgentInfo(name: 'advisor-agent', aliases: ['advisor'], editable: true),
+        const PiAgentInfo(name: 'multi-alias-agent', aliases: ['alpha', 'beta'], editable: true),
       ],
     );
 
@@ -520,28 +371,11 @@ void main() {
 
   testWidgets('save button is disabled while loading', (tester) async {
     final config = PiAgentsConfig(
-      packages: [
-        const PiSubagentPackageInfo(
-          id: 'pi-subagents',
-          installed: true,
-        ),
-      ],
-      sessionDefaults: const PiSessionDefaults(
-        model: 'model-a',
-      ),
+      packages: [const PiSubagentPackageInfo(id: 'pi-subagents', installed: true)],
+      sessionDefaults: const PiSessionDefaults(model: 'model-a'),
       availableModels: [
-        const PiAvailableModel(
-          id: 'model-a',
-          name: 'Model A',
-          contextWindow: 100000,
-          reasoning: true,
-        ),
-        const PiAvailableModel(
-          id: 'model-b',
-          name: 'Model B',
-          contextWindow: 100000,
-          reasoning: true,
-        ),
+        const PiAvailableModel(id: 'model-a', name: 'Model A', contextWindow: 100000, reasoning: true),
+        const PiAvailableModel(id: 'model-b', name: 'Model B', contextWindow: 100000, reasoning: true),
       ],
     );
 
@@ -561,8 +395,9 @@ void main() {
     // Set isLoading to true on controller
     final element = tester.element(find.byType(AgentsSection));
     final container = ProviderScope.containerOf(element);
-    container.read(agentsConfigControllerProvider.notifier).state =
-        container.read(agentsConfigControllerProvider).copyWith(isLoading: true);
+    container.read(agentsConfigControllerProvider.notifier).state = container
+        .read(agentsConfigControllerProvider)
+        .copyWith(isLoading: true);
     await tester.pump();
 
     // Now save button is disabled
@@ -571,21 +406,14 @@ void main() {
 
   // R9: the model selects looked empty ("—") although the daemon returned
   // models. The list is populated; the "—" was the hint for a null default.
-  testWidgets(
-      'model select lists the daemon models and says Pi default when none is saved',
-      (tester) async {
+  testWidgets('model select lists the daemon models and says Pi default when none is saved', (tester) async {
     tester.view.physicalSize = const Size(1200, 2400);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
 
     final config = PiAgentsConfig(
       packages: [
-        const PiSubagentPackageInfo(
-          id: 'pi-subagents',
-          version: '0.9.0',
-          installed: true,
-          configFile: '/config.json',
-        ),
+        const PiSubagentPackageInfo(id: 'pi-subagents', version: '0.9.0', installed: true, configFile: '/config.json'),
       ],
       availableModels: const [
         PiAvailableModel(id: 'fake/pi-model', name: 'Fake Pi Model'),
@@ -625,9 +453,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: ThemeData.dark().copyWith(extensions: [FrameTokens.dark]),
-          home: Scaffold(
-            body: AgentsSection(onOpenPackages: () => opened++),
-          ),
+          home: Scaffold(body: AgentsSection(onOpenPackages: () => opened++)),
         ),
       ),
     );

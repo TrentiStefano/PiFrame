@@ -1,0 +1,5 @@
+src/workspace/gitClient.ts(12,5): error TS2532: Object is possibly 'undefined'.
+src/sessions/SessionIndex.ts(40,9): error TS2375: Type 'undefined' is not assignable to type 'string' with 'exactOptionalPropertyTypes: true'.
+  Consider adding 'undefined' to the types of the target.
+src/sessions/SessionIndex.ts(41,3): error TS6133: 'helper' is declared but its value is never read.
+test/x.test.ts(7,1): error TS2532: Object is possibly 'undefined'.

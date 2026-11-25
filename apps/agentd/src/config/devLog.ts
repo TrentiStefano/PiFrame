@@ -9,7 +9,7 @@ import { getLogPath } from './runtime.js';
  */
 export function startEventLoopMonitor(
   report: (blockedMs: number) => void,
-  { intervalMs = 250, thresholdMs = 500 } = {},
+  { intervalMs = 250, thresholdMs = 500 } = {}
 ): () => void {
   let last = Date.now();
   const timer = setInterval(() => {
@@ -22,6 +22,9 @@ export function startEventLoopMonitor(
   return () => clearInterval(timer);
 }
 
+// Milliseconds in one second, to turn the profile length (in seconds) into a timer delay.
+const MS_PER_SECOND = 1000;
+
 /**
  * Dev-only: samples the CPU for `seconds` from daemon start and writes a .cpuprofile file, so a blocked
  * event loop can be matched to the functions that ran. Off unless PIFRAME_DEV_PROFILE_SECONDS is set.
@@ -29,7 +32,7 @@ export function startEventLoopMonitor(
 export function startDevCpuProfile(
   env: NodeJS.ProcessEnv,
   file: string,
-  onDone: (file: string) => void = () => {},
+  onDone: (file: string) => void = () => {}
 ): boolean {
   const seconds = Number(env.PIFRAME_DEV_PROFILE_SECONDS);
   if (!Number.isFinite(seconds) || seconds <= 0) return false;
@@ -43,7 +46,7 @@ export function startDevCpuProfile(
       session.disconnect();
       onDone(file);
     });
-  }, seconds * 1000).unref();
+  }, seconds * MS_PER_SECOND).unref();
   return true;
 }
 
@@ -60,7 +63,7 @@ export function reportSlowCommand(type: string, sessionId: string | undefined, m
  */
 export function enableDevFileLog(
   env: NodeJS.ProcessEnv = process.env,
-  file: string = getLogPath(),
+  file: string = getLogPath()
 ): (() => void) | null {
   if (env.PIFRAME_DEV_LOG !== '1') return null;
   const write = (level: string, message: string) => {
@@ -69,10 +72,15 @@ export function enableDevFileLog(
   devWrite = write;
   write('start', `--- daemon pid=${process.pid} ---`);
   const levels = ['log', 'info', 'warn', 'error'] as const;
-  const originals = levels.map((level) => console[level]);
-  levels.forEach((level, index) => {
+  const originals = {
+    log: console.log,
+    info: console.info,
+    warn: console.warn,
+    error: console.error
+  } satisfies Record<(typeof levels)[number], unknown>;
+  levels.forEach((level) => {
     console[level] = (...args: unknown[]) => {
-      originals[index].apply(console, args);
+      originals[level].apply(console, args);
       write(level, format(...args));
     };
   });
@@ -80,6 +88,8 @@ export function enableDevFileLog(
   return () => {
     stopMonitor();
     devWrite = null;
-    levels.forEach((level, index) => { console[level] = originals[index]; });
+    levels.forEach((level) => {
+      console[level] = originals[level];
+    });
   };
 }

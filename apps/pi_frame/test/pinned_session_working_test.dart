@@ -14,9 +14,7 @@ class _TestPinnedNotifier extends PinnedSessionsNotifier {
 }
 
 void main() {
-  testWidgets('pinned session displays working indicator and shimmer when working', (
-    tester,
-  ) async {
+  testWidgets('pinned session displays working indicator and shimmer when working', (tester) async {
     final mockSessions = [
       {
         'id': 'sess_pinned_1',
@@ -41,16 +39,12 @@ void main() {
         overrides: [
           daemonEndpointProvider.overrideWith((ref) async => null),
           sessionListProvider.overrideWith((ref) => Future.value(mockSessions)),
-          pinnedSessionsProvider.overrideWith(
-            (ref) => _TestPinnedNotifier({'sess_pinned_1'}),
-          ),
+          pinnedSessionsProvider.overrideWith((ref) => _TestPinnedNotifier({'sess_pinned_1'})),
           activeSessionIdProvider.overrideWith((ref) => 'sess_pinned_1'),
           sessionStateFamily('sess_pinned_1').overrideWith((ref) => sessionNotifier),
         ],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: const Scaffold(body: SessionsSidebar()),
         ),
       ),
@@ -58,7 +52,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Pinned section should exist
-    expect(find.text('FISSATE (1)'), findsOneWidget);
+    expect(find.text('PINNED (1)'), findsOneWidget);
     // Shown in the pinned section, and again under its repository, which is the
     // active one and therefore expanded by default.
     expect(find.text('Core Engine Pinned'), findsNWidgets(2));
@@ -71,8 +65,7 @@ void main() {
       return boxes.any((b) {
         final dec = b.decoration;
         if (dec is BoxDecoration && dec.border != null) {
-          return dec.border!.top.color ==
-              FrameTokens.dark.agentWorking.withValues(alpha: 0.7);
+          return dec.border!.top.color == FrameTokens.dark.agentWorking.withValues(alpha: 0.7);
         }
         return false;
       });
@@ -91,10 +84,7 @@ void main() {
     expect(find.byType(ShimmerBorder), findsNothing);
 
     // The pinned section header itself must NOT show any redundant loading animation
-    final pinnedHeader = find.ancestor(
-      of: find.text('FISSATE (1)'),
-      matching: find.byType(Row),
-    );
+    final pinnedHeader = find.ancestor(of: find.text('PINNED (1)'), matching: find.byType(Row));
     expect(
       find.descendant(of: pinnedHeader, matching: find.byKey(const ValueKey('session-working-spinner'))),
       findsNothing,

@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
 import { getPiFrameBaseDir } from '../config/config.js';
+import { errorMessage } from '../errors/errors.js';
 
 /**
  * Attachment uploads from the phone / browser client.
@@ -62,8 +63,12 @@ export function safeBlobName(rawHeader: string | undefined, contentType: string 
     }
   }
   const base = decoded.replace(/\\/g, '/').split('/').pop() ?? '';
-  let name = base.replace(/[^A-Za-z0-9._ -]/g, '_').replace(/^\.+/, '').trim().slice(0, 100);
-  const mime = (contentType ?? '').split(';')[0].trim().toLowerCase();
+  let name = base
+    .replace(/[^A-Za-z0-9._ -]/g, '_')
+    .replace(/^\.+/, '')
+    .trim()
+    .slice(0, 100);
+  const mime = (contentType ?? '').split(';')[0]?.trim().toLowerCase() ?? '';
   if (!name) name = 'file';
   if (!/\.[A-Za-z0-9]{1,8}$/.test(name) && EXT_BY_MIME[mime]) name += EXT_BY_MIME[mime];
   return name;
@@ -84,7 +89,7 @@ export function receiveBlob(req: http.IncomingMessage, res: http.ServerResponse)
     return;
   }
 
-  const contentType = (req.headers['content-type'] as string | undefined) || 'application/octet-stream';
+  const contentType = req.headers['content-type'] || 'application/octet-stream';
   const name = safeBlobName(req.headers['x-file-name'] as string | undefined, contentType);
   const blobId = `blob_${crypto.randomBytes(16).toString('hex')}`;
   const dir = path.join(getBlobsDir(), blobId);
@@ -92,8 +97,8 @@ export function receiveBlob(req: http.IncomingMessage, res: http.ServerResponse)
 
   try {
     fs.mkdirSync(dir, { recursive: true });
-  } catch (err: any) {
-    json(res, 500, { ok: false, error: err.message });
+  } catch (err: unknown) {
+    json(res, 500, { ok: false, error: errorMessage(err) });
     req.resume();
     return;
   }
@@ -129,7 +134,7 @@ export function receiveBlob(req: http.IncomingMessage, res: http.ServerResponse)
   out.on('error', (err) => {
     if (aborted) return;
     aborted = true;
-    json(res, 500, { ok: false, error: err.message });
+    json(res, 500, { ok: false, error: errorMessage(err) });
     discard();
   });
 }

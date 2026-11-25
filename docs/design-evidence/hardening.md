@@ -1,6 +1,6 @@
 # Focused QA — context picker and sliders
 
-Scope: this context-control iteration only. This report does not approve the whole application or advance Design Director beyond D9.
+Scope: this context-control iteration only. This report does not approve the whole application.
 
 ## Exercised
 

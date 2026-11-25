@@ -9,7 +9,7 @@ addFormats(ajv);
 const schemaDir = path.resolve(__dirname, '../schema');
 const fixturesDir = path.resolve(__dirname, '../fixtures/pcp');
 
-const schemaFiles = fs.readdirSync(schemaDir).filter(f => f.endsWith('.schema.json'));
+const schemaFiles = fs.readdirSync(schemaDir).filter((f) => f.endsWith('.schema.json'));
 const validators = {};
 
 for (const sf of schemaFiles) {
@@ -19,7 +19,7 @@ for (const sf of schemaFiles) {
   console.log(`Compiled schema for kind: ${kind}`);
 }
 
-const fixtureFiles = fs.readdirSync(fixturesDir).filter(f => f.endsWith('.json'));
+const fixtureFiles = fs.readdirSync(fixturesDir).filter((f) => f.endsWith('.json'));
 let passed = 0;
 let failed = 0;
 

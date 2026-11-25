@@ -15,12 +15,7 @@ void main() {
   group('transcript_grouping - core grouping logic', () {
     test('alternating thinking & tool calls grouped in order, final text outside', () {
       final entries = [
-        const SessionEntry(
-          id: 'u1',
-          role: 'user',
-          text: 'Find the bug and fix it',
-          timestamp: 1000,
-        ),
+        const SessionEntry(id: 'u1', role: 'user', text: 'Find the bug and fix it', timestamp: 1000),
         const SessionEntry(
           id: 'asst1',
           role: 'assistant',
@@ -120,23 +115,10 @@ void main() {
     test('an answer with no steps is still the final answer card in every grouping mode', () {
       final entries = [
         const SessionEntry(id: 'u1', role: 'user', text: 'Why is it blocked?', timestamp: 1000),
-        const SessionEntry(
-          id: 'asst1',
-          role: 'assistant',
-          text: 'One acceptance test is failing.',
-          timestamp: 2000,
-        ),
+        const SessionEntry(id: 'asst1', role: 'assistant', text: 'One acceptance test is failing.', timestamp: 2000),
       ];
-      for (final mode in [
-        StepGroupingMode.withThinking,
-        StepGroupingMode.always,
-        StepGroupingMode.full,
-      ]) {
-        final blocks = groupTranscript(
-          entries: entries,
-          mode: mode,
-          live: TranscriptLiveState.empty,
-        );
+      for (final mode in [StepGroupingMode.withThinking, StepGroupingMode.always, StepGroupingMode.full]) {
+        final blocks = groupTranscript(entries: entries, mode: mode, live: TranscriptLiveState.empty);
         expect(blocks.length, 2, reason: '$mode');
         expect(blocks.first, isA<EntryBlock>(), reason: '$mode');
         expect(blocks.last, isA<FinalTextBlock>(), reason: '$mode');
@@ -144,34 +126,20 @@ void main() {
         assertTranscriptCoverage(inputEntries: entries, blocks: blocks);
       }
       // Grouping off keeps the classic layout.
-      final off = groupTranscript(
-        entries: entries,
-        mode: StepGroupingMode.off,
-        live: TranscriptLiveState.empty,
-      );
+      final off = groupTranscript(entries: entries, mode: StepGroupingMode.off, live: TranscriptLiveState.empty);
       expect(off.every((b) => b is EntryBlock), isTrue);
     });
 
     test('withThinking does not group a tool-only turn while always does', () {
       final entries = [
-        const SessionEntry(
-          id: 'u1',
-          role: 'user',
-          text: 'Run the tool',
-          timestamp: 1000,
-        ),
+        const SessionEntry(id: 'u1', role: 'user', text: 'Run the tool', timestamp: 1000),
         const SessionEntry(
           id: 'asst1',
           role: 'assistant',
           text: '',
           thinking: null,
           toolCalls: [
-            ToolExecutionState(
-              toolCallId: 't1',
-              toolName: 'calculator',
-              args: {'expr': '2+2'},
-              output: '4',
-            ),
+            ToolExecutionState(toolCallId: 't1', toolName: 'calculator', args: {'expr': '2+2'}, output: '4'),
           ],
           timestamp: 1500,
         ),
@@ -221,24 +189,14 @@ void main() {
 
     test('withThinking groups turn with intermediate reasoning text between step groups', () {
       final entries = [
-        const SessionEntry(
-          id: 'u1',
-          role: 'user',
-          text: 'Fix the bug',
-          timestamp: 1000,
-        ),
+        const SessionEntry(id: 'u1', role: 'user', text: 'Fix the bug', timestamp: 1000),
         const SessionEntry(
           id: 'asst1',
           role: 'assistant',
           text: 'Starting phase: analyzing code...',
           thinking: null,
           toolCalls: [
-            ToolExecutionState(
-              toolCallId: 't1',
-              toolName: 'read_file',
-              args: {'path': 'main.dart'},
-              output: 'content',
-            ),
+            ToolExecutionState(toolCallId: 't1', toolName: 'read_file', args: {'path': 'main.dart'}, output: 'content'),
           ],
           timestamp: 1500,
         ),
@@ -292,24 +250,14 @@ void main() {
 
     test('full mode compacts all intermediate steps and non-final answers into a single step group', () {
       final entries = [
-        const SessionEntry(
-          id: 'u1',
-          role: 'user',
-          text: 'Fix the bug',
-          timestamp: 1000,
-        ),
+        const SessionEntry(id: 'u1', role: 'user', text: 'Fix the bug', timestamp: 1000),
         const SessionEntry(
           id: 'asst1',
           role: 'assistant',
           text: 'Analyzing code structure...',
           thinking: 'Need to look at main.dart',
           toolCalls: [
-            ToolExecutionState(
-              toolCallId: 't1',
-              toolName: 'read_file',
-              args: {'path': 'main.dart'},
-              output: 'content',
-            ),
+            ToolExecutionState(toolCallId: 't1', toolName: 'read_file', args: {'path': 'main.dart'}, output: 'content'),
           ],
           timestamp: 1500,
         ),
@@ -319,12 +267,7 @@ void main() {
           text: 'Running unit tests to verify...',
           thinking: null,
           toolCalls: [
-            ToolExecutionState(
-              toolCallId: 't2',
-              toolName: 'run_tests',
-              args: {'filter': 'test'},
-              output: 'pass',
-            ),
+            ToolExecutionState(toolCallId: 't2', toolName: 'run_tests', args: {'filter': 'test'}, output: 'pass'),
           ],
           timestamp: 2000,
         ),
@@ -373,31 +316,13 @@ void main() {
 
     test('off returns entries unchanged with LiveTailBlock marker when streaming', () {
       final entries = [
-        const SessionEntry(
-          id: 'u1',
-          role: 'user',
-          text: 'Hello',
-          timestamp: 1000,
-        ),
-        const SessionEntry(
-          id: 'asst1',
-          role: 'assistant',
-          text: 'Hi there',
-          thinking: 'thought',
-          timestamp: 1500,
-        ),
+        const SessionEntry(id: 'u1', role: 'user', text: 'Hello', timestamp: 1000),
+        const SessionEntry(id: 'asst1', role: 'assistant', text: 'Hi there', thinking: 'thought', timestamp: 1500),
       ];
 
-      const live = TranscriptLiveState(
-        isRunning: true,
-        streamingText: ' streaming...',
-      );
+      const live = TranscriptLiveState(isRunning: true, streamingText: ' streaming...');
 
-      final blocks = groupTranscript(
-        entries: entries,
-        mode: StepGroupingMode.off,
-        live: live,
-      );
+      final blocks = groupTranscript(entries: entries, mode: StepGroupingMode.off, live: live);
 
       expect(blocks.length, 3);
       expect(blocks[0], isA<EntryBlock>());
@@ -414,33 +339,17 @@ void main() {
     });
 
     test('streaming: running turn with live thinking + active tool -> isRunning, latestStep = active tool', () {
-      final entries = [
-        const SessionEntry(
-          id: 'u1',
-          role: 'user',
-          text: 'Do some work',
-          timestamp: 1000,
-        ),
-      ];
+      final entries = [const SessionEntry(id: 'u1', role: 'user', text: 'Do some work', timestamp: 1000)];
 
       const live = TranscriptLiveState(
         isRunning: true,
         streamingThinking: 'Pondering strategy...',
         activeToolCalls: [
-          ToolExecutionState(
-            toolCallId: 't_active',
-            toolName: 'web_search',
-            isRunning: true,
-            startedAt: 1200,
-          ),
+          ToolExecutionState(toolCallId: 't_active', toolName: 'web_search', isRunning: true, startedAt: 1200),
         ],
       );
 
-      final blocks = groupTranscript(
-        entries: entries,
-        mode: StepGroupingMode.withThinking,
-        live: live,
-      );
+      final blocks = groupTranscript(entries: entries, mode: StepGroupingMode.withThinking, live: live);
 
       expect(blocks.length, 2);
       expect(blocks[0], isA<EntryBlock>());
@@ -469,32 +378,14 @@ void main() {
 
     test('trailing streaming text is LiveTail candidate then becomes intermediate when a tool call is added', () {
       final entries = [
-        const SessionEntry(
-          id: 'u1',
-          role: 'user',
-          text: 'Explain and test',
-          timestamp: 1000,
-        ),
-        const SessionEntry(
-          id: 'asst1',
-          role: 'assistant',
-          text: '',
-          thinking: 'Initial plan',
-          timestamp: 1200,
-        ),
+        const SessionEntry(id: 'u1', role: 'user', text: 'Explain and test', timestamp: 1000),
+        const SessionEntry(id: 'asst1', role: 'assistant', text: '', thinking: 'Initial plan', timestamp: 1200),
       ];
 
       // Phase 1: Live text streaming with no subsequent tool call -> candidate final in LiveTailBlock
-      const liveCandidate = TranscriptLiveState(
-        isRunning: true,
-        streamingText: 'Here is what I plan to do...',
-      );
+      const liveCandidate = TranscriptLiveState(isRunning: true, streamingText: 'Here is what I plan to do...');
 
-      final blocksPhase1 = groupTranscript(
-        entries: entries,
-        mode: StepGroupingMode.withThinking,
-        live: liveCandidate,
-      );
+      final blocksPhase1 = groupTranscript(entries: entries, mode: StepGroupingMode.withThinking, live: liveCandidate);
 
       expect(blocksPhase1.length, 3);
       expect(blocksPhase1[0], isA<EntryBlock>());
@@ -511,20 +402,10 @@ void main() {
       const liveWithTool = TranscriptLiveState(
         isRunning: true,
         streamingText: 'Here is what I plan to do...',
-        activeToolCalls: [
-          ToolExecutionState(
-            toolCallId: 't_exec',
-            toolName: 'run_tests',
-            isRunning: true,
-          ),
-        ],
+        activeToolCalls: [ToolExecutionState(toolCallId: 't_exec', toolName: 'run_tests', isRunning: true)],
       );
 
-      final blocksPhase2 = groupTranscript(
-        entries: entries,
-        mode: StepGroupingMode.withThinking,
-        live: liveWithTool,
-      );
+      final blocksPhase2 = groupTranscript(entries: entries, mode: StepGroupingMode.withThinking, live: liveWithTool);
 
       // Live text now converted to IntermediateTextStep inside the group!
       expect(blocksPhase2.length, 2);
@@ -535,10 +416,7 @@ void main() {
       expect(groupPhase2.steps.length, 3);
       expect(groupPhase2.steps[0], isA<ThinkingStep>());
       expect(groupPhase2.steps[1], isA<IntermediateTextStep>());
-      expect(
-        (groupPhase2.steps[1] as IntermediateTextStep).text,
-        'Here is what I plan to do...',
-      );
+      expect((groupPhase2.steps[1] as IntermediateTextStep).text, 'Here is what I plan to do...');
       expect(groupPhase2.steps[2], isA<ToolStep>());
       expect((groupPhase2.steps[2] as ToolStep).toolName, 'run_tests');
     });
@@ -546,24 +424,14 @@ void main() {
     test('error turn -> hasError and aborted -> aborted & hasError', () {
       // Tool error
       final entriesToolError = [
-        const SessionEntry(
-          id: 'u1',
-          role: 'user',
-          text: 'Test error',
-          timestamp: 1000,
-        ),
+        const SessionEntry(id: 'u1', role: 'user', text: 'Test error', timestamp: 1000),
         const SessionEntry(
           id: 'asst1',
           role: 'assistant',
           text: '',
           thinking: 'thought',
           toolCalls: [
-            ToolExecutionState(
-              toolCallId: 't1',
-              toolName: 'bad_cmd',
-              isError: true,
-              output: 'command not found',
-            ),
+            ToolExecutionState(toolCallId: 't1', toolName: 'bad_cmd', isError: true, output: 'command not found'),
           ],
           timestamp: 1500,
         ),
@@ -578,19 +446,11 @@ void main() {
       final groupToolError = blocksToolError.whereType<StepsGroupBlock>().first;
       expect(groupToolError.hasError, isTrue);
       expect(groupToolError.aborted, isFalse);
-      assertTranscriptCoverage(
-        inputEntries: entriesToolError,
-        blocks: blocksToolError,
-      );
+      assertTranscriptCoverage(inputEntries: entriesToolError, blocks: blocksToolError);
 
       // Aborted turn via metadata
       final entriesAborted = [
-        const SessionEntry(
-          id: 'u2',
-          role: 'user',
-          text: 'Cancel this',
-          timestamp: 1000,
-        ),
+        const SessionEntry(id: 'u2', role: 'user', text: 'Cancel this', timestamp: 1000),
         const SessionEntry(
           id: 'asst2',
           role: 'assistant',
@@ -610,21 +470,13 @@ void main() {
       final groupAborted = blocksAborted.whereType<StepsGroupBlock>().first;
       expect(groupAborted.aborted, isTrue);
       expect(groupAborted.hasError, isTrue);
-      assertTranscriptCoverage(
-        inputEntries: entriesAborted,
-        blocks: blocksAborted,
-      );
+      assertTranscriptCoverage(inputEntries: entriesAborted, blocks: blocksAborted);
     });
 
     test('multiple turns partitioned and grouped independently', () {
       final entries = [
         // Turn 1
-        const SessionEntry(
-          id: 'u1',
-          role: 'user',
-          text: 'First question',
-          timestamp: 1000,
-        ),
+        const SessionEntry(id: 'u1', role: 'user', text: 'First question', timestamp: 1000),
         const SessionEntry(
           id: 'asst1',
           role: 'assistant',
@@ -633,12 +485,7 @@ void main() {
           timestamp: 1500,
         ),
         // Turn 2
-        const SessionEntry(
-          id: 'u2',
-          role: 'user',
-          text: 'Second question',
-          timestamp: 2000,
-        ),
+        const SessionEntry(id: 'u2', role: 'user', text: 'Second question', timestamp: 2000),
         const SessionEntry(
           id: 'asst2',
           role: 'assistant',
@@ -682,50 +529,26 @@ void main() {
 
     test('milestones not swallowed and ordering remains stable', () {
       final entries = [
-        const SessionEntry(
-          id: 'u1',
-          role: 'user',
-          text: 'Do complex task',
-          timestamp: 1000,
-        ),
+        const SessionEntry(id: 'u1', role: 'user', text: 'Do complex task', timestamp: 1000),
         const SessionEntry(
           id: 'asst1',
           role: 'assistant',
           text: '',
           thinking: 'Step 1 thought',
-          toolCalls: [
-            ToolExecutionState(toolCallId: 't1', toolName: 'build'),
-          ],
+          toolCalls: [ToolExecutionState(toolCallId: 't1', toolName: 'build')],
           timestamp: 1200,
         ),
-        const SessionEntry(
-          id: 'comp1',
-          role: 'compactionSummary',
-          text: 'Compacted context',
-          timestamp: 1300,
-        ),
+        const SessionEntry(id: 'comp1', role: 'compactionSummary', text: 'Compacted context', timestamp: 1300),
         const SessionEntry(
           id: 'asst2',
           role: 'assistant',
           text: '',
           thinking: 'Step 2 thought',
-          toolCalls: [
-            ToolExecutionState(toolCallId: 't2', toolName: 'deploy'),
-          ],
+          toolCalls: [ToolExecutionState(toolCallId: 't2', toolName: 'deploy')],
           timestamp: 1400,
         ),
-        const SessionEntry(
-          id: 'bash1',
-          role: 'bashExecution',
-          text: 'deployment status ok',
-          timestamp: 1500,
-        ),
-        const SessionEntry(
-          id: 'asst3',
-          role: 'assistant',
-          text: 'Everything completed successfully.',
-          timestamp: 1600,
-        ),
+        const SessionEntry(id: 'bash1', role: 'bashExecution', text: 'deployment status ok', timestamp: 1500),
+        const SessionEntry(id: 'asst3', role: 'assistant', text: 'Everything completed successfully.', timestamp: 1600),
       ];
 
       final blocks = groupTranscript(
@@ -735,14 +558,10 @@ void main() {
       );
 
       // Verify milestones are present as EntryBlocks in stable order
-      final compactionBlock = blocks
-          .whereType<EntryBlock>()
-          .firstWhere((b) => b.entry.id == 'comp1');
+      final compactionBlock = blocks.whereType<EntryBlock>().firstWhere((b) => b.entry.id == 'comp1');
       expect(compactionBlock.entry.role, 'compactionSummary');
 
-      final bashBlock = blocks
-          .whereType<EntryBlock>()
-          .firstWhere((b) => b.entry.id == 'bash1');
+      final bashBlock = blocks.whereType<EntryBlock>().firstWhere((b) => b.entry.id == 'bash1');
       expect(bashBlock.entry.role, 'bashExecution');
 
       final finalBlock = blocks.whereType<FinalTextBlock>().first;
@@ -762,26 +581,12 @@ void main() {
     });
 
     test('stable step ids between two computations as streaming grows', () {
-      final entries = [
-        const SessionEntry(
-          id: 'u1',
-          role: 'user',
-          text: 'Compile app',
-          timestamp: 1000,
-        ),
-      ];
+      final entries = [const SessionEntry(id: 'u1', role: 'user', text: 'Compile app', timestamp: 1000)];
 
       // Streaming state at time T1
-      const liveT1 = TranscriptLiveState(
-        isRunning: true,
-        streamingThinking: 'Compiling...',
-      );
+      const liveT1 = TranscriptLiveState(isRunning: true, streamingThinking: 'Compiling...');
 
-      final blocksT1 = groupTranscript(
-        entries: entries,
-        mode: StepGroupingMode.withThinking,
-        live: liveT1,
-      );
+      final blocksT1 = groupTranscript(entries: entries, mode: StepGroupingMode.withThinking, live: liveT1);
       final groupT1 = blocksT1.whereType<StepsGroupBlock>().first;
       final thinkingT1 = groupT1.steps[0] as ThinkingStep;
       expect(thinkingT1.id, 'live_u1_thinking');
@@ -790,20 +595,10 @@ void main() {
       const liveT2 = TranscriptLiveState(
         isRunning: true,
         streamingThinking: 'Compiling... optimizing bytecode',
-        activeToolCalls: [
-          ToolExecutionState(
-            toolCallId: 'compile_call_99',
-            toolName: 'dart_compile',
-            isRunning: true,
-          ),
-        ],
+        activeToolCalls: [ToolExecutionState(toolCallId: 'compile_call_99', toolName: 'dart_compile', isRunning: true)],
       );
 
-      final blocksT2 = groupTranscript(
-        entries: entries,
-        mode: StepGroupingMode.withThinking,
-        live: liveT2,
-      );
+      final blocksT2 = groupTranscript(entries: entries, mode: StepGroupingMode.withThinking, live: liveT2);
       final groupT2 = blocksT2.whereType<StepsGroupBlock>().first;
       final thinkingT2 = groupT2.steps[0] as ThinkingStep;
       final toolT2 = groupT2.steps[1] as ToolStep;
@@ -853,13 +648,7 @@ void main() {
         agentStatus: AgentStatus.working,
         streamingThinkingBlocks: {0: 'thinking...'},
         streamingTextBlocks: {0: 'output text'},
-        activeToolCalls: {
-          'c1': const ToolExecutionState(
-            toolCallId: 'c1',
-            toolName: 'read',
-            isRunning: true,
-          ),
-        },
+        activeToolCalls: {'c1': const ToolExecutionState(toolCallId: 'c1', toolName: 'read', isRunning: true)},
       );
 
       final liveRunning = TranscriptLiveState.fromSession(sessionRunning);
@@ -870,9 +659,7 @@ void main() {
       expect(liveRunning.hasError, isFalse);
       expect(liveRunning.aborted, isFalse);
 
-      final sessionError = sessionRunning.copyWith(
-        agentStatus: AgentStatus.workerError,
-      );
+      final sessionError = sessionRunning.copyWith(agentStatus: AgentStatus.workerError);
       final liveError = TranscriptLiveState.fromSession(sessionError);
       expect(liveError.hasError, isTrue);
 
@@ -901,19 +688,8 @@ void main() {
         sessionId: 's_turn_test',
         cwd: '/test',
         entries: [
-          SessionEntry(
-            id: 'usr_1001',
-            role: 'user',
-            text: 'Fix the crash',
-            timestamp: 1000,
-          ),
-          SessionEntry(
-            id: 'asst_1',
-            role: 'assistant',
-            text: '',
-            thinking: 'Analyzing backtrace',
-            timestamp: 1100,
-          ),
+          SessionEntry(id: 'usr_1001', role: 'user', text: 'Fix the crash', timestamp: 1000),
+          SessionEntry(id: 'asst_1', role: 'assistant', text: '', thinking: 'Analyzing backtrace', timestamp: 1100),
         ],
       );
 
@@ -929,14 +705,7 @@ void main() {
 
       // User sets override while optimistic (e.g. explicitly collapsed)
       notifier.setGroupOverride(initialGroup.turnId, false);
-      expect(
-        notifier.isGroupExpanded(
-          turnId: initialGroup.turnId,
-          isRunning: false,
-          autoCollapse: false,
-        ),
-        isFalse,
-      );
+      expect(notifier.isGroupExpanded(turnId: initialGroup.turnId, isRunning: false, autoCollapse: false), isFalse);
 
       // Reducer applies committed message from daemon (new id msg_comm_555)
       session = reduceSessionState(
@@ -948,12 +717,7 @@ void main() {
           sessionId: 's_turn_test',
           seq: 1,
           payload: {
-            'message': {
-              'id': 'msg_comm_555',
-              'role': 'user',
-              'content': 'Fix the crash',
-              'timestamp': 1000,
-            },
+            'message': {'id': 'msg_comm_555', 'role': 'user', 'content': 'Fix the crash', 'timestamp': 1000},
           },
         ),
       );
@@ -976,55 +740,22 @@ void main() {
       expect(updatedGroup.groupId, 'steps_usr_1001');
 
       // Expansion override is still recognized
-      expect(
-        notifier.isGroupExpanded(
-          turnId: updatedGroup.turnId,
-          isRunning: false,
-          autoCollapse: false,
-        ),
-        isFalse,
-      );
+      expect(notifier.isGroupExpanded(turnId: updatedGroup.turnId, isRunning: false, autoCollapse: false), isFalse);
     });
 
     test('filters junk and internal entries before partitioning without loss of valid messages', () {
       final entries = [
-        const SessionEntry(
-          id: 'u1',
-          role: 'user',
-          text: 'Do some work',
-          timestamp: 1000,
-        ),
-        const SessionEntry(
-          id: 'sys1',
-          role: 'system',
-          text: 'System instruction update',
-          timestamp: 1050,
-        ),
+        const SessionEntry(id: 'u1', role: 'user', text: 'Do some work', timestamp: 1000),
+        const SessionEntry(id: 'sys1', role: 'system', text: 'System instruction update', timestamp: 1050),
         const SessionEntry(
           id: 'asst1',
           role: 'assistant',
           text: 'Step 1 text',
           timestamp: 1100,
-          toolCalls: [
-            ToolExecutionState(
-              toolCallId: 't1',
-              toolName: 'read',
-              output: 'data',
-            ),
-          ],
+          toolCalls: [ToolExecutionState(toolCallId: 't1', toolName: 'read', output: 'data')],
         ),
-        const SessionEntry(
-          id: 'tool_res1',
-          role: 'toolResult',
-          text: 'result data',
-          timestamp: 1150,
-        ),
-        const SessionEntry(
-          id: 'junk_asst',
-          role: 'assistant',
-          text: '(exit 0, no output)',
-          timestamp: 1200,
-        ),
+        const SessionEntry(id: 'tool_res1', role: 'toolResult', text: 'result data', timestamp: 1150),
+        const SessionEntry(id: 'junk_asst', role: 'assistant', text: '(exit 0, no output)', timestamp: 1200),
         const SessionEntry(
           id: 'cust_hidden',
           role: 'custom',
@@ -1032,19 +763,10 @@ void main() {
           metadata: {'display': false},
           timestamp: 1250,
         ),
-        const SessionEntry(
-          id: 'asst2',
-          role: 'assistant',
-          text: 'All done cleanly.',
-          timestamp: 1300,
-        ),
+        const SessionEntry(id: 'asst2', role: 'assistant', text: 'All done cleanly.', timestamp: 1300),
       ];
 
-      final blocks = groupTranscript(
-        entries: entries,
-        mode: StepGroupingMode.always,
-        live: TranscriptLiveState.empty,
-      );
+      final blocks = groupTranscript(entries: entries, mode: StepGroupingMode.always, live: TranscriptLiveState.empty);
 
       // Verify no internal or junk entries appear anywhere
       final allEntryIds = <String>[];
@@ -1068,12 +790,7 @@ void main() {
 
     test('live streaming data only used when live.isRunning is true', () {
       final entries = [
-        const SessionEntry(
-          id: 'u1',
-          role: 'user',
-          text: 'Explain quantum computing',
-          timestamp: 1000,
-        ),
+        const SessionEntry(id: 'u1', role: 'user', text: 'Explain quantum computing', timestamp: 1000),
         const SessionEntry(
           id: 'asst1',
           role: 'assistant',
@@ -1088,20 +805,10 @@ void main() {
         isRunning: false,
         streamingText: 'Stale stream tail that was not cleared',
         streamingThinking: 'Stale stream thinking',
-        activeToolCalls: [
-          ToolExecutionState(
-            toolCallId: 't_stale',
-            toolName: 'stale_tool',
-            isRunning: true,
-          ),
-        ],
+        activeToolCalls: [ToolExecutionState(toolCallId: 't_stale', toolName: 'stale_tool', isRunning: true)],
       );
 
-      final blocks = groupTranscript(
-        entries: entries,
-        mode: StepGroupingMode.withThinking,
-        live: staleLive,
-      );
+      final blocks = groupTranscript(entries: entries, mode: StepGroupingMode.withThinking, live: staleLive);
 
       // Committed entries decide final text
       final finalBlock = blocks.whereType<FinalTextBlock>().single;
@@ -1119,12 +826,7 @@ void main() {
 
     test('trailing assistant entries with empty text and no tools allow preceding entry to be final text', () {
       final entries = [
-        const SessionEntry(
-          id: 'u1',
-          role: 'user',
-          text: 'Compute answer',
-          timestamp: 1000,
-        ),
+        const SessionEntry(id: 'u1', role: 'user', text: 'Compute answer', timestamp: 1000),
         const SessionEntry(
           id: 'asst1',
           role: 'assistant',
@@ -1162,11 +864,7 @@ void main() {
       // Steps group contains all 3 thinking steps
       final group = blocks.whereType<StepsGroupBlock>().single;
       expect(group.steps.length, 3);
-      expect(group.steps.map((s) => s.id), [
-        'asst1_thinking',
-        'asst2_thinking',
-        'asst3_thinking',
-      ]);
+      expect(group.steps.map((s) => s.id), ['asst1_thinking', 'asst2_thinking', 'asst3_thinking']);
 
       assertTranscriptCoverage(inputEntries: entries, blocks: blocks);
     });
@@ -1249,20 +947,14 @@ void main() {
     });
 
     test('roundtrips toJson and fromJson', () {
-      const settings = StepGroupingSettings(
-        mode: StepGroupingMode.always,
-        autoCollapse: false,
-      );
+      const settings = StepGroupingSettings(mode: StepGroupingMode.always, autoCollapse: false);
       final json = settings.toJson();
       final restored = StepGroupingSettings.fromJson(json);
       expect(restored.mode, StepGroupingMode.always);
       expect(restored.autoCollapse, isFalse);
       expect(restored, equals(settings));
 
-      const settingsFull = StepGroupingSettings(
-        mode: StepGroupingMode.full,
-        autoCollapse: true,
-      );
+      const settingsFull = StepGroupingSettings(mode: StepGroupingMode.full, autoCollapse: true);
       final jsonFull = settingsFull.toJson();
       final restoredFull = StepGroupingSettings.fromJson(jsonFull);
       expect(restoredFull.mode, StepGroupingMode.full);
@@ -1270,10 +962,7 @@ void main() {
     });
 
     test('tolerant to invalid and missing json fields', () {
-      final fallback = StepGroupingSettings.fromJson({
-        'mode': 'unknown_mode',
-        'autoCollapse': null,
-      });
+      final fallback = StepGroupingSettings.fromJson({'mode': 'unknown_mode', 'autoCollapse': null});
       expect(fallback.mode, StepGroupingMode.withThinking);
       expect(fallback.autoCollapse, isTrue);
 
@@ -1315,79 +1004,33 @@ void main() {
       final notifier = StepGroupExpansionNotifier();
 
       expect(
-        notifier.isGroupExpanded(
-          turnId: 'p1',
-          isRunning: true,
-          autoCollapse: true,
-          compactDefault: true,
-        ),
+        notifier.isGroupExpanded(turnId: 'p1', isRunning: true, autoCollapse: true, compactDefault: true),
         isFalse,
       );
       expect(
-        notifier.isGroupExpanded(
-          turnId: 'p1',
-          isRunning: true,
-          autoCollapse: false,
-          compactDefault: true,
-        ),
+        notifier.isGroupExpanded(turnId: 'p1', isRunning: true, autoCollapse: false, compactDefault: true),
         isFalse,
       );
 
       notifier.toggleGroup('p1', false);
-      expect(
-        notifier.isGroupExpanded(
-          turnId: 'p1',
-          isRunning: true,
-          autoCollapse: true,
-          compactDefault: true,
-        ),
-        isTrue,
-      );
+      expect(notifier.isGroupExpanded(turnId: 'p1', isRunning: true, autoCollapse: true, compactDefault: true), isTrue);
     });
 
     test('isGroupExpanded logic: manual override beats auto-collapse, auto-collapse off keeps open', () {
       final notifier = StepGroupExpansionNotifier();
 
       // Case 1: autoCollapse: true, isRunning: false -> default closed
-      expect(
-        notifier.isGroupExpanded(
-          turnId: 'u1',
-          isRunning: false,
-          autoCollapse: true,
-        ),
-        isFalse,
-      );
+      expect(notifier.isGroupExpanded(turnId: 'u1', isRunning: false, autoCollapse: true), isFalse);
 
       // Case 2: manual toggle opens group even when finished and autoCollapse is true
       notifier.toggleGroup('u1', false);
-      expect(
-        notifier.isGroupExpanded(
-          turnId: 'u1',
-          isRunning: false,
-          autoCollapse: true,
-        ),
-        isTrue,
-      );
+      expect(notifier.isGroupExpanded(turnId: 'u1', isRunning: false, autoCollapse: true), isTrue);
 
       // Case 3: autoCollapse: false keeps group open unless manually collapsed
-      expect(
-        notifier.isGroupExpanded(
-          turnId: 'u2',
-          isRunning: false,
-          autoCollapse: false,
-        ),
-        isTrue,
-      );
+      expect(notifier.isGroupExpanded(turnId: 'u2', isRunning: false, autoCollapse: false), isTrue);
 
       // Case 4: isRunning: true keeps group open
-      expect(
-        notifier.isGroupExpanded(
-          turnId: 'u3',
-          isRunning: true,
-          autoCollapse: true,
-        ),
-        isTrue,
-      );
+      expect(notifier.isGroupExpanded(turnId: 'u3', isRunning: true, autoCollapse: true), isTrue);
 
       // Step expansion toggle
       expect(notifier.isStepExpanded('step_1'), isFalse);
@@ -1406,17 +1049,12 @@ void main() {
       }
 
       // Overrides map must be capped
-      expect(
-        notifier.state.groupOverrides.length,
-        lessThanOrEqualTo(StepGroupExpansionNotifier.maxGroupOverrides),
-      );
+      expect(notifier.state.groupOverrides.length, lessThanOrEqualTo(StepGroupExpansionNotifier.maxGroupOverrides));
 
       // Oldest turn should have been evicted
       expect(notifier.state.groupOverrides.containsKey('turn_0'), isFalse);
       expect(
-        notifier.state.groupOverrides.containsKey(
-          'turn_${StepGroupExpansionNotifier.maxGroupOverrides + 9}',
-        ),
+        notifier.state.groupOverrides.containsKey('turn_${StepGroupExpansionNotifier.maxGroupOverrides + 9}'),
         isTrue,
       );
     });
@@ -1428,10 +1066,7 @@ void main() {
       const sessionId = 'session_test_123';
       final notifier = container.read(stepGroupExpansionProvider(sessionId).notifier);
 
-      expect(
-        notifier.isGroupExpanded(turnId: 'u1', isRunning: false, autoCollapse: true),
-        isFalse,
-      );
+      expect(notifier.isGroupExpanded(turnId: 'u1', isRunning: false, autoCollapse: true), isFalse);
 
       notifier.toggleGroup('u1', false);
       expect(
@@ -1443,14 +1078,7 @@ void main() {
 
       // Simulate widget rebuild watching the provider
       final stateAfterRebuild = container.read(stepGroupExpansionProvider(sessionId));
-      expect(
-        stateAfterRebuild.isGroupExpanded(
-          turnId: 'u1',
-          isRunning: false,
-          autoCollapse: true,
-        ),
-        isTrue,
-      );
+      expect(stateAfterRebuild.isGroupExpanded(turnId: 'u1', isRunning: false, autoCollapse: true), isTrue);
     });
 
     test('true LRU eviction in StepGroupExpansionNotifier and protection of running turn', () {
@@ -1514,10 +1142,7 @@ void main() {
       expect(stringsIt.stepGroupingModeFull, 'Completo (Full)');
       expect(stringsEn.stepGroupingModeFull, 'Full');
 
-      expect(
-        stringsIt.stepGroupingModeLabel(StepGroupingMode.full),
-        'Completo (Full)',
-      );
+      expect(stringsIt.stepGroupingModeLabel(StepGroupingMode.full), 'Completo (Full)');
       expect(stringsEn.stepGroupingModeLabel(StepGroupingMode.full), 'Full');
 
       expect(stringsIt.stepGroupWorking, 'Elaborazione…');
@@ -1532,14 +1157,8 @@ void main() {
       expect(stringsIt.stepGroupFinished(5), 'Terminato con 5 passaggi');
       expect(stringsEn.stepGroupFinished(5), 'Finished with 5 steps');
 
-      expect(
-        stringsIt.stepGroupStoppedWithErrors(2),
-        'Interrotto con errori dopo 2 passaggi',
-      );
-      expect(
-        stringsEn.stepGroupStoppedWithErrors(2),
-        'Stopped with errors after 2 steps',
-      );
+      expect(stringsIt.stepGroupStoppedWithErrors(2), 'Interrotto con errori dopo 2 passaggi');
+      expect(stringsEn.stepGroupStoppedWithErrors(2), 'Stopped with errors after 2 steps');
 
       expect(stringsIt.stepGroupShowAll, 'Mostra tutti');
       expect(stringsEn.stepGroupShowAll, 'Show all');
@@ -1554,14 +1173,8 @@ void main() {
       expect(stringsEn.stepGroupOutput, 'Output');
 
       // Helper labels
-      expect(
-        stringsIt.stepGroupingModeLabel(StepGroupingMode.withThinking),
-        'Con ragionamento',
-      );
-      expect(
-        stringsEn.stepGroupingModeLabel(StepGroupingMode.always),
-        'Always',
-      );
+      expect(stringsIt.stepGroupingModeLabel(StepGroupingMode.withThinking), 'Con ragionamento');
+      expect(stringsEn.stepGroupingModeLabel(StepGroupingMode.always), 'Always');
     });
 
     test('pluralization in AppStrings for 1 step vs multiple steps', () {
@@ -1578,14 +1191,8 @@ void main() {
       expect(stringsIt.stepGroupFinished(1), 'Terminato con 1 passaggio');
       expect(stringsEn.stepGroupFinished(1), 'Finished with 1 step');
 
-      expect(
-        stringsIt.stepGroupStoppedWithErrors(1),
-        'Interrotto con errori dopo 1 passaggio',
-      );
-      expect(
-        stringsEn.stepGroupStoppedWithErrors(1),
-        'Stopped with errors after 1 step',
-      );
+      expect(stringsIt.stepGroupStoppedWithErrors(1), 'Interrotto con errori dopo 1 passaggio');
+      expect(stringsEn.stepGroupStoppedWithErrors(1), 'Stopped with errors after 1 step');
 
       // > 1 step plural
       expect(stringsIt.stepGroupCompletedIn(2, '2s'), 'Completati 2 passaggi in 2s');
@@ -1597,14 +1204,8 @@ void main() {
       expect(stringsIt.stepGroupFinished(2), 'Terminato con 2 passaggi');
       expect(stringsEn.stepGroupFinished(2), 'Finished with 2 steps');
 
-      expect(
-        stringsIt.stepGroupStoppedWithErrors(2),
-        'Interrotto con errori dopo 2 passaggi',
-      );
-      expect(
-        stringsEn.stepGroupStoppedWithErrors(2),
-        'Stopped with errors after 2 steps',
-      );
+      expect(stringsIt.stepGroupStoppedWithErrors(2), 'Interrotto con errori dopo 2 passaggi');
+      expect(stringsEn.stepGroupStoppedWithErrors(2), 'Stopped with errors after 2 steps');
     });
   });
 }

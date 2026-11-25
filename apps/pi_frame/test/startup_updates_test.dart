@@ -23,16 +23,8 @@ class _MockStartupUpdateChecker implements StartupUpdateChecker {
     this.currentPi = '1.3.0',
     this.latestPi = '1.4.0',
     this.packages = const [
-      PackageUpdateInfo(
-        name: 'pi-caveman',
-        currentVersion: '1.0.10',
-        latestVersion: '1.0.11',
-      ),
-      PackageUpdateInfo(
-        name: 'pi-web-access',
-        currentVersion: '0.43.0',
-        latestVersion: '0.44.0',
-      ),
+      PackageUpdateInfo(name: 'pi-caveman', currentVersion: '1.0.10', latestVersion: '1.0.11'),
+      PackageUpdateInfo(name: 'pi-web-access', currentVersion: '0.43.0', latestVersion: '0.44.0'),
     ],
   });
 
@@ -55,44 +47,22 @@ class _MockStartupUpdateChecker implements StartupUpdateChecker {
 void main() {
   group('Package update availability', () {
     test('requires a strictly newer verified version', () {
-      final package = <String, dynamic>{
-        'source': 'npm:package',
-        'version': '1.0.0',
-        'latestVersion': '1.0.1',
-      };
+      final package = <String, dynamic>{'source': 'npm:package', 'version': '1.0.0', 'latestVersion': '1.0.1'};
       expect(hasAvailablePiPackageUpdate(package), isTrue);
+      expect(hasAvailablePiPackageUpdate({...package, 'latestVersion': '1.0.0'}), isFalse);
+      expect(hasAvailablePiPackageUpdate({...package, 'latestVersion': '0.9.0'}), isFalse);
       expect(
-        hasAvailablePiPackageUpdate({...package, 'latestVersion': '1.0.0'}),
+        hasAvailablePiPackageUpdate({...package, 'version': '1.0.0+local', 'latestVersion': '1.0.0+registry'}),
         isFalse,
       );
       expect(
-        hasAvailablePiPackageUpdate({...package, 'latestVersion': '0.9.0'}),
-        isFalse,
-      );
-      expect(
-        hasAvailablePiPackageUpdate({
-          ...package,
-          'version': '1.0.0+local',
-          'latestVersion': '1.0.0+registry',
-        }),
-        isFalse,
-      );
-      expect(
-        hasAvailablePiPackageUpdate({
-          ...package,
-          'version': '1.0.0-beta.2',
-          'latestVersion': '1.0.0-beta.10',
-        }),
+        hasAvailablePiPackageUpdate({...package, 'version': '1.0.0-beta.2', 'latestVersion': '1.0.0-beta.10'}),
         isTrue,
       );
     });
 
     test('pins, incompatibilities and unknown versions remain unavailable', () {
-      final package = <String, dynamic>{
-        'source': 'npm:package',
-        'version': '1.0.0',
-        'latestVersion': '2.0.0',
-      };
+      final package = <String, dynamic>{'source': 'npm:package', 'version': '1.0.0', 'latestVersion': '2.0.0'};
       for (final fields in [
         {'pinnedVersion': '1.0.0'},
         {'updateError': 'Unsupported platform'},
@@ -107,80 +77,40 @@ void main() {
   });
 
   group('DefaultStartupUpdateChecker', () {
-    test(
-      'uses configured targets and excludes pinned, local and newer packages',
-      () async {
-        final checker = DefaultStartupUpdateChecker(
-          listPackages: () async => [
-            {
-              'source': 'npm:package',
-              'name': 'package',
-              'version': '0.1.14',
-              'latestVersion': '1.2.0',
-            },
-            {
-              'source': 'npm:range-package@^1.0.0',
-              'version': '1.9.0',
-              'latestVersion': '1.9.0',
-            },
-            {
-              'source': 'npm:pinned@1.0.0',
-              'version': '1.0.0',
-              'pinnedVersion': '1.0.0',
-            },
-            {'source': 'git:github.com/example/tools', 'version': '1.0.0'},
-            {
-              'source': 'npm:newer',
-              'version': '2.0.0',
-              'latestVersion': '1.9.0',
-            },
-            {
-              'source': 'npm:next@next',
-              'name': 'next',
-              'version': '2.0.0-beta.2',
-              'latestVersion': '2.0.0-beta.10',
-            },
-            {
-              'source': 'npm:build',
-              'version': '1.0.0+local',
-              'latestVersion': '1.0.0+registry',
-            },
-            {
-              'source': 'npm:unsupported',
-              'version': '0.1.14',
-              'latestVersion': '1.2.0',
-              'updateError': 'Required dependency does not support Windows.',
-            },
-          ],
-        );
-        addTearDown(checker.dispose);
-        expect(await checker.checkOutdatedPackages(), const [
-          PackageUpdateInfo(
-            name: 'package',
-            currentVersion: '0.1.14',
-            latestVersion: '1.2.0',
-          ),
-          PackageUpdateInfo(
-            name: 'next',
-            currentVersion: '2.0.0-beta.2',
-            latestVersion: '2.0.0-beta.10',
-          ),
-        ]);
-      },
-    );
+    test('uses configured targets and excludes pinned, local and newer packages', () async {
+      final checker = DefaultStartupUpdateChecker(
+        listPackages: () async => [
+          {'source': 'npm:package', 'name': 'package', 'version': '0.1.14', 'latestVersion': '1.2.0'},
+          {'source': 'npm:range-package@^1.0.0', 'version': '1.9.0', 'latestVersion': '1.9.0'},
+          {'source': 'npm:pinned@1.0.0', 'version': '1.0.0', 'pinnedVersion': '1.0.0'},
+          {'source': 'git:github.com/example/tools', 'version': '1.0.0'},
+          {'source': 'npm:newer', 'version': '2.0.0', 'latestVersion': '1.9.0'},
+          {'source': 'npm:next@next', 'name': 'next', 'version': '2.0.0-beta.2', 'latestVersion': '2.0.0-beta.10'},
+          {'source': 'npm:build', 'version': '1.0.0+local', 'latestVersion': '1.0.0+registry'},
+          {
+            'source': 'npm:unsupported',
+            'version': '0.1.14',
+            'latestVersion': '1.2.0',
+            'updateError': 'Required dependency does not support Windows.',
+          },
+        ],
+      );
+      addTearDown(checker.dispose);
+      expect(await checker.checkOutdatedPackages(), const [
+        PackageUpdateInfo(name: 'package', currentVersion: '0.1.14', latestVersion: '1.2.0'),
+        PackageUpdateInfo(name: 'next', currentVersion: '2.0.0-beta.2', latestVersion: '2.0.0-beta.10'),
+      ]);
+    });
 
-    test(
-      'missing version verification is an error, not an empty update list',
-      () async {
-        final checker = DefaultStartupUpdateChecker(
-          listPackages: () async => [
-            {'source': 'npm:package', 'version': '1.0.0'},
-          ],
-        );
-        addTearDown(checker.dispose);
-        await expectLater(checker.checkOutdatedPackages(), throwsStateError);
-      },
-    );
+    test('missing version verification is an error, not an empty update list', () async {
+      final checker = DefaultStartupUpdateChecker(
+        listPackages: () async => [
+          {'source': 'npm:package', 'version': '1.0.0'},
+        ],
+      );
+      addTearDown(checker.dispose);
+      await expectLater(checker.checkOutdatedPackages(), throwsStateError);
+    });
 
     test('package command failures propagate', () async {
       final checker = DefaultStartupUpdateChecker(
@@ -201,32 +131,17 @@ void main() {
           httpClient: MockClient((_) async => response),
         );
         addTearDown(checker.dispose);
-        await expectLater(
-          checker.checkLatestPiVersion(),
-          throwsA(anyOf(isA<StateError>(), isA<FormatException>())),
-        );
+        await expectLater(checker.checkLatestPiVersion(), throwsA(anyOf(isA<StateError>(), isA<FormatException>())));
       }
     });
   });
 
   group('StartupUpdateState & Notifier', () {
     test('PackageUpdateInfo equality and json', () {
-      const p1 = PackageUpdateInfo(
-        name: 'pkg1',
-        currentVersion: '1.0.0',
-        latestVersion: '2.0.0',
-      );
-      const p2 = PackageUpdateInfo(
-        name: 'pkg1',
-        currentVersion: '1.0.0',
-        latestVersion: '2.0.0',
-      );
+      const p1 = PackageUpdateInfo(name: 'pkg1', currentVersion: '1.0.0', latestVersion: '2.0.0');
+      const p2 = PackageUpdateInfo(name: 'pkg1', currentVersion: '1.0.0', latestVersion: '2.0.0');
       expect(p1, equals(p2));
-      expect(p1.toJson(), {
-        'name': 'pkg1',
-        'currentVersion': '1.0.0',
-        'latestVersion': '2.0.0',
-      });
+      expect(p1.toJson(), {'name': 'pkg1', 'currentVersion': '1.0.0', 'latestVersion': '2.0.0'});
     });
 
     test('StartupUpdateState shouldShowBanner logic', () {
@@ -234,10 +149,7 @@ void main() {
       expect(stateEmpty.hasAnyUpdate, isFalse);
       expect(stateEmpty.shouldShowBanner, isFalse);
 
-      const stateCheckedWithPi = StartupUpdateState(
-        hasChecked: true,
-        piHasUpdate: true,
-      );
+      const stateCheckedWithPi = StartupUpdateState(hasChecked: true, piHasUpdate: true);
       expect(stateCheckedWithPi.hasAnyUpdate, isTrue);
       expect(stateCheckedWithPi.shouldShowBanner, isTrue);
 
@@ -247,9 +159,7 @@ void main() {
 
     test('StartupUpdatesNotifier runs check and dismiss', () async {
       final mock = _MockStartupUpdateChecker();
-      final container = ProviderContainer(
-        overrides: [startupUpdateCheckerProvider.overrideWithValue(mock)],
-      );
+      final container = ProviderContainer(overrides: [startupUpdateCheckerProvider.overrideWithValue(mock)]);
       addTearDown(container.dispose);
 
       final notifier = container.read(startupUpdatesProvider.notifier);
@@ -269,104 +179,66 @@ void main() {
       expect(container.read(startupUpdatesProvider).shouldShowBanner, isFalse);
     });
 
-    test(
-      'refresh removes installed updates and preserves Pi update state',
-      () async {
-        final mock = _MockStartupUpdateChecker();
-        final container = ProviderContainer(
-          overrides: [startupUpdateCheckerProvider.overrideWithValue(mock)],
-        );
-        addTearDown(container.dispose);
-        final notifier = container.read(startupUpdatesProvider.notifier);
-        await notifier.checkUpdates();
-        mock.packages = [];
-        await notifier.refreshPackages();
-        final state = container.read(startupUpdatesProvider);
-        expect(state.outdatedPackages, isEmpty);
-        expect(state.piHasUpdate, isTrue);
-        expect(state.currentPiVersion, '1.3.0');
-      },
-    );
+    test('refresh removes installed updates and preserves Pi update state', () async {
+      final mock = _MockStartupUpdateChecker();
+      final container = ProviderContainer(overrides: [startupUpdateCheckerProvider.overrideWithValue(mock)]);
+      addTearDown(container.dispose);
+      final notifier = container.read(startupUpdatesProvider.notifier);
+      await notifier.checkUpdates();
+      mock.packages = [];
+      await notifier.refreshPackages();
+      final state = container.read(startupUpdatesProvider);
+      expect(state.outdatedPackages, isEmpty);
+      expect(state.piHasUpdate, isTrue);
+      expect(state.currentPiVersion, '1.3.0');
+    });
 
-    test(
-      'failed rechecks keep known updates and expose the error until recovery',
-      () async {
-        final mock = _MockStartupUpdateChecker(currentPi: '1.4.0');
-        final container = ProviderContainer(
-          overrides: [startupUpdateCheckerProvider.overrideWithValue(mock)],
-        );
-        addTearDown(container.dispose);
-        final notifier = container.read(startupUpdatesProvider.notifier);
-        await notifier.checkUpdates();
-        mock.packageError = StateError('Registry unavailable');
-        await notifier.refreshPackages();
-        expect(
-          container.read(startupUpdatesProvider).outdatedPackages.length,
-          2,
-        );
-        expect(
-          container.read(startupUpdatesProvider).error,
-          contains('Registry unavailable'),
-        );
-        mock.packageError = null;
-        mock.packages = [];
-        await notifier.refreshPackages();
-        expect(container.read(startupUpdatesProvider).error, isNull);
-        expect(
-          container.read(startupUpdatesProvider).shouldShowBanner,
-          isFalse,
-        );
-      },
-    );
+    test('failed rechecks keep known updates and expose the error until recovery', () async {
+      final mock = _MockStartupUpdateChecker(currentPi: '1.4.0');
+      final container = ProviderContainer(overrides: [startupUpdateCheckerProvider.overrideWithValue(mock)]);
+      addTearDown(container.dispose);
+      final notifier = container.read(startupUpdatesProvider.notifier);
+      await notifier.checkUpdates();
+      mock.packageError = StateError('Registry unavailable');
+      await notifier.refreshPackages();
+      expect(container.read(startupUpdatesProvider).outdatedPackages.length, 2);
+      expect(container.read(startupUpdatesProvider).error, contains('Registry unavailable'));
+      mock.packageError = null;
+      mock.packages = [];
+      await notifier.refreshPackages();
+      expect(container.read(startupUpdatesProvider).error, isNull);
+      expect(container.read(startupUpdatesProvider).shouldShowBanner, isFalse);
+    });
 
     test('a Pi registry failure does not suppress package updates', () async {
-      final mock = _MockStartupUpdateChecker()
-        ..latestError = StateError('Pi registry unavailable');
-      final container = ProviderContainer(
-        overrides: [startupUpdateCheckerProvider.overrideWithValue(mock)],
-      );
+      final mock = _MockStartupUpdateChecker()..latestError = StateError('Pi registry unavailable');
+      final container = ProviderContainer(overrides: [startupUpdateCheckerProvider.overrideWithValue(mock)]);
       addTearDown(container.dispose);
       await container.read(startupUpdatesProvider.notifier).checkUpdates();
       expect(container.read(startupUpdatesProvider).outdatedPackages.length, 2);
-      expect(
-        container.read(startupUpdatesProvider).error,
-        contains('Pi registry unavailable'),
-      );
+      expect(container.read(startupUpdatesProvider).error, contains('Pi registry unavailable'));
     });
 
-    test(
-      'refresh waits for a startup check and replaces its stale result',
-      () async {
-        final pending = Completer<List<PackageUpdateInfo>>();
-        var calls = 0;
-        final mock = _MockStartupUpdateChecker(currentPi: '1.4.0')
-          ..onPackages = () => ++calls == 1 ? pending.future : Future.value([]);
-        final container = ProviderContainer(
-          overrides: [startupUpdateCheckerProvider.overrideWithValue(mock)],
-        );
-        addTearDown(container.dispose);
-        final notifier = container.read(startupUpdatesProvider.notifier);
-        final checking = notifier.checkUpdates();
-        final refreshing = notifier.refreshPackages();
-        pending.complete(mock.packages);
-        await Future.wait([checking, refreshing]);
-        expect(calls, 2);
-        expect(
-          container.read(startupUpdatesProvider).outdatedPackages,
-          isEmpty,
-        );
-        expect(
-          container.read(startupUpdatesProvider).shouldShowBanner,
-          isFalse,
-        );
-      },
-    );
+    test('refresh waits for a startup check and replaces its stale result', () async {
+      final pending = Completer<List<PackageUpdateInfo>>();
+      var calls = 0;
+      final mock = _MockStartupUpdateChecker(currentPi: '1.4.0')
+        ..onPackages = () => ++calls == 1 ? pending.future : Future.value([]);
+      final container = ProviderContainer(overrides: [startupUpdateCheckerProvider.overrideWithValue(mock)]);
+      addTearDown(container.dispose);
+      final notifier = container.read(startupUpdatesProvider.notifier);
+      final checking = notifier.checkUpdates();
+      final refreshing = notifier.refreshPackages();
+      pending.complete(mock.packages);
+      await Future.wait([checking, refreshing]);
+      expect(calls, 2);
+      expect(container.read(startupUpdatesProvider).outdatedPackages, isEmpty);
+      expect(container.read(startupUpdatesProvider).shouldShowBanner, isFalse);
+    });
 
     test('a recheck can clear old nullable Pi versions', () async {
       final mock = _MockStartupUpdateChecker();
-      final container = ProviderContainer(
-        overrides: [startupUpdateCheckerProvider.overrideWithValue(mock)],
-      );
+      final container = ProviderContainer(overrides: [startupUpdateCheckerProvider.overrideWithValue(mock)]);
       addTearDown(container.dispose);
       final notifier = container.read(startupUpdatesProvider.notifier);
       await notifier.checkUpdates();
@@ -380,14 +252,9 @@ void main() {
 
     test('disposing during a check does not write disposed state', () async {
       final pending = Completer<List<PackageUpdateInfo>>();
-      final mock = _MockStartupUpdateChecker()
-        ..onPackages = () => pending.future;
-      final container = ProviderContainer(
-        overrides: [startupUpdateCheckerProvider.overrideWithValue(mock)],
-      );
-      final checking = container
-          .read(startupUpdatesProvider.notifier)
-          .refreshPackages();
+      final mock = _MockStartupUpdateChecker()..onPackages = () => pending.future;
+      final container = ProviderContainer(overrides: [startupUpdateCheckerProvider.overrideWithValue(mock)]);
+      final checking = container.read(startupUpdatesProvider.notifier).refreshPackages();
       await Future<void>.delayed(Duration.zero);
       container.dispose();
       pending.complete([]);
@@ -395,9 +262,7 @@ void main() {
     });
   });
 
-  testWidgets('StartupUpdateBanner renders details and handles actions', (
-    tester,
-  ) async {
+  testWidgets('StartupUpdateBanner renders details and handles actions', (tester) async {
     final mock = _MockStartupUpdateChecker();
     final langNotifier = AppLanguageNotifier()..setLanguage(AppLanguage.it);
     final container = ProviderContainer(
@@ -446,19 +311,11 @@ void main() {
     expect(find.byKey(const ValueKey('startup-update-open-btn')), findsNothing);
   });
 
-  testWidgets('StartupUpdateBanner can be dismissed with close button', (
-    tester,
-  ) async {
+  testWidgets('StartupUpdateBanner can be dismissed with close button', (tester) async {
     final mock = _MockStartupUpdateChecker(
       currentPi: '1.4.0',
       latestPi: '1.4.0', // No Pi update
-      packages: const [
-        PackageUpdateInfo(
-          name: 'pi-caveman',
-          currentVersion: '1.0.10',
-          latestVersion: '1.0.11',
-        ),
-      ],
+      packages: const [PackageUpdateInfo(name: 'pi-caveman', currentVersion: '1.0.10', latestVersion: '1.0.11')],
     );
     final langNotifier = AppLanguageNotifier()..setLanguage(AppLanguage.it);
     final container = ProviderContainer(

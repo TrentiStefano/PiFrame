@@ -29,15 +29,11 @@ void main() {
       overrides: [
         daemonEndpointProvider.overrideWith((ref) async => null),
         activeSessionIdProvider.overrideWith((ref) => 'test-session'),
-        repositoryStateProvider('test-session').overrideWith(
-          (ref) => _FakeRepoController(),
-        ),
+        repositoryStateProvider('test-session').overrideWith((ref) => _FakeRepoController()),
         ...overrides,
       ],
       child: MaterialApp(
-        theme: ThemeData.dark().copyWith(
-          extensions: const [FrameTokens.dark],
-        ),
+        theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
         home: Scaffold(body: child),
       ),
     );
@@ -55,19 +51,14 @@ void main() {
         MaterialApp(
           theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: Scaffold(
-            body: FileMentionMenu(
-              files: files,
-              query: 'main',
-              selectedIndex: 0,
-              onSelect: (path) => selected = path,
-            ),
+            body: FileMentionMenu(files: files, query: 'main', selectedIndex: 0, onSelect: (path) => selected = path),
           ),
         ),
       );
 
       expect(find.text('main.dart'), findsOneWidget);
       expect(find.text('lib'), findsNWidgets(2));
-      expect(find.text('Collega file (@)'), findsOneWidget);
+      expect(find.text('Link file (@)'), findsOneWidget);
 
       await tester.tap(find.text('main.dart'));
       expect(selected, 'lib/main.dart');
@@ -100,18 +91,18 @@ void main() {
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Aggiungi contesto al chat'), findsOneWidget);
-      expect(find.text('3 file trovati'), findsOneWidget);
+      expect(find.text('Add context to chat'), findsOneWidget);
+      expect(find.text('3 files found'), findsOneWidget);
 
       // Search for app
       await tester.enterText(find.byType(TextField), 'app');
       await tester.pumpAndSettle();
 
-      expect(find.text('2 file trovati'), findsOneWidget);
+      expect(find.text('2 files found'), findsOneWidget);
       expect(find.text('lib/app.dart'), findsOneWidget);
 
       // Select mention via Collega @ button
-      await tester.tap(find.text('Collega @').first);
+      await tester.tap(find.text('Link @').first);
       await tester.pumpAndSettle();
 
       expect(result, isNotNull);
@@ -120,9 +111,7 @@ void main() {
     });
 
     testWidgets('Typing @ in Composer activates file mention menu', (tester) async {
-      await tester.pumpWidget(
-        wrapWithTheme(const Composer(sessionId: 'test-session')),
-      );
+      await tester.pumpWidget(wrapWithTheme(const Composer(sessionId: 'test-session')));
       await tester.pumpAndSettle();
 
       // Enter text with @lib
@@ -158,10 +147,7 @@ void main() {
         ),
       );
 
-      final borderPaint = find.descendant(
-        of: find.byType(ShimmerBorder),
-        matching: find.byType(CustomPaint),
-      );
+      final borderPaint = find.descendant(of: find.byType(ShimmerBorder), matching: find.byType(CustomPaint));
 
       expect(borderPaint, findsNothing);
 
@@ -193,11 +179,7 @@ void main() {
 
     test('highlight tokenizes keywords, strings, and types', () {
       const tokens = FrameTokens.dark;
-      final span = SyntaxHighlighter.highlight(
-        'final x = "hello"; // comment\nclass User {}',
-        'dart',
-        tokens,
-      );
+      final span = SyntaxHighlighter.highlight('final x = "hello"; // comment\nclass User {}', 'dart', tokens);
 
       expect(span.children, isNotEmpty);
       final textContent = span.toPlainText();

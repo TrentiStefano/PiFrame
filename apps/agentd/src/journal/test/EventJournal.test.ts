@@ -2,7 +2,7 @@ import test from 'node:test';
 import * as assert from 'node:assert/strict';
 import { EventJournal } from '../EventJournal.js';
 
-test('EventJournal: strictly monotonic seq numbers under rapid sequential appends', () => {
+test('EventJournal: strictly monotonic seq numbers under rapid sequential appends', async () => {
   const journal = new EventJournal({
     sessionId: `test_${Date.now()}`,
     maxEvents: 50
@@ -22,8 +22,8 @@ test('EventJournal: strictly monotonic seq numbers under rapid sequential append
   // Range within ring buffer
   const range = journal.getRange(80, 90);
   assert.equal(range.length, 11);
-  assert.equal(range[0].seq, 80);
-  assert.equal(range[10].seq, 90);
+  assert.equal(range[0]!.seq, 80);
+  assert.equal(range[10]!.seq, 90);
 
-  journal.close();
+  await journal.close();
 });

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -47,10 +49,8 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
   /// One focus node per companion tab, so ←/→ can move focus with the selection.
   final Map<WorkspacePane, FocusNode> _tabFocusNodes = {};
 
-  FocusNode _tabFocusNode(WorkspacePane tab) => _tabFocusNodes.putIfAbsent(
-    tab,
-    () => FocusNode(debugLabel: 'companion-tab-${tab.name}'),
-  );
+  FocusNode _tabFocusNode(WorkspacePane tab) =>
+      _tabFocusNodes.putIfAbsent(tab, () => FocusNode(debugLabel: 'companion-tab-${tab.name}'));
 
   /// Selects the tab [step] places from [tab] and moves focus to it.
   void _stepTab(WorkspacePane tab, int step) {
@@ -66,7 +66,7 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
     try {
       return ref.watch(appStringsProvider);
     } catch (_) {
-      return const AppStrings(AppLanguage.it);
+      return const AppStrings(AppLanguage.defaultLanguage);
     }
   }
 
@@ -76,20 +76,17 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
   @override
   void initState() {
     super.initState();
-    _unregisterEscape = ref.read(escapeLayersProvider).register(
-      EscapeLayer.review,
-      () {
-        final onClose = widget.onClose;
-        if (onClose == null) return false;
-        onClose();
-        return true;
-      },
-    );
-    Future.microtask(() {
-      ref
-          .read(sessionChangesProvider(widget.sessionId).notifier)
-          .refresh(joinRunning: true);
+    _unregisterEscape = ref.read(escapeLayersProvider).register(EscapeLayer.review, () {
+      final onClose = widget.onClose;
+      if (onClose == null) return false;
+      onClose();
+      return true;
     });
+    unawaited(
+      Future.microtask(() {
+        unawaited(ref.read(sessionChangesProvider(widget.sessionId).notifier).refresh(joinRunning: true));
+      }),
+    );
   }
 
   @override
@@ -102,18 +99,14 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
   }
 
   void _toggleFileExpansion(String path) {
-    final notifier = ref.read(
-      expandedReviewFilesProvider(widget.sessionId).notifier,
-    );
+    final notifier = ref.read(expandedReviewFilesProvider(widget.sessionId).notifier);
     final current = ref.read(expandedReviewFilesProvider(widget.sessionId));
     if (current.contains(path)) {
       notifier.state = Set<String>.from(current)..remove(path);
     } else {
       notifier.state = Set<String>.from(current)..add(path);
       // Fetch diff for this file if not already loaded
-      ref
-          .read(sessionChangesProvider(widget.sessionId).notifier)
-          .fetchFileDiff(path);
+      unawaited(ref.read(sessionChangesProvider(widget.sessionId).notifier).fetchFileDiff(path));
     }
   }
 
@@ -122,12 +115,9 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
     final tokens = context.tokens;
     final strings = _getStrings();
     final changes = ref.watch(sessionChangesProvider(widget.sessionId));
-    final expandedFiles = ref.watch(
-      expandedReviewFilesProvider(widget.sessionId),
-    );
+    final expandedFiles = ref.watch(expandedReviewFilesProvider(widget.sessionId));
     final diffMode = ref.watch(diffViewModeProvider);
-    final showTabs =
-        widget.companionTabs != null && widget.companionTabs!.length > 1;
+    final showTabs = widget.companionTabs != null && widget.companionTabs!.length > 1;
 
     return Container(
       decoration: BoxDecoration(color: tokens.surface),
@@ -150,14 +140,11 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
                   Expanded(
                     child: LayoutBuilder(
                       builder: (context, constraints) {
-                        final showLabels =
-                            constraints.maxWidth >= kCompanionTabLabelsMinWidth;
+                        final showLabels = constraints.maxWidth >= kCompanionTabLabelsMinWidth;
                         // Each tab is unbounded in the row, so each label is capped here:
                         // the width left after the icons and padding of the other tabs,
                         // the gaps and the active tab's icon and padding (about 112 px).
-                        final labelMaxWidth = constraints.maxWidth > 112
-                            ? constraints.maxWidth - 112
-                            : 0.0;
+                        final labelMaxWidth = constraints.maxWidth > 112 ? constraints.maxWidth - 112 : 0.0;
                         return Row(
                           children: [
                             for (final tab in widget.companionTabs!) ...[
@@ -165,106 +152,59 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
                                 builder: (context) {
                                   final isActive = tab == widget.activeCompanionTab;
                                   final (tabTitle, tabIcon) = switch (tab) {
-                                    WorkspacePane.repository => (
-                                      strings.companionFileTab,
-                                      Icons.folder_outlined,
-                                    ),
-                                    WorkspacePane.git => (
-                                      strings.companionReviewTab,
-                                      Icons.rate_review_outlined,
-                                    ),
-                                    WorkspacePane.chat => (
-                                      strings.companionChatTab,
-                                      Icons.chat_bubble_outline,
-                                    ),
+                                    WorkspacePane.repository => (strings.companionFileTab, Icons.folder_outlined),
+                                    WorkspacePane.git => (strings.companionReviewTab, Icons.rate_review_outlined),
+                                    WorkspacePane.chat => (strings.companionChatTab, Icons.chat_bubble_outline),
                                   };
                                   return MouseRegion(
-                                    cursor: isActive
-                                        ? SystemMouseCursors.basic
-                                        : SystemMouseCursors.click,
+                                    cursor: isActive ? SystemMouseCursors.basic : SystemMouseCursors.click,
                                     child: Semantics(
                                       button: true,
                                       selected: isActive,
                                       label: tabTitle,
                                       excludeSemantics: true,
                                       child: FrameFocusRing(
-                                        borderRadius: BorderRadius.circular(
-                                          tokens.radiusSm,
-                                        ),
+                                        borderRadius: BorderRadius.circular(tokens.radiusSm),
                                         child: FocusableActionDetector(
                                           focusNode: _tabFocusNode(tab),
-                                          shortcuts:
-                                              const <ShortcutActivator, Intent>{
-                                                SingleActivator(
-                                                  LogicalKeyboardKey.arrowLeft,
-                                                ): _TabStepIntent(
-                                                  -1,
-                                                ),
-                                                SingleActivator(
-                                                  LogicalKeyboardKey.arrowRight,
-                                                ): _TabStepIntent(
-                                                  1,
-                                                ),
-                                              },
+                                          shortcuts: const <ShortcutActivator, Intent>{
+                                            SingleActivator(LogicalKeyboardKey.arrowLeft): _TabStepIntent(-1),
+                                            SingleActivator(LogicalKeyboardKey.arrowRight): _TabStepIntent(1),
+                                          },
                                           actions: <Type, Action<Intent>>{
-                                            _TabStepIntent:
-                                                CallbackAction<_TabStepIntent>(
-                                                  onInvoke: (intent) {
-                                                    _stepTab(tab, intent.step);
-                                                    return null;
-                                                  },
-                                                ),
+                                            _TabStepIntent: CallbackAction<_TabStepIntent>(
+                                              onInvoke: (intent) {
+                                                _stepTab(tab, intent.step);
+                                                return null;
+                                              },
+                                            ),
                                             // Enter and Space select the focused tab.
-                                            ActivateIntent:
-                                                CallbackAction<ActivateIntent>(
-                                                  onInvoke: (_) {
-                                                    if (!isActive) {
-                                                      widget.onSelectCompanionTab
-                                                          ?.call(tab);
-                                                    }
-                                                    return null;
-                                                  },
-                                                ),
+                                            ActivateIntent: CallbackAction<ActivateIntent>(
+                                              onInvoke: (_) {
+                                                if (!isActive) {
+                                                  widget.onSelectCompanionTab?.call(tab);
+                                                }
+                                                return null;
+                                              },
+                                            ),
                                           },
                                           child: InkWell(
                                             // The detector above owns the focus stop.
                                             canRequestFocus: false,
-                                            key: ValueKey(
-                                              'companion-tab-${tab.name}',
-                                            ),
-                                            borderRadius: BorderRadius.circular(
-                                              tokens.radiusSm,
-                                            ),
+                                            key: ValueKey('companion-tab-${tab.name}'),
+                                            borderRadius: BorderRadius.circular(tokens.radiusSm),
                                             hoverColor: tokens.surfaceElevated,
                                             highlightColor: tokens.surfaceElevated,
                                             splashFactory: NoSplash.splashFactory,
-                                            onTap: isActive
-                                                ? null
-                                                : () => widget.onSelectCompanionTab
-                                                      ?.call(tab),
+                                            onTap: isActive ? null : () => widget.onSelectCompanionTab?.call(tab),
                                             child: AnimatedContainer(
-                                              duration: FrameMotion.fade(
-                                                context,
-                                                FrameMotion.micro,
-                                              ),
-                                              padding: EdgeInsets.symmetric(
-                                                horizontal: isActive ? 10 : 7,
-                                                vertical: 3,
-                                              ),
+                                              duration: FrameMotion.fade(context, FrameMotion.micro),
+                                              padding: EdgeInsets.symmetric(horizontal: isActive ? 10 : 7, vertical: 3),
                                               decoration: BoxDecoration(
-                                                color: isActive
-                                                    ? tokens.surface
-                                                    : tokens.surface.withValues(
-                                                        alpha: 0,
-                                                      ),
-                                                borderRadius: BorderRadius.circular(
-                                                  tokens.radiusSm,
-                                                ),
+                                                color: isActive ? tokens.surface : tokens.surface.withValues(alpha: 0),
+                                                borderRadius: BorderRadius.circular(tokens.radiusSm),
                                                 border: isActive
-                                                    ? Border.all(
-                                                        color: tokens.borderStrong,
-                                                        width: 1,
-                                                      )
+                                                    ? Border.all(color: tokens.borderStrong, width: 1)
                                                     : null,
                                               ),
                                               child: Row(
@@ -275,37 +215,23 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
                                                     child: Icon(
                                                       tabIcon,
                                                       size: isActive ? 14 : 13,
-                                                      color: isActive
-                                                          ? tokens.accent
-                                                          : tokens.textMuted,
+                                                      color: isActive ? tokens.accent : tokens.textMuted,
                                                     ),
                                                   ),
                                                   if (showLabels || isActive) ...[
                                                     const SizedBox(width: 5),
                                                     ConstrainedBox(
-                                                      constraints: BoxConstraints(
-                                                        maxWidth: labelMaxWidth,
-                                                      ),
+                                                      constraints: BoxConstraints(maxWidth: labelMaxWidth),
                                                       child: Text(
-                                                        isActive
-                                                            ? tabTitle.toUpperCase()
-                                                            : tabTitle,
+                                                        isActive ? tabTitle.toUpperCase() : tabTitle,
                                                         maxLines: 1,
                                                         softWrap: false,
-                                                        overflow:
-                                                            TextOverflow.ellipsis,
+                                                        overflow: TextOverflow.ellipsis,
                                                         style: TextStyle(
-                                                          color: isActive
-                                                              ? tokens.textPrimary
-                                                              : tokens.textMuted,
-                                                          fontSize: isActive
-                                                              ? 11.5
-                                                              : 11,
-                                                          fontFamily:
-                                                              tokens.uiFontFamily,
-                                                          fontWeight: isActive
-                                                              ? FontWeight.w600
-                                                              : FontWeight.w500,
+                                                          color: isActive ? tokens.textPrimary : tokens.textMuted,
+                                                          fontSize: isActive ? 11.5 : 11,
+                                                          fontFamily: tokens.uiFontFamily,
+                                                          fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
                                                           letterSpacing: 0.3,
                                                         ),
                                                       ),
@@ -329,11 +255,7 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
                     ),
                   )
                 else ...[
-                  Icon(
-                    Icons.rate_review_outlined,
-                    size: FrameSize.icon,
-                    color: tokens.accent,
-                  ),
+                  Icon(Icons.rate_review_outlined, size: FrameSize.icon, color: tokens.accent),
                   const SizedBox(width: 8),
                   Text(
                     strings.companionReviewTab,
@@ -349,10 +271,7 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
                 if (changes.files.isNotEmpty) ...[
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 1,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                     decoration: BoxDecoration(
                       color: tokens.surface,
                       borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -360,11 +279,7 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
                     ),
                     child: Text(
                       '${changes.files.length}',
-                      style: TextStyle(
-                        color: tokens.textSecondary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      style: TextStyle(color: tokens.textSecondary, fontSize: 11, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ],
@@ -385,10 +300,7 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
                       ref.read(diffViewModeProvider.notifier).state = newMode;
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 4,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                       decoration: BoxDecoration(
                         color: tokens.surface,
                         borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -425,16 +337,11 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
                   key: const ValueKey('refresh-session-changes-btn'),
                   visualDensity: VisualDensity.compact,
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(
-                    minWidth: 26,
-                    minHeight: 26,
-                  ),
+                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
                   icon: const Icon(Icons.refresh_outlined, size: FrameSize.icon),
                   tooltip: strings.refreshSessionChangesTooltip,
                   onPressed: () {
-                    ref
-                        .read(sessionChangesProvider(widget.sessionId).notifier)
-                        .refresh();
+                    unawaited(ref.read(sessionChangesProvider(widget.sessionId).notifier).refresh());
                   },
                 ),
                 // Close Button
@@ -444,10 +351,7 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
                     key: const ValueKey('close-session-changes-btn'),
                     visualDensity: VisualDensity.compact,
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(
-                      minWidth: 26,
-                      minHeight: 26,
-                    ),
+                    constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
                     icon: const Icon(Icons.close_outlined, size: FrameSize.icon),
                     tooltip: strings.closeReviewTooltip,
                     onPressed: widget.onClose,
@@ -470,18 +374,11 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(
-                            Icons.check_circle_outline,
-                            size: 36,
-                            color: tokens.textMuted,
-                          ),
+                          Icon(Icons.check_circle_outline, size: 36, color: tokens.textMuted),
                           const SizedBox(height: 10),
                           Text(
                             strings.noModifiedFilesInSession,
-                            style: TextStyle(
-                              color: tokens.textMuted,
-                              fontSize: 12,
-                            ),
+                            style: TextStyle(color: tokens.textMuted, fontSize: 12),
                           ),
                         ],
                       ),
@@ -498,8 +395,7 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           _buildFileRow(file, isExpanded, tokens),
-                          if (isExpanded)
-                            ReviewFileDiffViewer(file: file, mode: diffMode),
+                          if (isExpanded) ReviewFileDiffViewer(file: file, mode: diffMode),
                         ],
                       );
                     },
@@ -510,11 +406,7 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
     );
   }
 
-  Widget _buildFileRow(
-    SessionChangedFile file,
-    bool isExpanded,
-    FrameTokens tokens,
-  ) {
+  Widget _buildFileRow(SessionChangedFile file, bool isExpanded, FrameTokens tokens) {
     return InkWell(
       key: ValueKey('review-file-${file.path}'),
       onTap: () => _toggleFileExpansion(file.path),
@@ -523,15 +415,8 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
         height: 38,
         padding: const EdgeInsets.symmetric(horizontal: 14),
         decoration: BoxDecoration(
-          color: isExpanded
-              ? tokens.surfaceElevated.withValues(alpha: 0.4)
-              : null,
-          border: Border(
-            bottom: BorderSide(
-              color: tokens.border.withValues(alpha: 0.3),
-              width: 0.5,
-            ),
-          ),
+          color: isExpanded ? tokens.surfaceElevated.withValues(alpha: 0.4) : null,
+          border: Border(bottom: BorderSide(color: tokens.border.withValues(alpha: 0.3), width: 0.5)),
         ),
         child: Row(
           children: [
@@ -556,11 +441,7 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
                   file.directory,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: tokens.textMuted,
-                    fontSize: 11,
-                    fontFamily: tokens.monoFontFamily,
-                  ),
+                  style: TextStyle(color: tokens.textMuted, fontSize: 11, fontFamily: tokens.monoFontFamily),
                 ),
               ),
             ] else
@@ -569,21 +450,13 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
             // Additions (+ green)
             Text(
               '+${file.additions}',
-              style: TextStyle(
-                color: tokens.diffAddedFg,
-                fontSize: 11.5,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(color: tokens.diffAddedFg, fontSize: 11.5, fontWeight: FontWeight.bold),
             ),
             const SizedBox(width: 4),
             // Deletions (- red)
             Text(
               '-${file.deletions}',
-              style: TextStyle(
-                color: tokens.diffRemovedFg,
-                fontSize: 11.5,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(color: tokens.diffRemovedFg, fontSize: 11.5, fontWeight: FontWeight.bold),
             ),
             const SizedBox(width: 8),
             // Expand or minimize icon
@@ -599,96 +472,42 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
   }
 
   Widget _buildFileTypeBadge(String filename, FrameTokens tokens) {
-    final ext = filename.contains('.')
-        ? filename.split('.').last.toLowerCase()
-        : '';
+    final ext = filename.contains('.') ? filename.split('.').last.toLowerCase() : '';
 
     switch (ext) {
       case 'ts':
       case 'tsx':
-        return _textBadge(
-          'TS',
-          tokens.syntaxVariable,
-          tokens,
-          textColor: tokens.accentContrast,
-        );
+        return _textBadge('TS', tokens.syntaxVariable, tokens, textColor: tokens.accentContrast);
       case 'js':
       case 'jsx':
-        return _textBadge(
-          'JS',
-          tokens.syntaxFunction,
-          tokens,
-          textColor: tokens.textPrimary,
-        );
+        return _textBadge('JS', tokens.syntaxFunction, tokens, textColor: tokens.textPrimary);
       case 'dart':
         return _dartBadge(tokens);
       case 'json':
-        return _textBadge(
-          '{ }',
-          tokens.syntaxNumber,
-          tokens,
-          textColor: tokens.textPrimary,
-        );
+        return _textBadge('{ }', tokens.syntaxNumber, tokens, textColor: tokens.textPrimary);
       case 'md':
-        return _textBadge(
-          'MD',
-          tokens.syntaxKeyword,
-          tokens,
-          textColor: tokens.accentContrast,
-        );
+        return _textBadge('MD', tokens.syntaxKeyword, tokens, textColor: tokens.accentContrast);
       case 'py':
-        return _textBadge(
-          'PY',
-          tokens.syntaxType,
-          tokens,
-          textColor: tokens.accentContrast,
-        );
+        return _textBadge('PY', tokens.syntaxType, tokens, textColor: tokens.accentContrast);
       case 'yaml':
       case 'yml':
-        return _textBadge(
-          'YML',
-          tokens.syntaxString,
-          tokens,
-          textColor: tokens.accentContrast,
-        );
+        return _textBadge('YML', tokens.syntaxString, tokens, textColor: tokens.accentContrast);
       case 'css':
       case 'scss':
-        return _textBadge(
-          '#',
-          tokens.syntaxOperator,
-          tokens,
-          textColor: tokens.accentContrast,
-        );
+        return _textBadge('#', tokens.syntaxOperator, tokens, textColor: tokens.accentContrast);
       case 'html':
-        return _textBadge(
-          '<>',
-          tokens.syntaxPunctuation,
-          tokens,
-          textColor: tokens.accentContrast,
-        );
+        return _textBadge('<>', tokens.syntaxPunctuation, tokens, textColor: tokens.accentContrast);
       default:
-        return Icon(
-          Icons.insert_drive_file_outlined,
-          size: FrameSize.icon,
-          color: tokens.textMuted,
-        );
+        return Icon(Icons.insert_drive_file_outlined, size: FrameSize.icon, color: tokens.textMuted);
     }
   }
 
-  Widget _textBadge(
-    String text,
-    Color bgColor,
-    FrameTokens tokens, {
-    Color? textColor,
-  }) {
+  Widget _textBadge(String text, Color bgColor, FrameTokens tokens, {Color? textColor}) {
     return Container(
       width: 18,
       height: 18,
       alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(3),
-      ),
+      decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(3)),
       child: Text(
         text,
         style: TextStyle(
@@ -706,10 +525,7 @@ class _SessionChangesPaneState extends ConsumerState<SessionChangesPane> {
       width: 18,
       height: 18,
       alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: tokens.accent,
-        borderRadius: BorderRadius.circular(3),
-      ),
+      decoration: BoxDecoration(color: tokens.accent, borderRadius: BorderRadius.circular(3)),
       child: Icon(Icons.flutter_dash_outlined, size: 13, color: tokens.accentContrast),
     );
   }

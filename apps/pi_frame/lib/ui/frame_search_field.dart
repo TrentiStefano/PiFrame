@@ -51,8 +51,7 @@ class _FrameSearchFieldState extends State<FrameSearchField> {
   late final FocusNode _ownFocus = FocusNode();
   bool _hovered = false;
 
-  TextEditingController get _controller =>
-      widget.controller ?? _ownController;
+  TextEditingController get _controller => widget.controller ?? _ownController;
   FocusNode get _focusNode => widget.focusNode ?? _ownFocus;
 
   @override
@@ -70,8 +69,7 @@ class _FrameSearchFieldState extends State<FrameSearchField> {
   }
 
   KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
-    if (event is! KeyDownEvent ||
-        event.logicalKey != LogicalKeyboardKey.escape) {
+    if (event is! KeyDownEvent || event.logicalKey != LogicalKeyboardKey.escape) {
       return KeyEventResult.ignored;
     }
     if (_controller.text.isNotEmpty) {
@@ -90,11 +88,10 @@ class _FrameSearchFieldState extends State<FrameSearchField> {
     final enabled = widget.enabled;
     final radius = BorderRadius.circular(tokens.radiusMd);
 
-    OutlineInputBorder border(Color color, [double width = 1]) =>
-        OutlineInputBorder(
-          borderRadius: radius,
-          borderSide: BorderSide(color: color, width: width),
-        );
+    OutlineInputBorder border(Color color, [double width = 1]) => OutlineInputBorder(
+      borderRadius: radius,
+      borderSide: BorderSide(color: color, width: width),
+    );
 
     // Minimum height, not a fixed one: at a 2.0 text scale the text grows and
     // a fixed 32 px box would clip it.
@@ -122,20 +119,11 @@ class _FrameSearchFieldState extends State<FrameSearchField> {
                 decoration: InputDecoration(
                   isDense: true,
                   filled: true,
-                  fillColor: _hovered && enabled
-                      ? tokens.surfaceElevated
-                      : tokens.surface,
+                  fillColor: _hovered && enabled ? tokens.surfaceElevated : tokens.surface,
                   hintText: widget.hintText,
                   hintStyle: text.body.copyWith(color: tokens.textMuted),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: FrameSpace.x2,
-                    vertical: 0,
-                  ),
-                  prefixIcon: Icon(
-                    Icons.search_outlined,
-                    size: FrameSize.icon,
-                    color: tokens.textMuted,
-                  ),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2, vertical: 0),
+                  prefixIcon: Icon(Icons.search_outlined, size: FrameSize.icon, color: tokens.textMuted),
                   prefixIconConstraints: const BoxConstraints.tightFor(
                     width: FrameSize.hitMin,
                     height: FrameSize.hitMin,
@@ -145,16 +133,9 @@ class _FrameSearchFieldState extends State<FrameSearchField> {
                           key: ValueKey('$prefix-clear'),
                           tooltip: widget.strings.clearSearchTooltip,
                           onPressed: _clear,
-                          icon: Icon(
-                            Icons.close_outlined,
-                            size: FrameSize.icon,
-                            color: tokens.textSecondary,
-                          ),
+                          icon: Icon(Icons.close_outlined, size: FrameSize.icon, color: tokens.textSecondary),
                           padding: EdgeInsets.zero,
-                          constraints: const BoxConstraints.tightFor(
-                            width: FrameSize.hitMin,
-                            height: FrameSize.hitMin,
-                          ),
+                          constraints: const BoxConstraints.tightFor(width: FrameSize.hitMin, height: FrameSize.hitMin),
                         )
                       : null,
                   suffixIconConstraints: const BoxConstraints.tightFor(
@@ -164,10 +145,7 @@ class _FrameSearchFieldState extends State<FrameSearchField> {
                   border: border(tokens.inputBorder),
                   enabledBorder: border(tokens.inputBorder),
                   disabledBorder: border(tokens.border),
-                  focusedBorder: border(
-                    tokens.focusRing,
-                    _focusBorderWidth,
-                  ),
+                  focusedBorder: border(tokens.focusRing, _focusBorderWidth),
                 ),
               );
             },

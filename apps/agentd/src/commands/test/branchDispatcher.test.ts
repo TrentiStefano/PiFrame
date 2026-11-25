@@ -4,7 +4,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { EventEmitter } from 'node:events';
+import { at, MockWebSocket, parseSent, type SentMessage } from './fakes.js';
 import { Dispatcher } from '../Dispatcher.js';
 import { SessionRegistry } from '../../sessions/SessionRegistry.js';
 import { ConnectionManager } from '../../server/wsServer.js';
@@ -12,29 +12,9 @@ import { Connection } from '../../server/connection.js';
 import { RemoteManager } from '../../remote/RemoteManager.js';
 import { RemoteAuthManager } from '../../remote/RemoteAuthManager.js';
 
-class MockWebSocket extends EventEmitter {
-  public sentMessages: string[] = [];
-  public readyState = 1;
-  public closeCode?: number;
-  public closeReason?: string;
-
-  send(data: string, cb?: () => void): void {
-    this.sentMessages.push(data);
-    if (cb) cb();
-  }
-
-  close(code?: number, reason?: string): void {
-    this.readyState = 3;
-    this.closeCode = code;
-    this.closeReason = reason;
-    this.emit('close');
-  }
-}
-
 function createGitRepo(): { root: string; cleanup: () => void } {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-dispatcher-branch-repo-'));
-  const git = (args: string[]) =>
-    execFileSync('git', args, { cwd: root, encoding: 'utf8' });
+  const git = (args: string[]) => execFileSync('git', args, { cwd: root, encoding: 'utf8' });
   git(['init', '-q', '-b', 'main']);
   git(['config', 'user.email', 'test@example.com']);
   git(['config', 'user.name', 'PiFrame Test']);
@@ -46,13 +26,13 @@ function createGitRepo(): { root: string; cleanup: () => void } {
   return { root, cleanup: () => fs.rmSync(root, { recursive: true, force: true }) };
 }
 
-function getLastSent(ws: MockWebSocket): any {
+function getLastSent(ws: MockWebSocket): SentMessage | null {
   if (ws.sentMessages.length === 0) return null;
-  return JSON.parse(ws.sentMessages[ws.sentMessages.length - 1]);
+  return parseSent(ws.sentMessages[ws.sentMessages.length - 1]!);
 }
 
-function getSentResults(ws: MockWebSocket): any[] {
-  return ws.sentMessages.map((m) => JSON.parse(m));
+function getSentResults(ws: MockWebSocket): SentMessage[] {
+  return ws.sentMessages.map((m) => parseSent(m));
 }
 
 test('Dispatcher: branch commands remote permissions (view allowed for list, forbidden for switch; control allowed for switch)', async () => {
@@ -66,7 +46,7 @@ test('Dispatcher: branch commands remote permissions (view allowed for list, for
       piExecutablePath: 'node',
       capabilities: { version: '0.85.1', supported: true, modes: ['rpc'], features: [] },
       workerIdleTimeoutMs: 60000,
-      connectionManager: manager,
+      connectionManager: manager
     });
     const session = await registry.createSession({ cwd: repo.root });
 
@@ -83,14 +63,14 @@ test('Dispatcher: branch commands remote permissions (view allowed for list, for
     // Create remote connection in 'view' mode
     const viewWs = new MockWebSocket();
     const viewConn = new Connection({
-      ws: viewWs as any,
+      ws: viewWs,
       expectedToken: 'tok',
       daemonVersion: '0.1.0',
       startedAt: Date.now(),
       piInfo: { path: 'node', version: '0.85.1', supported: true },
       remoteManager,
       onCommand: async () => {},
-      onClose: () => {},
+      onClose: () => {}
     });
     viewConn.state = 'ready';
     viewConn.isRemote = true;
@@ -105,13 +85,13 @@ test('Dispatcher: branch commands remote permissions (view allowed for list, for
       commandId: 'c_lb_view',
       type: 'workspace.listBranches',
       sessionId: session.id,
-      payload: {},
+      payload: {}
     });
     const lbResult = getLastSent(viewWs);
-    assert.equal(lbResult.kind, 'result');
-    assert.equal(lbResult.payload.state, 'completed');
-    assert.equal(lbResult.payload.data.currentBranch, 'main');
-    assert.ok(Array.isArray(lbResult.payload.data.branches));
+    assert.equal(lbResult?.kind, 'result');
+    assert.equal(at(lbResult, 'payload', 'state'), 'completed');
+    assert.equal(at(lbResult, 'payload', 'data', 'currentBranch'), 'main');
+    assert.ok(Array.isArray(at(lbResult, 'payload', 'data', 'branches')));
 
     // 2. workspace.switchBranch in 'view' mode -> FORBIDDEN
     await dispatcher.handle(viewConn, {
@@ -122,15 +102,15 @@ test('Dispatcher: branch commands remote permissions (view allowed for list, for
       commandId: 'c_sb_view',
       type: 'workspace.switchBranch',
       sessionId: session.id,
-      payload: { branch: 'feature' },
+      payload: { branch: 'feature' }
     });
     const viewSent = getSentResults(viewWs);
     const errIdx = viewSent.findIndex((m) => m.kind === 'error');
-    const resIdx = viewSent.findIndex((m) => m.kind === 'result' && m.payload?.state === 'rejected');
+    const resIdx = viewSent.findIndex((m) => m.kind === 'result' && at(m, 'payload', 'state') === 'rejected');
     assert.ok(errIdx !== -1, 'Expected error envelope');
     assert.ok(resIdx !== -1, 'Expected rejected result envelope');
     assert.ok(errIdx < resIdx, 'Error envelope must precede rejected result envelope');
-    assert.equal(viewSent[errIdx].payload.code, 'REMOTE_FORBIDDEN');
+    assert.equal(at(viewSent[errIdx], 'payload', 'code'), 'REMOTE_FORBIDDEN');
 
     // Pair a device in 'control' mode
     const ctrlPairing = authManager.generatePairing(60000);
@@ -139,14 +119,14 @@ test('Dispatcher: branch commands remote permissions (view allowed for list, for
     // Create remote connection in 'control' mode
     const ctrlWs = new MockWebSocket();
     const ctrlConn = new Connection({
-      ws: ctrlWs as any,
+      ws: ctrlWs,
       expectedToken: 'tok',
       daemonVersion: '0.1.0',
       startedAt: Date.now(),
       piInfo: { path: 'node', version: '0.85.1', supported: true },
       remoteManager,
       onCommand: async () => {},
-      onClose: () => {},
+      onClose: () => {}
     });
     ctrlConn.state = 'ready';
     ctrlConn.isRemote = true;
@@ -161,12 +141,12 @@ test('Dispatcher: branch commands remote permissions (view allowed for list, for
       commandId: 'c_sb_ctrl',
       type: 'workspace.switchBranch',
       sessionId: session.id,
-      payload: { branch: 'feature' },
+      payload: { branch: 'feature' }
     });
     const sbCtrlResult = getLastSent(ctrlWs);
-    assert.equal(sbCtrlResult.kind, 'result');
-    assert.equal(sbCtrlResult.payload.state, 'completed');
-    assert.equal(sbCtrlResult.payload.data.currentBranch, 'feature');
+    assert.equal(sbCtrlResult?.kind, 'result');
+    assert.equal(at(sbCtrlResult, 'payload', 'state'), 'completed');
+    assert.equal(at(sbCtrlResult, 'payload', 'data', 'currentBranch'), 'feature');
   } finally {
     repo.cleanup();
     fs.rmSync(remoteDbDir, { recursive: true, force: true });
@@ -181,20 +161,20 @@ test('Dispatcher: switchBranch is rejected while session is read-only or busy', 
       piExecutablePath: 'node',
       capabilities: { version: '0.85.1', supported: true, modes: ['rpc'], features: [] },
       workerIdleTimeoutMs: 60000,
-      connectionManager: manager,
+      connectionManager: manager
     });
     const session = await registry.createSession({ cwd: repo.root });
     const dispatcher = new Dispatcher(registry, manager);
 
     const ws = new MockWebSocket();
     const conn = new Connection({
-      ws: ws as any,
+      ws: ws,
       expectedToken: 'tok',
       daemonVersion: '0.1.0',
       startedAt: Date.now(),
       piInfo: { path: 'node', version: '0.85.1', supported: true },
       onCommand: async () => {},
-      onClose: () => {},
+      onClose: () => {}
     });
     conn.state = 'ready';
 
@@ -208,7 +188,7 @@ test('Dispatcher: switchBranch is rejected while session is read-only or busy', 
       commandId: 'c_ro_switch',
       type: 'workspace.switchBranch',
       sessionId: session.id,
-      payload: { branch: 'feature' },
+      payload: { branch: 'feature' }
     });
     let sent = getSentResults(ws);
     let err = sent.find((m) => m.kind === 'error' && m.commandId === 'c_ro_switch');
@@ -216,8 +196,8 @@ test('Dispatcher: switchBranch is rejected while session is read-only or busy', 
     assert.ok(err, 'Expected error envelope');
     assert.ok(res, 'Expected result envelope');
     assert.ok(sent.indexOf(err) < sent.indexOf(res), 'Error envelope must precede result envelope');
-    assert.equal(err.payload.code, 'COMMAND_REJECTED');
-    assert.ok(err.payload.message.includes('read-only'));
+    assert.equal(at(err, 'payload', 'code'), 'COMMAND_REJECTED');
+    assert.ok(String(at(err, 'payload', 'message')).includes('read-only'));
 
     // listBranches is still permitted for read-only session
     await dispatcher.handle(conn, {
@@ -228,11 +208,11 @@ test('Dispatcher: switchBranch is rejected while session is read-only or busy', 
       commandId: 'c_ro_list',
       type: 'workspace.listBranches',
       sessionId: session.id,
-      payload: {},
+      payload: {}
     });
     let last = getLastSent(ws);
-    assert.equal(last.kind, 'result');
-    assert.equal(last.payload.state, 'completed');
+    assert.equal(last?.kind, 'result');
+    assert.equal(at(last, 'payload', 'state'), 'completed');
 
     session.readOnly = false;
 
@@ -246,7 +226,7 @@ test('Dispatcher: switchBranch is rejected while session is read-only or busy', 
       commandId: 'c_busy_switch',
       type: 'workspace.switchBranch',
       sessionId: session.id,
-      payload: { branch: 'feature' },
+      payload: { branch: 'feature' }
     });
     sent = getSentResults(ws);
     err = sent.find((m) => m.kind === 'error' && m.commandId === 'c_busy_switch');
@@ -254,12 +234,12 @@ test('Dispatcher: switchBranch is rejected while session is read-only or busy', 
     assert.ok(err, 'Expected error envelope');
     assert.ok(res, 'Expected result envelope');
     assert.ok(sent.indexOf(err) < sent.indexOf(res), 'Error envelope must precede result envelope');
-    assert.equal(err.payload.code, 'COMMAND_REJECTED');
-    assert.ok(err.payload.message.includes('Pi worker is active'));
+    assert.equal(at(err, 'payload', 'code'), 'COMMAND_REJECTED');
+    assert.ok(String(at(err, 'payload', 'message')).includes('Pi worker is active'));
     session.isStreaming = false;
 
     // 3. Active tools running
-    session.activeTools.set('tool_1', { isRunning: true } as any);
+    session.activeTools.set('tool_1', { isRunning: true });
     await dispatcher.handle(conn, {
       protocol: 1,
       kind: 'command',
@@ -268,7 +248,7 @@ test('Dispatcher: switchBranch is rejected while session is read-only or busy', 
       commandId: 'c_tool_switch',
       type: 'workspace.switchBranch',
       sessionId: session.id,
-      payload: { branch: 'feature' },
+      payload: { branch: 'feature' }
     });
     sent = getSentResults(ws);
     err = sent.find((m) => m.kind === 'error' && m.commandId === 'c_tool_switch');
@@ -276,7 +256,7 @@ test('Dispatcher: switchBranch is rejected while session is read-only or busy', 
     assert.ok(err, 'Expected error envelope');
     assert.ok(res, 'Expected result envelope');
     assert.ok(sent.indexOf(err) < sent.indexOf(res), 'Error envelope must precede result envelope');
-    assert.equal(err.payload.code, 'COMMAND_REJECTED');
+    assert.equal(at(err, 'payload', 'code'), 'COMMAND_REJECTED');
     session.activeTools.clear();
 
     // 4. Session status in working / compacting / awaiting_user
@@ -289,7 +269,7 @@ test('Dispatcher: switchBranch is rejected while session is read-only or busy', 
       commandId: 'c_working_switch',
       type: 'workspace.switchBranch',
       sessionId: session.id,
-      payload: { branch: 'feature' },
+      payload: { branch: 'feature' }
     });
     sent = getSentResults(ws);
     err = sent.find((m) => m.kind === 'error' && m.commandId === 'c_working_switch');
@@ -297,7 +277,7 @@ test('Dispatcher: switchBranch is rejected while session is read-only or busy', 
     assert.ok(err, 'Expected error envelope');
     assert.ok(res, 'Expected result envelope');
     assert.ok(sent.indexOf(err) < sent.indexOf(res), 'Error envelope must precede result envelope');
-    assert.equal(err.payload.code, 'COMMAND_REJECTED');
+    assert.equal(at(err, 'payload', 'code'), 'COMMAND_REJECTED');
     session.status = 'idle';
 
     // 5. Normal idle writable session succeeds
@@ -309,12 +289,12 @@ test('Dispatcher: switchBranch is rejected while session is read-only or busy', 
       commandId: 'c_idle_switch',
       type: 'workspace.switchBranch',
       sessionId: session.id,
-      payload: { branch: 'feature' },
+      payload: { branch: 'feature' }
     });
     last = getLastSent(ws);
-    assert.equal(last.kind, 'result');
-    assert.equal(last.payload.state, 'completed');
-    assert.equal(last.payload.data.currentBranch, 'feature');
+    assert.equal(last?.kind, 'result');
+    assert.equal(at(last, 'payload', 'state'), 'completed');
+    assert.equal(at(last, 'payload', 'data', 'currentBranch'), 'feature');
   } finally {
     repo.cleanup();
   }

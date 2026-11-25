@@ -5,9 +5,23 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:xterm/xterm.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 import 'package:pi_frame/data/daemon/daemon_providers.dart';
+import 'package:pi_frame/data/platform/file_system_service.dart';
+import 'package:pi_frame/data/platform/host_environment_service.dart';
+import 'package:pi_frame/data/platform/process_service.dart';
 import 'package:pi_frame/features/workspace/integrated_terminal.dart';
 import 'package:pi_frame/features/workspace/repository_workspace.dart';
 import 'package:pi_frame/domain/session/session_state.dart';
+
+import 'support/fake_platform_services.dart';
+
+/// Keeps the panel off the real shell: the fakes record the process it asks for.
+List<Override> _terminalServiceOverrides() => [
+  processServiceProvider.overrideWithValue(FakeProcessService()),
+  fileSystemServiceProvider.overrideWithValue(FakeFileSystemService()),
+  hostEnvironmentServiceProvider.overrideWithValue(
+    FakeHostEnvironmentService(operatingSystem: 'linux', variables: {'SHELL': '/bin/zsh'}),
+  ),
+];
 
 void main() {
   test('Integrated terminal preserves supplementary Unicode input', () {
@@ -76,16 +90,19 @@ void main() {
     var closed = false;
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: SizedBox(
-            height: 400,
-            width: 600,
-            child: IntegratedTerminalPanel(
-              cwd: '',
-              tokens: tokens,
-              onCollapseDownward: () => collapsed = true,
-              onClose: () => closed = true,
+      ProviderScope(
+        overrides: _terminalServiceOverrides(),
+        child: MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              height: 400,
+              width: 600,
+              child: IntegratedTerminalPanel(
+                cwd: '',
+                tokens: tokens,
+                onCollapseDownward: () => collapsed = true,
+                onClose: () => closed = true,
+              ),
             ),
           ),
         ),
@@ -96,11 +113,11 @@ void main() {
     // Verify first terminal tab and TerminalView exist
     expect(find.byIcon(Icons.terminal_outlined), findsWidgets);
     expect(find.byType(TerminalView), findsOneWidget); // Direct in-terminal view
-    expect(find.byTooltip('Apri nel terminale nativo (OS)'), findsOneWidget);
-    expect(find.byTooltip('Interrompi processo (Ctrl+C)'), findsOneWidget);
+    expect(find.byTooltip('Open in native terminal (OS)'), findsOneWidget);
+    expect(find.byTooltip('Stop process (Ctrl+C)'), findsOneWidget);
 
     // Verify + button exists (PopupMenuButton with add icon)
-    final addBtn = find.byTooltip('Nuovo terminale');
+    final addBtn = find.byTooltip('New terminal');
     expect(addBtn, findsOneWidget);
 
     // Tap + button to open menu and create second tab
@@ -109,9 +126,7 @@ void main() {
 
     // Select default new terminal
     final defaultItem = find.text(
-      find.text('Nuovo terminale (PowerShell)').evaluate().isNotEmpty
-          ? 'Nuovo terminale (PowerShell)'
-          : 'Nuovo terminale',
+      find.text('New terminal (PowerShell)').evaluate().isNotEmpty ? 'New terminal (PowerShell)' : 'New terminal',
     );
     expect(defaultItem, findsOneWidget);
     await tester.tap(defaultItem);
@@ -121,13 +136,13 @@ void main() {
     expect(find.byIcon(Icons.close_outlined), findsWidgets);
 
     // Test collapse downward button
-    final collapseBtn = find.byTooltip('Collassa in basso');
+    final collapseBtn = find.byTooltip('Collapse down');
     expect(collapseBtn, findsOneWidget);
     await tester.tap(collapseBtn);
     expect(collapsed, isTrue);
 
     // Test close button on panel
-    final closePanelBtn = find.byTooltip('Chiudi terminale');
+    final closePanelBtn = find.byTooltip('Close terminal');
     expect(closePanelBtn, findsOneWidget);
     await tester.tap(closePanelBtn);
     expect(closed, isTrue);
@@ -137,18 +152,11 @@ void main() {
     final container = ProviderContainer(
       overrides: [
         sessionStateFamily('session-1').overrideWith(
-          (ref) => SessionStateNotifier('session-1', null)
-            ..state = const SessionState(
-              sessionId: 'session-1',
-              cwd: 'C:/test',
-            ),
+          (ref) =>
+              SessionStateNotifier('session-1', null)
+                ..state = const SessionState(sessionId: 'session-1', cwd: 'C:/test'),
         ),
-        repositoryStateProvider('session-1').overrideWith(
-          (ref) => RepositoryController(
-            'session-1',
-            () => null,
-          ),
-        ),
+        repositoryStateProvider('session-1').overrideWith((ref) => RepositoryController('session-1', () => null)),
       ],
     );
     addTearDown(container.dispose);
@@ -158,13 +166,7 @@ void main() {
         container: container,
         child: const MaterialApp(
           home: Scaffold(
-            body: SizedBox(
-              width: 500,
-              height: 700,
-              child: RepositoryPane(
-                sessionId: 'session-1',
-              ),
-            ),
+            body: SizedBox(width: 500, height: 700, child: RepositoryPane(sessionId: 'session-1')),
           ),
         ),
       ),
@@ -172,7 +174,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Terminal button should be present in Repository header
-    final termToggleBtn = find.byTooltip('Terminale integrato');
+    final termToggleBtn = find.byTooltip('Integrated terminal');
     expect(termToggleBtn, findsOneWidget);
 
     // Click terminal button to open terminal panel
@@ -183,17 +185,17 @@ void main() {
     expect(find.byType(IntegratedTerminalPanel), findsOneWidget);
 
     // Click collapse downward button in terminal
-    final collapseDownBtn = find.byTooltip('Collassa in basso');
+    final collapseDownBtn = find.byTooltip('Collapse down');
     expect(collapseDownBtn, findsOneWidget);
     await tester.tap(collapseDownBtn);
     await tester.pumpAndSettle();
 
     // Now the collapsed terminal bar should be visible with expand arrow
-    expect(find.text('TERMINALE'), findsOneWidget);
+    expect(find.text('TERMINAL'), findsOneWidget);
     expect(find.byIcon(Icons.keyboard_arrow_up_outlined), findsOneWidget);
 
     // Tap the collapsed bar to expand it back
-    await tester.tap(find.text('TERMINALE'));
+    await tester.tap(find.text('TERMINAL'));
     await tester.pumpAndSettle();
 
     // IntegratedTerminalPanel should be expanded again
@@ -203,16 +205,14 @@ void main() {
   testWidgets('TerminalView accepts user typing and sends to process', (tester) async {
     const tokens = FrameTokens.dark;
     await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: SizedBox(
-            height: 400,
-            width: 600,
-            child: IntegratedTerminalPanel(
-              cwd: '',
-              tokens: tokens,
-              onCollapseDownward: () {},
-              onClose: () {},
+      ProviderScope(
+        overrides: _terminalServiceOverrides(),
+        child: MaterialApp(
+          home: Scaffold(
+            body: SizedBox(
+              height: 400,
+              width: 600,
+              child: IntegratedTerminalPanel(cwd: '', tokens: tokens, onCollapseDownward: () {}, onClose: () {}),
             ),
           ),
         ),
@@ -226,19 +226,11 @@ void main() {
 
     final terminalView = tester.widget<TerminalView>(find.byType(TerminalView));
     const qCode = 0x71;
-    final qCountBefore = terminalView.terminal.buffer
-        .getText()
-        .runes
-        .where((rune) => rune == qCode)
-        .length;
+    final qCountBefore = terminalView.terminal.buffer.getText().runes.where((rune) => rune == qCode).length;
     await tester.sendKeyDownEvent(LogicalKeyboardKey.keyQ, character: 'q');
     await tester.sendKeyUpEvent(LogicalKeyboardKey.keyQ);
     await tester.pump();
-    final qCountAfter = terminalView.terminal.buffer
-        .getText()
-        .runes
-        .where((rune) => rune == qCode)
-        .length;
+    final qCountAfter = terminalView.terminal.buffer.getText().runes.where((rune) => rune == qCode).length;
     expect(qCountAfter - qCountBefore, 1);
 
     // Test writing to terminal buffer

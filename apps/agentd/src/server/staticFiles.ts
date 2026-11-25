@@ -13,7 +13,19 @@ import * as crypto from 'node:crypto';
  */
 
 const COMPRESSIBLE = new Set([
-  '.html', '.js', '.mjs', '.css', '.json', '.wasm', '.svg', '.map', '.ttf', '.otf', '.bin', '.symbols', ''
+  '.html',
+  '.js',
+  '.mjs',
+  '.css',
+  '.json',
+  '.wasm',
+  '.svg',
+  '.map',
+  '.ttf',
+  '.otf',
+  '.bin',
+  '.symbols',
+  ''
 ]);
 const MAX_CACHED_FILE_BYTES = 24 * 1024 * 1024;
 const MAX_CACHE_TOTAL_BYTES = 160 * 1024 * 1024;
@@ -149,8 +161,8 @@ export async function sendStaticFile(
     Vary: 'Accept-Encoding'
   };
 
-  const cacheable = Boolean(special.transform || special.fixed) ||
-    (COMPRESSIBLE.has(ext) && stat.size <= MAX_CACHED_FILE_BYTES);
+  const cacheable =
+    Boolean(special.transform || special.fixed) || (COMPRESSIBLE.has(ext) && stat.size <= MAX_CACHED_FILE_BYTES);
 
   if (!cacheable) {
     // Large/binary media: stream straight from disk (already compressed formats).
@@ -204,10 +216,19 @@ export async function sendStaticFile(
   res.end(isHead ? undefined : body);
 }
 
+// Delay before static assets are pre-compressed in the background, so startup is not slowed.
+const BROTLI_WARMUP_DELAY_MS = 1500;
+
 /** Pre-compresses the heavy startup files so the first phone to connect does not pay for it. */
 export function warmStaticCache(staticDir: string | undefined): void {
   if (!staticDir) return;
-  const targets = ['index.html', 'flutter_bootstrap.js', 'main.dart.js', path.join('canvaskit', 'canvaskit.wasm'), path.join('canvaskit', 'canvaskit.js')];
+  const targets = [
+    'index.html',
+    'flutter_bootstrap.js',
+    'main.dart.js',
+    path.join('canvaskit', 'canvaskit.wasm'),
+    path.join('canvaskit', 'canvaskit.js')
+  ];
   setTimeout(() => {
     void (async () => {
       for (const rel of targets) {
@@ -223,5 +244,5 @@ export function warmStaticCache(staticDir: string | undefined): void {
         }
       }
     })();
-  }, 1500).unref?.();
+  }, BROTLI_WARMUP_DELAY_MS).unref?.();
 }

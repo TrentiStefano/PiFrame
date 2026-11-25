@@ -25,11 +25,15 @@ dependencies:
   xterm: ^4.0.0
   qr_flutter: ^4.1.0
   ffi: ^2.2.0
+  meta: ^1.18.3
   webview_win_floating: ^3.0.3
+  web: ^1.1.2
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  pi_frame_lints:
+    path: ../../packages/pi_frame_lints
 flutter:
   uses-material-design: true
   assets:

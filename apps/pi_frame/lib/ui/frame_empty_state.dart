@@ -81,11 +81,7 @@ class FrameEmptyState extends StatelessWidget {
             PressFeedback(
               enabled: onAction != null,
               child: actionIcon == null
-                  ? FilledButton(
-                      key: ValueKey('$keyPrefix-action'),
-                      onPressed: onAction,
-                      child: Text(actionLabel),
-                    )
+                  ? FilledButton(key: ValueKey('$keyPrefix-action'), onPressed: onAction, child: Text(actionLabel))
                   : PressFeedback(
                       enabled: (onAction) != null,
                       child: FilledButton.icon(

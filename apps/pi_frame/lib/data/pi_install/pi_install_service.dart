@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../platform/platform_environment.dart';
+import '../platform/runtime_mode.dart';
 
 abstract class PiInstallService {
   Future<bool> isFirstRun();
@@ -24,9 +25,7 @@ class DefaultPiInstallService implements PiInstallService {
     if (kIsWeb) return null;
     try {
       final env = Platform.environment;
-      final home = Platform.isWindows
-          ? (env['USERPROFILE'] ?? 'C:\\Users\\Default')
-          : (env['HOME'] ?? '/tmp');
+      final home = Platform.isWindows ? (env['USERPROFILE'] ?? 'C:\\Users\\Default') : (env['HOME'] ?? '/tmp');
       final dir = Directory('$home/.piframe');
       if (!dir.existsSync()) {
         dir.createSync(recursive: true);
@@ -42,7 +41,7 @@ class DefaultPiInstallService implements PiInstallService {
     // The browser never installs the Pi CLI: dart:io Platform throws there.
     if (kIsWeb) return false;
     // Avoid showing first-run dialog automatically in automated test environments unless overridden
-    if (Platform.environment.containsKey('FLUTTER_TEST')) {
+    if (isRunningUnderTests) {
       return false;
     }
     final file = _resolveFirstRunFile();
@@ -67,10 +66,7 @@ class DefaultPiInstallService implements PiInstallService {
     final file = _resolveFirstRunFile();
     if (file == null) return;
     try {
-      final data = {
-        'firstRunCompleted': true,
-        'timestamp': DateTime.now().toIso8601String(),
-      };
+      final data = {'firstRunCompleted': true, 'timestamp': DateTime.now().toIso8601String()};
       await file.writeAsString(jsonEncode(data));
     } catch (_) {}
   }
@@ -108,31 +104,25 @@ class DefaultPiInstallService implements PiInstallService {
   @override
   Stream<String> installPiAgent() async* {
     if (kIsWeb) {
-      yield 'L\'installazione della CLI Pi è disponibile solo su desktop.\n';
+      yield 'Installing the Pi CLI is only available on desktop.\n';
       return;
     }
-    yield 'Inizializzazione installazione ufficiale di Pi Coding Agent...\n';
+    yield 'Starting the official Pi Coding Agent install...\n';
     final controller = StreamController<String>();
 
     try {
       final Process process;
       if (Platform.isWindows) {
-        yield 'Esecuzione comando ufficiale Windows: irm https://pi.dev/install.ps1 | iex\n\n';
+        yield 'Running the official Windows command: irm https://pi.dev/install.ps1 | iex\n\n';
         process = await Process.start(
           'powershell.exe',
-          [
-            '-NoProfile',
-            '-ExecutionPolicy',
-            'Bypass',
-            '-Command',
-            'irm https://pi.dev/install.ps1 | iex',
-          ],
+          ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', 'irm https://pi.dev/install.ps1 | iex'],
           environment: PlatformEnvironment.environment,
           runInShell: true,
         );
       } else {
-        yield 'Esecuzione comando ufficiale: curl -fsSL https://pi.dev/install.sh | sh\n';
-        yield 'Verifica prerequisiti di sistema in corso...\n\n';
+        yield 'Running the official command: curl -fsSL https://pi.dev/install.sh | sh\n';
+        yield 'Checking system prerequisites...\n\n';
 
         final nodePath = PlatformEnvironment.findExecutable('node');
         final npmPath = PlatformEnvironment.findExecutable('npm');
@@ -141,7 +131,7 @@ class DefaultPiInstallService implements PiInstallService {
         final String script;
         if (nodePath == null || npmPath == null) {
           if (brewPath != null) {
-            script = 'echo "Installazione prerequisito Node.js tramite Homebrew..."; brew install node && curl -fsSL https://pi.dev/install.sh | sh';
+            script = 'echo "Installing the Node.js prerequisite with Homebrew..."; brew install node && curl -fsSL https://pi.dev/install.sh | sh';
           } else {
             // Standalone Node.js bootstrap into ~/.local/share/pi-node/current
             script = '''
@@ -153,7 +143,7 @@ esac
 OS=\$(uname -s | tr '[:upper:]' '[:lower:]')
 NODE_BASE="\$HOME/.local/share/pi-node"
 mkdir -p "\$NODE_BASE"
-echo "Download runtime Node.js standalone per \$OS-\$N_ARCH..."
+echo "Downloading the standalone Node.js runtime for \$OS-\$N_ARCH..."
 curl -fsSL "https://nodejs.org/dist/latest-v22.x/SHASUMS256.txt" -o "\$NODE_BASE/SHASUMS.txt" 2>/dev/null || true
 TAR_NAME=\$(grep "node-v.*-\$OS-\$N_ARCH\\.tar\\.gz" "\$NODE_BASE/SHASUMS.txt" 2>/dev/null | awk '{print \$2}' | head -n 1)
 if [ -n "\$TAR_NAME" ]; then
@@ -162,7 +152,7 @@ if [ -n "\$TAR_NAME" ]; then
   rm -rf "\$NODE_BASE/current"
   ln -sfn "\$NODE_BASE/\$DIR_NAME" "\$NODE_BASE/current"
   export PATH="\$NODE_BASE/current/bin:\$PATH"
-  echo "Node.js configurato in \$NODE_BASE/current/bin"
+  echo "Node.js set up in \$NODE_BASE/current/bin"
 fi
 curl -fsSL https://pi.dev/install.sh | sh
 ''';
@@ -187,22 +177,26 @@ curl -fsSL https://pi.dev/install.sh | sh
         controller.add(utf8.decode(bytes, allowMalformed: true));
       });
 
-      process.exitCode.then((code) {
-        PlatformEnvironment.resetCache();
-        if (code == 0) {
-          controller.add('\n[SUCCESSO] Pi Coding Agent installato con successo!\n');
-        } else {
-          controller.add('\n[ERRORE] Processo di installazione terminato con codice: $code\n');
-        }
-        controller.close();
-      }).catchError((err) {
-        controller.add('\n[ERRORE] $err\n');
-        controller.close();
-      });
+      unawaited(
+        process.exitCode
+            .then((code) {
+              PlatformEnvironment.resetCache();
+              if (code == 0) {
+                controller.add('\n[SUCCESS] Pi Coding Agent installed successfully!\n');
+              } else {
+                controller.add('\n[ERROR] Install process exited with code: $code\n');
+              }
+              unawaited(controller.close());
+            })
+            .catchError((Object err) {
+              controller.add('\n[ERROR] $err\n');
+              unawaited(controller.close());
+            }),
+      );
 
       yield* controller.stream;
     } catch (e) {
-      yield '\n[ERRORE] Impossibile avviare il processo di installazione: $e\n';
+      yield '\n[ERROR] Could not start the install process: $e\n';
     }
   }
 }

@@ -89,9 +89,7 @@ class _FrameListRowState extends State<FrameListRow> {
                 maxLines: 1,
                 softWrap: false,
                 overflow: TextOverflow.ellipsis,
-                style: text.body.copyWith(
-                  color: enabled ? tokens.textPrimary : tokens.textMuted,
-                ),
+                style: text.body.copyWith(color: enabled ? tokens.textPrimary : tokens.textMuted),
               ),
             ),
             if (secondary != null) ...[
@@ -115,10 +113,7 @@ class _FrameListRowState extends State<FrameListRow> {
     final text = FrameText.of(context);
     final enabled = widget.onTap != null;
     final revealActions =
-        widget.revealActionsAlways ||
-        _hovered ||
-        _focusWithin ||
-        (widget.revealActionsWhenSelected && widget.selected);
+        widget.revealActionsAlways || _hovered || _focusWithin || (widget.revealActionsWhenSelected && widget.selected);
     final transparent = tokens.surface.withValues(alpha: 0);
     final background = widget.selected
         ? tokens.surfaceElevated
@@ -153,13 +148,8 @@ class _FrameListRowState extends State<FrameListRow> {
                 child: Container(
                   // No vertical padding: the 28 px minimum height and the
                   // 28 px action targets set the row height.
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: FrameSpace.x2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: background,
-                    borderRadius: BorderRadius.circular(tokens.radiusSm),
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2),
+                  decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(tokens.radiusSm)),
                   child: Row(
                     children: [
                       if (widget.leading != null) ...[
@@ -177,36 +167,24 @@ class _FrameListRowState extends State<FrameListRow> {
                                     widget.name,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
-                                    style: text.body.copyWith(
-                                      color: enabled
-                                          ? tokens.textPrimary
-                                          : tokens.textMuted,
-                                    ),
+                                    style: text.body.copyWith(color: enabled ? tokens.textPrimary : tokens.textMuted),
                                   ),
                                   if (widget.secondary != null)
                                     FrameMiddleEllipsis(
                                       text: widget.secondary!,
-                                      style: text.caption.copyWith(
-                                        color: tokens.textMuted,
-                                      ),
+                                      style: text.caption.copyWith(color: tokens.textMuted),
                                     ),
                                 ],
                               ),
                       ),
-                      if (widget.trailing != null) ...[
-                        const SizedBox(width: FrameSpace.x2),
-                        widget.trailing!,
-                      ],
+                      if (widget.trailing != null) ...[const SizedBox(width: FrameSpace.x2), widget.trailing!],
                       if (widget.actions.isNotEmpty) ...[
                         const SizedBox(width: FrameSpace.x1),
                         Opacity(
                           opacity: revealActions ? 1 : 0,
                           child: IgnorePointer(
                             ignoring: !revealActions,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: widget.actions,
-                            ),
+                            child: Row(mainAxisSize: MainAxisSize.min, children: widget.actions),
                           ),
                         ),
                       ],

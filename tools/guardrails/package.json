@@ -1,0 +1,12 @@
+{
+  "name": "@piframe/guardrails",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "Pure decision logic for PiFrame's verification gate (step list, escape-hatch audit, agent guard, guardrail approval)",
+  "main": "src/index.mjs",
+  "scripts": {
+    "test": "node --test \"test/**/*.test.mjs\""
+  }
+}

@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { withFileLock, type LockOptions, type LockHandle } from './lockfile.js';
 import { ensureSubagentContextLimitExtension } from './subagentContextLimitExtension.js';
 import type { PiAgentChange } from '@piframe/pcp-ts';
+import { errorCode, errorMessage } from '../../errors/errors.js';
 
 export interface SettingsWriterLockOptions extends LockOptions {
   hookAfterRead?: (filePath: string) => Promise<void> | void;
@@ -23,13 +24,13 @@ export function readSettingsFile(filePath: string): Record<string, any> {
   let content: string;
   try {
     content = fs.readFileSync(filePath, 'utf8');
-  } catch (err: any) {
-    const error = new Error(`Cannot read ${path.basename(filePath)}: ${err?.message}`);
+  } catch (err: unknown) {
+    const error = new Error(`Cannot read ${path.basename(filePath)}: ${errorMessage(err)}`);
     throw Object.assign(error, { code: 'AGENTS_CONFIG_UNREADABLE' });
   }
 
   // Strip UTF-8 BOM if present
-  if (content.charCodeAt(0) === 0xFEFF) {
+  if (content.charCodeAt(0) === 0xfeff) {
     content = content.slice(1);
   }
 
@@ -39,7 +40,7 @@ export function readSettingsFile(filePath: string): Record<string, any> {
       throw new Error('Not a valid JSON object');
     }
     return parsed;
-  } catch (parseErr: any) {
+  } catch (parseErr: unknown) {
     const error = new Error(`Syntax error reading ${path.basename(filePath)}: not valid JSON`);
     throw Object.assign(error, { code: 'AGENTS_CONFIG_UNREADABLE' });
   }
@@ -67,10 +68,9 @@ export async function renameWithRetry(
     try {
       doRename(tempFile, targetFile);
       return;
-    } catch (err: any) {
+    } catch (err: unknown) {
       attempt++;
-      const isRetryable =
-        err?.code === 'EPERM' || err?.code === 'EBUSY' || err?.code === 'EACCES';
+      const isRetryable = errorCode(err) === 'EPERM' || errorCode(err) === 'EBUSY' || errorCode(err) === 'EACCES';
       if (!isRetryable || attempt >= maxRetries) {
         throw err;
       }
@@ -85,7 +85,7 @@ export async function renameWithRetry(
  */
 export async function writeJsonAtomicallyWithBackup(
   filePath: string,
-  content: any,
+  content: unknown,
   options?: SettingsWriterLockOptions
 ): Promise<void> {
   await writeTextAtomicallyWithBackup(filePath, JSON.stringify(content, null, 2) + '\n', options);
@@ -125,7 +125,7 @@ export async function writeTextAtomicallyWithBackup(
     try {
       fs.writeFileSync(tempFile, text, {
         encoding: 'utf8',
-        mode,
+        mode
       });
 
       // Check lock ownership right before rename!
@@ -135,7 +135,7 @@ export async function writeTextAtomicallyWithBackup(
       await renameWithRetry(tempFile, filePath, {
         renameFn: options?.renameFn,
         maxRetries: options?.maxRetries,
-        backoffMs: options?.backoffMs,
+        backoffMs: options?.backoffMs
       });
     } finally {
       try {
@@ -175,18 +175,13 @@ export async function applyAgentSettingsChanges(
   const tintinwebPath = path.join(agentDir, 'subagents.json');
   const contextPath = path.join(piframeDir, 'subagent-context.json');
 
-  const touchesTintinweb = changes.some(
-    (c) => c.kind === 'subagentDefaults' && c.fallbackAgent !== undefined
-  );
-  const touchesContext = changes.some(
-    (c) => c.kind === 'agent' && c.contextLimit !== undefined
-  );
+  const touchesTintinweb = changes.some((c) => c.kind === 'subagentDefaults' && c.fallbackAgent !== undefined);
+  const touchesContext = changes.some((c) => c.kind === 'agent' && c.contextLimit !== undefined);
   const touchesSettings = changes.some(
     (c) =>
       c.kind === 'agent' ||
       c.kind === 'sessionDefaults' ||
-      (c.kind === 'subagentDefaults' &&
-        (c.model !== undefined || c.thinking !== undefined))
+      (c.kind === 'subagentDefaults' && (c.model !== undefined || c.thinking !== undefined))
   );
 
   // Pre-validate readability of all touched files (fail closed before modifying anything)
@@ -243,7 +238,7 @@ export async function applyAgentSettingsChanges(
         if (modified) {
           await writeJsonAtomicallyWithBackup(contextPath, contextConfig, {
             ...lockOptions,
-            lockHandle: lock,
+            lockHandle: lock
           });
           return true;
         }
@@ -275,9 +270,7 @@ export async function applyAgentSettingsChanges(
                 const currentOverrides = settings.subagents?.agentOverrides?.[name];
                 if (Array.isArray(currentOverrides?.subagentOnlyExtensions)) {
                   const ext = getExtensionPath();
-                  const filtered = currentOverrides.subagentOnlyExtensions.filter(
-                    (p: string) => p !== ext
-                  );
+                  const filtered = currentOverrides.subagentOnlyExtensions.filter((p: string) => p !== ext);
                   if (filtered.length !== currentOverrides.subagentOnlyExtensions.length) {
                     modified = true;
                     if (filtered.length === 0) {
@@ -293,9 +286,7 @@ export async function applyAgentSettingsChanges(
                 if (!settings.subagents.agentOverrides) settings.subagents.agentOverrides = {};
                 if (!settings.subagents.agentOverrides[name]) settings.subagents.agentOverrides[name] = {};
                 const current = settings.subagents.agentOverrides[name];
-                const exts = Array.isArray(current.subagentOnlyExtensions)
-                  ? current.subagentOnlyExtensions
-                  : [];
+                const exts = Array.isArray(current.subagentOnlyExtensions) ? current.subagentOnlyExtensions : [];
                 if (!exts.includes(ext)) {
                   current.subagentOnlyExtensions = [...exts, ext];
                   modified = true;
@@ -396,7 +387,7 @@ export async function applyAgentSettingsChanges(
         if (modified) {
           await writeJsonAtomicallyWithBackup(settingsPath, settings, {
             ...lockOptions,
-            lockHandle: lock,
+            lockHandle: lock
           });
           return true;
         }
@@ -434,7 +425,7 @@ export async function applyAgentSettingsChanges(
         if (modified) {
           await writeJsonAtomicallyWithBackup(tintinwebPath, tintinwebConfig, {
             ...lockOptions,
-            lockHandle: lock,
+            lockHandle: lock
           });
           return true;
         }
@@ -447,6 +438,6 @@ export async function applyAgentSettingsChanges(
   return {
     settingsWritten: settingsModified,
     subagentsWritten: tintinwebModified,
-    contextWritten: contextModified,
+    contextWritten: contextModified
   };
 }

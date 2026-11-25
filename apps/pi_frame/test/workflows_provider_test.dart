@@ -11,23 +11,29 @@ void main() {
 }
 phase('Review')''';
 
-  ToolExecutionState launch({String output = '', bool running = false, bool error = false}) =>
-      ToolExecutionState(
-        toolCallId: 'call_wf',
-        toolName: 'SubagentWorkflow',
-        args: const {'script': script},
-        output: output,
-        isRunning: running,
-        isError: error,
-      );
+  ToolExecutionState launch({String output = '', bool running = false, bool error = false}) => ToolExecutionState(
+    toolCallId: 'call_wf',
+    toolName: 'SubagentWorkflow',
+    args: const {'script': script},
+    output: output,
+    isRunning: running,
+    isError: error,
+  );
 
-  const started = 'Workflow "review-changes" started in the background.\n'
+  const started =
+      'Workflow "review-changes" started in the background.\n'
       'Task ID: wf_abc123def456\n'
       'Script: C:\\tmp\\tasks\\wf_abc123def456.workflow.js\n';
 
   test('a started workflow runs until its task notification settles it', () {
     final running = parseWorkflows([
-      SessionEntry(id: 'a', role: 'assistant', text: '', toolCalls: [launch(output: started)], timestamp: 1),
+      SessionEntry(
+        id: 'a',
+        role: 'assistant',
+        text: '',
+        toolCalls: [launch(output: started)],
+        timestamp: 1,
+      ),
     ], const []);
     expect(running.single.id, 'wf_abc123def456');
     expect(running.single.name, 'review-changes');
@@ -37,11 +43,18 @@ phase('Review')''';
     expect(running.single.journalPath, 'C:\\tmp\\tasks\\wf_abc123def456.workflow.jsonl');
 
     final done = parseWorkflows([
-      SessionEntry(id: 'a', role: 'assistant', text: '', toolCalls: [launch(output: started)], timestamp: 1),
+      SessionEntry(
+        id: 'a',
+        role: 'assistant',
+        text: '',
+        toolCalls: [launch(output: started)],
+        timestamp: 1,
+      ),
       const SessionEntry(
         id: 'n',
         role: 'custom',
-        text: '<task-notification>\n<task-id>wf_abc123def456</task-id>\n<status>Done</status>\n'
+        text:
+            '<task-notification>\n<task-id>wf_abc123def456</task-id>\n<status>Done</status>\n'
             '<summary>Workflow "review-changes" completed — 3/3 agents</summary>\n<result>All good</result>\n'
             '</task-notification>',
         timestamp: 2,
@@ -84,9 +97,8 @@ phase('Review')''';
     const minute = 60 * 1000;
     final now = 100 * minute;
     WorkflowItem run(String id) => WorkflowItem(id: id, name: id, toolCallId: 'call_$id', timestamp: 0);
-    SubagentItem child(String id, {required int at, String status = 'completed'}) => SubagentItem(
-          id: id, name: id, status: status, isUnlinked: true, startedAt: 1000, updatedAt: at,
-        );
+    SubagentItem child(String id, {required int at, String status = 'completed'}) =>
+        SubagentItem(id: id, name: id, status: status, isUnlinked: true, startedAt: 1000, updatedAt: at);
 
     List<WorkflowItem> settle(List<SubagentItem> children, {Set<String> active = const {}}) =>
         settleIdleWorkflows([run('wf')], children, activeToolCallIds: active, now: now);
@@ -108,12 +120,31 @@ phase('Review')''';
     const minute = 60 * 1000;
     final run = WorkflowItem(id: 'wf', name: 'wf', toolCallId: 'call_wf', timestamp: 0);
     // A child that settled a moment ago would keep the guess waiting 10 minutes.
-    final child = SubagentItem(id: 'c', name: 'c', status: 'completed', isUnlinked: true, startedAt: 1000, updatedAt: 3 * minute);
-    final settled = settleIdleWorkflows([run], [child], activeToolCallIds: const {}, now: 3 * minute, nothingRunning: true);
+    final child = SubagentItem(
+      id: 'c',
+      name: 'c',
+      status: 'completed',
+      isUnlinked: true,
+      startedAt: 1000,
+      updatedAt: 3 * minute,
+    );
+    final settled = settleIdleWorkflows(
+      [run],
+      [child],
+      activeToolCallIds: const {},
+      now: 3 * minute,
+      nothingRunning: true,
+    );
     expect(settled.single.isRunning, isFalse);
     // While its launch call still runs, the run is not over.
     expect(
-      settleIdleWorkflows([run], [child], activeToolCallIds: const {'call_wf'}, now: 3 * minute, nothingRunning: true).single.isRunning,
+      settleIdleWorkflows(
+        [run],
+        [child],
+        activeToolCallIds: const {'call_wf'},
+        now: 3 * minute,
+        nothingRunning: true,
+      ).single.isRunning,
       isTrue,
     );
   });

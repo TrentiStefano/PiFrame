@@ -1,23 +1,19 @@
+import 'dart:async';
 import 'dart:io' show Platform;
+
 import 'package:flutter/foundation.dart';
 import 'package:local_notifier/local_notifier.dart';
 import 'package:window_manager/window_manager.dart';
 
-import '../../app/harness_mode.dart';
+import '../runtime/harness_mode.dart';
 import '../platform/widget_test_binding.dart';
 // The real taskbar calls Win32 through dart:ffi, which the web build lacks.
-import 'windows_taskbar_stub.dart'
-    if (dart.library.ffi) 'windows_taskbar.dart';
+import 'windows_taskbar_stub.dart' if (dart.library.ffi) 'windows_taskbar.dart';
 
-enum DesktopIndicatorStatus {
-  idle,
-  working,
-  unread,
-}
+enum DesktopIndicatorStatus { idle, working, unread }
 
 class DesktopNotificationService {
-  static final DesktopNotificationService instance =
-      DesktopNotificationService._();
+  static final DesktopNotificationService instance = DesktopNotificationService._();
 
   DesktopNotificationService._();
 
@@ -30,9 +26,7 @@ class DesktopNotificationService {
   void Function(String sessionId)? onNotificationClicked;
 
   bool get isSupported =>
-      !kIsWeb &&
-      !isWidgetTestBinding &&
-      (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
+      !kIsWeb && !isWidgetTestBinding && (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
 
   int? _windowsHwnd;
 
@@ -57,10 +51,7 @@ class DesktopNotificationService {
         case DesktopIndicatorStatus.working:
           if (Platform.isWindows) {
             final hwnd = await _getWindowsHwnd();
-            WindowsTaskbar.instance.setProgressState(
-              hwnd,
-              WindowsTaskbarProgressState.indeterminate,
-            );
+            WindowsTaskbar.instance.setProgressState(hwnd, WindowsTaskbarProgressState.indeterminate);
           } else if (Platform.isMacOS) {
             await windowManager.setBadgeLabel('⋯');
             await windowManager.setProgressBar(0.5);
@@ -72,10 +63,7 @@ class DesktopNotificationService {
           if (Platform.isWindows) {
             final hwnd = await _getWindowsHwnd();
             WindowsTaskbar.instance.setProgressValue(hwnd, 100, 100);
-            WindowsTaskbar.instance.setProgressState(
-              hwnd,
-              WindowsTaskbarProgressState.normal,
-            );
+            WindowsTaskbar.instance.setProgressState(hwnd, WindowsTaskbarProgressState.normal);
           } else if (Platform.isMacOS) {
             await windowManager.setProgressBar(-1.0);
             await windowManager.setBadgeLabel('•');
@@ -86,10 +74,7 @@ class DesktopNotificationService {
         case DesktopIndicatorStatus.idle:
           if (Platform.isWindows) {
             final hwnd = await _getWindowsHwnd();
-            WindowsTaskbar.instance.setProgressState(
-              hwnd,
-              WindowsTaskbarProgressState.noProgress,
-            );
+            WindowsTaskbar.instance.setProgressState(hwnd, WindowsTaskbarProgressState.noProgress);
           } else if (Platform.isMacOS) {
             await windowManager.setProgressBar(-1.0);
             await windowManager.setBadgeLabel(null);
@@ -105,10 +90,7 @@ class DesktopNotificationService {
   Future<void> initialize() async {
     if (!isSupported || _initialized) return;
     try {
-      await localNotifier.setup(
-        appName: 'PiFrame',
-        shortcutPolicy: ShortcutPolicy.requireCreate,
-      );
+      await localNotifier.setup(appName: 'PiFrame', shortcutPolicy: ShortcutPolicy.requireCreate);
       _initialized = true;
     } catch (e) {
       debugPrint('LocalNotifier initialization failed: $e');
@@ -124,23 +106,16 @@ class DesktopNotificationService {
     }
   }
 
-  Future<void> showNotification({
-    required String title,
-    required String body,
-    String? sessionId,
-  }) async {
+  Future<void> showNotification({required String title, required String body, String? sessionId}) async {
     if (!isSupported || !_initialized) return;
     try {
-      final notification = LocalNotification(
-        title: title,
-        body: body,
-      );
+      final notification = LocalNotification(title: title, body: body);
 
       notification.onClick = () {
         if (!isHarnessMode) {
           try {
-            windowManager.show();
-            windowManager.focus();
+            unawaited(windowManager.show());
+            unawaited(windowManager.focus());
           } catch (_) {}
         }
         if (sessionId != null) {

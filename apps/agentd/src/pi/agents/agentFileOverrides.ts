@@ -5,7 +5,7 @@ import {
   readSettingsFile,
   writeTextAtomicallyWithBackup,
   writeJsonAtomicallyWithBackup,
-  type SettingsWriterLockOptions,
+  type SettingsWriterLockOptions
 } from './settingsWriter.js';
 
 /**
@@ -44,7 +44,7 @@ export function readAgentFileOriginals(piframeDir: string): AgentFileOriginals {
       const entry: Partial<Record<AgentFileField, string | null>> = {};
       for (const field of ['model', 'thinking'] as const) {
         if (field in fields) {
-          const v = (fields as any)[field];
+          const v = fields[field];
           if (v === null || typeof v === 'string') entry[field] = v;
         }
       }
@@ -75,9 +75,9 @@ function layout(content: string): FrontmatterLayout {
   const lines = text.split(/\r?\n/);
   if (trailingEol) lines.pop();
   let closeIdx = -1;
-  if (lines.length > 0 && lines[0].trimEnd() === '---') {
+  if (lines.length > 0 && lines[0]?.trimEnd() === '---') {
     for (let i = 1; i < lines.length; i++) {
-      if (lines[i].trimEnd() === '---') {
+      if (lines[i]?.trimEnd() === '---') {
         closeIdx = i;
         break;
       }
@@ -90,7 +90,7 @@ function findKeyLine(l: FrontmatterLayout, key: string): number {
   if (l.closeIdx === -1) return -1;
   const re = new RegExp(`^${key}\\s*:`);
   for (let i = 1; i < l.closeIdx; i++) {
-    if (re.test(l.lines[i])) return i;
+    if (re.test(l.lines[i] ?? '')) return i;
   }
   return -1;
 }
@@ -103,7 +103,7 @@ function join(l: FrontmatterLayout): string {
 export function getFrontmatterLine(content: string, key: string): string | null {
   const l = layout(content);
   const idx = findKeyLine(l, key);
-  return idx === -1 ? null : l.lines[idx];
+  return idx === -1 ? null : (l.lines[idx] ?? null);
 }
 
 /**
@@ -205,7 +205,7 @@ export async function applyAgentFileChanges(
             if (content !== before) {
               await writeTextAtomicallyWithBackup(change.filePath, content, {
                 ...lockOptions,
-                lockHandle: fileLock,
+                lockHandle: fileLock
               });
               written.push(change.filePath);
             }
@@ -217,7 +217,7 @@ export async function applyAgentFileChanges(
       if (originalsModified) {
         await writeJsonAtomicallyWithBackup(originalsPath, originals, {
           ...lockOptions,
-          lockHandle: originalsLock,
+          lockHandle: originalsLock
         });
       }
     },

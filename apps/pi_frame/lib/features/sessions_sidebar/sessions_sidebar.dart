@@ -1,10 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
-import '../../app/row_context_menu.dart';
+import '../../ui/row_context_menu.dart';
 import 'instruction_file_dialog.dart';
 import 'session_actions.dart';
 import 'session_titles.dart';
@@ -31,12 +33,10 @@ import '../../data/platform/widget_test_binding.dart';
 const double _railRowMinHeight = 32;
 
 /// Persistent user state for explicitly expanded session repo folders across unmounts/views.
-final sessionFoldersExpandedProvider =
-    StateProvider<Set<String>>((ref) => <String>{});
+final sessionFoldersExpandedProvider = StateProvider<Set<String>>((ref) => <String>{});
 
 /// Persistent user state for explicitly collapsed session repo folders across unmounts/views.
-final sessionFoldersCollapsedProvider =
-    StateProvider<Set<String>>((ref) => <String>{});
+final sessionFoldersCollapsedProvider = StateProvider<Set<String>>((ref) => <String>{});
 
 bool _isSubsession(Map<String, dynamic> session) {
   if (session['isSubsession'] == true) return true;
@@ -82,11 +82,8 @@ String? _railDefaultFolder(List<Map<String, dynamic>> sessions, String? activeId
   return latest == null ? null : _sessionFolder(latest);
 }
 
-String _folderName(String path, [String fallback = 'Sessioni']) {
-  final segments = path
-      .replaceAll('\\', '/')
-      .split('/')
-      .where((part) => part.isNotEmpty);
+String _folderName(String path, [String fallback = 'Sessions']) {
+  final segments = path.replaceAll('\\', '/').split('/').where((part) => part.isNotEmpty);
   return segments.isEmpty ? fallback : segments.last;
 }
 
@@ -94,11 +91,7 @@ class SessionsSidebar extends ConsumerStatefulWidget {
   final VoidCallback? onSessionSelected;
   final VoidCallback? onCollapse;
 
-  const SessionsSidebar({
-    super.key,
-    this.onSessionSelected,
-    this.onCollapse,
-  });
+  const SessionsSidebar({super.key, this.onSessionSelected, this.onCollapse});
 
   @override
   ConsumerState<SessionsSidebar> createState() => _SessionsSidebarState();
@@ -110,15 +103,9 @@ class _RailRow {
   final String? sessionId;
   final String name;
 
-  const _RailRow.folder(this.folder)
-      : sessionId = null,
-        name = '';
+  const _RailRow.folder(this.folder) : sessionId = null, name = '';
 
-  const _RailRow.session({
-    required this.sessionId,
-    required this.folder,
-    required this.name,
-  });
+  const _RailRow.session({required this.sessionId, required this.folder, required this.name});
 
   bool get isFolder => sessionId == null;
 }
@@ -162,9 +149,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
   /// The cursor ring is a keyboard cue: after a click it would sit on the
   /// clicked card while the selection (and a cancelled switch) sat elsewhere.
   bool _showsCursor(String key) =>
-      _railFocus.hasFocus &&
-      FocusManager.instance.highlightMode == FocusHighlightMode.traditional &&
-      _cursorKey == key;
+      _railFocus.hasFocus && FocusManager.instance.highlightMode == FocusHighlightMode.traditional && _cursorKey == key;
 
   @override
   void dispose() {
@@ -195,19 +180,11 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
 
   void _setFolderExpanded(String folder, bool isExpanded) {
     if (isExpanded) {
-      ref
-          .read(sessionFoldersExpandedProvider.notifier)
-          .update((s) => {...s, folder});
-      ref
-          .read(sessionFoldersCollapsedProvider.notifier)
-          .update((s) => s.where((f) => f != folder).toSet());
+      ref.read(sessionFoldersExpandedProvider.notifier).update((s) => {...s, folder});
+      ref.read(sessionFoldersCollapsedProvider.notifier).update((s) => s.where((f) => f != folder).toSet());
     } else {
-      ref
-          .read(sessionFoldersExpandedProvider.notifier)
-          .update((s) => s.where((f) => f != folder).toSet());
-      ref
-          .read(sessionFoldersCollapsedProvider.notifier)
-          .update((s) => {...s, folder});
+      ref.read(sessionFoldersExpandedProvider.notifier).update((s) => s.where((f) => f != folder).toSet());
+      ref.read(sessionFoldersCollapsedProvider.notifier).update((s) => {...s, folder});
     }
   }
 
@@ -259,9 +236,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
           _setFolderExpanded(current.folder!, false);
         }
       } else {
-        final parent = rows.indexWhere(
-          (r) => r.isFolder && r.folder == current.folder,
-        );
+        final parent = rows.indexWhere((r) => r.isFolder && r.folder == current.folder);
         if (parent >= 0) moveTo(parent);
       }
       return KeyEventResult.handled;
@@ -271,19 +246,18 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
         final folder = current.folder!;
         _setFolderExpanded(folder, !_isFolderExpanded(folder));
       } else {
-        _openSession(current.sessionId!);
+        unawaited(_openSession(current.sessionId!));
       }
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.f2 && !current.isFolder) {
-      _showRenameDialog(current.sessionId!, current.name);
+      unawaited(_showRenameDialog(current.sessionId!, current.name));
       return KeyEventResult.handled;
     }
     return KeyEventResult.ignored;
   }
 
-  String _rowKey(_RailRow row) =>
-      row.isFolder ? 'folder:${row.folder}' : 'session:${row.sessionId}';
+  String _rowKey(_RailRow row) => row.isFolder ? 'folder:${row.folder}' : 'session:${row.sessionId}';
 
   Future<void> _openSession(String id) async {
     setState(() => _cursorKey = 'session:$id');
@@ -336,10 +310,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
               child: Text(strings.cancel),
             ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: tokens.accent,
-                foregroundColor: tokens.surface,
-              ),
+              style: ElevatedButton.styleFrom(backgroundColor: tokens.accent, foregroundColor: tokens.surface),
               onPressed: () => Navigator.of(ctx).pop(textController.text.trim()),
               child: Text(strings.save),
             ),
@@ -357,10 +328,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
           await client.renameSession(sessionId, newName);
           ref.invalidate(sessionListProvider);
           if (mounted) {
-            FrameSnackBar.show(
-              context,
-              message: strings.sessionRenamedNotice(newName),
-            );
+            FrameSnackBar.show(context, message: strings.sessionRenamedNotice(newName));
           }
         } catch (e) {
           if (mounted) {
@@ -381,11 +349,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
     final strings = ref.read(appStringsProvider);
     final client = ref.read(pcpClientProvider);
     if (client == null) return;
-    if (!await resolveDirtyRepository(
-      context,
-      ref,
-      ref.read(activeSessionIdProvider),
-    )) {
+    if (!await resolveDirtyRepository(context, ref, ref.read(activeSessionIdProvider))) {
       return;
     }
 
@@ -398,10 +362,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
         if (!await switchSessionSafely(context, ref, newSid)) return;
         ref.invalidate(sessionListProvider);
         if (mounted) {
-          FrameSnackBar.show(
-            context,
-            message: strings.sessionDuplicatedNotice(newSid),
-          );
+          FrameSnackBar.show(context, message: strings.sessionDuplicatedNotice(newSid));
         }
       }
     } catch (e) {
@@ -423,23 +384,17 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
     final strings = ref.watch(appStringsProvider);
     final sessionsAsync = ref.watch(sessionListProvider);
     final activeId = ref.watch(activeSessionIdProvider);
-    final activeSessionCwd = activeId != null
-        ? ref.watch(sessionStateFamily(activeId).select((s) => s.cwd))
-        : '';
+    final activeSessionCwd = activeId != null ? ref.watch(sessionStateFamily(activeId).select((s) => s.cwd)) : '';
 
     return Container(
-      decoration: BoxDecoration(
-        color: tokens.surface,
-      ),
+      decoration: BoxDecoration(color: tokens.surface),
       child: Column(
         children: [
           // Header
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(color: tokens.border, width: 1),
-              ),
+              border: Border(bottom: BorderSide(color: tokens.border, width: 1)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -449,10 +404,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                     strings.sidebarTitle,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: text.heading.copyWith(
-                      color: tokens.textPrimary,
-                      fontFamily: tokens.headingFontFamily,
-                    ),
+                    style: text.heading.copyWith(color: tokens.textPrimary, fontFamily: tokens.headingFontFamily),
                   ),
                 ),
                 IconButton(
@@ -494,53 +446,28 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3, vertical: FrameSpace.x2),
             decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(color: tokens.border, width: 1),
-              ),
+              border: Border(bottom: BorderSide(color: tokens.border, width: 1)),
             ),
             child: TextField(
               controller: _searchController,
-              style: text.label.copyWith(
-                color: tokens.textPrimary,
-                fontWeight: FontWeight.w400,
-              ),
+              style: text.label.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.w400),
               decoration: InputDecoration(
                 isDense: true,
                 hintText: strings.searchSessionsHint,
-                hintStyle: text.label.copyWith(
-                  color: tokens.textMuted,
-                  fontWeight: FontWeight.w400,
-                ),
-                prefixIcon: Icon(
-                  Icons.search_outlined,
-                  size: FrameSize.icon,
-                  color: tokens.textMuted,
-                ),
-                prefixIconConstraints: const BoxConstraints(
-                  minWidth: 28,
-                  minHeight: 28,
-                ),
+                hintStyle: text.label.copyWith(color: tokens.textMuted, fontWeight: FontWeight.w400),
+                prefixIcon: Icon(Icons.search_outlined, size: FrameSize.icon, color: tokens.textMuted),
+                prefixIconConstraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
-                        icon: Icon(
-                          Icons.clear_outlined,
-                          size: FrameSize.icon,
-                          color: tokens.textMuted,
-                        ),
+                        icon: Icon(Icons.clear_outlined, size: FrameSize.icon, color: tokens.textMuted),
                         padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(
-                          minWidth: 24,
-                          minHeight: 24,
-                        ),
+                        constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                         onPressed: () => _searchController.clear(),
                       )
                     : null,
                 filled: true,
                 fillColor: tokens.surfaceElevated,
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: FrameSpace.x2,
-                  vertical: 6,
-                ),
+                contentPadding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2, vertical: 6),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(tokens.radiusSm),
                   borderSide: BorderSide(color: tokens.border),
@@ -559,14 +486,9 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
 
           // Filter: left-aligned segmented control over a full-width divider
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: FrameSpace.x3,
-              vertical: FrameSpace.x1,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3, vertical: FrameSpace.x1),
             decoration: BoxDecoration(
-              border: Border(
-                bottom: BorderSide(color: tokens.border, width: 1),
-              ),
+              border: Border(bottom: BorderSide(color: tokens.border, width: 1)),
             ),
             child: Align(
               alignment: Alignment.centerLeft,
@@ -599,9 +521,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
               data: (allSessions) {
                 final removedRepos = ref.watch(removedReposProvider);
                 final folderNames = folderDisplayNames(
-                  allSessions
-                      .where((s) => !_isWorkerSession(s))
-                      .map(_sessionFolder),
+                  allSessions.where((s) => !_isWorkerSession(s)).map(_sessionFolder),
                 );
                 _railActiveId = activeId;
                 final sessionNames = ref.watch(sessionDisplayNamesProvider);
@@ -617,8 +537,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                   final id = (s['id'] as String? ?? '').toLowerCase();
                   final name = (s['name'] as String? ?? '').toLowerCase();
                   final cwd = (s['cwd'] as String? ?? '').toLowerCase();
-                  final preview = (s['lastMessagePreview'] as String? ?? '')
-                      .toLowerCase();
+                  final preview = (s['lastMessagePreview'] as String? ?? '').toLowerCase();
                   final isActive = s['isActive'] == true;
 
                   // Text search
@@ -671,10 +590,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                     message = strings.noSessionsFound;
                     actionLabel = strings.newSessionAction;
                     actionKey = const ValueKey('sessions-empty-new-session');
-                    onAction =
-                        _creating || ref.watch(pcpClientProvider) == null
-                        ? null
-                        : _startNewSession;
+                    onAction = _creating || ref.watch(pcpClientProvider) == null ? null : _startNewSession;
                   }
                   return Center(
                     child: Padding(
@@ -690,9 +606,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                           const SizedBox(height: FrameSpace.x2),
                           TextButton(
                             key: actionKey,
-                            style: TextButton.styleFrom(
-                              foregroundColor: tokens.accent,
-                            ),
+                            style: TextButton.styleFrom(foregroundColor: tokens.accent),
                             onPressed: onAction,
                             child: Text(actionLabel),
                           ),
@@ -706,7 +620,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                 final unreadIds = ref.watch(unreadSessionsProvider);
                 final sessionMap = {
                   for (final s in allSessions)
-                    if (s['id'] is String) s['id'] as String: s
+                    if (s['id'] is String) s['id'] as String: s,
                 };
                 final pinnedSessions = <Map<String, dynamic>>[];
                 for (final id in pinnedIds) {
@@ -729,28 +643,19 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
 
                 final grouped = <String, List<Map<String, dynamic>>>{};
                 for (final session in filtered) {
-                  grouped
-                      .putIfAbsent(_sessionFolder(session), () => [])
-                      .add(session);
+                  grouped.putIfAbsent(_sessionFolder(session), () => []).add(session);
                 }
-                final folderRows =
-                    <({String? folder, Map<String, dynamic>? session, bool isFolder})>[];
+                final folderRows = <({String? folder, Map<String, dynamic>? session, bool isFolder})>[];
 
                 for (final group in grouped.entries) {
                   folderRows.add((folder: group.key, session: null, isFolder: true));
                   final isExpanded = _isFolderExpanded(group.key);
                   if (isExpanded) {
-                    folderRows.addAll(
-                      group.value.map(
-                        (session) => (folder: null, session: session, isFolder: false),
-                      ),
-                    );
+                    folderRows.addAll(group.value.map((session) => (folder: null, session: session, isFolder: false)));
                   }
                 }
 
-                final showPinnedSection = _searchQuery.isEmpty &&
-                    _filterMode == 'all' &&
-                    pinnedSessions.isNotEmpty;
+                final showPinnedSection = _searchQuery.isEmpty && _filterMode == 'all' && pinnedSessions.isNotEmpty;
 
                 _railRows = [
                   if (showPinnedSection)
@@ -772,9 +677,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                 ];
 
                 Widget buildPinnedHeader() {
-                  final hasUnreadPinned = pinnedSessions.any(
-                    (s) => s['id'] != activeId && unreadIds.contains(s['id']),
-                  );
+                  final hasUnreadPinned = pinnedSessions.any((s) => s['id'] != activeId && unreadIds.contains(s['id']));
 
                   return Padding(
                     padding: const EdgeInsets.fromLTRB(FrameSpace.x2, FrameSpace.x2, FrameSpace.x2, FrameSpace.x1),
@@ -792,11 +695,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                         ),
                         if (hasUnreadPinned) ...[
                           const SizedBox(width: 6),
-                          const _UnreadDot(
-                            key: ValueKey('pinned-unread-dot'),
-                            unread: true,
-                            size: 6,
-                          ),
+                          const _UnreadDot(key: ValueKey('pinned-unread-dot'), unread: true, size: 6),
                         ],
                       ],
                     ),
@@ -807,426 +706,362 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                   focusNode: _railFocus,
                   onKeyEvent: _onRailKey,
                   child: CustomScrollView(
-                  slivers: [
-                    if (showPinnedSection) ...[
-                      SliverPadding(
-                        padding: const EdgeInsets.fromLTRB(FrameSpace.x2, FrameSpace.x1, FrameSpace.x2, 0),
-                        sliver: SliverToBoxAdapter(
-                          child: buildPinnedHeader(),
+                    slivers: [
+                      if (showPinnedSection) ...[
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(FrameSpace.x2, FrameSpace.x1, FrameSpace.x2, 0),
+                          sliver: SliverToBoxAdapter(child: buildPinnedHeader()),
                         ),
-                      ),
-                      SliverPadding(
-                        padding: const EdgeInsets.fromLTRB(FrameSpace.x2, 0, FrameSpace.x2, FrameSpace.x1),
-                        sliver: SliverReorderableList(
-                          itemCount: pinnedSessions.length,
-                          proxyDecorator: (child, index, animation) {
-                            return Material(
-                              elevation: 4,
-                              color: tokens.surfaceElevated,
-                              borderRadius:
-                                  BorderRadius.circular(tokens.radiusSm),
-                              child: child,
-                            );
-                          },
-                          onReorderItem: (oldIndex, newIndex) {
-                            if (oldIndex < 0 ||
-                                oldIndex >= pinnedSessions.length) {
-                              return;
-                            }
-                            final movedId =
-                                pinnedSessions[oldIndex]['id'] as String? ?? '';
-                            if (movedId.isEmpty) {
-                              return;
-                            }
-                            ref
-                                .read(pinnedSessionsProvider.notifier)
-                                .reorderById(movedId, newIndex);
-                          },
-                          itemBuilder: (rowContext, index) {
-                            final s = pinnedSessions[index];
-                            final id = s['id'] as String? ?? 's';
-                            final isSelected = id == activeId;
-                            return ReorderableDelayedDragStartListener(
-                              key: ValueKey('pinned_session_$id'),
-                              index: index,
-                              child: _SessionTile(
-                                session: s,
-                                isPinned: true,
-                                qualifiedName: sessionNames[id],
-                                isPinnedSection: true,
-                                isSelected: isSelected,
-                                onMenuOpener: (open) =>
-                                    _rowMenus.register('session:$id', open),
-                                isCursor: _showsCursor('session:$id'),
-                                onTap: () {
-                                  _railFocus.requestFocus();
-                                  _openSession(id);
-                                },
-                                onPinToggle: () => ref
-                                    .read(pinnedSessionsProvider.notifier)
-                                    .togglePin(id),
-                                onRename: (sId, sName) =>
-                                    _showRenameDialog(sId, sName),
-                                onTree: (sId) => SessionTreeDialog.show(
-                                  context,
-                                  sessionId: sId,
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(FrameSpace.x2, 0, FrameSpace.x2, FrameSpace.x1),
+                          sliver: SliverReorderableList(
+                            itemCount: pinnedSessions.length,
+                            proxyDecorator: (child, index, animation) {
+                              return Material(
+                                elevation: 4,
+                                color: tokens.surfaceElevated,
+                                borderRadius: BorderRadius.circular(tokens.radiusSm),
+                                child: child,
+                              );
+                            },
+                            onReorderItem: (oldIndex, newIndex) {
+                              if (oldIndex < 0 || oldIndex >= pinnedSessions.length) {
+                                return;
+                              }
+                              final movedId = pinnedSessions[oldIndex]['id'] as String? ?? '';
+                              if (movedId.isEmpty) {
+                                return;
+                              }
+                              ref.read(pinnedSessionsProvider.notifier).reorderById(movedId, newIndex);
+                            },
+                            itemBuilder: (rowContext, index) {
+                              final s = pinnedSessions[index];
+                              final id = s['id'] as String? ?? 's';
+                              final isSelected = id == activeId;
+                              return ReorderableDelayedDragStartListener(
+                                key: ValueKey('pinned_session_$id'),
+                                index: index,
+                                child: _SessionTile(
+                                  session: s,
+                                  isPinned: true,
+                                  qualifiedName: sessionNames[id],
+                                  isPinnedSection: true,
+                                  isSelected: isSelected,
+                                  onMenuOpener: (open) => _rowMenus.register('session:$id', open),
+                                  isCursor: _showsCursor('session:$id'),
+                                  onTap: () {
+                                    _railFocus.requestFocus();
+                                    unawaited(_openSession(id));
+                                  },
+                                  onPinToggle: () => ref.read(pinnedSessionsProvider.notifier).togglePin(id),
+                                  onRename: (sId, sName) => _showRenameDialog(sId, sName),
+                                  onTree: (sId) => SessionTreeDialog.show(context, sessionId: sId),
+                                  onClone: (sId) => _cloneSession(sId),
+                                  onDelete: (sId, sName) =>
+                                      deleteSessionWithConfirmation(context, ref, sessionId: sId, sessionName: sName),
                                 ),
-                                onClone: (sId) => _cloneSession(sId),
-                                onDelete: (sId, sName) =>
-                                    deleteSessionWithConfirmation(
-                                  context,
-                                  ref,
-                                  sessionId: sId,
-                                  sessionName: sName,
-                                ),
+                              );
+                            },
+                          ),
+                        ),
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            key: const ValueKey('pinned-sessions-separator'),
+                            padding: const EdgeInsets.fromLTRB(
+                              FrameSpace.x2,
+                              FrameSpace.x1,
+                              FrameSpace.x2,
+                              FrameSpace.x2,
+                            ),
+                            child: Container(
+                              height: 2,
+                              decoration: BoxDecoration(
+                                color: tokens.borderStrong,
+                                borderRadius: BorderRadius.circular(tokens.radiusSm),
                               ),
-                            );
-                          },
-                        ),
-                      ),
-                      SliverToBoxAdapter(
-                        child: Padding(
-                          key: const ValueKey('pinned-sessions-separator'),
-                          padding: const EdgeInsets.fromLTRB(FrameSpace.x2, FrameSpace.x1, FrameSpace.x2, FrameSpace.x2),
-                          child: Container(
-                            height: 2,
-                            decoration: BoxDecoration(
-                              color: tokens.borderStrong,
-                              borderRadius: BorderRadius.circular(tokens.radiusSm),
                             ),
                           ),
+                        ),
+                      ],
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(FrameSpace.x2, 0, FrameSpace.x2, FrameSpace.x1),
+                        sliver: SliverList(
+                          delegate: SliverChildBuilderDelegate((rowContext, index) {
+                            final row = folderRows[index];
+                            if (row.isFolder) {
+                              final folder = row.folder ?? '';
+                              final expanded = _isFolderExpanded(folder);
+                              final folderSessions = grouped[folder] ?? [];
+                              final hasUnread = folderSessions.any(
+                                (s) => s['id'] != activeId && unreadIds.contains(s['id']),
+                              );
+                              final hasWorking = folderSessions.any((s) {
+                                final sId = s['id'] as String? ?? '';
+                                final isSel = sId == activeId;
+                                final isPin = pinnedIds.contains(sId);
+                                final isAct = s['isActive'] == true;
+                                // Same rule as the session rows: a session opened in
+                                // this run is followed live after switching away.
+                                final isFollowed = ref.read(unreadSessionsProvider.notifier).isFollowed(sId);
+                                if (isSel || isPin || isAct || isFollowed) {
+                                  final isWorking =
+                                      ref.watch(
+                                        sessionStateFamily(sId).select(
+                                          (st) =>
+                                              st.agentStatus == AgentStatus.working ||
+                                              st.agentStatus == AgentStatus.retrying ||
+                                              st.agentStatus == AgentStatus.compacting ||
+                                              st.isStreaming ||
+                                              st.activeToolCalls.isNotEmpty,
+                                        ),
+                                      ) ||
+                                      ref.watch(backgroundAgentsRunningProvider(sId));
+                                  if (isWorking) {
+                                    return true;
+                                  }
+                                }
+                                return s['status'] == 'working' || s['isStreaming'] == true;
+                              });
+
+                              Widget folderTile = ListTile(
+                                key: ValueKey('session-folder:$folder'),
+                                dense: true,
+                                visualDensity: VisualDensity.compact,
+                                minLeadingWidth: 18,
+                                contentPadding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2),
+                                leading: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(
+                                      expanded ? Icons.folder_open_outlined : Icons.folder_outlined,
+                                      size: FrameSize.icon,
+                                      color: hasWorking ? tokens.agentWorking : tokens.accent.withValues(alpha: 0.8),
+                                    ),
+                                    if (hasWorking) ...[
+                                      const SizedBox(width: FrameSpace.x1),
+                                      Container(
+                                        key: ValueKey('folder-working-dot:$folder'),
+                                        width: 6,
+                                        height: 6,
+                                        decoration: BoxDecoration(shape: BoxShape.circle, color: tokens.agentWorking),
+                                      ),
+                                    ] else if (hasUnread) ...[
+                                      const SizedBox(width: FrameSpace.x1),
+                                      _UnreadDot(key: ValueKey('folder-unread-dot:$folder'), unread: true, size: 6),
+                                    ] else ...[
+                                      // Same width as a dot, so the name does not
+                                      // shift when work starts or an answer lands.
+                                      const SizedBox(width: FrameSpace.x1 + 6),
+                                    ],
+                                  ],
+                                ),
+                                title: Text(
+                                  folder.isEmpty
+                                      ? strings.sidebarFallbackFolderLabel
+                                      : (folderNames[folder] ?? _folderName(folder)),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: text.label.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.w600),
+                                ),
+                                subtitle: Text(
+                                  folder.isEmpty ? strings.unknownFolderLabel : folder,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: text.caption.copyWith(color: tokens.textMuted),
+                                ),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    FrameIconAction(
+                                      key: ValueKey('repo-new-session-btn-$folder'),
+                                      icon: Icons.add_outlined,
+                                      tooltip: strings.newSessionInFolderTooltip,
+                                      onPressed: () async {
+                                        _setFolderExpanded(folder, true);
+                                        await createSession(context, ref, cwd: folder);
+                                        if (mounted) widget.onSessionSelected?.call();
+                                      },
+                                    ),
+                                    const SizedBox(width: 2),
+                                    Icon(
+                                      expanded ? Icons.expand_more_outlined : Icons.chevron_right_outlined,
+                                      size: FrameSize.icon,
+                                      color: tokens.textMuted,
+                                    ),
+                                  ],
+                                ),
+                                onTap: () {
+                                  _railFocus.requestFocus();
+                                  setState(() => _cursorKey = 'folder:$folder');
+                                  _setFolderExpanded(folder, !expanded);
+                                },
+                              );
+
+                              // The ListTile above keeps keyboard focus and primary taps;
+                              // this InkWell only adds the right-click menu, so it is not a
+                              // second Tab stop.
+                              Future<void> openFolderMenu(Rect anchor) async {
+                                final action = await showMenu<String>(
+                                  context: context,
+                                  color: tokens.surfaceElevated,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(tokens.radiusSm),
+                                    side: BorderSide(color: tokens.border),
+                                  ),
+                                  position: menuPositionFor(context, anchor),
+                                  items: [
+                                    PopupMenuItem(
+                                      value: 'instructions',
+                                      height: 32,
+                                      padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(
+                                            Icons.description_outlined,
+                                            size: FrameSize.icon,
+                                            color: tokens.textSecondary,
+                                          ),
+                                          const SizedBox(width: FrameSpace.x2),
+                                          Flexible(
+                                            child: Text(
+                                              strings.repoInstructionsAction,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: text.label.copyWith(color: tokens.textPrimary),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    PopupMenuItem(
+                                      value: 'new_session',
+                                      height: 32,
+                                      padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.add_outlined, size: FrameSize.icon, color: tokens.accent),
+                                          const SizedBox(width: FrameSpace.x2),
+                                          Flexible(
+                                            child: Text(
+                                              strings.newSessionAction,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: text.label.copyWith(color: tokens.textPrimary),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const PopupMenuDivider(height: 1),
+                                    PopupMenuItem(
+                                      value: 'remove_repo',
+                                      height: 32,
+                                      padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          Icon(Icons.close_outlined, size: FrameSize.icon, color: tokens.danger),
+                                          const SizedBox(width: FrameSpace.x2),
+                                          Flexible(
+                                            child: Text(
+                                              strings.removeRepoFromSidebarAction,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: text.label.copyWith(color: tokens.danger),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                );
+
+                                if (!context.mounted || action == null) return;
+                                if (action == 'instructions') {
+                                  final activeSid = activeFolders.contains(folder) ? activeId : null;
+                                  unawaited(InstructionFileDialog.show(context, folder: folder, sessionId: activeSid));
+                                } else if (action == 'new_session') {
+                                  _setFolderExpanded(folder, true);
+                                  await createSession(context, ref, cwd: folder);
+                                  if (mounted) widget.onSessionSelected?.call();
+                                } else if (action == 'remove_repo') {
+                                  unawaited(
+                                    removeRepoWithConfirmation(
+                                      context,
+                                      ref,
+                                      folder: folder,
+                                      repoName: folderNames[folder] ?? _folderName(folder),
+                                      folderSessions: folderSessions,
+                                    ),
+                                  );
+                                }
+                              }
+
+                              final folderRowKey = _folderRowKeys.putIfAbsent(folder, GlobalKey.new);
+                              _rowMenus.register('folder:$folder', () {
+                                final rowContext = folderRowKey.currentContext;
+                                if (rowContext == null) return;
+                                unawaited(openFolderMenu(rowAnchorRect(rowContext)));
+                              });
+                              folderTile = InkWell(
+                                key: folderRowKey,
+                                canRequestFocus: false,
+                                onSecondaryTapDown: (details) =>
+                                    openFolderMenu(pointerAnchorRect(details.globalPosition)),
+                                child: folderTile,
+                              );
+
+                              final folderCursor = _showsCursor('folder:$folder');
+                              return Material(
+                                color: tokens.surface,
+                                child: DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(tokens.radiusSm),
+                                    border: folderCursor ? Border.all(color: tokens.focusRing) : null,
+                                  ),
+                                  child: folderTile,
+                                ),
+                              );
+                            }
+
+                            final s = row.session!;
+                            final id = s['id'] as String? ?? 's';
+                            final isSelected = id == activeId;
+                            final isPinned = pinnedIds.contains(id);
+
+                            return _SessionTile(
+                              session: s,
+                              isPinned: isPinned,
+                              qualifiedName: sessionNames[id],
+                              isPinnedSection: false,
+                              isSelected: isSelected,
+                              onMenuOpener: (open) => _rowMenus.register('session:$id', open),
+                              isCursor: _showsCursor('session:$id'),
+                              onTap: () {
+                                _railFocus.requestFocus();
+                                unawaited(_openSession(id));
+                              },
+                              onPinToggle: () => ref.read(pinnedSessionsProvider.notifier).togglePin(id),
+                              onRename: (sId, sName) => _showRenameDialog(sId, sName),
+                              onTree: (sId) => SessionTreeDialog.show(context, sessionId: sId),
+                              onClone: (sId) => _cloneSession(sId),
+                              onDelete: (sId, sName) =>
+                                  deleteSessionWithConfirmation(context, ref, sessionId: sId, sessionName: sName),
+                            );
+                          }, childCount: folderRows.length),
                         ),
                       ),
                     ],
-                    SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(FrameSpace.x2, 0, FrameSpace.x2, FrameSpace.x1),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (rowContext, index) {
-                            final row = folderRows[index];
-                            if (row.isFolder) {
-                      final folder = row.folder ?? '';
-                      final expanded = _isFolderExpanded(folder);
-                      final folderSessions = grouped[folder] ?? [];
-                      final hasUnread = folderSessions.any(
-                        (s) => s['id'] != activeId && unreadIds.contains(s['id']),
-                      );
-                      final hasWorking = folderSessions.any((s) {
-                        final sId = s['id'] as String? ?? '';
-                        final isSel = sId == activeId;
-                        final isPin = pinnedIds.contains(sId);
-                        final isAct = s['isActive'] == true;
-                        // Same rule as the session rows: a session opened in
-                        // this run is followed live after switching away.
-                        final isFollowed = ref
-                            .read(unreadSessionsProvider.notifier)
-                            .isFollowed(sId);
-                        if (isSel || isPin || isAct || isFollowed) {
-                          final isWorking = ref.watch(sessionStateFamily(sId).select((st) =>
-                              st.agentStatus == AgentStatus.working ||
-                              st.agentStatus == AgentStatus.retrying ||
-                              st.agentStatus == AgentStatus.compacting ||
-                              st.isStreaming ||
-                              st.activeToolCalls.isNotEmpty)) ||
-                              ref.watch(backgroundAgentsRunningProvider(sId));
-                          if (isWorking) {
-                            return true;
-                          }
-                        }
-                        return s['status'] == 'working' || s['isStreaming'] == true;
-                      });
-
-                      Widget folderTile = ListTile(
-                        key: ValueKey('session-folder:$folder'),
-                        dense: true,
-                        visualDensity: VisualDensity.compact,
-                        minLeadingWidth: 18,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: FrameSpace.x2,
-                        ),
-                        leading: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              expanded
-                                  ? Icons.folder_open_outlined
-                                  : Icons.folder_outlined,
-                              size: FrameSize.icon,
-                              color: hasWorking
-                                  ? tokens.agentWorking
-                                  : tokens.accent.withValues(alpha: 0.8),
-                            ),
-                            if (hasWorking) ...[
-                              const SizedBox(width: FrameSpace.x1),
-                              Container(
-                                key: ValueKey('folder-working-dot:$folder'),
-                                width: 6,
-                                height: 6,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: tokens.agentWorking,
-                                ),
-                              ),
-                            ] else if (hasUnread) ...[
-                              const SizedBox(width: FrameSpace.x1),
-                              _UnreadDot(
-                                key: ValueKey('folder-unread-dot:$folder'),
-                                unread: true,
-                                size: 6,
-                              ),
-                            ] else ...[
-                              // Same width as a dot, so the name does not
-                              // shift when work starts or an answer lands.
-                              const SizedBox(width: FrameSpace.x1 + 6),
-                            ],
-                          ],
-                        ),
-                        title: Text(
-                          folder.isEmpty
-                              ? strings.sidebarFallbackFolderLabel
-                              : (folderNames[folder] ?? _folderName(folder)),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: text.label.copyWith(
-                            color: tokens.textPrimary,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        subtitle: Text(
-                          folder.isEmpty ? strings.unknownFolderLabel : folder,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: text.caption.copyWith(color: tokens.textMuted),
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            FrameIconAction(
-                              key: ValueKey('repo-new-session-btn-$folder'),
-                              icon: Icons.add_outlined,
-                              tooltip: strings.newSessionInFolderTooltip,
-                              onPressed: () async {
-                                _setFolderExpanded(folder, true);
-                                await createSession(context, ref, cwd: folder);
-                                if (mounted) widget.onSessionSelected?.call();
-                              },
-                            ),
-                            const SizedBox(width: 2),
-                            Icon(
-                              expanded ? Icons.expand_more_outlined : Icons.chevron_right_outlined,
-                              size: FrameSize.icon,
-                              color: tokens.textMuted,
-                            ),
-                          ],
-                        ),
-                        onTap: () {
-                          _railFocus.requestFocus();
-                          setState(() => _cursorKey = 'folder:$folder');
-                          _setFolderExpanded(folder, !expanded);
-                        },
-                      );
-
-                      // The ListTile above keeps keyboard focus and primary taps;
-                      // this InkWell only adds the right-click menu, so it is not a
-                      // second Tab stop.
-                      Future<void> openFolderMenu(Rect anchor) async {
-                          final action = await showMenu<String>(
-                            context: context,
-                            color: tokens.surfaceElevated,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(tokens.radiusSm),
-                              side: BorderSide(color: tokens.border),
-                            ),
-                            position: menuPositionFor(context, anchor),
-                            items: [
-                              PopupMenuItem(
-                                value: 'instructions',
-                                height: 32,
-                                padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.description_outlined,
-                                      size: FrameSize.icon,
-                                      color: tokens.textSecondary,
-                                    ),
-                                    const SizedBox(width: FrameSpace.x2),
-                                    Flexible(
-                                      child: Text(
-                                        strings.repoInstructionsAction,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: text.label.copyWith(
-                                          color: tokens.textPrimary,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              PopupMenuItem(
-                                value: 'new_session',
-                                height: 32,
-                                padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.add_outlined,
-                                      size: FrameSize.icon,
-                                      color: tokens.accent,
-                                    ),
-                                    const SizedBox(width: FrameSpace.x2),
-                                    Flexible(
-                                      child: Text(
-                                        strings.newSessionAction,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: text.label.copyWith(
-                                          color: tokens.textPrimary,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const PopupMenuDivider(height: 1),
-                              PopupMenuItem(
-                                value: 'remove_repo',
-                                height: 32,
-                                padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(
-                                      Icons.close_outlined,
-                                      size: FrameSize.icon,
-                                      color: tokens.danger,
-                                    ),
-                                    const SizedBox(width: FrameSpace.x2),
-                                    Flexible(
-                                      child: Text(
-                                        strings.removeRepoFromSidebarAction,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: text.label.copyWith(
-                                          color: tokens.danger,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          );
-
-                          if (!context.mounted || action == null) return;
-                          if (action == 'instructions') {
-                            final activeSid = activeFolders.contains(folder) ? activeId : null;
-                            InstructionFileDialog.show(context, folder: folder, sessionId: activeSid);
-                          } else if (action == 'new_session') {
-                            _setFolderExpanded(folder, true);
-                            await createSession(context, ref, cwd: folder);
-                            if (mounted) widget.onSessionSelected?.call();
-                          } else if (action == 'remove_repo') {
-                            removeRepoWithConfirmation(
-                              context,
-                              ref,
-                              folder: folder,
-                              repoName: folderNames[folder] ?? _folderName(folder),
-                              folderSessions: folderSessions,
-                            );
-                          }
-                      }
-
-                      final folderRowKey = _folderRowKeys.putIfAbsent(
-                        folder,
-                        GlobalKey.new,
-                      );
-                      _rowMenus.register('folder:$folder', () {
-                        final rowContext = folderRowKey.currentContext;
-                        if (rowContext == null) return;
-                        openFolderMenu(rowAnchorRect(rowContext));
-                      });
-                      folderTile = InkWell(
-                        key: folderRowKey,
-                        canRequestFocus: false,
-                        onSecondaryTapDown: (details) => openFolderMenu(
-                          pointerAnchorRect(details.globalPosition),
-                        ),
-                        child: folderTile,
-                      );
-
-                      final folderCursor =
-                          _showsCursor('folder:$folder');
-                      return Material(
-                        color: tokens.surface,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(tokens.radiusSm),
-                            border: folderCursor
-                                ? Border.all(color: tokens.focusRing)
-                                : null,
-                          ),
-                          child: folderTile,
-                        ),
-                      );
-                    }
-
-                    final s = row.session!;
-                    final id = s['id'] as String? ?? 's';
-                    final isSelected = id == activeId;
-                    final isPinned = pinnedIds.contains(id);
-
-                    return _SessionTile(
-                        session: s,
-                        isPinned: isPinned,
-                        qualifiedName: sessionNames[id],
-                        isPinnedSection: false,
-                        isSelected: isSelected,
-                        onMenuOpener: (open) =>
-                            _rowMenus.register('session:$id', open),
-                        isCursor:
-                            _showsCursor('session:$id'),
-                        onTap: () {
-                          _railFocus.requestFocus();
-                          _openSession(id);
-                        },
-                        onPinToggle: () => ref
-                            .read(pinnedSessionsProvider.notifier)
-                            .togglePin(id),
-                        onRename: (sId, sName) => _showRenameDialog(sId, sName),
-                        onTree: (sId) =>
-                            SessionTreeDialog.show(context, sessionId: sId),
-                        onClone: (sId) => _cloneSession(sId),
-                        onDelete: (sId, sName) => deleteSessionWithConfirmation(
-                          context,
-                          ref,
-                          sessionId: sId,
-                          sessionName: sName,
-                        ),
-                      );
-                    },
-                    childCount: folderRows.length,
                   ),
-                ),
-              ),
-            ],
-          ),
                 );
               },
               loading: () => Center(
-                child: FrameActivityIndicator(size: FrameSize.iconLg,
-                  color: tokens.accent,
-                  strokeWidth: 2,
-                ),
+                child: FrameActivityIndicator(size: FrameSize.iconLg, color: tokens.accent, strokeWidth: 2),
               ),
               error: (err, _) => Center(
-                child: Text(
-                  strings.sidebarErrorNotice(err),
-                  style: text.label.copyWith(color: tokens.danger),
-                ),
+                child: Text(strings.sidebarErrorNotice(err), style: text.label.copyWith(color: tokens.danger)),
               ),
             ),
           ),
@@ -1243,10 +1078,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                   child: TextButton.icon(
                     style: TextButton.styleFrom(
                       foregroundColor: tokens.textSecondary,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: FrameSpace.x2,
-                        vertical: 6,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2, vertical: 6),
                       alignment: Alignment.centerLeft,
                     ),
                     icon: Stack(
@@ -1260,18 +1092,12 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
                             child: Container(
                               width: 7,
                               height: 7,
-                              decoration: BoxDecoration(
-                                color: tokens.accent,
-                                shape: BoxShape.circle,
-                              ),
+                              decoration: BoxDecoration(color: tokens.accent, shape: BoxShape.circle),
                             ),
                           ),
                       ],
                     ),
-                    label: Text(
-                      strings.settingsLabel,
-                      style: text.label,
-                    ),
+                    label: Text(strings.settingsLabel, style: text.label),
                     onPressed: () {
                       ref.read(showSettingsProvider.notifier).state = true;
                     },
@@ -1332,9 +1158,7 @@ class _SessionsSidebarState extends ConsumerState<SessionsSidebar> {
 class _WorkingDot extends StatelessWidget {
   final Color color;
 
-  const _WorkingDot({
-    required this.color,
-  });
+  const _WorkingDot({required this.color});
 
   static const double _size = 10.0;
 
@@ -1342,8 +1166,7 @@ class _WorkingDot extends StatelessWidget {
   Widget build(BuildContext context) {
     // Phone browsers: one endless animation per working row made scrolling
     // the sessions drawer stutter, so they get the static arc too.
-    final still =
-        isWidgetTestBinding || (kIsWeb && MediaQuery.sizeOf(context).width < 700);
+    final still = isWidgetTestBinding || (kIsWeb && MediaQuery.sizeOf(context).width < 700);
     return RepaintBoundary(
       child: FrameActivityIndicator(
         key: const ValueKey('session-working-spinner'),
@@ -1439,11 +1262,7 @@ class _SessionTile extends ConsumerWidget {
   });
 
   /// Session actions only. Repository actions live on the repository row.
-  List<PopupMenuEntry<String>> _buildMenuItems(
-    BuildContext context,
-    FrameTokens tokens,
-    AppStrings strings,
-  ) {
+  List<PopupMenuEntry<String>> _buildMenuItems(BuildContext context, FrameTokens tokens, AppStrings strings) {
     return [
       _menuAction(
         context,
@@ -1580,24 +1399,17 @@ class _SessionTile extends ConsumerWidget {
     // Sessions opened in this run stay subscribed, so their live state is
     // shown after switching away; the daemon listing lags a running turn.
     final unread = ref.read(unreadSessionsProvider.notifier);
-    final isLive =
-        isPinned || isSelected || isStaticActive || unread.isFollowed(id);
+    final isLive = isPinned || isSelected || isStaticActive || unread.isFollowed(id);
     if (isLive) unread.follow(id);
     final isWorking = isLive
         ? ref.watch(sessionStateFamily(id).select(agentAtWork)) ||
-            // Waiting on background subagents or workflows still counts as running.
-            ref.watch(backgroundAgentsRunningProvider(id))
+              // Waiting on background subagents or workflows still counts as running.
+              ref.watch(backgroundAgentsRunningProvider(id))
         : (session['status'] == 'working' || session['isStreaming'] == true);
-    final isUnread = !isSelected &&
-        ref.watch(unreadSessionsProvider.select((ids) => ids.contains(id)));
+    final isUnread = !isSelected && ref.watch(unreadSessionsProvider.select((ids) => ids.contains(id)));
 
-    final relative = relativeTimeLabel(
-      strings,
-      (session['lastActivityAt'] as num?)?.toInt(),
-    );
-    final metaColor = isSelected
-        ? tokens.displayText.withValues(alpha: 0.8)
-        : tokens.textMuted;
+    final relative = relativeTimeLabel(strings, (session['lastActivityAt'] as num?)?.toInt());
+    final metaColor = isSelected ? tokens.displayText.withValues(alpha: 0.8) : tokens.textMuted;
 
     final row = FrameListRow(
       key: ValueKey('session-row-$id'),
@@ -1608,27 +1420,17 @@ class _SessionTile extends ConsumerWidget {
       leading: Center(
         child: isWorking
             ? _WorkingDot(color: tokens.agentWorking)
-            : _UnreadDot(
-                key: ValueKey('session-unread-dot-$id-$isUnread'),
-                unread: isUnread,
-              ),
+            : _UnreadDot(key: ValueKey('session-unread-dot-$id-$isUnread'), unread: isUnread),
       ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
-        children: [
-          if (isPinned)
-            Icon(Icons.push_pin_outlined, size: FrameSize.icon, color: tokens.accent),
-        ],
+        children: [if (isPinned) Icon(Icons.push_pin_outlined, size: FrameSize.icon, color: tokens.accent)],
       ),
       actions: [
         PopupMenuButton<String>(
           key: ValueKey('session-menu-$id'),
           tooltip: strings.sessionActionsTooltip,
-          icon: Icon(
-            Icons.more_horiz_outlined,
-            size: FrameSize.iconLg,
-            color: metaColor,
-          ),
+          icon: Icon(Icons.more_horiz_outlined, size: FrameSize.iconLg, color: metaColor),
           color: tokens.surfaceElevated,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -1639,26 +1441,13 @@ class _SessionTile extends ConsumerWidget {
         ),
       ],
       onTap: onTap,
-      onSecondaryTap: (position) => _showContextMenu(
-        context,
-        pointerAnchorRect(position),
-        tokens,
-        strings,
-        id,
-        chosenName,
-      ),
+      onSecondaryTap: (position) =>
+          _showContextMenu(context, pointerAnchorRect(position), tokens, strings, id, chosenName),
     );
 
     onMenuOpener?.call(() {
       if (!context.mounted) return;
-      _showContextMenu(
-        context,
-        rowAnchorRect(context),
-        tokens,
-        strings,
-        id,
-        chosenName,
-      );
+      unawaited(_showContextMenu(context, rowAnchorRect(context), tokens, strings, id, chosenName));
     });
 
     // The keyboard cursor and a working agent used the same colour (accent is
@@ -1667,9 +1456,7 @@ class _SessionTile extends ConsumerWidget {
     // a working card uses the agent-working colour.
     final borderColor = isCursor
         ? tokens.focusRing
-        : (isWorking
-            ? tokens.agentWorking.withValues(alpha: 0.7)
-            : tokens.surface.withValues(alpha: 0));
+        : (isWorking ? tokens.agentWorking.withValues(alpha: 0.7) : tokens.surface.withValues(alpha: 0));
 
     // Foreground: the selected and hovered row fills are opaque and hid a
     // border painted behind them.
@@ -1677,10 +1464,7 @@ class _SessionTile extends ConsumerWidget {
       position: DecorationPosition.foreground,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(tokens.radiusSm),
-        border: Border.all(
-          color: borderColor,
-          width: 1.0,
-        ),
+        border: Border.all(color: borderColor, width: 1.0),
       ),
       child: row,
     );

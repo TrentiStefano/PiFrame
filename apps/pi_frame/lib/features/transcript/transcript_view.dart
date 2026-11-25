@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:ui' show BoxWidthStyle;
 
 import 'package:flutter/material.dart';
+
 import '../../ui/precision.dart';
+
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -41,7 +43,6 @@ import '../../domain/session/transcript_grouping.dart';
 import 'steps_group.dart';
 import 'task_notification_card.dart';
 
-
 class _MeasureSizeRenderObject extends RenderProxyBox {
   _MeasureSizeRenderObject({required this.onSizeChange});
   void Function(Size size) onSizeChange;
@@ -59,10 +60,7 @@ class _MeasureSizeRenderObject extends RenderProxyBox {
 }
 
 class _MeasureSize extends SingleChildRenderObjectWidget {
-  const _MeasureSize({
-    required this.onSizeChange,
-    required super.child,
-  });
+  const _MeasureSize({required this.onSizeChange, required super.child});
 
   final void Function(Size size) onSizeChange;
 
@@ -72,10 +70,7 @@ class _MeasureSize extends SingleChildRenderObjectWidget {
   }
 
   @override
-  void updateRenderObject(
-    BuildContext context,
-    covariant _MeasureSizeRenderObject renderObject,
-  ) {
+  void updateRenderObject(BuildContext context, covariant _MeasureSizeRenderObject renderObject) {
     renderObject.onSizeChange = onSizeChange;
   }
 }
@@ -101,8 +96,7 @@ class SmartTranscriptChildDelegate extends SliverChildBuilderDelegate {
     if (total == 0) return null;
     final avg = heightCache.isEmpty
         ? 120.0
-        : heightCache.values.reduce((sum, height) => sum + height) /
-              heightCache.length;
+        : heightCache.values.reduce((sum, height) => sum + height) / heightCache.length;
     final remainingAfter = total - 1 - lastIndex;
     if (remainingAfter <= 0) {
       return trailingScrollOffset;
@@ -130,8 +124,7 @@ class TranscriptView extends ConsumerStatefulWidget {
 }
 
 class _TranscriptViewState extends ConsumerState<TranscriptView> {
-  late final BottomAnchoredScrollController _scrollController =
-      BottomAnchoredScrollController(
+  late final BottomAnchoredScrollController _scrollController = BottomAnchoredScrollController(
     shouldAnchorToBottom: () => !_userScrolledUpNotifier.value,
   );
   final ValueNotifier<bool> _userScrolledUpNotifier = ValueNotifier<bool>(false);
@@ -179,9 +172,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     if (entry.metadata?['customType'] == 'subagent-notification') return false;
     return true;
   }
-  static final RegExp _controlChars = RegExp(
-    r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]',
-  );
+
+  static final RegExp _controlChars = RegExp(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]');
   static final RegExp _splitListDelim = RegExp(r'[,;\s]+');
 
   Widget? _cachedBentoHeader;
@@ -198,14 +190,10 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   FrameTokens? _cachedHeaderTokens;
   AppStrings? _cachedHeaderStrings;
   List<MapEntry<String, dynamic>>? _cachedHeaderExtStatuses;
-  AppStrings _currentStrings = const AppStrings(AppLanguage.it);
+  AppStrings _currentStrings = const AppStrings(AppLanguage.defaultLanguage);
   String? _trackedSessionId;
 
-
-  bool _extensionStatusesEqual(
-    List<MapEntry<String, dynamic>> a,
-    List<MapEntry<String, dynamic>>? b,
-  ) {
+  bool _extensionStatusesEqual(List<MapEntry<String, dynamic>> a, List<MapEntry<String, dynamic>>? b) {
     if (b == null || a.length != b.length) return false;
     for (int i = 0; i < a.length; i++) {
       if (a[i].key != b[i].key || a[i].value != b[i].value) return false;
@@ -218,9 +206,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        ref
-            .read(sessionStateFamily(widget.sessionId).notifier)
-            .refreshDefaults();
+        unawaited(ref.read(sessionStateFamily(widget.sessionId).notifier).refreshDefaults());
       }
     });
   }
@@ -240,9 +226,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       _trackedSessionId = null;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          ref
-              .read(sessionStateFamily(widget.sessionId).notifier)
-              .refreshDefaults();
+          unawaited(ref.read(sessionStateFamily(widget.sessionId).notifier).refreshDefaults());
         }
       });
     }
@@ -253,10 +237,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       _isRenaming = true;
       _cachedBentoHeader = null;
       _renameController.text = currentName;
-      _renameController.selection = TextSelection(
-        baseOffset: 0,
-        extentOffset: currentName.length,
-      );
+      _renameController.selection = TextSelection(baseOffset: 0, extentOffset: currentName.length);
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && _renameFocusNode.canRequestFocus) {
@@ -291,11 +272,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       ref.invalidate(sessionListProvider);
     } catch (e) {
       if (mounted) {
-        FrameSnackBar.show(
-          context,
-          message: _currentStrings.transcriptRenameError('$e'),
-          isError: true,
-        );
+        FrameSnackBar.show(context, message: _currentStrings.transcriptRenameError('$e'), isError: true);
       }
     }
   }
@@ -306,24 +283,19 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     if (notification is UserScrollNotification) {
       if (notification.direction == ScrollDirection.forward) {
         // User intentionally scrolled upward towards older messages
-        final dist =
-            _scrollController.position.maxScrollExtent -
-            _scrollController.offset;
+        final dist = _scrollController.position.maxScrollExtent - _scrollController.offset;
         if (dist > 60 && !_userScrolledUp) {
           _userScrolledUp = true;
         }
       } else if (notification.direction == ScrollDirection.reverse) {
         // User scrolled downward towards bottom
-        final dist =
-            _scrollController.position.maxScrollExtent -
-            _scrollController.offset;
+        final dist = _scrollController.position.maxScrollExtent - _scrollController.offset;
         if (dist < 40 && _userScrolledUp) {
           _userScrolledUp = false;
         }
       }
     } else if (notification is ScrollUpdateNotification) {
-      final dist =
-          _scrollController.position.maxScrollExtent - _scrollController.offset;
+      final dist = _scrollController.position.maxScrollExtent - _scrollController.offset;
       if (notification.dragDetails != null) {
         if (dist > 60 && !_userScrolledUp) {
           _userScrolledUp = true;
@@ -363,17 +335,13 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
         _isProgrammaticScroll = false;
         return;
       }
-      if (_scrollController.position.maxScrollExtent >
-          _scrollController.offset) {
+      if (_scrollController.position.maxScrollExtent > _scrollController.offset) {
         _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _isProgrammaticScroll = false;
           if (!_scrollController.hasClients) return;
-          if (_scrollController.position.maxScrollExtent >
-              _scrollController.offset) {
-            _scrollController.jumpTo(
-              _scrollController.position.maxScrollExtent,
-            );
+          if (_scrollController.position.maxScrollExtent > _scrollController.offset) {
+            _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
           }
         });
       } else {
@@ -388,17 +356,17 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     _userScrolledUp = false;
     final maxScroll = _scrollController.position.maxScrollExtent;
     if (animate) {
-      _scrollController
-          .animateTo(
-            maxScroll,
-            duration: MediaQuery.disableAnimationsOf(context)
-                ? Duration.zero
-                : context.tokens.panelDuration,
-            curve: FrameMotion.enterCurve,
-          )
-          .whenComplete(() {
-            _isProgrammaticScroll = false;
-          });
+      unawaited(
+        _scrollController
+            .animateTo(
+              maxScroll,
+              duration: MediaQuery.disableAnimationsOf(context) ? Duration.zero : context.tokens.panelDuration,
+              curve: FrameMotion.enterCurve,
+            )
+            .whenComplete(() {
+              _isProgrammaticScroll = false;
+            }),
+      );
     } else {
       _scrollController.jumpTo(maxScroll);
       scheduleMicrotask(() {
@@ -425,10 +393,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         if (req['method'] == 'notify') {
-          FrameSnackBar.show(
-            context,
-            message: req['message']?.toString() ?? _currentStrings.transcriptNotification,
-          );
+          FrameSnackBar.show(context, message: req['message']?.toString() ?? _currentStrings.transcriptNotification);
         }
       });
     }
@@ -444,10 +409,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   }
 
   String _cleanStatusValue(String raw) {
-    if (!raw.contains('\x1B') &&
-        !raw.contains('[') &&
-        !raw.contains('"') &&
-        !raw.contains("'")) {
+    if (!raw.contains('\x1B') && !raw.contains('[') && !raw.contains('"') && !raw.contains("'")) {
       final t = raw.trim();
       return t.isEmpty ? '—' : t.toUpperCase();
     }
@@ -470,8 +432,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       }
     }
 
-    if ((s.startsWith('"') && s.endsWith('"')) ||
-        (s.startsWith("'") && s.endsWith("'"))) {
+    if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
       s = s.substring(1, s.length - 1).trim();
     }
 
@@ -503,11 +464,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (leadingIcon != null) ...[
-                Icon(
-                  leadingIcon,
-                  size: 12,
-                  color: iconColor ?? tokens.textMuted,
-                ),
+                Icon(leadingIcon, size: 12, color: iconColor ?? tokens.textMuted),
                 const SizedBox(width: 4),
               ],
               Flexible(
@@ -566,17 +523,13 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       for (final entry in map.entries) {
         final mName = entry.key.toString();
         final val = entry.value;
-        final mCost = (val is Map
-            ? (val['cost'] is Map ? (val['cost']['total'] ?? val['cost']['amount']) : val['cost'])
-            : val) as num?;
+        final mCost = (val is Map ? _costValue(val['cost']) : val) as num?;
         if (mCost != null) {
           agentModelCosts[mName] = mCost.toDouble();
         }
         if (val is Map) {
           final toks = val['tokens'];
-          final totalTok = toks is Map
-              ? (toks['total'] as num?)
-              : (val['totalTokens'] as num? ?? val['total'] as num?);
+          final totalTok = toks is Map ? (toks['total'] as num?) : (val['totalTokens'] as num? ?? val['total'] as num?);
           if (totalTok != null) {
             agentModelTokens[mName] = totalTok.toInt();
           }
@@ -594,17 +547,14 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
         final m = e.metadata?['model']?.toString();
         if (m != null && m.isNotEmpty) {
           final u = e.metadata?['usage'];
-          final c = u is Map
-              ? (u['cost'] is Map ? (u['cost']['total'] ?? u['cost']['amount']) : u['cost'])
-              : null;
+          final c = u is Map ? _costValue(u['cost']) : null;
           final costNum = (c as num?)?.toDouble() ?? 0.0;
           if (costNum > 0) {
             agentModelCosts[m] = (agentModelCosts[m] ?? 0.0) + costNum;
           }
           if (u is Map) {
-            final t = u['tokens'] is Map
-                ? (u['tokens']['total'] as num?)
-                : (u['totalTokens'] as num? ?? u['total'] as num?);
+            final tokens = u['tokens'];
+            final t = tokens is Map ? (tokens['total'] as num?) : (u['totalTokens'] as num? ?? u['total'] as num?);
             if (t != null) {
               agentModelTokens[m] = (agentModelTokens[m] ?? 0) + t.toInt();
             }
@@ -630,489 +580,472 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
         int level = 0; // 0: Overview, 1: Main Agent Models, 2: Subagents Breakdown
 
         return StatefulBuilder(
-          builder: (ctx, setDialogState) => Consumer(builder: (ctx, dialogRef, _) {
-            final strings = dialogRef.watch(appStringsProvider);
-            final subagents = dialogRef.watch(subagentsFamily(sessionState.sessionId));
-            final agents = subagents.where((sub) => !sub.isUnlinked).toList();
-            final subagentsCost = agents.fold<double>(0, (sum, sub) => sum + (sub.cost ?? 0));
-            final knownSubagentCosts = agents.where((sub) => sub.cost != null).length;
-            final subagentsCostLabel = knownSubagentCosts == 0
-                ? strings.transcriptNotAvailable
-                : '${knownSubagentCosts < agents.length ? strings.subagentsPartialCostPrefix : ''}\$${subagentsCost.toStringAsFixed(4)}';
-            final sessionCostLabel = mainAgentCost == null ? strings.transcriptNotAvailable : '\$${mainAgentCost.toStringAsFixed(4)}';
-            final agentCount = agents.length;
-            Widget content;
-            String title;
+          builder: (ctx, setDialogState) => Consumer(
+            builder: (ctx, dialogRef, _) {
+              final strings = dialogRef.watch(appStringsProvider);
+              final subagents = dialogRef.watch(subagentsFamily(sessionState.sessionId));
+              final agents = subagents.where((sub) => !sub.isUnlinked).toList();
+              final subagentsCost = agents.fold<double>(0, (sum, sub) => sum + (sub.cost ?? 0));
+              final knownSubagentCosts = agents.where((sub) => sub.cost != null).length;
+              final subagentsCostLabel = knownSubagentCosts == 0
+                  ? strings.transcriptNotAvailable
+                  : '${knownSubagentCosts < agents.length ? strings.subagentsPartialCostPrefix : ''}\$${subagentsCost.toStringAsFixed(4)}';
+              final sessionCostLabel = mainAgentCost == null
+                  ? strings.transcriptNotAvailable
+                  : '\$${mainAgentCost.toStringAsFixed(4)}';
+              final agentCount = agents.length;
+              Widget content;
+              String title;
 
-            if (level == 1) {
-              // Level 1: Agent Models
-              title = strings.transcriptAgentModelCosts;
-              content = Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: tokens.surface,
-                      borderRadius: BorderRadius.circular(tokens.radiusSm),
-                      border: Border.all(color: tokens.border.withValues(alpha: 0.6)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            strings.transcriptCostReportedByPi,
-                            style: TextStyle(
-                              color: tokens.textSecondary,
-                              fontSize: FrameText.of(context).caption.fontSize,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          sessionCostLabel,
-                          style: TextStyle(
-                            color: tokens.syntaxString,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: tokens.monoFontFamily,
-                            fontSize: FrameText.of(context).label.fontSize,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  if (agentModelCosts.isEmpty)
-                    Text(strings.transcriptModelCostsUnavailable, style: TextStyle(color: tokens.textMuted, fontSize: FrameText.of(context).caption.fontSize))
-                  else
-                  ConstrainedBox(
-                    constraints: const BoxConstraints(maxHeight: 280),
-                    child: ListView(
-                      shrinkWrap: true,
-                      padding: EdgeInsets.zero,
-                      children: agentModelCosts.entries.map((entry) {
-                        return Container(
-                          key: ValueKey('agent-model-cost-${entry.key}'),
-                          margin: const EdgeInsets.only(bottom: 6),
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                          decoration: BoxDecoration(
-                            color: tokens.surface,
-                            borderRadius: BorderRadius.circular(tokens.radiusSm),
-                            border: Border.all(color: tokens.border.withValues(alpha: 0.5)),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Row(
-                                  children: [
-                                    Icon(
-                                      Icons.memory_outlined,
-                                      size: 13,
-                                      color: tokens.syntaxKeyword,
-                                    ),
-                                    const SizedBox(width: 6),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text(
-                                            entry.key,
-                                            style: TextStyle(
-                                              color: tokens.textPrimary,
-                                              fontSize: FrameText.of(context).caption.fontSize,
-                                              fontWeight: FontWeight.w500,
-                                            ),
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                          if (agentModelTokens[entry.key] != null &&
-                                              agentModelTokens[entry.key]! > 0)
-                                            Padding(
-                                              padding: const EdgeInsets.only(top: 2),
-                                              child: Text(
-                                                formatTokens(agentModelTokens[entry.key]!),
-                                                style: TextStyle(
-                                                  color: tokens.textMuted,
-                                                  fontSize: FrameText.of(context).caption.fontSize,
-                                                  fontFamily: tokens.monoFontFamily,
-                                                ),
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              Text(
-                                '\$${entry.value.toStringAsFixed(4)}',
-                                style: TextStyle(
-                                  color: tokens.syntaxString,
-                                  fontFamily: tokens.monoFontFamily,
-                                  fontSize: FrameText.of(context).caption.fontSize,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                ],
-              );
-            } else if (level == 2) {
-              // Level 2: Subagents Breakdown
-              title = strings.transcriptSubagentModelCosts;
-              content = Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: tokens.surface,
-                      borderRadius: BorderRadius.circular(tokens.radiusSm),
-                      border: Border.all(color: tokens.border.withValues(alpha: 0.6)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            strings.transcriptChildSessionCosts(agentCount),
-                            style: TextStyle(
-                              color: tokens.textSecondary,
-                              fontSize: FrameText.of(context).caption.fontSize,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          subagentsCostLabel,
-                          style: TextStyle(
-                            color: tokens.syntaxString,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: tokens.monoFontFamily,
-                            fontSize: FrameText.of(context).label.fontSize,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  if (subagents.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: Center(
-                        child: Text(
-                          strings.transcriptNoSubagentsExecuted,
-                          style: TextStyle(color: tokens.textMuted, fontSize: FrameText.of(context).caption.fontSize),
-                        ),
-                      ),
-                    )
-                  else
-                    ConstrainedBox(
-                      constraints: const BoxConstraints(maxHeight: 220),
-                      child: ListView.separated(
-                        shrinkWrap: true,
-                        padding: EdgeInsets.zero,
-                        itemCount: subagents.length,
-                        separatorBuilder: (_, _) => const SizedBox(height: 6),
-                        itemBuilder: (ctx, i) {
-                          final sub = subagents[i];
-                          final subCost = sub.cost != null
-                              ? '\$${sub.cost!.toStringAsFixed(4)}'
-                              : strings.transcriptNotAvailable;
-                          final subModel = sub.model ?? strings.transcriptNotAvailable;
-                          if (sub.isUnlinked) {
-                            return Padding(
-                              key: ValueKey('unlinked-session-cost-${sub.id}'),
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                              child: Text(
-                                strings.transcriptUnattributedChildSession(sub.name, subModel, subCost),
-                                style: TextStyle(color: tokens.textMuted, fontSize: FrameText.of(context).caption.fontSize),
-                              ),
-                            );
-                          }
-
-                          return Container(
-                            key: ValueKey('subagent-cost-item-${sub.id}'),
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                            decoration: BoxDecoration(
-                              color: tokens.surface,
-                              borderRadius: BorderRadius.circular(tokens.radiusSm),
-                              border: Border.all(color: tokens.border.withValues(alpha: 0.5)),
-                            ),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        sub.name.isNotEmpty ? sub.name : strings.transcriptSubagentNumbered(i + 1),
-                                        style: TextStyle(
-                                          color: tokens.textPrimary,
-                                          fontSize: FrameText.of(context).caption.fontSize,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Row(
-                                        children: [
-                                          Icon(
-                                            Icons.memory_outlined,
-                                            size: 10,
-                                            color: tokens.syntaxFunction,
-                                          ),
-                                          const SizedBox(width: 3),
-                                          Text(
-                                            subModel,
-                                            style: TextStyle(
-                                              color: tokens.textSecondary,
-                                              fontSize: FrameText.of(context).caption.fontSize,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  subCost,
-                                  style: TextStyle(
-                                    color: tokens.syntaxString,
-                                    fontFamily: tokens.monoFontFamily,
-                                    fontSize: FrameText.of(context).caption.fontSize,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                ],
-              );
-            } else {
-              // Level 0: Main Overview (Total, Agent, Subagents)
-              title = strings.transcriptSessionCostBreakdown;
-              content = Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: tokens.surface,
-                      borderRadius: BorderRadius.circular(tokens.radiusSm),
-                      border: Border.all(color: tokens.border.withValues(alpha: 0.6)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Expanded(
-                          child: Text(
-                            strings.transcriptCostReportedByPi,
-                            style: TextStyle(
-                              color: tokens.textSecondary,
-                              fontSize: FrameText.of(context).caption.fontSize,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                        Text(
-                          sessionCostLabel,
-                          style: TextStyle(
-                            color: tokens.syntaxString,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: tokens.monoFontFamily,
-                            fontSize: FrameText.of(context).body.fontSize,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    strings.transcriptPiCostDisclaimer,
-                    style: TextStyle(
-                      color: tokens.textMuted,
-                      fontSize: FrameText.of(context).caption.fontSize,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-
-                  // Agent Cost Row (Clickable)
-                  InkWell(
-                    key: const ValueKey('cost-breakdown-agent-row'),
-                    onTap: () => setDialogState(() => level = 1),
-                    borderRadius: BorderRadius.circular(tokens.radiusSm),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+              if (level == 1) {
+                // Level 1: Agent Models
+                title = strings.transcriptAgentModelCosts;
+                content = Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         color: tokens.surface,
                         borderRadius: BorderRadius.circular(tokens.radiusSm),
-                        border: Border.all(color: tokens.border),
+                        border: Border.all(color: tokens.border.withValues(alpha: 0.6)),
                       ),
                       child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Icon(
-                            Icons.smart_toy_outlined,
-                            size: FrameSize.icon,
-                            color: tokens.accent,
-                          ),
-                          const SizedBox(width: 8),
                           Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  strings.transcriptPiSession,
-                                  style: TextStyle(
-                                    color: tokens.textPrimary,
-                                    fontSize: FrameText.of(context).label.fontSize,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                Text(
-                                  sessionState.currentModel ?? strings.transcriptSessionModel,
-                                  style: TextStyle(
-                                    color: tokens.textMuted,
-                                    fontSize: FrameText.of(context).caption.fontSize,
-                                  ),
-                                ),
-                              ],
+                            child: Text(
+                              strings.transcriptCostReportedByPi,
+                              style: TextStyle(
+                                color: tokens.textSecondary,
+                                fontSize: FrameText.of(context).caption.fontSize,
+                              ),
                             ),
                           ),
                           Text(
                             sessionCostLabel,
                             style: TextStyle(
                               color: tokens.syntaxString,
+                              fontWeight: FontWeight.bold,
                               fontFamily: tokens.monoFontFamily,
                               fontSize: FrameText.of(context).label.fontSize,
-                              fontWeight: FontWeight.bold,
                             ),
-                          ),
-                          const SizedBox(width: 4),
-                          Icon(
-                            Icons.chevron_right_outlined,
-                            size: FrameSize.icon,
-                            color: tokens.textMuted,
                           ),
                         ],
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 6),
-
-                  // Subagents Cost Row (Clickable)
-                  InkWell(
-                    key: const ValueKey('cost-breakdown-subagents-row'),
-                    onTap: () => setDialogState(() => level = 2),
-                    borderRadius: BorderRadius.circular(tokens.radiusSm),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+                    const SizedBox(height: 8),
+                    if (agentModelCosts.isEmpty)
+                      Text(
+                        strings.transcriptModelCostsUnavailable,
+                        style: TextStyle(color: tokens.textMuted, fontSize: FrameText.of(context).caption.fontSize),
+                      )
+                    else
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 280),
+                        child: ListView(
+                          shrinkWrap: true,
+                          padding: EdgeInsets.zero,
+                          children: agentModelCosts.entries.map((entry) {
+                            return Container(
+                              key: ValueKey('agent-model-cost-${entry.key}'),
+                              margin: const EdgeInsets.only(bottom: 6),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                              decoration: BoxDecoration(
+                                color: tokens.surface,
+                                borderRadius: BorderRadius.circular(tokens.radiusSm),
+                                border: Border.all(color: tokens.border.withValues(alpha: 0.5)),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.memory_outlined, size: 13, color: tokens.syntaxKeyword),
+                                        const SizedBox(width: 6),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                entry.key,
+                                                style: TextStyle(
+                                                  color: tokens.textPrimary,
+                                                  fontSize: FrameText.of(context).caption.fontSize,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              if (agentModelTokens[entry.key] != null &&
+                                                  agentModelTokens[entry.key]! > 0)
+                                                Padding(
+                                                  padding: const EdgeInsets.only(top: 2),
+                                                  child: Text(
+                                                    formatTokens(agentModelTokens[entry.key]!),
+                                                    style: TextStyle(
+                                                      color: tokens.textMuted,
+                                                      fontSize: FrameText.of(context).caption.fontSize,
+                                                      fontFamily: tokens.monoFontFamily,
+                                                    ),
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Text(
+                                    '\$${entry.value.toStringAsFixed(4)}',
+                                    style: TextStyle(
+                                      color: tokens.syntaxString,
+                                      fontFamily: tokens.monoFontFamily,
+                                      fontSize: FrameText.of(context).caption.fontSize,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                  ],
+                );
+              } else if (level == 2) {
+                // Level 2: Subagents Breakdown
+                title = strings.transcriptSubagentModelCosts;
+                content = Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         color: tokens.surface,
                         borderRadius: BorderRadius.circular(tokens.radiusSm),
-                        border: Border.all(color: tokens.border),
+                        border: Border.all(color: tokens.border.withValues(alpha: 0.6)),
                       ),
                       child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Icon(
-                            Icons.hub_outlined,
-                            size: FrameSize.icon,
-                            color: tokens.syntaxFunction,
-                          ),
-                          const SizedBox(width: 8),
                           Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  strings.transcriptSubagents,
-                                  style: TextStyle(
-                                    color: tokens.textPrimary,
-                                    fontSize: FrameText.of(context).label.fontSize,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                Text(
-                                  strings.transcriptIdentifiedSubagents(agentCount),
-                                  style: TextStyle(
-                                    color: tokens.textMuted,
-                                    fontSize: FrameText.of(context).caption.fontSize,
-                                  ),
-                                ),
-                              ],
+                            child: Text(
+                              strings.transcriptChildSessionCosts(agentCount),
+                              style: TextStyle(
+                                color: tokens.textSecondary,
+                                fontSize: FrameText.of(context).caption.fontSize,
+                              ),
                             ),
                           ),
                           Text(
                             subagentsCostLabel,
                             style: TextStyle(
                               color: tokens.syntaxString,
+                              fontWeight: FontWeight.bold,
                               fontFamily: tokens.monoFontFamily,
                               fontSize: FrameText.of(context).label.fontSize,
-                              fontWeight: FontWeight.bold,
                             ),
-                          ),
-                          const SizedBox(width: 4),
-                          Icon(
-                            Icons.chevron_right_outlined,
-                            size: FrameSize.icon,
-                            color: tokens.textMuted,
                           ),
                         ],
                       ),
                     ),
-                  ),
-                ],
-              );
-            }
+                    const SizedBox(height: 8),
+                    if (subagents.isEmpty)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Center(
+                          child: Text(
+                            strings.transcriptNoSubagentsExecuted,
+                            style: TextStyle(color: tokens.textMuted, fontSize: FrameText.of(context).caption.fontSize),
+                          ),
+                        ),
+                      )
+                    else
+                      ConstrainedBox(
+                        constraints: const BoxConstraints(maxHeight: 220),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          padding: EdgeInsets.zero,
+                          itemCount: subagents.length,
+                          separatorBuilder: (_, _) => const SizedBox(height: 6),
+                          itemBuilder: (ctx, i) {
+                            final sub = subagents[i];
+                            final subCost = sub.cost != null
+                                ? '\$${sub.cost!.toStringAsFixed(4)}'
+                                : strings.transcriptNotAvailable;
+                            final subModel = sub.model ?? strings.transcriptNotAvailable;
+                            if (sub.isUnlinked) {
+                              return Padding(
+                                key: ValueKey('unlinked-session-cost-${sub.id}'),
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                                child: Text(
+                                  strings.transcriptUnattributedChildSession(sub.name, subModel, subCost),
+                                  style: TextStyle(
+                                    color: tokens.textMuted,
+                                    fontSize: FrameText.of(context).caption.fontSize,
+                                  ),
+                                ),
+                              );
+                            }
 
-            // Shared frame dialog: the title, close control and back control
-            // come from the frame, the level content is the body.
-            return FrameDialog<void>(
-              title: title,
-              maxWidth: 350,
-              headerActions: [
-                FrameIconAction(
-                  key: const ValueKey('cost-breakdown-close-btn'),
-                  icon: Icons.close_outlined,
-                  tooltip: _currentStrings.close,
-                  onPressed: () => Navigator.of(dialogCtx).pop(),
-                ),
-              ],
-              body: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (level != 0)
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: FrameIconAction(
-                        key: const ValueKey('cost-breakdown-back-btn'),
-                        icon: Icons.arrow_back_outlined,
-                        tooltip: _currentStrings.transcriptCancelTooltip,
-                        onPressed: () => setDialogState(() => level = 0),
+                            return Container(
+                              key: ValueKey('subagent-cost-item-${sub.id}'),
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                              decoration: BoxDecoration(
+                                color: tokens.surface,
+                                borderRadius: BorderRadius.circular(tokens.radiusSm),
+                                border: Border.all(color: tokens.border.withValues(alpha: 0.5)),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          sub.name.isNotEmpty ? sub.name : strings.transcriptSubagentNumbered(i + 1),
+                                          style: TextStyle(
+                                            color: tokens.textPrimary,
+                                            fontSize: FrameText.of(context).caption.fontSize,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Row(
+                                          children: [
+                                            Icon(Icons.memory_outlined, size: 10, color: tokens.syntaxFunction),
+                                            const SizedBox(width: 3),
+                                            Text(
+                                              subModel,
+                                              style: TextStyle(
+                                                color: tokens.textSecondary,
+                                                fontSize: FrameText.of(context).caption.fontSize,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    subCost,
+                                    style: TextStyle(
+                                      color: tokens.syntaxString,
+                                      fontFamily: tokens.monoFontFamily,
+                                      fontSize: FrameText.of(context).caption.fontSize,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                  ],
+                );
+              } else {
+                // Level 0: Main Overview (Total, Agent, Subagents)
+                title = strings.transcriptSessionCostBreakdown;
+                content = Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: tokens.surface,
+                        borderRadius: BorderRadius.circular(tokens.radiusSm),
+                        border: Border.all(color: tokens.border.withValues(alpha: 0.6)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              strings.transcriptCostReportedByPi,
+                              style: TextStyle(
+                                color: tokens.textSecondary,
+                                fontSize: FrameText.of(context).caption.fontSize,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            sessionCostLabel,
+                            style: TextStyle(
+                              color: tokens.syntaxString,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: tokens.monoFontFamily,
+                              fontSize: FrameText.of(context).body.fontSize,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  content,
+                    const SizedBox(height: 10),
+                    Text(
+                      strings.transcriptPiCostDisclaimer,
+                      style: TextStyle(color: tokens.textMuted, fontSize: FrameText.of(context).caption.fontSize),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Agent Cost Row (Clickable)
+                    InkWell(
+                      key: const ValueKey('cost-breakdown-agent-row'),
+                      onTap: () => setDialogState(() => level = 1),
+                      borderRadius: BorderRadius.circular(tokens.radiusSm),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+                        decoration: BoxDecoration(
+                          color: tokens.surface,
+                          borderRadius: BorderRadius.circular(tokens.radiusSm),
+                          border: Border.all(color: tokens.border),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.smart_toy_outlined, size: FrameSize.icon, color: tokens.accent),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    strings.transcriptPiSession,
+                                    style: TextStyle(
+                                      color: tokens.textPrimary,
+                                      fontSize: FrameText.of(context).label.fontSize,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  Text(
+                                    sessionState.currentModel ?? strings.transcriptSessionModel,
+                                    style: TextStyle(
+                                      color: tokens.textMuted,
+                                      fontSize: FrameText.of(context).caption.fontSize,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Text(
+                              sessionCostLabel,
+                              style: TextStyle(
+                                color: tokens.syntaxString,
+                                fontFamily: tokens.monoFontFamily,
+                                fontSize: FrameText.of(context).label.fontSize,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(Icons.chevron_right_outlined, size: FrameSize.icon, color: tokens.textMuted),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+
+                    // Subagents Cost Row (Clickable)
+                    InkWell(
+                      key: const ValueKey('cost-breakdown-subagents-row'),
+                      onTap: () => setDialogState(() => level = 2),
+                      borderRadius: BorderRadius.circular(tokens.radiusSm),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+                        decoration: BoxDecoration(
+                          color: tokens.surface,
+                          borderRadius: BorderRadius.circular(tokens.radiusSm),
+                          border: Border.all(color: tokens.border),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.hub_outlined, size: FrameSize.icon, color: tokens.syntaxFunction),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    strings.transcriptSubagents,
+                                    style: TextStyle(
+                                      color: tokens.textPrimary,
+                                      fontSize: FrameText.of(context).label.fontSize,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  Text(
+                                    strings.transcriptIdentifiedSubagents(agentCount),
+                                    style: TextStyle(
+                                      color: tokens.textMuted,
+                                      fontSize: FrameText.of(context).caption.fontSize,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Text(
+                              subagentsCostLabel,
+                              style: TextStyle(
+                                color: tokens.syntaxString,
+                                fontFamily: tokens.monoFontFamily,
+                                fontSize: FrameText.of(context).label.fontSize,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(Icons.chevron_right_outlined, size: FrameSize.icon, color: tokens.textMuted),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              }
+
+              // Shared frame dialog: the title, close control and back control
+              // come from the frame, the level content is the body.
+              return FrameDialog<void>(
+                title: title,
+                maxWidth: 350,
+                headerActions: [
+                  FrameIconAction(
+                    key: const ValueKey('cost-breakdown-close-btn'),
+                    icon: Icons.close_outlined,
+                    tooltip: _currentStrings.close,
+                    onPressed: () => Navigator.of(dialogCtx).pop(),
+                  ),
                 ],
-              ),
-            );
-          }),
+                body: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (level != 0)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: FrameIconAction(
+                          key: const ValueKey('cost-breakdown-back-btn'),
+                          icon: Icons.arrow_back_outlined,
+                          tooltip: _currentStrings.transcriptCancelTooltip,
+                          onPressed: () => setDialogState(() => level = 0),
+                        ),
+                      ),
+                    content,
+                  ],
+                ),
+              );
+            },
+          ),
         );
       },
     );
@@ -1125,12 +1058,14 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     final sessionState = ref.watch(sessionStateFamily(widget.sessionId));
     final stats = sessionState.sessionStats;
     final contextUsage =
-        stats?['contextUsage'] as Map? ??
-        sessionState.usage?['contextUsage'] as Map?;
+        stats?['contextUsage'] as Map<String, dynamic>? ?? sessionState.usage?['contextUsage'] as Map<String, dynamic>?;
     final effectiveContextWindow = sessionState.contextWindowOverride ?? contextUsage?['contextWindow'];
     // Null context tokens after a compaction mean "unknown"; the last reply's total is pre-compaction.
     final effectiveTokens = contextUsage != null ? contextUsage['tokens'] : sessionState.usage?['totalTokens'];
-    final effectivePercent = (sessionState.contextWindowOverride != null && effectiveTokens is num && sessionState.contextWindowOverride! > 0)
+    final effectivePercent =
+        (sessionState.contextWindowOverride != null &&
+            effectiveTokens is num &&
+            sessionState.contextWindowOverride! > 0)
         ? (effectiveTokens.toDouble() / sessionState.contextWindowOverride! * 100.0)
         : (contextUsage?['percent'] as num?);
     // "12k / 128k (1.2%)" when usage is known, "— / 128k" when it is not.
@@ -1138,7 +1073,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     final contextLabel = effectivePercent == null || effectiveTokens is! num
         ? '— / $contextWindowLabel'
         : '${_formatTokens(effectiveTokens)} / $contextWindowLabel '
-            '(${effectivePercent.toStringAsFixed(1)}%)';
+              '(${effectivePercent.toStringAsFixed(1)}%)';
     final contextTone = contextUsage == null || effectivePercent == null
         ? ContextUsageTone.muted
         : contextUsageTone(
@@ -1154,20 +1089,14 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     final todos = ref.watch(todosFamily(widget.sessionId));
 
     final sessionStatsCost = (stats?['cost'] as num?)?.toDouble();
-    final turnCost = (sessionState.usage?['cost'] is Map
-            ? (sessionState.usage!['cost']['total'] as num? ??
-                sessionState.usage!['cost']['amount'] as num?)
-            : (sessionState.usage?['cost'] as num?))
-        ?.toDouble();
+    final usageCost = sessionState.usage?['cost'];
+    final turnCost =
+        (usageCost is Map ? (usageCost['total'] as num? ?? usageCost['amount'] as num?) : (usageCost as num?))
+            ?.toDouble();
     final mainAgentCost = sessionStatsCost != null
-        ? (turnCost != null && turnCost > sessionStatsCost
-            ? turnCost
-            : sessionStatsCost)
+        ? (turnCost != null && turnCost > sessionStatsCost ? turnCost : sessionStatsCost)
         : turnCost;
-    final subagentsCost = subagents.fold<double>(
-      0.0,
-      (acc, s) => acc + (s.isUnlinked ? 0.0 : s.cost ?? 0.0),
-    );
+    final subagentsCost = subagents.fold<double>(0.0, (acc, s) => acc + (s.isUnlinked ? 0.0 : s.cost ?? 0.0));
     final cost = mainAgentCost;
 
     // Tasks live in the Tasks tab of the panel beside the chat.
@@ -1177,8 +1106,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       _visibleAnswerCount = _initialVisibleAnswers;
     }
 
-    final extensionStatuses = sessionState.extensionStatuses.entries.toList()
-      ..sort((a, b) => a.key.compareTo(b.key));
+    final extensionStatuses = sessionState.extensionStatuses.entries.toList()..sort((a, b) => a.key.compareTo(b.key));
 
     // Auto check pending extension UI requests
     _checkPendingUiRequests(sessionState.pendingUiRequests);
@@ -1189,32 +1117,22 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     final isCompact = MediaQuery.sizeOf(context).width < 600;
 
     // Windowing / Pagination for long transcripts (excluding internal/junk messages)
-    final cleanEntries = sessionState.entries
-        .where((e) => !e.isJunkOrInternal)
-        .toList();
+    final cleanEntries = sessionState.entries.where((e) => !e.isJunkOrInternal).toList();
     final totalEntries = cleanEntries.length;
 
     // Follow the bottom again when the user sends a message. Only when entries
     // were added: while the agent answers, the prompt stays the last committed
     // entry, and resetting on every rebuild would pull a user who scrolled up
     // back to the bottom on each streaming update.
-    if (totalEntries > _lastTotalEntries &&
-        cleanEntries.isNotEmpty &&
-        cleanEntries.last.role == 'user') {
+    if (totalEntries > _lastTotalEntries && cleanEntries.isNotEmpty && cleanEntries.last.role == 'user') {
       _userScrolledUp = false;
     }
     _lastTotalEntries = totalEntries;
 
     // Transition live thinking expansion to newly committed entry if stream finished
-    if (!sessionState.isStreaming &&
-        _expandedThinkingBlocks.contains('live_${widget.sessionId}')) {
+    if (!sessionState.isStreaming && _expandedThinkingBlocks.contains('live_${widget.sessionId}')) {
       final lastAssistant = cleanEntries.reversed
-          .where(
-            (e) =>
-                e.role == 'assistant' &&
-                e.thinking != null &&
-                e.thinking!.trim().isNotEmpty,
-          )
+          .where((e) => e.role == 'assistant' && e.thinking != null && e.thinking!.trim().isNotEmpty)
           .firstOrNull;
       if (lastAssistant != null) {
         _expandedThinkingBlocks.remove('live_${widget.sessionId}');
@@ -1258,21 +1176,18 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     final liveTools = sessionState.activeToolCalls.values
         .where((tool) => !visibleToolIds.contains(tool.toolCallId))
         .toList();
-    final showLiveStream = sessionState.isStreaming ||
-        liveText.isNotEmpty || liveThinking.isNotEmpty || liveTools.isNotEmpty;
+    final showLiveStream =
+        sessionState.isStreaming || liveText.isNotEmpty || liveThinking.isNotEmpty || liveTools.isNotEmpty;
 
     final stepGroupingSettings = ref.watch(stepGroupingSettingsProvider);
     final isGroupedMode = stepGroupingSettings.mode != StepGroupingMode.off;
-    final liveState = isGroupedMode
-        ? TranscriptLiveState.fromSession(sessionState)
-        : TranscriptLiveState.empty;
+    final liveState = isGroupedMode ? TranscriptLiveState.fromSession(sessionState) : TranscriptLiveState.empty;
     final blocks = isGroupedMode
         ? groupTranscript(
             entries: visibleEntries,
             mode: stepGroupingSettings.mode,
             live: liveState,
-            showIntermediateAnswers:
-                stepGroupingSettings.showIntermediateAnswers,
+            showIntermediateAnswers: stepGroupingSettings.showIntermediateAnswers,
           )
         : const <TranscriptBlock>[];
 
@@ -1347,123 +1262,106 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                     key: const ValueKey('transcript-scroll'),
                     controller: _scrollController,
                     scrollCacheExtent: const ScrollCacheExtent.pixels(2000.0),
-                    padding: EdgeInsets.only(
-                      top: 10,
-                      bottom: isCompact ? 16 : 28,
-                    ),
+                    padding: EdgeInsets.only(top: 10, bottom: isCompact ? 16 : 28),
                     childrenDelegate: SmartTranscriptChildDelegate(
                       itemKeys: itemKeys,
                       heightCache: _entryHeights,
                       builder: (context, index) {
                         if (hasLoadBanner && index == 0) {
                           final isLocalHidden = hiddenCount > 0;
-                          final int? remainingRemote =
-                              sessionState.totalTranscriptEntries != null
-                                  ? (sessionState.totalTranscriptEntries! -
-                                          totalEntries)
-                                      .clamp(
-                                        0,
-                                        sessionState.totalTranscriptEntries!,
-                                      )
-                                  : null;
-                          final label = isLocalHidden
-                              ? _currentStrings.transcriptLoadOlderLocal(
-                                  hiddenCount,
+                          final int? remainingRemote = sessionState.totalTranscriptEntries != null
+                              ? (sessionState.totalTranscriptEntries! - totalEntries).clamp(
+                                  0,
+                                  sessionState.totalTranscriptEntries!,
                                 )
+                              : null;
+                          final label = isLocalHidden
+                              ? _currentStrings.transcriptLoadOlderLocal(hiddenCount)
                               : (remainingRemote != null && remainingRemote > 0
-                                  ? _currentStrings.transcriptLoadOlderRemoteLeft(
-                                      remainingRemote,
-                                    )
-                                  : _currentStrings.transcriptLoadOlderRemote);
+                                    ? _currentStrings.transcriptLoadOlderRemoteLeft(remainingRemote)
+                                    : _currentStrings.transcriptLoadOlderRemote);
 
                           return _MeasureSize(
                             onSizeChange: (s) => _entryHeights['banner'] = s.height,
                             child: Padding(
                               padding: const EdgeInsets.symmetric(vertical: 8),
                               child: Center(
-                                child: PressFeedback(enabled: true, child: OutlinedButton.icon(
-                                  style: OutlinedButton.styleFrom(
-                                    visualDensity: VisualDensity.compact,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 6,
-                                    ),
-                                    side: BorderSide(color: tokens.border),
-                                    foregroundColor: tokens.textSecondary,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(
-                                        tokens.radiusSm,
+                                child: PressFeedback(
+                                  enabled: true,
+                                  child: OutlinedButton.icon(
+                                    style: OutlinedButton.styleFrom(
+                                      visualDensity: VisualDensity.compact,
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                      side: BorderSide(color: tokens.border),
+                                      foregroundColor: tokens.textSecondary,
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(tokens.radiusSm),
                                       ),
                                     ),
-                                  ),
-                                  icon: const Icon(Icons.history_outlined, size: FrameSize.icon),
-                                  label: Text(
-                                    label,
-                                    style: TextStyle(fontSize: FrameText.of(context).caption.fontSize),
-                                  ),
-                                  onPressed: () async {
-                                    if (visibleEntries.isEmpty) return;
-                                    final oldOffset = _scrollController.offset;
-                                    final avg = _calculateAverageHeight();
-                                    double addedHeight = 0;
+                                    icon: const Icon(Icons.history_outlined, size: FrameSize.icon),
+                                    label: Text(
+                                      label,
+                                      style: TextStyle(fontSize: FrameText.of(context).caption.fontSize),
+                                    ),
+                                    onPressed: () async {
+                                      if (visibleEntries.isEmpty) return;
+                                      final oldOffset = _scrollController.offset;
+                                      final avg = _calculateAverageHeight();
+                                      double addedHeight = 0;
 
-                                    if (isLocalHidden) {
-                                      final targetAnswerCount =
-                                          _visibleAnswerCount + _answersPageSize;
-                                      int answersSeen = 0;
-                                      int newHiddenCount = 0;
-                                      for (int i = totalEntries - 1; i >= 0; i--) {
-                                        final entry = cleanEntries[i];
-                                        if (_isAgentAnswer(entry)) {
-                                          answersSeen++;
-                                          if (answersSeen == targetAnswerCount) {
-                                            int turnStartIndex = i;
-                                            for (int j = i - 1; j >= 0; j--) {
-                                              if (cleanEntries[j].role == 'user') {
-                                                turnStartIndex = j;
-                                                break;
+                                      if (isLocalHidden) {
+                                        final targetAnswerCount = _visibleAnswerCount + _answersPageSize;
+                                        int answersSeen = 0;
+                                        int newHiddenCount = 0;
+                                        for (int i = totalEntries - 1; i >= 0; i--) {
+                                          final entry = cleanEntries[i];
+                                          if (_isAgentAnswer(entry)) {
+                                            answersSeen++;
+                                            if (answersSeen == targetAnswerCount) {
+                                              int turnStartIndex = i;
+                                              for (int j = i - 1; j >= 0; j--) {
+                                                if (cleanEntries[j].role == 'user') {
+                                                  turnStartIndex = j;
+                                                  break;
+                                                }
+                                                if (_isAgentAnswer(cleanEntries[j])) {
+                                                  break;
+                                                }
                                               }
-                                              if (_isAgentAnswer(cleanEntries[j])) {
-                                                break;
-                                              }
+                                              newHiddenCount = turnStartIndex;
+                                              break;
                                             }
-                                            newHiddenCount = turnStartIndex;
-                                            break;
                                           }
                                         }
-                                      }
-                                      for (int i = newHiddenCount; i < hiddenCount; i++) {
-                                        addedHeight += _entryHeights[cleanEntries[i].id] ?? avg;
-                                      }
-                                      setState(() {
-                                        _visibleAnswerCount = targetAnswerCount;
-                                      });
-                                    } else {
-                                      final added = await ref
-                                          .read(
-                                            sessionStateFamily(
-                                              widget.sessionId,
-                                            ).notifier,
-                                          )
-                                          .loadOlderHistory(limit: _pageSize);
-                                      addedHeight = added * avg;
-                                      if (mounted) {
+                                        for (int i = newHiddenCount; i < hiddenCount; i++) {
+                                          addedHeight += _entryHeights[cleanEntries[i].id] ?? avg;
+                                        }
                                         setState(() {
-                                          _visibleAnswerCount += _answersPageSize;
+                                          _visibleAnswerCount = targetAnswerCount;
                                         });
+                                      } else {
+                                        final added = await ref
+                                            .read(sessionStateFamily(widget.sessionId).notifier)
+                                            .loadOlderHistory(limit: _pageSize);
+                                        addedHeight = added * avg;
+                                        if (mounted) {
+                                          setState(() {
+                                            _visibleAnswerCount += _answersPageSize;
+                                          });
+                                        }
                                       }
-                                    }
 
-                                    if (addedHeight > 0 && _scrollController.hasClients) {
-                                      _isProgrammaticScroll = true;
-                                      _scrollController.jumpTo(oldOffset + addedHeight);
-                                    }
+                                      if (addedHeight > 0 && _scrollController.hasClients) {
+                                        _isProgrammaticScroll = true;
+                                        _scrollController.jumpTo(oldOffset + addedHeight);
+                                      }
 
-                                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                                      _isProgrammaticScroll = false;
-                                    });
-                                  },
-                                )),
+                                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                                        _isProgrammaticScroll = false;
+                                      });
+                                    },
+                                  ),
+                                ),
                               ),
                             ),
                           );
@@ -1475,12 +1373,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                             final entry = visibleEntries[entryIndex];
                             int? elapsedSeconds;
                             if (entry.role != 'user') {
-                              elapsedSeconds = entryElapsedSeconds(
-                                cleanEntries,
-                                hiddenCount + entryIndex,
-                              );
-                              if (elapsedSeconds == null &&
-                                  entry.toolCalls.isNotEmpty) {
+                              elapsedSeconds = entryElapsedSeconds(cleanEntries, hiddenCount + entryIndex);
+                              if (elapsedSeconds == null && entry.toolCalls.isNotEmpty) {
                                 int totalToolMs = 0;
                                 for (final t in entry.toolCalls) {
                                   if (t.durationMs != null) {
@@ -1496,9 +1390,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                               onSizeChange: (s) => _entryHeights[entry.id] = s.height,
                               child: Padding(
                                 key: ValueKey('entry_row_${entry.id}'),
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: isCompact ? 12 : 24,
-                                ),
+                                padding: EdgeInsets.symmetric(horizontal: isCompact ? 12 : 24),
                                 child: Center(
                                   child: ConstrainedBox(
                                     constraints: const BoxConstraints(maxWidth: 820),
@@ -1513,11 +1405,9 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                             if (live == null) return tool;
                                             return ToolExecutionState(
                                               toolCallId: tool.toolCallId,
-                                              toolName: live.toolName.isEmpty
-                                                  ? tool.toolName : live.toolName,
+                                              toolName: live.toolName.isEmpty ? tool.toolName : live.toolName,
                                               args: live.args.isEmpty ? tool.args : live.args,
-                                              output: live.output.isEmpty
-                                                  ? tool.output : live.output,
+                                              output: live.output.isEmpty ? tool.output : live.output,
                                               isRunning: live.isRunning,
                                               isError: live.isError || tool.isError,
                                               durationMs: live.durationMs ?? tool.durationMs,
@@ -1539,9 +1429,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                             onSizeChange: (s) => _entryHeights['livestream'] = s.height,
                             child: Padding(
                               key: const ValueKey('entry_row_livestream'),
-                              padding: EdgeInsets.symmetric(
-                                horizontal: isCompact ? 12 : 24,
-                              ),
+                              padding: EdgeInsets.symmetric(horizontal: isCompact ? 12 : 24),
                               child: Center(
                                 child: ConstrainedBox(
                                   constraints: const BoxConstraints(maxWidth: 820),
@@ -1569,22 +1457,16 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                             case EntryBlock():
                               final elapsedSeconds = entryElapsedSeconds(
                                 cleanEntries,
-                                cleanEntries.indexWhere(
-                                  (e) => e.id == block.entry.id,
-                                ),
+                                cleanEntries.indexWhere((e) => e.id == block.entry.id),
                               );
                               return _MeasureSize(
-                                onSizeChange: (s) =>
-                                    _entryHeights[block.entry.id] = s.height,
+                                onSizeChange: (s) => _entryHeights[block.entry.id] = s.height,
                                 child: Padding(
                                   key: ValueKey('entry_row_${block.entry.id}'),
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: isCompact ? 12 : 24,
-                                  ),
+                                  padding: EdgeInsets.symmetric(horizontal: isCompact ? 12 : 24),
                                   child: Center(
                                     child: ConstrainedBox(
-                                      constraints:
-                                          const BoxConstraints(maxWidth: 820),
+                                      constraints: const BoxConstraints(maxWidth: 820),
                                       child: RepaintBoundary(
                                         key: ValueKey(block.entry.id),
                                         child: _buildEntryItem(
@@ -1596,15 +1478,9 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                               if (live == null) return tool;
                                               return ToolExecutionState(
                                                 toolCallId: tool.toolCallId,
-                                                toolName: live.toolName.isEmpty
-                                                    ? tool.toolName
-                                                    : live.toolName,
-                                                args: live.args.isEmpty
-                                                    ? tool.args
-                                                    : live.args,
-                                                output: live.output.isEmpty
-                                                    ? tool.output
-                                                    : live.output,
+                                                toolName: live.toolName.isEmpty ? tool.toolName : live.toolName,
+                                                args: live.args.isEmpty ? tool.args : live.args,
+                                                output: live.output.isEmpty ? tool.output : live.output,
                                                 isRunning: live.isRunning,
                                                 isError: live.isError || tool.isError,
                                                 durationMs: live.durationMs ?? tool.durationMs,
@@ -1623,25 +1499,20 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
 
                             case StepsGroupBlock():
                               return _MeasureSize(
-                                onSizeChange: (s) =>
-                                    _entryHeights[block.groupId] = s.height,
+                                onSizeChange: (s) => _entryHeights[block.groupId] = s.height,
                                 child: Padding(
                                   key: ValueKey('entry_row_${block.groupId}'),
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: isCompact ? 12 : 24,
-                                  ),
+                                  padding: EdgeInsets.symmetric(horizontal: isCompact ? 12 : 24),
                                   child: Center(
                                     child: ConstrainedBox(
-                                      constraints:
-                                          const BoxConstraints(maxWidth: 820),
+                                      constraints: const BoxConstraints(maxWidth: 820),
                                       child: RepaintBoundary(
                                         key: ValueKey(block.groupId),
                                         child: StepsGroup(
                                           block: block,
                                           sessionId: widget.sessionId,
                                           tokens: tokens,
-                                          onExpansionChanged:
-                                              _pauseStreamFollowing,
+                                          onExpansionChanged: _pauseStreamFollowing,
                                         ),
                                       ),
                                     ),
@@ -1652,22 +1523,16 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                             case IntermediateTextBlock():
                               final elapsedSeconds = entryElapsedSeconds(
                                 cleanEntries,
-                                cleanEntries.indexWhere(
-                                  (e) => e.id == block.entry.id,
-                                ),
+                                cleanEntries.indexWhere((e) => e.id == block.entry.id),
                               );
                               return _MeasureSize(
-                                onSizeChange: (s) =>
-                                    _entryHeights[block.entry.id] = s.height,
+                                onSizeChange: (s) => _entryHeights[block.entry.id] = s.height,
                                 child: Padding(
                                   key: ValueKey('entry_row_${block.entry.id}'),
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: isCompact ? 12 : 24,
-                                  ),
+                                  padding: EdgeInsets.symmetric(horizontal: isCompact ? 12 : 24),
                                   child: Center(
                                     child: ConstrainedBox(
-                                      constraints:
-                                          const BoxConstraints(maxWidth: 820),
+                                      constraints: const BoxConstraints(maxWidth: 820),
                                       child: RepaintBoundary(
                                         key: ValueKey(block.entry.id),
                                         child: _buildEntryItem(
@@ -1685,22 +1550,16 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                             case FinalTextBlock():
                               final elapsedSeconds = entryElapsedSeconds(
                                 cleanEntries,
-                                cleanEntries.indexWhere(
-                                  (e) => e.id == block.entry.id,
-                                ),
+                                cleanEntries.indexWhere((e) => e.id == block.entry.id),
                               );
                               return _MeasureSize(
-                                onSizeChange: (s) =>
-                                    _entryHeights[block.entry.id] = s.height,
+                                onSizeChange: (s) => _entryHeights[block.entry.id] = s.height,
                                 child: Padding(
                                   key: ValueKey('entry_row_${block.entry.id}'),
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: isCompact ? 12 : 24,
-                                  ),
+                                  padding: EdgeInsets.symmetric(horizontal: isCompact ? 12 : 24),
                                   child: Center(
                                     child: ConstrainedBox(
-                                      constraints:
-                                          const BoxConstraints(maxWidth: 820),
+                                      constraints: const BoxConstraints(maxWidth: 820),
                                       child: RepaintBoundary(
                                         key: ValueKey(block.entry.id),
                                         child: _buildEntryItem(
@@ -1717,17 +1576,13 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
 
                             case LiveTailBlock():
                               return _MeasureSize(
-                                onSizeChange: (s) =>
-                                    _entryHeights['livestream'] = s.height,
+                                onSizeChange: (s) => _entryHeights['livestream'] = s.height,
                                 child: Padding(
                                   key: const ValueKey('entry_row_livestream'),
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: isCompact ? 12 : 24,
-                                  ),
+                                  padding: EdgeInsets.symmetric(horizontal: isCompact ? 12 : 24),
                                   child: Center(
                                     child: ConstrainedBox(
-                                      constraints:
-                                          const BoxConstraints(maxWidth: 820),
+                                      constraints: const BoxConstraints(maxWidth: 820),
                                       child: RepaintBoundary(
                                         child: _buildLiveStream(
                                           sessionState,
@@ -1740,10 +1595,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                                           // The running step group above already
                                           // shows a shimmering "Working…" header.
                                           showLoadingIndicator: !blocks.any(
-                                            (b) =>
-                                                b is StepsGroupBlock &&
-                                                b.isRunning &&
-                                                b.turnId == block.turnId,
+                                            (b) => b is StepsGroupBlock && b.isRunning && b.turnId == block.turnId,
                                           ),
                                         ),
                                       ),
@@ -1782,10 +1634,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
               ),
               if (cleanEntries.isEmpty && !sessionState.isStreaming)
                 Positioned.fill(
-                  child: EmptyChatView(
-                    sessionId: widget.sessionId,
-                    cwd: sessionState.cwd,
-                  ),
+                  child: EmptyChatView(sessionId: widget.sessionId, cwd: sessionState.cwd),
                 ),
             ],
           ),
@@ -1800,17 +1649,13 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     List<MapEntry<String, dynamic>> extensionStatuses,
   ) async {
     final buttonBox = buttonContext.findRenderObject() as RenderBox?;
-    final overlay =
-        Overlay.of(buttonContext).context.findRenderObject() as RenderBox?;
+    final overlay = Overlay.of(buttonContext).context.findRenderObject() as RenderBox?;
     if (buttonBox == null || overlay == null) return;
 
     final position = RelativeRect.fromRect(
       Rect.fromPoints(
         buttonBox.localToGlobal(Offset.zero, ancestor: overlay),
-        buttonBox.localToGlobal(
-          buttonBox.size.bottomRight(Offset.zero),
-          ancestor: overlay,
-        ),
+        buttonBox.localToGlobal(buttonBox.size.bottomRight(Offset.zero), ancestor: overlay),
       ),
       Offset.zero & overlay.size,
     );
@@ -1833,18 +1678,11 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
             children: [
               Row(
                 children: [
-                  Icon(
-                    Icons.extension_outlined,
-                    size: 14,
-                    color: tokens.syntaxKeyword,
-                  ),
+                  Icon(Icons.extension_outlined, size: 14, color: tokens.syntaxKeyword),
                   const SizedBox(width: 6),
                   Text(
                     'Plugins (${extensionStatuses.length})',
-                    style: FrameText.of(context).label.copyWith(
-                      color: tokens.textPrimary,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: FrameText.of(context).label.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.w600),
                   ),
                 ],
               ),
@@ -1857,7 +1695,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                     _metricChip(
                       tokens,
                       status.key,
-                      _cleanStatusValue(status.value),
+                      _cleanStatusValue(status.value as String),
                       leadingIcon: Icons.extension_outlined,
                       iconColor: tokens.syntaxKeyword,
                     ),
@@ -1875,8 +1713,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     FrameTokens tokens,
     bool isCompact,
     String contextLabel,
-    Map? contextUsage,
-    Map? stats,
+    Map<String, dynamic>? contextUsage,
+    Map<String, dynamic>? stats,
     num? cost,
     List<MapEntry<String, dynamic>> extensionStatuses,
     List<SubagentItem> subagents,
@@ -1885,9 +1723,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     double subagentsCost = 0.0,
     required Color contextIconColor,
   }) {
-    final effectiveSessionName = ref.watch(
-      sessionDisplayNameProvider(widget.sessionId),
-    );
+    final effectiveSessionName = ref.watch(sessionDisplayNameProvider(widget.sessionId));
     if (_cachedBentoHeader != null &&
         _cachedHeaderSessionName == effectiveSessionName &&
         _cachedHeaderCwd == sessionState.cwd &&
@@ -1926,201 +1762,148 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       builder: (context, box) {
         final Widget titleWidget;
         if (_isRenaming) {
-          titleWidget = 
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 2),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Focus(
-                                onKeyEvent: (node, event) {
-                                  if (event is KeyDownEvent) {
-                                    if (event.logicalKey ==
-                                        LogicalKeyboardKey.escape) {
-                                      _cancelRename();
-                                      return KeyEventResult.handled;
-                                    }
-                                    if (event.logicalKey ==
-                                            LogicalKeyboardKey.enter ||
-                                        event.logicalKey ==
-                                            LogicalKeyboardKey.numpadEnter) {
-                                      _submitRename();
-                                      return KeyEventResult.handled;
-                                    }
-                                  }
-                                  return KeyEventResult.ignored;
-                                },
-                                child: TextField(
-                                  key: const ValueKey(
-                                    'session-name-rename-field',
-                                  ),
-                                  controller: _renameController,
-                                  focusNode: _renameFocusNode,
-                                  autofocus: true,
-                                  maxLines: 1,
-                                  textInputAction: TextInputAction.done,
-                                  onSubmitted: (_) => _submitRename(),
-                                  style: TextStyle(
-                                    color: tokens.textPrimary,
-                                    fontFamily: tokens.headingFontFamily,
-                                    fontSize: isCompact ? 17 : 21,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                  decoration: InputDecoration(
-                                    isDense: true,
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    filled: true,
-                                    fillColor: tokens.surfaceElevated,
-                                    border: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(
-                                        tokens.radiusSm,
-                                      ),
-                                      borderSide: BorderSide(
-                                        color: tokens.syntaxKeyword,
-                                        width: 1.2,
-                                      ),
-                                    ),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(
-                                        tokens.radiusSm,
-                                      ),
-                                      borderSide: BorderSide(
-                                        color: tokens.syntaxKeyword,
-                                        width: 1.2,
-                                      ),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(
-                                        tokens.radiusSm,
-                                      ),
-                                      borderSide: BorderSide(
-                                        color: tokens.syntaxKeyword,
-                                        width: 1.5,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            IconButton(
-                              key: const ValueKey('session-name-rename-submit'),
-                              icon: Icon(
-                                Icons.check_outlined,
-                                size: FrameSize.icon,
-                                color: tokens.syntaxFunction,
-                              ),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(
-                                minWidth: 26,
-                                minHeight: 26,
-                              ),
-                              tooltip: _currentStrings.transcriptSaveTooltip,
-                              onPressed: _submitRename,
-                            ),
-                            IconButton(
-                              key: const ValueKey('session-name-rename-cancel'),
-                              icon: Icon(
-                                Icons.close_outlined,
-                                size: FrameSize.icon,
-                                color: tokens.textMuted,
-                              ),
-                              padding: EdgeInsets.zero,
-                              constraints: const BoxConstraints(
-                                minWidth: 26,
-                                minHeight: 26,
-                              ),
-                              tooltip: _currentStrings.transcriptCancelTooltip,
-                              onPressed: _cancelRename,
-                            ),
-                          ],
+          titleWidget = Padding(
+            padding: const EdgeInsets.only(bottom: 2),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Focus(
+                    onKeyEvent: (node, event) {
+                      if (event is KeyDownEvent) {
+                        if (event.logicalKey == LogicalKeyboardKey.escape) {
+                          _cancelRename();
+                          return KeyEventResult.handled;
+                        }
+                        if (event.logicalKey == LogicalKeyboardKey.enter ||
+                            event.logicalKey == LogicalKeyboardKey.numpadEnter) {
+                          unawaited(_submitRename());
+                          return KeyEventResult.handled;
+                        }
+                      }
+                      return KeyEventResult.ignored;
+                    },
+                    child: TextField(
+                      key: const ValueKey('session-name-rename-field'),
+                      controller: _renameController,
+                      focusNode: _renameFocusNode,
+                      autofocus: true,
+                      maxLines: 1,
+                      textInputAction: TextInputAction.done,
+                      onSubmitted: (_) => _submitRename(),
+                      style: TextStyle(
+                        color: tokens.textPrimary,
+                        fontFamily: tokens.headingFontFamily,
+                        fontSize: isCompact ? 17 : 21,
+                        fontWeight: FontWeight.w700,
+                      ),
+                      decoration: InputDecoration(
+                        isDense: true,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        filled: true,
+                        fillColor: tokens.surfaceElevated,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(tokens.radiusSm),
+                          borderSide: BorderSide(color: tokens.syntaxKeyword, width: 1.2),
                         ),
-                      );
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(tokens.radiusSm),
+                          borderSide: BorderSide(color: tokens.syntaxKeyword, width: 1.2),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(tokens.radiusSm),
+                          borderSide: BorderSide(color: tokens.syntaxKeyword, width: 1.5),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  key: const ValueKey('session-name-rename-submit'),
+                  icon: Icon(Icons.check_outlined, size: FrameSize.icon, color: tokens.syntaxFunction),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                  tooltip: _currentStrings.transcriptSaveTooltip,
+                  onPressed: _submitRename,
+                ),
+                IconButton(
+                  key: const ValueKey('session-name-rename-cancel'),
+                  icon: Icon(Icons.close_outlined, size: FrameSize.icon, color: tokens.textMuted),
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                  tooltip: _currentStrings.transcriptCancelTooltip,
+                  onPressed: _cancelRename,
+                ),
+              ],
+            ),
+          );
         } else {
-          titleWidget =
-                      Focus(
-                        // Keyboard path to the double-tap rename: F2, or Enter,
-                        // on the focused title. Observes keys only, so the
-                        // title InkWell stays the one Tab stop.
-                        canRequestFocus: false,
-                        skipTraversal: true,
-                        onKeyEvent: (node, event) {
-                          if (event is! KeyDownEvent) {
-                            return KeyEventResult.ignored;
-                          }
-                          final key = event.logicalKey;
-                          if (key == LogicalKeyboardKey.f2 ||
-                              key == LogicalKeyboardKey.enter ||
-                              key == LogicalKeyboardKey.numpadEnter) {
-                            _startRenaming(
-                              sessionState.sessionName ?? widget.sessionId,
-                            );
-                            return KeyEventResult.handled;
-                          }
-                          return KeyEventResult.ignored;
-                        },
-                        child: InkWell(
-                        key: const ValueKey('session-name-title'),
-                        onDoubleTap: () => _startRenaming(
-                          sessionState.sessionName ?? widget.sessionId,
-                        ),
-                        child: Tooltip(
-                          message: _currentStrings.transcriptDoubleClickToRename,
-                          waitDuration: FrameMotion.tooltipWait,
-                          child: MouseRegion(
-                            cursor: SystemMouseCursors.click,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Flexible(
-                                  child: Text(
-                                    effectiveSessionName,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                      color: tokens.textPrimary,
-                                      fontFamily: tokens.headingFontFamily,
-                                      fontSize: isCompact ? 18 : 22,
-                                      height: 1.1,
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 6),
-                                Icon(
-                                  Icons.edit_outlined,
-                                  size: isCompact ? 13 : 15,
-                                  color: tokens.textMuted.withValues(
-                                    alpha: 0.45,
-                                  ),
-                                ),
-                              ],
-                            ),
+          titleWidget = Focus(
+            // Keyboard path to the double-tap rename: F2, or Enter,
+            // on the focused title. Observes keys only, so the
+            // title InkWell stays the one Tab stop.
+            canRequestFocus: false,
+            skipTraversal: true,
+            onKeyEvent: (node, event) {
+              if (event is! KeyDownEvent) {
+                return KeyEventResult.ignored;
+              }
+              final key = event.logicalKey;
+              if (key == LogicalKeyboardKey.f2 ||
+                  key == LogicalKeyboardKey.enter ||
+                  key == LogicalKeyboardKey.numpadEnter) {
+                _startRenaming(sessionState.sessionName ?? widget.sessionId);
+                return KeyEventResult.handled;
+              }
+              return KeyEventResult.ignored;
+            },
+            child: InkWell(
+              key: const ValueKey('session-name-title'),
+              onDoubleTap: () => _startRenaming(sessionState.sessionName ?? widget.sessionId),
+              child: Tooltip(
+                message: _currentStrings.transcriptDoubleClickToRename,
+                waitDuration: FrameMotion.tooltipWait,
+                child: MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          effectiveSessionName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            color: tokens.textPrimary,
+                            fontFamily: tokens.headingFontFamily,
+                            fontSize: isCompact ? 18 : 22,
+                            height: 1.1,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
-                        ),
-                      );
+                      ),
+                      const SizedBox(width: 6),
+                      Icon(
+                        Icons.edit_outlined,
+                        size: isCompact ? 13 : 15,
+                        color: tokens.textMuted.withValues(alpha: 0.45),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
         }
         final subtitleWidget = Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.folder_outlined,
-              size: 13,
-              color: tokens.textMuted,
-            ),
+            Icon(Icons.folder_outlined, size: 13, color: tokens.textMuted),
             const SizedBox(width: 4),
             Flexible(
               child: FrameMiddleEllipsis(
-                text: sessionState.cwd.isNotEmpty
-                    ? sessionState.cwd
-                    : _currentStrings.transcriptNoFolderOpened,
-                style: FrameText.of(context).mono.copyWith(
-                  color: tokens.textMuted,
-                ),
+                text: sessionState.cwd.isNotEmpty ? sessionState.cwd : _currentStrings.transcriptNoFolderOpened,
+                style: FrameText.of(context).mono.copyWith(color: tokens.textMuted),
               ),
             ),
           ],
@@ -2136,9 +1919,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
           actionsOnOwnLine: chipsOnOwnLine,
           actions: [
             ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: chipsOnOwnLine ? box.maxWidth : box.maxWidth * 0.65,
-              ),
+              constraints: BoxConstraints(maxWidth: chipsOnOwnLine ? box.maxWidth : box.maxWidth * 0.65),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -2157,11 +1938,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                               leadingIcon: Icons.extension_outlined,
                               trailingIcon: Icons.arrow_drop_down_outlined,
                               iconColor: tokens.syntaxKeyword,
-                              onTap: (ctx) => _showPluginsPopup(
-                                ctx,
-                                tokens,
-                                extensionStatuses,
-                              ),
+                              onTap: (ctx) => _showPluginsPopup(ctx, tokens, extensionStatuses),
                             ),
                             const SizedBox(width: FrameSpace.x2 - 2),
                           ],
@@ -2173,8 +1950,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                             key: const ValueKey('session-header-context-chip'),
                             leadingIcon: Icons.pie_chart_outline,
                             iconColor: contextIconColor,
-                            onTap: (ctx) =>
-                                Scaffold.maybeOf(ctx)?.openEndDrawer(),
+                            onTap: (ctx) => Scaffold.maybeOf(ctx)?.openEndDrawer(),
                           ),
                           const SizedBox(width: FrameSpace.x2 - 2),
                           _metricChip(
@@ -2186,11 +1962,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                             iconColor: tokens.syntaxString,
                             valueColor: tokens.syntaxString,
                             trailingIcon: Icons.arrow_drop_down_outlined,
-                            onTap: (ctx) => _showCostBreakdownDialog(
-                              ctx,
-                              mainAgentCost,
-                              sessionState,
-                            ),
+                            onTap: (ctx) => _showCostBreakdownDialog(ctx, mainAgentCost, sessionState),
                           ),
                         ],
                       ),
@@ -2212,8 +1984,6 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     return _cachedBentoHeader!;
   }
 
-
-
   Widget _buildLiveStream(
     SessionState sessionState,
     FrameTokens tokens,
@@ -2226,10 +1996,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   }) {
     final hasLiveThinking = liveThinking.trim().isNotEmpty;
     final hasLiveText = liveText.trim().isNotEmpty;
-    final hasLoadingIndicator = showLoadingIndicator &&
-        sessionState.agentStatus == AgentStatus.working &&
-        !hasLiveThinking &&
-        !hasActiveTools;
+    final hasLoadingIndicator =
+        showLoadingIndicator && sessionState.agentStatus == AgentStatus.working && !hasLiveThinking && !hasActiveTools;
 
     // Same frame and body order as a settled turn (plan 4.1): the meta line is
     // laid out from the first token and holds the live timer.
@@ -2253,9 +2021,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                 key: ValueKey('thinking_live_${widget.sessionId}'),
                 thinkingText: liveThinking,
                 isStreaming: sessionState.isStreaming,
-                isExpanded: _expandedThinkingBlocks.contains(
-                  'live_${widget.sessionId}',
-                ),
+                isExpanded: _expandedThinkingBlocks.contains('live_${widget.sessionId}'),
                 onExpansionChanged: (expanded) {
                   setState(() {
                     if (expanded) {
@@ -2266,16 +2032,11 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   });
                 },
               ),
-              if (liveTools.isNotEmpty || hasLiveText || hasLoadingIndicator)
-                const SizedBox(height: 6),
+              if (liveTools.isNotEmpty || hasLiveText || hasLoadingIndicator) const SizedBox(height: 6),
             ],
             if (liveTools.isNotEmpty) ...[
-              ToolTimeline(
-                toolCalls: liveTools,
-                onCardExpansionChanged: _pauseStreamFollowing,
-              ),
-              if (hasLiveText || hasLoadingIndicator)
-                const SizedBox(height: 6),
+              ToolTimeline(toolCalls: liveTools, onCardExpansionChanged: _pauseStreamFollowing),
+              if (hasLiveText || hasLoadingIndicator) const SizedBox(height: 6),
             ],
             if (hasLiveText)
               RichContent(text: liveText, cwd: sessionState.cwd)
@@ -2285,10 +2046,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   SizedBox(
                     width: FrameSize.icon - 2,
                     height: FrameSize.icon - 2,
-                    child: FrameActivityIndicator(size: FrameSize.icon - 2, 
-                      color: tokens.agentWorking,
-                      strokeWidth: 2,
-                    ),
+                    child: FrameActivityIndicator(size: FrameSize.icon - 2, color: tokens.agentWorking, strokeWidth: 2),
                   ),
                   const SizedBox(width: FrameSpace.x2),
                   Text(
@@ -2307,15 +2065,10 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
     );
   }
 
-
   Future<void> _handleFork(String entryId) async {
     final client = ref.read(pcpClientProvider);
     if (client == null) return;
-    if (!await resolveDirtyRepository(
-      context,
-      ref,
-      ref.read(activeSessionIdProvider),
-    )) {
+    if (!await resolveDirtyRepository(context, ref, ref.read(activeSessionIdProvider))) {
       return;
     }
     try {
@@ -2324,10 +2077,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       final data = res['data'] as Map<String, dynamic>? ?? res;
       if (data['cancelled'] == true) {
         if (!mounted) return;
-        FrameSnackBar.show(
-          context,
-          message: _currentStrings.transcriptForkCancelledByExtension,
-        );
+        FrameSnackBar.show(context, message: _currentStrings.transcriptForkCancelledByExtension);
         return;
       }
       final newSid = data['sessionId'] as String? ?? data['id'] as String?;
@@ -2335,48 +2085,27 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
         if (!await switchSessionSafely(context, ref, newSid)) return;
         ref.invalidate(sessionListProvider);
         if (!mounted) return;
-        FrameSnackBar.show(
-          context,
-          message: _currentStrings.transcriptNewBranchStarted(newSid),
-        );
+        FrameSnackBar.show(context, message: _currentStrings.transcriptNewBranchStarted(newSid));
       }
     } catch (e) {
       if (!mounted) return;
-      FrameSnackBar.show(
-        context,
-        message: _currentStrings.transcriptForkError('$e'),
-        isError: true,
-      );
+      FrameSnackBar.show(context, message: _currentStrings.transcriptForkError('$e'), isError: true);
     }
   }
 
   void _restoreFailedPrompt(String entryId) {
-    final entry = ref
-        .read(sessionStateFamily(widget.sessionId).notifier)
-        .removeFailedPrompt(entryId);
+    final entry = ref.read(sessionStateFamily(widget.sessionId).notifier).removeFailedPrompt(entryId);
     if (entry == null) return;
     final (text, attachments) = parseAttachmentsFromText(entry.text);
     final draft = ref.read(composerDraftProvider(widget.sessionId).notifier);
     final existingDraft = draft.state;
-    draft.state = [
-      if (text.isNotEmpty) text,
-      if (existingDraft.isNotEmpty) existingDraft,
-    ].join('\n');
-    ref
-        .read(composerAttachmentsProvider(widget.sessionId).notifier)
-        .addAll(attachments);
+    draft.state = [if (text.isNotEmpty) text, if (existingDraft.isNotEmpty) existingDraft].join('\n');
+    ref.read(composerAttachmentsProvider(widget.sessionId).notifier).addAll(attachments);
   }
 
-  Widget _buildEntryItem(
-    SessionEntry entry,
-    FrameTokens tokens, {
-    int? elapsedSeconds,
-    bool isCard = false,
-  }) {
+  Widget _buildEntryItem(SessionEntry entry, FrameTokens tokens, {int? elapsedSeconds, bool isCard = false}) {
     if (entry.isJunkOrInternal) return const SizedBox.shrink();
-    final cwd = ref.watch(
-      sessionStateFamily(widget.sessionId).select((s) => s.cwd),
-    );
+    final cwd = ref.watch(sessionStateFamily(widget.sessionId).select((s) => s.cwd));
     final isUser = entry.role == 'user';
 
     if (isUser) {
@@ -2385,122 +2114,101 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
       final screenWidth = MediaQuery.sizeOf(context).width;
       final bubble = HoverRevealBuilder(
         builder: (context, revealed) => Container(
-        key: sendError == null
-            ? null
-            : ValueKey('failed-message-bubble-${entry.id}'),
-        constraints: const BoxConstraints(maxWidth: 720),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: tokens.userBubble,
-          borderRadius: BorderRadius.circular(tokens.radiusMd),
-          border: Border.all(
-            color: sendError == null ? tokens.border : tokens.danger,
+          key: sendError == null ? null : ValueKey('failed-message-bubble-${entry.id}'),
+          constraints: const BoxConstraints(maxWidth: 720),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: tokens.userBubble,
+            borderRadius: BorderRadius.circular(tokens.radiusMd),
+            border: Border.all(color: sendError == null ? tokens.border : tokens.danger),
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.person_outline, size: 13, color: tokens.accent),
-                    const SizedBox(width: 4),
-                    Text(
-                      _currentStrings.transcriptYou,
-                      style: TextStyle(
-                        color: tokens.textPrimary,
-                        fontSize: FrameText.of(context).caption.fontSize,
-                        fontWeight: FontWeight.bold,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.person_outline, size: 13, color: tokens.accent),
+                      const SizedBox(width: 4),
+                      Text(
+                        _currentStrings.transcriptYou,
+                        style: TextStyle(
+                          color: tokens.textPrimary,
+                          fontSize: FrameText.of(context).caption.fontSize,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                Flexible(
-                  child: AnimatedOpacity(
-                    opacity: revealed ? 1 : 0,
-                    duration: FrameMotion.fade(context, FrameMotion.micro),
-                    child: InkWell(
-                    borderRadius: BorderRadius.circular(context.tokens.radiusSm),
-                    onTap: () => _handleFork(entry.id),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 2,
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.call_split_outlined,
-                            size: 12,
-                            color: tokens.textSecondary,
-                          ),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              _currentStrings.transcriptRestartFromHere,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                color: tokens.textSecondary,
-                                fontSize: FrameText.of(context).caption.fontSize,
-                                fontWeight: FontWeight.w600,
+                    ],
+                  ),
+                  Flexible(
+                    child: AnimatedOpacity(
+                      opacity: revealed ? 1 : 0,
+                      duration: FrameMotion.fade(context, FrameMotion.micro),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(context.tokens.radiusSm),
+                        onTap: () => _handleFork(entry.id),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.call_split_outlined, size: 12, color: tokens.textSecondary),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  _currentStrings.transcriptRestartFromHere,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: tokens.textSecondary,
+                                    fontSize: FrameText.of(context).caption.fontSize,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                               ),
-                            ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
                   ),
-                  ),
+                ],
+              ),
+              if (attachments.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                AttachmentListBar(
+                  key: ValueKey('user-attachments-${entry.id}'),
+                  attachments: attachments,
+                  isEditable: false,
                 ),
               ],
-            ),
-            if (attachments.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              AttachmentListBar(
-                key: ValueKey('user-attachments-${entry.id}'),
-                attachments: attachments,
-                isEditable: false,
-              ),
+              if (cleanText.isNotEmpty) ...[const SizedBox(height: 8), RichContent(text: cleanText, cwd: cwd)],
+              if (sendError != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  _currentStrings.transcriptSendFailed(sendError),
+                  key: ValueKey('failed-message-error-${entry.id}'),
+                  style: TextStyle(color: tokens.danger, fontSize: FrameText.of(context).label.fontSize),
+                ),
+              ],
             ],
-            if (cleanText.isNotEmpty) ...[
-              const SizedBox(height: 8),
-              RichContent(text: cleanText, cwd: cwd),
-            ],
-            if (sendError != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                _currentStrings.transcriptSendFailed(sendError),
-                key: ValueKey('failed-message-error-${entry.id}'),
-                style: TextStyle(color: tokens.danger, fontSize: FrameText.of(context).label.fontSize),
-              ),
-            ],
-          ],
+          ),
         ),
-      ),
       );
 
       if (sendError == null) {
         return Container(
-          margin: EdgeInsets.only(
-            left: screenWidth < 500 ? 12 : 48,
-            bottom: 12,
-          ),
+          margin: EdgeInsets.only(left: screenWidth < 500 ? 12 : 48, bottom: 12),
           alignment: Alignment.centerRight,
           child: bubble,
         );
       }
 
       return Container(
-        margin: EdgeInsets.only(
-          left: screenWidth < 500 ? 12 : 48,
-          right: screenWidth < 500 ? 12 : 48,
-          bottom: 12,
-        ),
+        margin: EdgeInsets.only(left: screenWidth < 500 ? 12 : 48, right: screenWidth < 500 ? 12 : 48, bottom: 12),
         child: Row(
           children: [
             Expanded(
@@ -2514,8 +2222,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   onKeyEvent: (node, event) {
                     if (event is! KeyDownEvent) return KeyEventResult.ignored;
                     final key = event.logicalKey;
-                    if (key == LogicalKeyboardKey.enter ||
-                        key == LogicalKeyboardKey.numpadEnter) {
+                    if (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.numpadEnter) {
                       _restoreFailedPrompt(entry.id);
                       return KeyEventResult.handled;
                     }
@@ -2532,11 +2239,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
             IconButton(
               key: ValueKey('retry-user-message-${entry.id}'),
               tooltip: _currentStrings.transcriptRetrySend,
-              onPressed: () => unawaited(
-                ref
-                    .read(sessionStateFamily(widget.sessionId).notifier)
-                    .retryFailedPrompt(entry.id),
-              ),
+              onPressed: () =>
+                  unawaited(ref.read(sessionStateFamily(widget.sessionId).notifier).retryFailedPrompt(entry.id)),
               icon: const Icon(Icons.refresh_outlined),
               color: tokens.danger,
             ),
@@ -2563,9 +2267,9 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
 
     // Assistant entry. Streaming and settled turns share AssistantTurnFrame,
     // so the body keeps its position while the turn runs (plan 4.1).
-    final isToolOnly = entry.text.trim().isEmpty &&
-        (entry.toolCalls.isNotEmpty ||
-            (entry.thinking != null && entry.thinking!.trim().isNotEmpty));
+    final isToolOnly =
+        entry.text.trim().isEmpty &&
+        (entry.toolCalls.isNotEmpty || (entry.thinking != null && entry.thinking!.trim().isNotEmpty));
     final hasText = entry.text.isNotEmpty;
     final turnBody = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -2586,16 +2290,12 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
               });
             },
           ),
-          if (entry.toolCalls.isNotEmpty || hasText)
-            const SizedBox(height: 6),
+          if (entry.toolCalls.isNotEmpty || hasText) const SizedBox(height: 6),
         ],
 
         // Tool calls timeline if present
         if (entry.toolCalls.isNotEmpty) ...[
-          ToolTimeline(
-            toolCalls: entry.toolCalls,
-            onCardExpansionChanged: _pauseStreamFollowing,
-          ),
+          ToolTimeline(toolCalls: entry.toolCalls, onCardExpansionChanged: _pauseStreamFollowing),
           if (hasText) const SizedBox(height: 6),
         ],
 
@@ -2616,11 +2316,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                     if (cleanText.isNotEmpty) const SizedBox(height: 8),
                   ],
                   if (cleanText.isNotEmpty)
-                    RichContent(
-                      text: cleanText,
-                      cwd: cwd,
-                      textColor: isCard ? null : tokens.textSecondary,
-                    ),
+                    RichContent(text: cleanText, cwd: cwd, textColor: isCard ? null : tokens.textSecondary),
                 ],
               );
             },
@@ -2649,10 +2345,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
               statusTag: isAborted
                   ? Container(
                       key: ValueKey('entry_aborted_${entry.id}'),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: FrameSpace.x2 - 2,
-                        vertical: FrameSpace.x1 / 2,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2 - 2, vertical: FrameSpace.x1 / 2),
                       decoration: BoxDecoration(
                         color: tokens.surfaceElevated,
                         borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -2660,10 +2353,8 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                       ),
                       child: Text(
                         _currentStrings.transcriptAbortedBadge,
-                        style: FrameText.of(context).caption.copyWith(
-                          color: tokens.textMuted,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: FrameText.of(context).caption
+                            .copyWith(color: tokens.textMuted, fontWeight: FontWeight.w600),
                       ),
                     )
                   : null,
@@ -2671,7 +2362,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
               copyKey: ValueKey('entry_copy_${entry.id}'),
               copyTooltip: _currentStrings.transcriptCopyMessage,
               onCopy: () {
-                Clipboard.setData(ClipboardData(text: entry.text));
+                unawaited(Clipboard.setData(ClipboardData(text: entry.text)));
                 FrameSnackBar.show(
                   context,
                   message: _currentStrings.transcriptMessageCopied,
@@ -2688,9 +2379,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
             Padding(
               padding: const EdgeInsets.only(top: 6),
               child: Text(
-                _currentStrings.transcriptTurnFailed(
-                  entry.metadata!['errorMessage'].toString(),
-                ),
+                _currentStrings.transcriptTurnFailed(entry.metadata!['errorMessage'].toString()),
                 key: ValueKey('turn-error-${entry.id}'),
                 style: TextStyle(color: tokens.danger, fontSize: FrameText.of(context).label.fontSize),
               ),
@@ -2721,9 +2410,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
               color: tokens.surfaceElevated,
-              borderRadius: BorderRadius.vertical(
-                top: Radius.circular(tokens.radiusMd),
-              ),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(tokens.radiusMd)),
               border: Border(bottom: BorderSide(color: tokens.border)),
             ),
             child: Row(
@@ -2769,8 +2456,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                           : tokens.danger.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(tokens.radiusSm),
                       border: Border.all(
-                        color: (exitCode == 0 ? tokens.success : tokens.danger)
-                            .withValues(alpha: 0.3),
+                        color: (exitCode == 0 ? tokens.success : tokens.danger).withValues(alpha: 0.3),
                       ),
                     ),
                     child: Text(
@@ -2791,7 +2477,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
                   onPressed: () {
-                    Clipboard.setData(ClipboardData(text: output));
+                    unawaited(Clipboard.setData(ClipboardData(text: output)));
                     FrameSnackBar.show(
                       context,
                       message: _currentStrings.transcriptOutputCopied,
@@ -2887,9 +2573,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              entry.text.isNotEmpty
-                  ? entry.text
-                  : _currentStrings.transcriptContextCompacted,
+              entry.text.isNotEmpty ? entry.text : _currentStrings.transcriptContextCompacted,
               style: TextStyle(
                 fontSize: FrameText.of(context).caption.fontSize,
                 color: tokens.textSecondary,
@@ -2912,8 +2596,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
   }
 
   Widget _buildCustomItem(SessionEntry entry, FrameTokens tokens) {
-    final customType =
-        entry.metadata?['customType']?.toString() ?? _currentStrings.transcriptCustomTypeDefault;
+    final customType = entry.metadata?['customType']?.toString() ?? _currentStrings.transcriptCustomTypeDefault;
 
     if (customType == 'subagent-notification' || entry.text.contains('<task-notification>')) {
       final notifData = TaskNotificationData.tryParse(entry.text);
@@ -2940,9 +2623,7 @@ class _TranscriptViewState extends ConsumerState<TranscriptView> {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: tokens.surfaceElevated,
-              borderRadius: BorderRadius.vertical(
-                top: Radius.circular(tokens.radiusMd),
-              ),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(tokens.radiusMd)),
               border: Border(bottom: BorderSide(color: tokens.border)),
             ),
             child: Row(
@@ -2975,14 +2656,14 @@ class _LiveTurnTimerWidget extends StatefulWidget {
   final DateTime? startTime;
   final FrameTokens tokens;
 
-  const _LiveTurnTimerWidget({
-    required this.startTime,
-    required this.tokens,
-  });
+  const _LiveTurnTimerWidget({required this.startTime, required this.tokens});
 
   @override
   State<_LiveTurnTimerWidget> createState() => _LiveTurnTimerWidgetState();
 }
+
+/// How often the transcript elapsed-time label redraws while a run is in progress.
+const _elapsedRefreshInterval = Duration(seconds: 1);
 
 class _LiveTurnTimerWidgetState extends State<_LiveTurnTimerWidget> {
   Timer? _timer;
@@ -3004,7 +2685,7 @@ class _LiveTurnTimerWidgetState extends State<_LiveTurnTimerWidget> {
   void _startTimer() {
     _timer?.cancel();
     if (widget.startTime != null) {
-      _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      _timer = Timer.periodic(_elapsedRefreshInterval, (_) {
         if (mounted) setState(() {});
       });
     }
@@ -3018,9 +2699,7 @@ class _LiveTurnTimerWidgetState extends State<_LiveTurnTimerWidget> {
 
   @override
   Widget build(BuildContext context) {
-    final liveElapsedSec = widget.startTime != null
-        ? DateTime.now().difference(widget.startTime!).inSeconds
-        : 0;
+    final liveElapsedSec = widget.startTime != null ? DateTime.now().difference(widget.startTime!).inSeconds : 0;
 
     if (liveElapsedSec < 5) {
       return const SizedBox.shrink();
@@ -3033,19 +2712,12 @@ class _LiveTurnTimerWidgetState extends State<_LiveTurnTimerWidget> {
       decoration: BoxDecoration(
         color: tokens.agentWorking.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(tokens.radiusSm),
-        border: Border.all(
-          color: tokens.agentWorking.withValues(alpha: 0.35),
-          width: 0.8,
-        ),
+        border: Border.all(color: tokens.agentWorking.withValues(alpha: 0.35), width: 0.8),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.timer_outlined,
-            size: 12,
-            color: tokens.agentWorking,
-          ),
+          Icon(Icons.timer_outlined, size: 12, color: tokens.agentWorking),
           const SizedBox(width: 4),
           Text(
             '${liveElapsedSec}s',
@@ -3061,3 +2733,6 @@ class _LiveTurnTimerWidgetState extends State<_LiveTurnTimerWidget> {
     );
   }
 }
+
+/// The cost of a usage entry: its `total` or `amount` when `cost` is a map, otherwise the value itself.
+Object? _costValue(Object? cost) => cost is Map ? (cost['total'] ?? cost['amount']) : cost;

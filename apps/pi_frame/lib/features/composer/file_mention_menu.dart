@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
+
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_composer.dart';
 
@@ -47,7 +48,7 @@ class FileMentionMenu extends StatelessWidget {
     try {
       return ProviderScope.containerOf(context, listen: false).read(appStringsProvider);
     } catch (_) {
-      return const AppStrings(AppLanguage.it);
+      return const AppStrings(AppLanguage.defaultLanguage);
     }
   }
 
@@ -65,13 +66,7 @@ class FileMentionMenu extends StatelessWidget {
           color: tokens.surfaceElevated,
           borderRadius: BorderRadius.circular(tokens.radiusSm),
           border: Border.all(color: tokens.border, width: 1),
-          boxShadow: [
-            BoxShadow(
-              color: tokens.overlay,
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          boxShadow: [BoxShadow(color: tokens.overlay, blurRadius: 10, offset: const Offset(0, 4))],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -82,9 +77,7 @@ class FileMentionMenu extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: FrameSpace.x1),
               decoration: BoxDecoration(
                 color: tokens.surface,
-                border: Border(
-                  bottom: BorderSide(color: tokens.border, width: 1),
-                ),
+                border: Border(bottom: BorderSide(color: tokens.border, width: 1)),
               ),
               child: Row(
                 children: [
@@ -92,12 +85,14 @@ class FileMentionMenu extends StatelessWidget {
                   const SizedBox(width: FrameSpace.x1),
                   Text(
                     appStrings.mentionLinkFileHeader,
-                    style: FrameText.of(context).caption.copyWith(color: tokens.textSecondary, fontWeight: FontWeight.w600),
+                    style: FrameText.of(context).caption
+                        .copyWith(color: tokens.textSecondary, fontWeight: FontWeight.w600),
                   ),
                   const Spacer(),
                   Text(
                     appStrings.mentionTabEnterComplete,
-                    style: FrameText.of(context).caption.copyWith(color: tokens.textMuted, fontFamily: tokens.monoFontFamily),
+                    style: FrameText.of(context).caption
+                        .copyWith(color: tokens.textMuted, fontFamily: tokens.monoFontFamily),
                   ),
                 ],
               ),
@@ -115,32 +110,28 @@ class FileMentionMenu extends StatelessWidget {
                   final isSelected = index == selectedIndex;
                   final segments = path.replaceAll('\\', '/').split('/');
                   final fileName = segments.isNotEmpty ? segments.last : path;
-                  final parentDir = segments.length > 1
-                      ? segments.sublist(0, segments.length - 1).join('/')
-                      : '';
+                  final parentDir = segments.length > 1 ? segments.sublist(0, segments.length - 1).join('/') : '';
 
                   return InkWell(
                     onTap: () => onSelect(path),
                     hoverColor: tokens.surface,
                     child: Container(
-                      color: isSelected
-                          ? tokens.accent.withValues(alpha: 0.12)
-                          : tokens.surface.withValues(alpha: 0),
+                      color: isSelected ? tokens.accent.withValues(alpha: 0.12) : tokens.surface.withValues(alpha: 0),
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       child: Row(
                         children: [
-                          Icon(
-                            _getFileIcon(path),
-                            size: 14,
-                            color: isSelected ? tokens.accent : tokens.textSecondary,
-                          ),
+                          Icon(_getFileIcon(path), size: 14, color: isSelected ? tokens.accent : tokens.textSecondary),
                           const SizedBox(width: FrameSpace.x2),
                           Expanded(
                             child: Row(
                               children: [
                                 Text(
                                   fileName,
-                                  style: FrameText.of(context).label.copyWith(color: isSelected ? tokens.accent : tokens.textPrimary, fontWeight: FontWeight.w600, fontFamily: tokens.monoFontFamily),
+                                  style: FrameText.of(context).label.copyWith(
+                                    color: isSelected ? tokens.accent : tokens.textPrimary,
+                                    fontWeight: FontWeight.w600,
+                                    fontFamily: tokens.monoFontFamily,
+                                  ),
                                 ),
                                 if (parentDir.isNotEmpty) ...[
                                   const SizedBox(width: 6),
@@ -159,7 +150,8 @@ class FileMentionMenu extends StatelessWidget {
                           const SizedBox(width: 6),
                           Text(
                             _formatBytes(file['sizeBytes']),
-                            style: FrameText.of(context).caption.copyWith(color: tokens.textMuted, fontFamily: tokens.monoFontFamily),
+                            style: FrameText.of(context).caption
+                                .copyWith(color: tokens.textMuted, fontFamily: tokens.monoFontFamily),
                           ),
                         ],
                       ),

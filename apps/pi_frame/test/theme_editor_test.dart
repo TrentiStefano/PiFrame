@@ -74,15 +74,13 @@ void main() {
       expect(json['schemaVersion'], 1);
       expect(json['name'], 'Custom Test Theme');
       expect(json['variant'], 'light');
-      expect(json['colors']['background'], '#FFFFFF');
-      expect(json['colors']['accent'], '#0055FF');
-      expect(json['syntax']['keyword'], '#FFAA00');
+      expect(((json['colors']) as Map<String, dynamic>?)?['background'], '#FFFFFF');
+      expect(((json['colors']) as Map<String, dynamic>?)?['accent'], '#0055FF');
+      expect(((json['syntax']) as Map<String, dynamic>?)?['keyword'], '#FFAA00');
     });
   });
 
-  testWidgets('ThemeEditorDialog customization and save workflow', (
-    tester,
-  ) async {
+  testWidgets('ThemeEditorDialog customization and save workflow', (tester) async {
     final repository = ThemeRepository();
     addTearDown(repository.dispose);
     for (final flavor in ['light', 'dark']) {

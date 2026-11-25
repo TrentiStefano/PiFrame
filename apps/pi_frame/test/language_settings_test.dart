@@ -11,13 +11,13 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 void main() {
   group('AppLanguage and AppStrings', () {
-    test('AppLanguage.fromCode parses properly with fallback to it', () {
+    test('AppLanguage.fromCode parses properly with fallback to English', () {
       expect(AppLanguage.fromCode('it'), AppLanguage.it);
       expect(AppLanguage.fromCode('IT'), AppLanguage.it);
       expect(AppLanguage.fromCode('en'), AppLanguage.en);
       expect(AppLanguage.fromCode('EN'), AppLanguage.en);
-      expect(AppLanguage.fromCode(null), AppLanguage.it);
-      expect(AppLanguage.fromCode('fr'), AppLanguage.it);
+      expect(AppLanguage.fromCode(null), AppLanguage.en);
+      expect(AppLanguage.fromCode('fr'), AppLanguage.en);
     });
 
     test('AppStrings provides correct Italian translations', () {
@@ -44,34 +44,16 @@ void main() {
       );
       expect(strings.stashAndSwitchBtn, 'Salva nello stash e cambia');
       expect(strings.branchSwitched('feature'), 'Passato al ramo feature');
-      expect(
-        strings.branchSwitchedStashNotice('stash-1'),
-        'Le tue modifiche sono state salvate nello stash: stash-1',
-      );
+      expect(strings.branchSwitchedStashNotice('stash-1'), 'Le tue modifiche sono state salvate nello stash: stash-1');
       expect(strings.branchSwitchFailedTitle, 'Cambio di ramo non riuscito');
-      expect(
-        strings.stashRetainedSafeNotice('stash-1'),
-        'Le tue modifiche sono al sicuro nello stash: stash-1',
-      );
-      expect(
-        strings.branchSwitchAgentWorking,
-        'Impossibile cambiare ramo mentre l\'agente sta lavorando',
-      );
+      expect(strings.stashRetainedSafeNotice('stash-1'), 'Le tue modifiche sono al sicuro nello stash: stash-1');
+      expect(strings.branchSwitchAgentWorking, 'Impossibile cambiare ramo mentre l\'agente sta lavorando');
       expect(strings.branchNotFound, 'Ramo non trovato');
       expect(strings.branchInvalidName, 'Nome del ramo non valido');
       expect(strings.updateAllPackages, 'Aggiorna tutto');
-      expect(
-        strings.updateAllPackagesMessage(2),
-        contains('2 pacchetti utente con aggiornamenti disponibili'),
-      );
-      expect(
-        strings.packageUpdateSummary(1, 2, 3),
-        contains('Già aggiornati: 2.'),
-      );
-      expect(
-        strings.packageUpdateUnavailable('1.2.0', 'Windows'),
-        contains('non compatibile'),
-      );
+      expect(strings.updateAllPackagesMessage(2), contains('2 pacchetti utente con aggiornamenti disponibili'));
+      expect(strings.packageUpdateSummary(1, 2, 3), contains('Già aggiornati: 2.'));
+      expect(strings.packageUpdateUnavailable('1.2.0', 'Windows'), contains('non compatibile'));
       expect(strings.packageUpdateNotVerified, contains('Riavvia il daemon'));
     });
 
@@ -99,55 +81,32 @@ void main() {
       );
       expect(strings.stashAndSwitchBtn, 'Stash changes and switch');
       expect(strings.branchSwitched('feature'), 'Switched to feature');
-      expect(
-        strings.branchSwitchedStashNotice('stash-1'),
-        'Your changes were stashed: stash-1',
-      );
+      expect(strings.branchSwitchedStashNotice('stash-1'), 'Your changes were stashed: stash-1');
       expect(strings.branchSwitchFailedTitle, 'Branch switch failed');
-      expect(
-        strings.stashRetainedSafeNotice('stash-1'),
-        'Your changes are safe in the stash: stash-1',
-      );
-      expect(
-        strings.branchSwitchAgentWorking,
-        'Cannot switch branch while the agent is working',
-      );
+      expect(strings.stashRetainedSafeNotice('stash-1'), 'Your changes are safe in the stash: stash-1');
+      expect(strings.branchSwitchAgentWorking, 'Cannot switch branch while the agent is working');
       expect(strings.branchNotFound, 'Branch not found');
       expect(strings.branchInvalidName, 'Invalid branch name');
       expect(strings.updateAllPackages, 'Update all');
-      expect(
-        strings.updateAllPackagesMessage(2),
-        contains('2 user packages with available updates'),
-      );
-      expect(
-        strings.packageUpdateSummary(1, 2, 3),
-        contains('Already up to date: 2.'),
-      );
-      expect(
-        strings.packageUpdateUnavailable('1.2.0', 'Windows'),
-        contains('not compatible'),
-      );
-      expect(
-        strings.packageUpdateNotVerified,
-        contains('Restart the updated daemon'),
-      );
+      expect(strings.updateAllPackagesMessage(2), contains('2 user packages with available updates'));
+      expect(strings.packageUpdateSummary(1, 2, 3), contains('Already up to date: 2.'));
+      expect(strings.packageUpdateUnavailable('1.2.0', 'Windows'), contains('not compatible'));
+      expect(strings.packageUpdateNotVerified, contains('Restart the updated daemon'));
     });
 
     test('AppLanguageNotifier updates state', () {
       final notifier = AppLanguageNotifier();
-      expect(notifier.state, AppLanguage.it);
-
-      notifier.setLanguage(AppLanguage.en);
       expect(notifier.state, AppLanguage.en);
 
       notifier.setLanguage(AppLanguage.it);
       expect(notifier.state, AppLanguage.it);
+
+      notifier.setLanguage(AppLanguage.en);
+      expect(notifier.state, AppLanguage.en);
     });
   });
 
-  testWidgets('SettingsView appearance tab allows switching language', (
-    tester,
-  ) async {
+  testWidgets('SettingsView appearance tab allows switching language', (tester) async {
     final repository = ThemeRepository();
     addTearDown(repository.dispose);
     for (final flavor in ['light', 'dark']) {
@@ -190,9 +149,7 @@ void main() {
     expect(find.text("Lingua dell'applicazione"), findsOneWidget);
 
     // Find and tap the language dropdown
-    final dropdownFinder = find.byKey(
-      const ValueKey('settings-language-dropdown'),
-    );
+    final dropdownFinder = find.byKey(const ValueKey('settings-language-dropdown'));
     expect(dropdownFinder, findsOneWidget);
     await tester.tap(dropdownFinder);
     await tester.pumpAndSettle();

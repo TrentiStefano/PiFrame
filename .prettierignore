@@ -1,0 +1,14 @@
+# Prettier formats TypeScript and Node tooling only (pnpm run format -- ts). Prettier also skips everything in
+# .gitignore (node_modules, dist, build). Listed here so an editor or a bare `prettier --write .` agrees with the gate.
+*.md
+*.yml
+*.yaml
+*.json
+*.html
+*.css
+website/
+brag-output/
+apps/pi_frame/
+
+# Verbatim copies of the upstream pi package's types and docs, kept for comparison: never reformat them.
+tools/recon/reference/

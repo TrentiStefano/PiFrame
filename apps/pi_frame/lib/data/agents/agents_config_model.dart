@@ -7,12 +7,7 @@ class PiSubagentPackageInfo {
   final bool installed;
   final String configFile;
 
-  const PiSubagentPackageInfo({
-    required this.id,
-    this.version,
-    this.installed = false,
-    this.configFile = '',
-  });
+  const PiSubagentPackageInfo({required this.id, this.version, this.installed = false, this.configFile = ''});
 
   factory PiSubagentPackageInfo.fromJson(Map<String, dynamic> json) {
     return PiSubagentPackageInfo(
@@ -24,11 +19,11 @@ class PiSubagentPackageInfo {
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        if (version != null) 'version': version,
-        'installed': installed,
-        'configFile': configFile,
-      };
+    'id': id,
+    if (version != null) 'version': version,
+    'installed': installed,
+    'configFile': configFile,
+  };
 
   @override
   bool operator ==(Object other) =>
@@ -50,11 +45,7 @@ class PiAgentModelInfo {
   final String origin;
   final bool? available;
 
-  const PiAgentModelInfo({
-    this.effective,
-    this.origin = 'none',
-    this.available,
-  });
+  const PiAgentModelInfo({this.effective, this.origin = 'none', this.available});
 
   factory PiAgentModelInfo.fromJson(Map<String, dynamic> json) {
     return PiAgentModelInfo(
@@ -64,11 +55,7 @@ class PiAgentModelInfo {
     );
   }
 
-  Map<String, dynamic> toJson() => {
-        'effective': effective,
-        'origin': origin,
-        'available': available,
-      };
+  Map<String, dynamic> toJson() => {'effective': effective, 'origin': origin, 'available': available};
 
   @override
   bool operator ==(Object other) =>
@@ -88,22 +75,13 @@ class PiAgentThinkingInfo {
   final String? effective;
   final String origin;
 
-  const PiAgentThinkingInfo({
-    this.effective,
-    this.origin = 'none',
-  });
+  const PiAgentThinkingInfo({this.effective, this.origin = 'none'});
 
   factory PiAgentThinkingInfo.fromJson(Map<String, dynamic> json) {
-    return PiAgentThinkingInfo(
-      effective: json['effective']?.toString(),
-      origin: json['origin']?.toString() ?? 'none',
-    );
+    return PiAgentThinkingInfo(effective: json['effective']?.toString(), origin: json['origin']?.toString() ?? 'none');
   }
 
-  Map<String, dynamic> toJson() => {
-        'effective': effective,
-        'origin': origin,
-      };
+  Map<String, dynamic> toJson() => {'effective': effective, 'origin': origin};
 
   @override
   bool operator ==(Object other) =>
@@ -140,22 +118,19 @@ class PiAgentContextInfo {
     return PiAgentContextInfo(
       supported: json['supported'] == true,
       limit: (json['limit'] as num?)?.toInt(),
-      options: (json['options'] as List?)
-              ?.map((e) => (e as num).toInt())
-              .toList() ??
-          const [],
+      options: (json['options'] as List?)?.map((e) => (e as num).toInt()).toList() ?? const [],
       modelContextWindow: (json['modelContextWindow'] as num?)?.toInt(),
       unsupportedReason: json['unsupportedReason'] as String?,
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'supported': supported,
-        'limit': limit,
-        'options': options,
-        'modelContextWindow': modelContextWindow,
-        if (unsupportedReason != null) 'unsupportedReason': unsupportedReason,
-      };
+    'supported': supported,
+    'limit': limit,
+    'options': options,
+    'modelContextWindow': modelContextWindow,
+    if (unsupportedReason != null) 'unsupportedReason': unsupportedReason,
+  };
 
   @override
   bool operator ==(Object other) =>
@@ -169,13 +144,7 @@ class PiAgentContextInfo {
           unsupportedReason == other.unsupportedReason;
 
   @override
-  int get hashCode => Object.hash(
-        supported,
-        limit,
-        Object.hashAll(options),
-        modelContextWindow,
-        unsupportedReason,
-      );
+  int get hashCode => Object.hash(supported, limit, Object.hashAll(options), modelContextWindow, unsupportedReason);
 }
 
 @immutable
@@ -207,10 +176,7 @@ class PiAgentInfo {
   factory PiAgentInfo.fromJson(Map<String, dynamic> json) {
     final rawAliases = json['aliases'];
     final aliases = (rawAliases is List)
-        ? rawAliases
-            .map((e) => e?.toString() ?? '')
-            .where((s) => s.isNotEmpty)
-            .toList()
+        ? rawAliases.map((e) => e?.toString() ?? '').where((s) => s.isNotEmpty).toList()
         : const <String>[];
 
     return PiAgentInfo(
@@ -222,32 +188,29 @@ class PiAgentInfo {
       editable: json['editable'] != false,
       readOnlyReason: json['readOnlyReason']?.toString(),
       model: json['model'] is Map
-          ? PiAgentModelInfo.fromJson(
-              Map<String, dynamic>.from(json['model'] as Map))
+          ? PiAgentModelInfo.fromJson(Map<String, dynamic>.from(json['model'] as Map))
           : const PiAgentModelInfo(),
       thinking: json['thinking'] is Map
-          ? PiAgentThinkingInfo.fromJson(
-              Map<String, dynamic>.from(json['thinking'] as Map))
+          ? PiAgentThinkingInfo.fromJson(Map<String, dynamic>.from(json['thinking'] as Map))
           : const PiAgentThinkingInfo(),
       context: json['context'] is Map
-          ? PiAgentContextInfo.fromJson(
-              Map<String, dynamic>.from(json['context'] as Map))
+          ? PiAgentContextInfo.fromJson(Map<String, dynamic>.from(json['context'] as Map))
           : const PiAgentContextInfo(),
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'name': name,
-        if (aliases.isNotEmpty) 'aliases': aliases,
-        if (package != null) 'package': package,
-        'source': source,
-        if (description != null) 'description': description,
-        'editable': editable,
-        if (readOnlyReason != null) 'readOnlyReason': readOnlyReason,
-        'model': model.toJson(),
-        'thinking': thinking.toJson(),
-        'context': context.toJson(),
-      };
+    'name': name,
+    if (aliases.isNotEmpty) 'aliases': aliases,
+    if (package != null) 'package': package,
+    'source': source,
+    if (description != null) 'description': description,
+    'editable': editable,
+    if (readOnlyReason != null) 'readOnlyReason': readOnlyReason,
+    'model': model.toJson(),
+    'thinking': thinking.toJson(),
+    'context': context.toJson(),
+  };
 
   @override
   bool operator ==(Object other) =>
@@ -267,17 +230,17 @@ class PiAgentInfo {
 
   @override
   int get hashCode => Object.hash(
-        name,
-        Object.hashAll(aliases),
-        package,
-        source,
-        description,
-        editable,
-        readOnlyReason,
-        model,
-        thinking,
-        context,
-      );
+    name,
+    Object.hashAll(aliases),
+    package,
+    source,
+    description,
+    editable,
+    readOnlyReason,
+    model,
+    thinking,
+    context,
+  );
 }
 
 @immutable
@@ -288,13 +251,7 @@ class PiSubagentDefaults {
   final bool? modelAvailable;
   final String? fallbackAgent;
 
-  const PiSubagentDefaults({
-    this.package,
-    this.model,
-    this.thinking,
-    this.modelAvailable,
-    this.fallbackAgent,
-  });
+  const PiSubagentDefaults({this.package, this.model, this.thinking, this.modelAvailable, this.fallbackAgent});
 
   factory PiSubagentDefaults.fromJson(Map<String, dynamic> json) {
     return PiSubagentDefaults(
@@ -307,12 +264,12 @@ class PiSubagentDefaults {
   }
 
   Map<String, dynamic> toJson() => {
-        'package': package,
-        'model': model,
-        'thinking': thinking,
-        'modelAvailable': modelAvailable,
-        'fallbackAgent': fallbackAgent,
-      };
+    'package': package,
+    'model': model,
+    'thinking': thinking,
+    'modelAvailable': modelAvailable,
+    'fallbackAgent': fallbackAgent,
+  };
 
   @override
   bool operator ==(Object other) =>
@@ -326,8 +283,7 @@ class PiSubagentDefaults {
           fallbackAgent == other.fallbackAgent;
 
   @override
-  int get hashCode =>
-      Object.hash(package, model, thinking, modelAvailable, fallbackAgent);
+  int get hashCode => Object.hash(package, model, thinking, modelAvailable, fallbackAgent);
 }
 
 @immutable
@@ -337,12 +293,7 @@ class PiSessionDefaults {
   final String? thinking;
   final bool? modelAvailable;
 
-  const PiSessionDefaults({
-    this.provider,
-    this.model,
-    this.thinking,
-    this.modelAvailable,
-  });
+  const PiSessionDefaults({this.provider, this.model, this.thinking, this.modelAvailable});
 
   factory PiSessionDefaults.fromJson(Map<String, dynamic> json) {
     return PiSessionDefaults(
@@ -354,11 +305,11 @@ class PiSessionDefaults {
   }
 
   Map<String, dynamic> toJson() => {
-        'provider': provider,
-        'model': model,
-        'thinking': thinking,
-        'modelAvailable': modelAvailable,
-      };
+    'provider': provider,
+    'model': model,
+    'thinking': thinking,
+    'modelAvailable': modelAvailable,
+  };
 
   @override
   bool operator ==(Object other) =>
@@ -398,10 +349,7 @@ class PiAvailableModel {
     if (slash > 0) return id.substring(0, slash);
     final lower = id.toLowerCase();
     if (lower.startsWith('claude')) return 'anthropic';
-    if (lower.startsWith('gpt') ||
-        lower.startsWith('o1') ||
-        lower.startsWith('o3') ||
-        lower.startsWith('chatgpt')) {
+    if (lower.startsWith('gpt') || lower.startsWith('o1') || lower.startsWith('o3') || lower.startsWith('chatgpt')) {
       return 'openai';
     }
     if (lower.startsWith('gemini')) return 'google';
@@ -439,22 +387,19 @@ class PiAvailableModel {
       name: json['name']?.toString() ?? json['id']?.toString() ?? '',
       contextWindow: (json['contextWindow'] as num?)?.toInt() ?? 0,
       reasoning: json['reasoning'] == true,
-      tiers: (json['tiers'] as List?)
-              ?.map((e) => (e as num).toInt())
-              .toList() ??
-          const [],
+      tiers: (json['tiers'] as List?)?.map((e) => (e as num).toInt()).toList() ?? const [],
       provider: provider,
     );
   }
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'name': name,
-        'contextWindow': contextWindow,
-        'reasoning': reasoning,
-        'tiers': tiers,
-        if (modelProvider != null) 'provider': modelProvider,
-      };
+    'id': id,
+    'name': name,
+    'contextWindow': contextWindow,
+    'reasoning': reasoning,
+    'tiers': tiers,
+    if (modelProvider != null) 'provider': modelProvider,
+  };
 
   @override
   bool operator ==(Object other) =>
@@ -469,8 +414,7 @@ class PiAvailableModel {
           listEquals(tiers, other.tiers);
 
   @override
-  int get hashCode => Object.hash(
-      id, name, contextWindow, reasoning, modelProvider, Object.hashAll(tiers));
+  int get hashCode => Object.hash(id, name, contextWindow, reasoning, modelProvider, Object.hashAll(tiers));
 }
 
 @immutable
@@ -494,45 +438,38 @@ class PiAgentsConfig {
   });
 
   factory PiAgentsConfig.fromJson(Map<String, dynamic> json) {
-    final pkgs = (json['packages'] as List?)
-            ?.whereType<Map>()
-            .map((e) =>
-                PiSubagentPackageInfo.fromJson(Map<String, dynamic>.from(e)))
+    final pkgs =
+        (json['packages'] as List?)
+            ?.whereType<Map<String, dynamic>>()
+            .map((e) => PiSubagentPackageInfo.fromJson(Map<String, dynamic>.from(e)))
             .toList() ??
         const [];
 
-    final ags = (json['agents'] as List?)
-            ?.whereType<Map>()
+    final ags =
+        (json['agents'] as List?)
+            ?.whereType<Map<String, dynamic>>()
             .map((e) => PiAgentInfo.fromJson(Map<String, dynamic>.from(e)))
             .toList() ??
         const [];
 
     final subDef = json['subagentDefaults'] is Map
-        ? PiSubagentDefaults.fromJson(
-            Map<String, dynamic>.from(json['subagentDefaults'] as Map))
+        ? PiSubagentDefaults.fromJson(Map<String, dynamic>.from(json['subagentDefaults'] as Map))
         : const PiSubagentDefaults();
 
     final sessDef = json['sessionDefaults'] is Map
-        ? PiSessionDefaults.fromJson(
-            Map<String, dynamic>.from(json['sessionDefaults'] as Map))
+        ? PiSessionDefaults.fromJson(Map<String, dynamic>.from(json['sessionDefaults'] as Map))
         : const PiSessionDefaults();
 
-    final think = (json['thinkingLevels'] as List?)
-            ?.map((e) => e.toString())
+    final think = (json['thinkingLevels'] as List?)?.map((e) => e.toString()).toList() ?? const [];
+
+    final models =
+        (json['availableModels'] as List?)
+            ?.whereType<Map<String, dynamic>>()
+            .map((e) => PiAvailableModel.fromJson(Map<String, dynamic>.from(e)))
             .toList() ??
         const [];
 
-    final models = (json['availableModels'] as List?)
-            ?.whereType<Map>()
-            .map((e) =>
-                PiAvailableModel.fromJson(Map<String, dynamic>.from(e)))
-            .toList() ??
-        const [];
-
-    final warns = (json['warnings'] as List?)
-            ?.map((e) => e.toString())
-            .toList() ??
-        const [];
+    final warns = (json['warnings'] as List?)?.map((e) => e.toString()).toList() ?? const [];
 
     return PiAgentsConfig(
       packages: pkgs,
@@ -546,14 +483,14 @@ class PiAgentsConfig {
   }
 
   Map<String, dynamic> toJson() => {
-        'packages': packages.map((e) => e.toJson()).toList(),
-        'agents': agents.map((e) => e.toJson()).toList(),
-        'subagentDefaults': subagentDefaults.toJson(),
-        'sessionDefaults': sessionDefaults.toJson(),
-        'thinkingLevels': thinkingLevels,
-        'availableModels': availableModels.map((e) => e.toJson()).toList(),
-        'warnings': warnings,
-      };
+    'packages': packages.map((e) => e.toJson()).toList(),
+    'agents': agents.map((e) => e.toJson()).toList(),
+    'subagentDefaults': subagentDefaults.toJson(),
+    'sessionDefaults': sessionDefaults.toJson(),
+    'thinkingLevels': thinkingLevels,
+    'availableModels': availableModels.map((e) => e.toJson()).toList(),
+    'warnings': warnings,
+  };
 
   @override
   bool operator ==(Object other) =>
@@ -570,12 +507,12 @@ class PiAgentsConfig {
 
   @override
   int get hashCode => Object.hash(
-        Object.hashAll(packages),
-        Object.hashAll(agents),
-        subagentDefaults,
-        sessionDefaults,
-        Object.hashAll(thinkingLevels),
-        Object.hashAll(availableModels),
-        Object.hashAll(warnings),
-      );
+    Object.hashAll(packages),
+    Object.hashAll(agents),
+    subagentDefaults,
+    sessionDefaults,
+    Object.hashAll(thinkingLevels),
+    Object.hashAll(availableModels),
+    Object.hashAll(warnings),
+  );
 }

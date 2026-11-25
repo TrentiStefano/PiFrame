@@ -27,15 +27,9 @@ class _SessionCreateClient extends PcpClient {
 }
 
 void main() {
-  Widget wrapWithThemeAndScope(
-    Widget child, {
-    List<Override> overrides = const [],
-  }) {
+  Widget wrapWithThemeAndScope(Widget child, {List<Override> overrides = const []}) {
     return ProviderScope(
-      overrides: [
-        daemonEndpointProvider.overrideWith((ref) async => null),
-        ...overrides,
-      ],
+      overrides: [daemonEndpointProvider.overrideWith((ref) async => null), ...overrides],
       child: MaterialApp(
         theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
         home: Scaffold(body: child),
@@ -43,110 +37,79 @@ void main() {
     );
   }
 
-  testWidgets(
-    'SessionsSidebar displays search field, filter chips, and filters sessions',
-    (tester) async {
-      final mockSessions = [
-        {
-          'id': 'sess_1',
-          'name': 'Feature Branch A',
-          'cwd': '/projects/pi-frame',
-          'isActive': true,
-          'lastMessagePreview': 'Implementing git diff viewer',
-        },
-        {
-          'id': 'sess_2',
-          'name': 'Bugfix Session B',
-          'cwd': '/projects/other-repo',
-          'isActive': false,
-          'lastMessagePreview': 'Fixing stream buffer overflow',
-        },
-      ];
+  testWidgets('SessionsSidebar displays search field, filter chips, and filters sessions', (tester) async {
+    final mockSessions = [
+      {
+        'id': 'sess_1',
+        'name': 'Feature Branch A',
+        'cwd': '/projects/pi-frame',
+        'isActive': true,
+        'lastMessagePreview': 'Implementing git diff viewer',
+      },
+      {
+        'id': 'sess_2',
+        'name': 'Bugfix Session B',
+        'cwd': '/projects/other-repo',
+        'isActive': false,
+        'lastMessagePreview': 'Fixing stream buffer overflow',
+      },
+    ];
 
-      await tester.pumpWidget(
-        wrapWithThemeAndScope(
-          const SessionsSidebar(),
-          overrides: [
-            sessionListProvider.overrideWith(
-              (ref) => Future.value(mockSessions),
-            ),
-            activeSessionIdProvider.overrideWith((ref) => 'sess_1'),
-          ],
-        ),
-      );
+    await tester.pumpWidget(
+      wrapWithThemeAndScope(
+        const SessionsSidebar(),
+        overrides: [
+          sessionListProvider.overrideWith((ref) => Future.value(mockSessions)),
+          activeSessionIdProvider.overrideWith((ref) => 'sess_1'),
+        ],
+      ),
+    );
 
-      await tester.pumpAndSettle();
+    await tester.pumpAndSettle();
 
-      // Verify header and search field
-      expect(find.text('Sessioni'), findsOneWidget);
-      expect(find.byType(TextField), findsOneWidget);
-      expect(find.text('Tutte'), findsOneWidget);
-      expect(find.text('Gestite'), findsOneWidget);
-      expect(find.text('Questo repo'), findsOneWidget);
+    // Verify header and search field
+    expect(find.text('Sessions'), findsOneWidget);
+    expect(find.byType(TextField), findsOneWidget);
+    expect(find.text('All'), findsOneWidget);
+    expect(find.text('Managed'), findsOneWidget);
+    expect(find.text('This repo'), findsOneWidget);
 
-      // The active repository is expanded by default; the other one stays collapsed.
-      expect(find.text('pi-frame'), findsOneWidget);
-      expect(find.text('other-repo'), findsOneWidget);
+    // The active repository is expanded by default; the other one stays collapsed.
+    expect(find.text('pi-frame'), findsOneWidget);
+    expect(find.text('other-repo'), findsOneWidget);
 
-      // Expand the other folder to view its sessions
-      await tester.tap(find.text('other-repo'));
-      await tester.pumpAndSettle();
+    // Expand the other folder to view its sessions
+    await tester.tap(find.text('other-repo'));
+    await tester.pumpAndSettle();
 
-      expect(find.text('Feature Branch A'), findsOneWidget);
-      expect(find.text('Bugfix Session B'), findsOneWidget);
+    expect(find.text('Feature Branch A'), findsOneWidget);
+    expect(find.text('Bugfix Session B'), findsOneWidget);
 
-      // Filter by search query (auto-expands matching folders)
-      await tester.enterText(find.byType(TextField), 'diff viewer');
-      await tester.pumpAndSettle();
+    // Filter by search query (auto-expands matching folders)
+    await tester.enterText(find.byType(TextField), 'diff viewer');
+    await tester.pumpAndSettle();
 
-      expect(find.text('Feature Branch A'), findsOneWidget);
-      expect(find.text('Bugfix Session B'), findsNothing);
+    expect(find.text('Feature Branch A'), findsOneWidget);
+    expect(find.text('Bugfix Session B'), findsNothing);
 
-      // Clear search
-      await tester.enterText(find.byType(TextField), '');
-      await tester.pumpAndSettle();
+    // Clear search
+    await tester.enterText(find.byType(TextField), '');
+    await tester.pumpAndSettle();
 
-      // Filter by daemon-managed sessions.
-      await tester.tap(find.text('Gestite'));
-      await tester.pumpAndSettle();
+    // Filter by daemon-managed sessions.
+    await tester.tap(find.text('Managed'));
+    await tester.pumpAndSettle();
 
-      expect(find.text('Feature Branch A'), findsOneWidget);
-      expect(find.text('Bugfix Session B'), findsNothing);
-    },
-  );
+    expect(find.text('Feature Branch A'), findsOneWidget);
+    expect(find.text('Bugfix Session B'), findsNothing);
+  });
 
-  testWidgets('session list groups by repo and hides worker sessions', (
-    tester,
-  ) async {
+  testWidgets('session list groups by repo and hides worker sessions', (tester) async {
     final sessions = [
-      {
-        'id': 'a',
-        'name': 'First',
-        'cwd': '/repo/packages/a',
-        'gitRoot': '/repo',
-        'isActive': false,
-      },
-      {
-        'id': 'b',
-        'name': 'Second',
-        'cwd': '/repo/packages/b',
-        'gitRoot': '/repo',
-        'isActive': false,
-      },
-      {
-        'id': 'worker#19',
-        'name': 'worker#19',
-        'cwd': '/repo',
-        'gitRoot': '/repo',
-        'isActive': false,
-      },
-      {
-        'id': 'c',
-        'name': 'Other',
-        'cwd': '/other',
-        'gitRoot': '/other',
-        'isActive': false,
-      },
+      {'id': 'a', 'name': 'First', 'cwd': '/repo/packages/a', 'gitRoot': '/repo', 'isActive': false},
+      {'id': 'b', 'name': 'Second', 'cwd': '/repo/packages/b', 'gitRoot': '/repo', 'isActive': false},
+      {'id': 'worker#19', 'name': 'worker#19', 'cwd': '/repo', 'gitRoot': '/repo', 'isActive': false},
+      {'id': 'c', 'name': 'Other', 'cwd': '/other', 'gitRoot': '/other', 'isActive': false},
     ];
     await tester.pumpWidget(
       wrapWithThemeAndScope(
@@ -185,33 +148,24 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(SessionsSidebar)),
-    );
+    final container = ProviderScope.containerOf(tester.element(find.byType(SessionsSidebar)));
     expect(container.read(pcpClientProvider), same(client));
-    await tester.tap(find.byTooltip('Nuova sessione'));
+    await tester.tap(find.byTooltip('New Session'));
     await tester.pumpAndSettle();
     final projectDir = Directory.systemTemp.createTempSync('piframe_new_session_');
     addTearDown(() => projectDir.deleteSync(recursive: true));
-    await tester.enterText(
-      find.byKey(const ValueKey('new-session-cwd')),
-      projectDir.path,
-    );
+    await tester.enterText(find.byKey(const ValueKey('new-session-cwd')), projectDir.path);
     // The folder check is debounced, so let it run before Create is enabled.
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Crea'));
+    await tester.tap(find.text('Create'));
     await tester.pumpAndSettle();
 
-    final create = client.commands.firstWhere(
-      (command) => command.type == 'session.create',
-    );
+    final create = client.commands.firstWhere((command) => command.type == 'session.create');
     expect(create.payload['cwd'], projectDir.path);
   });
 
-  testWidgets('SessionTreeDialog opens titled with the session and its id as a detail row', (
-    tester,
-  ) async {
+  testWidgets('SessionTreeDialog opens titled with the session and its id as a detail row', (tester) async {
     await tester.pumpWidget(
       wrapWithThemeAndScope(
         Builder(
@@ -228,9 +182,9 @@ void main() {
     // Title is the session title (the id here, as the session is not listed)
     // and the raw id moves to a copyable detail row.
     expect(find.text('sess_test'), findsWidgets);
-    expect(find.text('ID sessione'), findsOneWidget);
-    expect(find.byTooltip('Copia ID sessione'), findsOneWidget);
-    expect(find.text('Chiudi'), findsOneWidget);
+    expect(find.text('Session ID'), findsOneWidget);
+    expect(find.byTooltip('Copy session ID'), findsOneWidget);
+    expect(find.text('Close'), findsOneWidget);
     // Not connected to a daemon in tests: the error state offers one action.
     expect(find.byKey(const ValueKey('session-tree-error-action')), findsOneWidget);
   });

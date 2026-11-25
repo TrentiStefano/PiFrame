@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { at } from '../../test/fakes.js';
 import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -14,7 +15,7 @@ function createTempDir(prefix: string): { dir: string; cleanup: () => void } {
       try {
         fs.rmSync(dir, { recursive: true, force: true });
       } catch {}
-    },
+    }
   };
 }
 
@@ -24,15 +25,15 @@ const FAKE_AVAILABLE_MODELS: PiAvailableModel[] = [
     name: 'Claude 3.5 Sonnet',
     contextWindow: 200000,
     reasoning: true,
-    tiers: [64000, 128000],
+    tiers: [64000, 128000]
   },
   {
     id: 'anthropic/claude-3-5-haiku',
     name: 'Claude 3.5 Haiku',
     contextWindow: 200000,
     reasoning: false,
-    tiers: [],
-  },
+    tiers: []
+  }
 ];
 
 test('AgentsService: resolves effective values and origins across override, frontmatter, default, and none', async () => {
@@ -47,10 +48,7 @@ test('AgentsService: resolves effective values and origins across override, fron
     const nicoDir = path.join(agentDir, 'npm', 'node_modules', 'pi-subagents');
     const nicoAgentsDir = path.join(nicoDir, 'agents');
     fs.mkdirSync(nicoAgentsDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(nicoDir, 'package.json'),
-      JSON.stringify({ name: 'pi-subagents', version: '1.0.0' })
-    );
+    fs.writeFileSync(path.join(nicoDir, 'package.json'), JSON.stringify({ name: 'pi-subagents', version: '1.0.0' }));
 
     fs.writeFileSync(
       path.join(nicoAgentsDir, 'worker.md'),
@@ -92,17 +90,17 @@ name: researcher
           defaultThinking: 'medium',
           agentOverrides: {
             worker: {
-              model: 'anthropic/claude-3-5-haiku',
-            },
-          },
-        },
+              model: 'anthropic/claude-3-5-haiku'
+            }
+          }
+        }
       })
     );
 
     const service = new AgentsService({
       agentDir,
       piframeDir,
-      getAvailableModels: async () => ({ models: FAKE_AVAILABLE_MODELS }),
+      getAvailableModels: async () => ({ models: FAKE_AVAILABLE_MODELS })
     });
 
     const result = await service.getAgents();
@@ -149,10 +147,7 @@ test('AgentsService: validates errors (unavailable model, bad thinking, reasonin
     const nicoDir = path.join(agentDir, 'npm', 'node_modules', 'pi-subagents');
     const nicoAgentsDir = path.join(nicoDir, 'agents');
     fs.mkdirSync(nicoAgentsDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(nicoDir, 'package.json'),
-      JSON.stringify({ name: 'pi-subagents', version: '1.0.0' })
-    );
+    fs.writeFileSync(path.join(nicoDir, 'package.json'), JSON.stringify({ name: 'pi-subagents', version: '1.0.0' }));
 
     fs.writeFileSync(
       path.join(nicoAgentsDir, 'worker.md'),
@@ -179,47 +174,42 @@ runner:
     const service = new AgentsService({
       agentDir,
       piframeDir,
-      getAvailableModels: async () => ({ models: FAKE_AVAILABLE_MODELS }),
+      getAvailableModels: async () => ({ models: FAKE_AVAILABLE_MODELS })
     });
 
     // 1. Unknown agent
     await assert.rejects(
       async () => {
         await service.updateAgents([
-          { kind: 'agent', name: 'nonexistent-agent', model: 'anthropic/claude-3-5-sonnet' },
+          { kind: 'agent', name: 'nonexistent-agent', model: 'anthropic/claude-3-5-sonnet' }
         ]);
       },
-      (err: any) => err?.code === 'AGENTS_VALIDATION_FAILED' && err.details[0].field === 'name'
+      (err: unknown) => at(err, 'code') === 'AGENTS_VALIDATION_FAILED' && at(err, 'details', '0', 'field') === 'name'
     );
 
     // 2. Readonly agent (external CLI)
     await assert.rejects(
       async () => {
-        await service.updateAgents([
-          { kind: 'agent', name: 'cursor-agent', model: 'anthropic/claude-3-5-sonnet' },
-        ]);
+        await service.updateAgents([{ kind: 'agent', name: 'cursor-agent', model: 'anthropic/claude-3-5-sonnet' }]);
       },
-      (err: any) => err?.code === 'AGENTS_VALIDATION_FAILED' && err.details[0].field === 'agent'
+      (err: unknown) => at(err, 'code') === 'AGENTS_VALIDATION_FAILED' && at(err, 'details', '0', 'field') === 'agent'
     );
 
     // 3. Unavailable model
     await assert.rejects(
       async () => {
-        await service.updateAgents([
-          { kind: 'agent', name: 'worker', model: 'unknown-provider/fake-model' },
-        ]);
+        await service.updateAgents([{ kind: 'agent', name: 'worker', model: 'unknown-provider/fake-model' }]);
       },
-      (err: any) => err?.code === 'AGENTS_VALIDATION_FAILED' && err.details[0].field === 'model'
+      (err: unknown) => at(err, 'code') === 'AGENTS_VALIDATION_FAILED' && at(err, 'details', '0', 'field') === 'model'
     );
 
     // 4. Bad thinking level
     await assert.rejects(
       async () => {
-        await service.updateAgents([
-          { kind: 'agent', name: 'worker', thinking: 'super-high' },
-        ]);
+        await service.updateAgents([{ kind: 'agent', name: 'worker', thinking: 'super-high' }]);
       },
-      (err: any) => err?.code === 'AGENTS_VALIDATION_FAILED' && err.details[0].field === 'thinking'
+      (err: unknown) =>
+        at(err, 'code') === 'AGENTS_VALIDATION_FAILED' && at(err, 'details', '0', 'field') === 'thinking'
     );
 
     // 5. Reasoning=false model (Haiku) with thinking!=off
@@ -230,11 +220,12 @@ runner:
             kind: 'agent',
             name: 'worker',
             model: 'anthropic/claude-3-5-haiku',
-            thinking: 'high',
-          },
+            thinking: 'high'
+          }
         ]);
       },
-      (err: any) => err?.code === 'AGENTS_VALIDATION_FAILED' && err.details[0].field === 'thinking'
+      (err: unknown) =>
+        at(err, 'code') === 'AGENTS_VALIDATION_FAILED' && at(err, 'details', '0', 'field') === 'thinking'
     );
 
     // 6. Context limit on model without tiers (Haiku)
@@ -246,11 +237,12 @@ runner:
             name: 'worker',
             model: 'anthropic/claude-3-5-haiku',
             thinking: 'off',
-            contextLimit: 64000,
-          },
+            contextLimit: 64000
+          }
         ]);
       },
-      (err: any) => err?.code === 'AGENTS_VALIDATION_FAILED' && err.details[0].field === 'contextLimit'
+      (err: unknown) =>
+        at(err, 'code') === 'AGENTS_VALIDATION_FAILED' && at(err, 'details', '0', 'field') === 'contextLimit'
     );
 
     // 7. Context limit not in options (tiers are [64000, 128000], window 200000; 50000 is invalid)
@@ -261,11 +253,12 @@ runner:
             kind: 'agent',
             name: 'worker',
             model: 'anthropic/claude-3-5-sonnet',
-            contextLimit: 50000,
-          },
+            contextLimit: 50000
+          }
         ]);
       },
-      (err: any) => err?.code === 'AGENTS_VALIDATION_FAILED' && err.details[0].field === 'contextLimit'
+      (err: unknown) =>
+        at(err, 'code') === 'AGENTS_VALIDATION_FAILED' && at(err, 'details', '0', 'field') === 'contextLimit'
     );
   } finally {
     cleanupAgent();
@@ -283,16 +276,14 @@ test('AgentsService: rejects package modifications when package is not installed
     const service = new AgentsService({
       agentDir,
       piframeDir,
-      getAvailableModels: async () => ({ models: FAKE_AVAILABLE_MODELS }),
+      getAvailableModels: async () => ({ models: FAKE_AVAILABLE_MODELS })
     });
 
     await assert.rejects(
       async () => {
-        await service.updateAgents([
-          { kind: 'subagentDefaults', model: 'anthropic/claude-3-5-sonnet' },
-        ]);
+        await service.updateAgents([{ kind: 'subagentDefaults', model: 'anthropic/claude-3-5-sonnet' }]);
       },
-      (err: any) => err?.code === 'AGENTS_PACKAGE_NOT_INSTALLED'
+      (err: unknown) => at(err, 'code') === 'AGENTS_PACKAGE_NOT_INSTALLED'
     );
   } finally {
     cleanupAgent();
@@ -308,10 +299,7 @@ test('AgentsService: resolves agent aliases from frontmatter and writes under ca
     const nicoDir = path.join(agentDir, 'npm', 'node_modules', 'pi-subagents');
     const nicoAgentsDir = path.join(nicoDir, 'agents');
     fs.mkdirSync(nicoAgentsDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(nicoDir, 'package.json'),
-      JSON.stringify({ name: 'pi-subagents', version: '1.0.0' })
-    );
+    fs.writeFileSync(path.join(nicoDir, 'package.json'), JSON.stringify({ name: 'pi-subagents', version: '1.0.0' }));
 
     // oracle has alias advisor
     fs.writeFileSync(
@@ -331,7 +319,7 @@ model: anthropic/claude-3-5-sonnet
     const service = new AgentsService({
       agentDir,
       piframeDir,
-      getAvailableModels: async () => ({ models: FAKE_AVAILABLE_MODELS }),
+      getAvailableModels: async () => ({ models: FAKE_AVAILABLE_MODELS })
     });
 
     // 1. Initial get: verify oracle exposes aliases: ['advisor']
@@ -345,8 +333,8 @@ model: anthropic/claude-3-5-sonnet
       {
         kind: 'agent',
         name: 'advisor',
-        thinking: 'high',
-      },
+        thinking: 'high'
+      }
     ]);
 
     // Check returned agent result: oracle has thinking.effective === 'high'
@@ -376,7 +364,7 @@ test('AgentsService: sessionDefaults model must be provider/id format and null r
     const service = new AgentsService({
       agentDir,
       piframeDir,
-      getAvailableModels: async () => ({ models: FAKE_AVAILABLE_MODELS }),
+      getAvailableModels: async () => ({ models: FAKE_AVAILABLE_MODELS })
     });
 
     // 1. Rejects model without provider (e.g. 'claude-3-5-sonnet')
@@ -385,14 +373,14 @@ test('AgentsService: sessionDefaults model must be provider/id format and null r
         await service.updateAgents([
           {
             kind: 'sessionDefaults',
-            model: 'claude-3-5-sonnet',
-          },
+            model: 'claude-3-5-sonnet'
+          }
         ]);
       },
-      (err: any) =>
-        err?.code === 'AGENTS_VALIDATION_FAILED' &&
-        err.details[0].field === 'model' &&
-        err.details[0].message.includes('provider/id')
+      (err: unknown) =>
+        at(err, 'code') === 'AGENTS_VALIDATION_FAILED' &&
+        at(err, 'details', '0', 'field') === 'model' &&
+        String(at(err, 'details', '0', 'message')).includes('provider/id')
     );
 
     // 2. Accepts valid provider/id format: sets both defaultProvider and defaultModel
@@ -400,8 +388,8 @@ test('AgentsService: sessionDefaults model must be provider/id format and null r
       {
         kind: 'sessionDefaults',
         model: 'anthropic/claude-3-5-sonnet',
-        thinking: 'medium',
-      },
+        thinking: 'medium'
+      }
     ]);
 
     assert.equal(result1.sessionDefaults.provider, 'anthropic');
@@ -417,8 +405,8 @@ test('AgentsService: sessionDefaults model must be provider/id format and null r
     const result2 = await service.updateAgents([
       {
         kind: 'sessionDefaults',
-        model: null,
-      },
+        model: null
+      }
     ]);
 
     assert.equal(result2.sessionDefaults.provider, null);

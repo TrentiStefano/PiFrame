@@ -11,10 +11,12 @@ const requiredCommands = [
   'workspace.saveFile',
   'workspace.gitAction',
   'scanFastSnapshot',
-  'getCachedSnapshot',
+  'getCachedSnapshot'
 ];
 const missing = requiredCommands.filter((command) => !bundle.includes(command));
 if (missing.length) {
-  throw new Error(`Stale agentd bundle at ${bundlePath}; missing commands: ${missing.join(', ')}. Run pnpm run build:agentd.`);
+  throw new Error(
+    `Stale agentd bundle at ${bundlePath}; missing commands: ${missing.join(', ')}. Run pnpm run build:agentd.`
+  );
 }
 console.log(`OK: packaged agentd supports ${requiredCommands.join(', ')}`);

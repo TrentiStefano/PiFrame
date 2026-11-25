@@ -6,7 +6,8 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:window_manager/window_manager.dart';
 
-import '../../app/harness_mode.dart';
+import '../platform/runtime_mode.dart';
+import '../runtime/harness_mode.dart';
 
 /// Non-visual I/O debounce for saving the window geometry. Numeric on purpose;
 /// listed on the allow-list in test/design_literals_lint_test.dart.
@@ -60,10 +61,7 @@ class WindowStateService {
   WindowManager? _windowManagerForTesting;
 
   WindowManager get _windowManager => _windowManagerForTesting ?? windowManager;
-  bool get _canUseWindowManager =>
-      !kIsWeb &&
-      (!Platform.environment.containsKey('FLUTTER_TEST') ||
-          _windowManagerForTesting != null);
+  bool get _canUseWindowManager => !kIsWeb && (!isRunningUnderTests || _windowManagerForTesting != null);
 
   @visibleForTesting
   void setStorageFileForTesting(File? file) {
@@ -86,12 +84,10 @@ class WindowStateService {
 
   File? _getStorageFile() {
     if (_customStorageFile != null) return _customStorageFile;
-    if (kIsWeb || Platform.environment.containsKey('FLUTTER_TEST')) return null;
+    if (!usesHomeDirectoryStorage) return null;
     try {
       final env = Platform.environment;
-      final home = Platform.isWindows
-          ? (env['USERPROFILE'] ?? 'C:\\Users\\Default')
-          : (env['HOME'] ?? '/tmp');
+      final home = Platform.isWindows ? (env['USERPROFILE'] ?? 'C:\\Users\\Default') : (env['HOME'] ?? '/tmp');
       final dir = Directory('$home/.piframe');
       if (!dir.existsSync()) {
         dir.createSync(recursive: true);
@@ -130,7 +126,7 @@ class WindowStateService {
     if (isHarnessMode) return;
     _saveDebounceTimer?.cancel();
     _saveDebounceTimer = Timer(_saveDebounceDelay, () {
-      recordCurrentWindowState();
+      unawaited(recordCurrentWindowState());
     });
   }
 

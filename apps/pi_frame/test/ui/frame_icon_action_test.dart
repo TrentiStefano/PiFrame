@@ -15,20 +15,12 @@ void main() {
   testWidgets('target is 28 x 28 and the glyph is 16 px', (tester) async {
     await tester.pumpWidget(
       _host(
-        FrameIconAction(
-          key: const ValueKey('refresh'),
-          icon: Icons.refresh,
-          tooltip: 'Aggiorna',
-          onPressed: () {},
-        ),
+        FrameIconAction(key: const ValueKey('refresh'), icon: Icons.refresh, tooltip: 'Aggiorna', onPressed: () {}),
       ),
     );
 
     final target = tester.getSize(
-      find.descendant(
-        of: find.byKey(const ValueKey('refresh')),
-        matching: find.byType(IconButton),
-      ),
+      find.descendant(of: find.byKey(const ValueKey('refresh')), matching: find.byType(IconButton)),
     );
     expect(target.width, FrameSize.hitMin);
     expect(target.height, FrameSize.hitMin);
@@ -39,18 +31,9 @@ void main() {
     expect(glyph.size, 16);
   });
 
-  testWidgets('semantic label equals the tooltip, with shortcut appended', (
-    tester,
-  ) async {
+  testWidgets('semantic label equals the tooltip, with shortcut appended', (tester) async {
     await tester.pumpWidget(
-      _host(
-        FrameIconAction(
-          icon: Icons.refresh,
-          tooltip: 'Aggiorna',
-          shortcut: 'Ctrl+R',
-          onPressed: () {},
-        ),
-      ),
+      _host(FrameIconAction(icon: Icons.refresh, tooltip: 'Aggiorna', shortcut: 'Ctrl+R', onPressed: () {})),
     );
 
     expect(find.byTooltip('Aggiorna (Ctrl+R)'), findsOneWidget);
@@ -58,29 +41,15 @@ void main() {
   });
 
   testWidgets('tooltip without shortcut is the plain label', (tester) async {
-    await tester.pumpWidget(
-      _host(
-        FrameIconAction(icon: Icons.close, tooltip: 'Chiudi', onPressed: () {}),
-      ),
-    );
+    await tester.pumpWidget(_host(FrameIconAction(icon: Icons.close, tooltip: 'Chiudi', onPressed: () {})));
 
     expect(find.byTooltip('Chiudi'), findsOneWidget);
     expect(find.bySemanticsLabel('Chiudi'), findsOneWidget);
   });
 
-  testWidgets('tap fires onPressed; Enter fires it from the keyboard', (
-    tester,
-  ) async {
+  testWidgets('tap fires onPressed; Enter fires it from the keyboard', (tester) async {
     var taps = 0;
-    await tester.pumpWidget(
-      _host(
-        FrameIconAction(
-          icon: Icons.refresh,
-          tooltip: 'Aggiorna',
-          onPressed: () => taps++,
-        ),
-      ),
-    );
+    await tester.pumpWidget(_host(FrameIconAction(icon: Icons.refresh, tooltip: 'Aggiorna', onPressed: () => taps++)));
 
     await tester.tap(find.byType(IconButton));
     expect(taps, 1);
@@ -92,34 +61,14 @@ void main() {
     expect(taps, 2);
   });
 
-  testWidgets('disabled when onPressed is null and selected uses the accent', (
-    tester,
-  ) async {
+  testWidgets('disabled when onPressed is null and selected uses the accent', (tester) async {
     final tokens = FrameTokens.dark;
-    await tester.pumpWidget(
-      _host(
-        const FrameIconAction(
-          icon: Icons.refresh,
-          tooltip: 'Aggiorna',
-          onPressed: null,
-        ),
-      ),
-    );
-    expect(
-      tester.widget<IconButton>(find.byType(IconButton)).onPressed,
-      isNull,
-    );
+    await tester.pumpWidget(_host(const FrameIconAction(icon: Icons.refresh, tooltip: 'Aggiorna', onPressed: null)));
+    expect(tester.widget<IconButton>(find.byType(IconButton)).onPressed, isNull);
     expect(tester.widget<Icon>(find.byType(Icon)).color, tokens.textMuted);
 
     await tester.pumpWidget(
-      _host(
-        FrameIconAction(
-          icon: Icons.refresh,
-          tooltip: 'Aggiorna',
-          selected: true,
-          onPressed: () {},
-        ),
-      ),
+      _host(FrameIconAction(icon: Icons.refresh, tooltip: 'Aggiorna', selected: true, onPressed: () {})),
     );
     expect(tester.widget<Icon>(find.byType(Icon)).color, tokens.accent);
   });

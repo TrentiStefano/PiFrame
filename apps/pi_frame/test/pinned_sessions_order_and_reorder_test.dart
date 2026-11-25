@@ -9,6 +9,8 @@ import 'package:pi_frame/features/sessions_sidebar/pinned_sessions_provider.dart
 import 'package:pi_frame/features/sessions_sidebar/sessions_sidebar.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+import 'support/fake_platform_services.dart';
+
 class _TestPinnedNotifier extends PinnedSessionsNotifier {
   _TestPinnedNotifier(super.initial);
 }
@@ -38,11 +40,23 @@ void main() {
     });
 
     test('a notifier built from a list never writes the stored pins file', () {
-      final notifier = PinnedSessionsNotifier(['sess_alpha', 'sess_beta']);
+      final storage = FakeUserDataService();
+      final notifier = PinnedSessionsNotifier(['sess_alpha', 'sess_beta'], storage);
       notifier.reorder(0, 2);
       notifier.togglePin('sess_gamma');
       notifier.unpin('sess_alpha');
-      expect(notifier.storageFileForTesting, isNull);
+      expect(notifier.persists, isFalse);
+      expect(storage.writes, isEmpty);
+    });
+
+    test('pins load from and save to the user data file', () {
+      final storage = FakeUserDataService()..files['pinned_sessions.json'] = '["sess_b","sess_a","sess_b"]';
+      final notifier = PinnedSessionsNotifier(null, storage);
+      expect(notifier.state, ['sess_b', 'sess_a']);
+
+      notifier.togglePin('sess_c');
+      expect(storage.writes, ['pinned_sessions.json']);
+      expect(storage.files['pinned_sessions.json'], '["sess_b","sess_a","sess_c"]');
     });
   });
 
@@ -120,9 +134,7 @@ void main() {
             ),
           ],
           child: MaterialApp(
-            theme: ThemeData.dark().copyWith(
-              extensions: const [FrameTokens.dark],
-            ),
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
             home: const Scaffold(body: SessionsSidebar()),
           ),
         ),
@@ -130,7 +142,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Pinned header exists
-      expect(find.text('FISSATE (3)'), findsOneWidget);
+      expect(find.text('PINNED (3)'), findsOneWidget);
 
       // Verify that pinned session tiles appear in the pinned list order (sess_1, then sess_2, then sess_3)
       final sessionOneFinder = find.byKey(const ValueKey('pinned_session_sess_1'));
@@ -163,18 +175,8 @@ void main() {
       tester,
     ) async {
       final mockSessions = [
-        {
-          'id': 'sess_alpha',
-          'name': 'Alpha Session',
-          'cwd': '/repo/app',
-          'isActive': false,
-        },
-        {
-          'id': 'sess_beta',
-          'name': 'Beta Session',
-          'cwd': '/repo/app',
-          'isActive': false,
-        },
+        {'id': 'sess_alpha', 'name': 'Alpha Session', 'cwd': '/repo/app', 'isActive': false},
+        {'id': 'sess_beta', 'name': 'Beta Session', 'cwd': '/repo/app', 'isActive': false},
       ];
 
       final pinnedNotifier = _TestPinnedNotifier(['sess_alpha', 'sess_beta']);
@@ -187,26 +189,18 @@ void main() {
             pinnedSessionsProvider.overrideWith((ref) => pinnedNotifier),
             activeSessionIdProvider.overrideWith((ref) => 'sess_alpha'),
             sessionStateFamily('sess_alpha').overrideWith(
-              (ref) => SessionStateNotifier('sess_alpha', null)
-                ..state = const SessionState(
-                  sessionId: 'sess_alpha',
-                  cwd: '/repo/app',
-                  entries: [],
-                ),
+              (ref) =>
+                  SessionStateNotifier('sess_alpha', null)
+                    ..state = const SessionState(sessionId: 'sess_alpha', cwd: '/repo/app', entries: []),
             ),
             sessionStateFamily('sess_beta').overrideWith(
-              (ref) => SessionStateNotifier('sess_beta', null)
-                ..state = const SessionState(
-                  sessionId: 'sess_beta',
-                  cwd: '/repo/app',
-                  entries: [],
-                ),
+              (ref) =>
+                  SessionStateNotifier('sess_beta', null)
+                    ..state = const SessionState(sessionId: 'sess_beta', cwd: '/repo/app', entries: []),
             ),
           ],
           child: MaterialApp(
-            theme: ThemeData.dark().copyWith(
-              extensions: const [FrameTokens.dark],
-            ),
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
             home: const Scaffold(body: SessionsSidebar()),
           ),
         ),

@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_frame/domain/update/update_models.dart';
 
@@ -7,7 +6,8 @@ void main() {
     test('parses from JSON correctly', () {
       final asset = ReleaseAsset.fromJson({
         'name': 'PiFrame-Setup-1.4.0-windows-x64.exe',
-        'browser_download_url': 'https://github.com/TrentiStefano/piframe/releases/download/v1.4.0/PiFrame-Setup-1.4.0-windows-x64.exe',
+        'browser_download_url':
+            'https://github.com/TrentiStefano/piframe/releases/download/v1.4.0/PiFrame-Setup-1.4.0-windows-x64.exe',
         'size': 85000000,
         'content_type': 'application/octet-stream',
       });
@@ -23,7 +23,8 @@ void main() {
     test('detects macOS and Linux assets', () {
       final macArm = ReleaseAsset.fromJson({
         'name': 'PiFrame-1.4.0-macos-arm64.dmg',
-        'browser_download_url': 'https://github.com/TrentiStefano/piframe/releases/download/v1.4.0/PiFrame-1.4.0-macos-arm64.dmg',
+        'browser_download_url':
+            'https://github.com/TrentiStefano/piframe/releases/download/v1.4.0/PiFrame-1.4.0-macos-arm64.dmg',
         'size': 70000000,
       });
       expect(macArm.isMacDmg, isTrue);
@@ -32,7 +33,8 @@ void main() {
 
       final macIntel = ReleaseAsset.fromJson({
         'name': 'PiFrame-1.4.0-macos-x64.dmg',
-        'browser_download_url': 'https://github.com/TrentiStefano/piframe/releases/download/v1.4.0/PiFrame-1.4.0-macos-x64.dmg',
+        'browser_download_url':
+            'https://github.com/TrentiStefano/piframe/releases/download/v1.4.0/PiFrame-1.4.0-macos-x64.dmg',
         'size': 72000000,
       });
       expect(macIntel.isMacDmg, isTrue);
@@ -41,7 +43,8 @@ void main() {
 
       final linuxDeb = ReleaseAsset.fromJson({
         'name': 'PiFrame-1.4.0-linux-amd64.deb',
-        'browser_download_url': 'https://github.com/TrentiStefano/piframe/releases/download/v1.4.0/PiFrame-1.4.0-linux-amd64.deb',
+        'browser_download_url':
+            'https://github.com/TrentiStefano/piframe/releases/download/v1.4.0/PiFrame-1.4.0-linux-amd64.deb',
         'size': 65000000,
       });
       expect(linuxDeb.isLinuxDeb, isTrue);
@@ -59,22 +62,26 @@ void main() {
         'assets': [
           {
             'name': 'PiFrame-Setup-1.4.0-windows-x64.exe',
-            'browser_download_url': 'https://github.com/TrentiStefano/piframe/releases/download/v1.4.0/PiFrame-Setup-1.4.0-windows-x64.exe',
+            'browser_download_url':
+                'https://github.com/TrentiStefano/piframe/releases/download/v1.4.0/PiFrame-Setup-1.4.0-windows-x64.exe',
             'size': 85000000,
           },
           {
             'name': 'PiFrame-1.4.0-macos-arm64.dmg',
-            'browser_download_url': 'https://github.com/TrentiStefano/piframe/releases/download/v1.4.0/PiFrame-1.4.0-macos-arm64.dmg',
+            'browser_download_url':
+                'https://github.com/TrentiStefano/piframe/releases/download/v1.4.0/PiFrame-1.4.0-macos-arm64.dmg',
             'size': 70000000,
           },
           {
             'name': 'PiFrame-1.4.0-macos-x64.dmg',
-            'browser_download_url': 'https://github.com/TrentiStefano/piframe/releases/download/v1.4.0/PiFrame-1.4.0-macos-x64.dmg',
+            'browser_download_url':
+                'https://github.com/TrentiStefano/piframe/releases/download/v1.4.0/PiFrame-1.4.0-macos-x64.dmg',
             'size': 72000000,
           },
           {
             'name': 'PiFrame-1.4.0-linux-amd64.deb',
-            'browser_download_url': 'https://github.com/TrentiStefano/piframe/releases/download/v1.4.0/PiFrame-1.4.0-linux-amd64.deb',
+            'browser_download_url':
+                'https://github.com/TrentiStefano/piframe/releases/download/v1.4.0/PiFrame-1.4.0-linux-amd64.deb',
             'size': 65000000,
           },
         ],
@@ -83,26 +90,16 @@ void main() {
       expect(release.semVer?.major, 1);
       expect(release.semVer?.minor, 4);
 
-      final winAsset = release.findPlatformAsset(
-        platformOverride: TargetPlatform.windows,
-      );
+      final winAsset = release.findPlatformAsset(platform: ReleasePlatform.windows);
       expect(winAsset?.name, 'PiFrame-Setup-1.4.0-windows-x64.exe');
 
-      final macArmAsset = release.findPlatformAsset(
-        platformOverride: TargetPlatform.macOS,
-        archOverride: 'arm64',
-      );
+      final macArmAsset = release.findPlatformAsset(platform: ReleasePlatform.macOS, arch: 'arm64');
       expect(macArmAsset?.name, 'PiFrame-1.4.0-macos-arm64.dmg');
 
-      final macIntelAsset = release.findPlatformAsset(
-        platformOverride: TargetPlatform.macOS,
-        archOverride: 'x64',
-      );
+      final macIntelAsset = release.findPlatformAsset(platform: ReleasePlatform.macOS, arch: 'x64');
       expect(macIntelAsset?.name, 'PiFrame-1.4.0-macos-x64.dmg');
 
-      final linuxAsset = release.findPlatformAsset(
-        platformOverride: TargetPlatform.linux,
-      );
+      final linuxAsset = release.findPlatformAsset(platform: ReleasePlatform.linux);
       expect(linuxAsset?.name, 'PiFrame-1.4.0-linux-amd64.deb');
     });
   });
@@ -133,10 +130,7 @@ void main() {
       final now = DateTime(2026, 10, 14, 12, 0);
 
       // When enabled and never checked, should check
-      const enabledNeverChecked = UpdateSettings(
-        autoCheckEnabled: true,
-        interval: UpdateCheckInterval.daily,
-      );
+      const enabledNeverChecked = UpdateSettings(autoCheckEnabled: true, interval: UpdateCheckInterval.daily);
       expect(enabledNeverChecked.shouldCheckNow(now), isTrue);
 
       // When enabled and checked 2 hours ago for daily interval -> should NOT check

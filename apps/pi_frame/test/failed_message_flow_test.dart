@@ -29,13 +29,10 @@ class _PromptClient extends PcpClient {
 
   // Answer the defaults lookups so their timeout timers do not outlive the test.
   @override
-  Future<Map<String, dynamic>> getAvailableModels(String sessionId) async =>
-      {'models': <Map<String, dynamic>>[]};
+  Future<Map<String, dynamic>> getAvailableModels(String sessionId) async => {'models': <Map<String, dynamic>>[]};
 
   @override
-  Future<Map<String, dynamic>> getAvailableThinkingLevels(
-    String sessionId,
-  ) async => {'levels': <String>[]};
+  Future<Map<String, dynamic>> getAvailableThinkingLevels(String sessionId) async => {'levels': <String>[]};
 
   @override
   Future<Map<String, dynamic>> sendPrompt(
@@ -68,9 +65,7 @@ Widget _app(SessionStateNotifier session) => ProviderScope(
 );
 
 void main() {
-  testWidgets('failed bubble shows error and retry resends the same message', (
-    tester,
-  ) async {
+  testWidgets('failed bubble shows error and retry resends the same message', (tester) async {
     tester.view.physicalSize = const Size(1200, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -96,18 +91,10 @@ void main() {
     await tester.pumpWidget(_app(session));
     await tester.pumpAndSettle();
 
-    expect(find.text('Invio non riuscito: Model unavailable'), findsOneWidget);
-    expect(
-      find.byKey(const ValueKey('retry-user-message-failed_1')),
-      findsOneWidget,
-    );
-    final bubble = tester.widget<Container>(
-      find.byKey(const ValueKey('failed-message-bubble-failed_1')),
-    );
-    expect(
-      (bubble.decoration! as BoxDecoration).border!.top.color,
-      FrameTokens.dark.danger,
-    );
+    expect(find.text('Send failed: Model unavailable'), findsOneWidget);
+    expect(find.byKey(const ValueKey('retry-user-message-failed_1')), findsOneWidget);
+    final bubble = tester.widget<Container>(find.byKey(const ValueKey('failed-message-bubble-failed_1')));
+    expect((bubble.decoration! as BoxDecoration).border!.top.color, FrameTokens.dark.danger);
 
     await tester.tap(find.byKey(const ValueKey('retry-user-message-failed_1')));
     await tester.pump();
@@ -119,9 +106,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('double-click restores failed text and attachments to composer', (
-    tester,
-  ) async {
+  testWidgets('double-click restores failed text and attachments to composer', (tester) async {
     tester.view.physicalSize = const Size(1200, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -138,8 +123,7 @@ void main() {
       name: 'notes.md',
       pathOrUrl: '/repo/notes.md',
     );
-    final failedText =
-        '${encodeAttachmentsTag([failedAttachment])}\nReview this file';
+    final failedText = '${encodeAttachmentsTag([failedAttachment])}\nReview this file';
     final session = SessionStateNotifier('restore', null)
       ..state = SessionState(
         sessionId: 'restore',
@@ -157,40 +141,25 @@ void main() {
     await tester.pumpWidget(_app(session));
     await tester.pumpAndSettle();
 
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(Composer)),
-    );
-    container.read(composerDraftProvider('restore').notifier).state =
-        'Keep this draft';
-    container
-        .read(composerAttachmentsProvider('restore').notifier)
-        .add(existingAttachment);
+    final container = ProviderScope.containerOf(tester.element(find.byType(Composer)));
+    container.read(composerDraftProvider('restore').notifier).state = 'Keep this draft';
+    container.read(composerAttachmentsProvider('restore').notifier).add(existingAttachment);
     await tester.pump();
 
-    final failedBubble = find.byKey(
-      const ValueKey('failed-user-message-failed_2'),
-    );
+    final failedBubble = find.byKey(const ValueKey('failed-user-message-failed_2'));
     await tester.tap(failedBubble);
     await tester.pump(const Duration(milliseconds: 50));
     await tester.tap(failedBubble);
     await tester.pumpAndSettle();
 
     expect(session.state.entries, isEmpty);
-    expect(
-      container.read(composerDraftProvider('restore')),
-      'Review this file\nKeep this draft',
-    );
+    expect(container.read(composerDraftProvider('restore')), 'Review this file\nKeep this draft');
     expect(find.text('Review this file\nKeep this draft'), findsOneWidget);
-    expect(
-      container.read(composerAttachmentsProvider('restore')),
-      containsAll([failedAttachment, existingAttachment]),
-    );
+    expect(container.read(composerAttachmentsProvider('restore')), containsAll([failedAttachment, existingAttachment]));
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Enter on the focused failed bubble restores it to the composer', (
-    tester,
-  ) async {
+  testWidgets('Enter on the focused failed bubble restores it to the composer', (tester) async {
     tester.view.physicalSize = const Size(1200, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -212,25 +181,17 @@ void main() {
     await tester.pumpWidget(_app(session));
     await tester.pumpAndSettle();
 
-    final container = ProviderScope.containerOf(
-      tester.element(find.byType(Composer)),
-    );
+    final container = ProviderScope.containerOf(tester.element(find.byType(Composer)));
     // Focus the bubble through its focus scope, then press Enter.
     final bubble = find.byKey(const ValueKey('failed-user-message-failed_key'));
     final wrapper = Focus.of(tester.element(bubble));
-    (wrapper.canRequestFocus
-            ? wrapper
-            : wrapper.descendants.firstWhere((n) => n.canRequestFocus))
-        .requestFocus();
+    (wrapper.canRequestFocus ? wrapper : wrapper.descendants.firstWhere((n) => n.canRequestFocus)).requestFocus();
     await tester.pump();
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pumpAndSettle();
 
     expect(session.state.entries, isEmpty);
-    expect(
-      container.read(composerDraftProvider('restore_key')),
-      'Retry from keyboard',
-    );
+    expect(container.read(composerDraftProvider('restore_key')), 'Retry from keyboard');
     expect(tester.takeException(), isNull);
   });
 }

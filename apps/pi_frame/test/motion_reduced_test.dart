@@ -34,21 +34,14 @@ void main() {
       expect(second.state.enabled, isTrue);
 
       second.setEnabled(false);
-      expect(
-        ReducedMotionSettingsNotifier(storageFile: file).state.enabled,
-        isFalse,
-      );
+      expect(ReducedMotionSettingsNotifier(storageFile: file).state.enabled, isFalse);
     });
 
     test('ignores a corrupt or non-boolean file and stays off', () {
       final dir = Directory.systemTemp.createTempSync('reduced-motion-test');
       addTearDown(() => dir.deleteSync(recursive: true));
-      final file = File('${dir.path}/reduced_motion_settings.json')
-        ..writeAsStringSync('{"enabled": "yes"');
-      expect(
-        ReducedMotionSettingsNotifier(storageFile: file).state.enabled,
-        isFalse,
-      );
+      final file = File('${dir.path}/reduced_motion_settings.json')..writeAsStringSync('{"enabled": "yes"');
+      expect(ReducedMotionSettingsNotifier(storageFile: file).state.enabled, isFalse);
     });
   });
 
@@ -57,26 +50,18 @@ void main() {
       await tester.pumpWidget(
         _app(
           reduced: false,
-          child: const FrameEnter(
-            child: SizedBox(key: ValueKey('x'), height: 10),
-          ),
+          child: const FrameEnter(child: SizedBox(key: ValueKey('x'), height: 10)),
         ),
       );
       await tester.pump();
       final start = tester.widget<Transform>(
-        find.ancestor(
-          of: find.byKey(const ValueKey('x')),
-          matching: find.byType(Transform),
-        ),
+        find.ancestor(of: find.byKey(const ValueKey('x')), matching: find.byType(Transform)),
       );
       expect(start.transform.getTranslation().y, greaterThan(0));
 
       await tester.pumpAndSettle();
       final end = tester.widget<Transform>(
-        find.ancestor(
-          of: find.byKey(const ValueKey('x')),
-          matching: find.byType(Transform),
-        ),
+        find.ancestor(of: find.byKey(const ValueKey('x')), matching: find.byType(Transform)),
       );
       expect(end.transform.getTranslation().y, closeTo(0, 0.001));
     });
@@ -85,17 +70,12 @@ void main() {
       await tester.pumpWidget(
         _app(
           reduced: true,
-          child: const FrameEnter(
-            child: SizedBox(key: ValueKey('x'), height: 10),
-          ),
+          child: const FrameEnter(child: SizedBox(key: ValueKey('x'), height: 10)),
         ),
       );
       await tester.pump();
       final transform = tester.widget<Transform>(
-        find.ancestor(
-          of: find.byKey(const ValueKey('x')),
-          matching: find.byType(Transform),
-        ),
+        find.ancestor(of: find.byKey(const ValueKey('x')), matching: find.byType(Transform)),
       );
       expect(transform.transform.getTranslation().y, 0);
       await tester.pumpAndSettle();
@@ -103,9 +83,7 @@ void main() {
   });
 
   group('FrameExpandable', () {
-    testWidgets('builds its child only after the first expansion', (
-      tester,
-    ) async {
+    testWidgets('builds its child only after the first expansion', (tester) async {
       var builds = 0;
       Widget body(bool expanded) => _app(
         reduced: false,
@@ -137,33 +115,22 @@ void main() {
   });
 
   group('FrameSwitcher', () {
-    Widget switcher({
-      required bool reduced,
-      required String id,
-      bool animate = true,
-    }) {
+    Widget switcher({required bool reduced, required String id, bool animate = true}) {
       return _app(
         reduced: reduced,
         child: Align(
           alignment: Alignment.topLeft,
           child: FrameSwitcher(
             animate: animate,
-            child: SizedBox(
-              key: ValueKey(id),
-              width: 100,
-              height: 20,
-              child: Text(id),
-            ),
+            child: SizedBox(key: ValueKey(id), width: 100, height: 20, child: Text(id)),
           ),
         ),
       );
     }
 
-    double x(WidgetTester tester, String id) =>
-        tester.getTopLeft(find.byKey(ValueKey(id))).dx;
+    double x(WidgetTester tester, String id) => tester.getTopLeft(find.byKey(ValueKey(id))).dx;
 
-    testWidgets('slides the incoming child in from +8 px in normal motion',
-        (tester) async {
+    testWidgets('slides the incoming child in from +8 px in normal motion', (tester) async {
       await tester.pumpWidget(switcher(reduced: false, id: 'a'));
       await tester.pumpWidget(switcher(reduced: false, id: 'b'));
       await tester.pump();
@@ -177,8 +144,7 @@ void main() {
       expect(x(tester, 'b'), closeTo(0, 0.001));
     });
 
-    testWidgets('cross-fades without travel under reduced motion',
-        (tester) async {
+    testWidgets('cross-fades without travel under reduced motion', (tester) async {
       await tester.pumpWidget(switcher(reduced: true, id: 'a'));
       await tester.pumpWidget(switcher(reduced: true, id: 'b'));
       await tester.pump();
@@ -193,27 +159,17 @@ void main() {
       expect(x(tester, 'b'), closeTo(0, 0.001));
     });
 
-    testWidgets('animate false swaps at once in normal motion',
-        (tester) async {
-      await tester.pumpWidget(
-        switcher(reduced: false, id: 'a', animate: false),
-      );
-      await tester.pumpWidget(
-        switcher(reduced: false, id: 'b', animate: false),
-      );
+    testWidgets('animate false swaps at once in normal motion', (tester) async {
+      await tester.pumpWidget(switcher(reduced: false, id: 'a', animate: false));
+      await tester.pumpWidget(switcher(reduced: false, id: 'b', animate: false));
       await tester.pump();
       expect(find.byKey(const ValueKey('a')), findsNothing);
       expect(x(tester, 'b'), closeTo(0, 0.001));
     });
 
-    testWidgets('animate false swaps at once under reduced motion',
-        (tester) async {
-      await tester.pumpWidget(
-        switcher(reduced: true, id: 'a', animate: false),
-      );
-      await tester.pumpWidget(
-        switcher(reduced: true, id: 'b', animate: false),
-      );
+    testWidgets('animate false swaps at once under reduced motion', (tester) async {
+      await tester.pumpWidget(switcher(reduced: true, id: 'a', animate: false));
+      await tester.pumpWidget(switcher(reduced: true, id: 'b', animate: false));
       await tester.pump();
       expect(find.byKey(const ValueKey('a')), findsNothing);
       expect(x(tester, 'b'), closeTo(0, 0.001));
@@ -221,19 +177,14 @@ void main() {
   });
 
   group('FrameExpandable timings', () {
-    Widget body({
-      required bool expanded,
-      required bool reduced,
-      bool animate = true,
-    }) =>
-        _app(
-          reduced: reduced,
-          child: FrameExpandable(
-            expanded: expanded,
-            animate: animate,
-            child: const SizedBox(key: ValueKey('body'), height: 40),
-          ),
-        );
+    Widget body({required bool expanded, required bool reduced, bool animate = true}) => _app(
+      reduced: reduced,
+      child: FrameExpandable(
+        expanded: expanded,
+        animate: animate,
+        child: const SizedBox(key: ValueKey('body'), height: 40),
+      ),
+    );
 
     testWidgets('collapses in the shorter smallExit duration', (tester) async {
       await tester.pumpWidget(body(expanded: true, reduced: false));
@@ -245,8 +196,7 @@ void main() {
       expect(find.byKey(const ValueKey('body')), findsNothing);
     });
 
-    testWidgets('collapses in one cross-fade under reduced motion',
-        (tester) async {
+    testWidgets('collapses in one cross-fade under reduced motion', (tester) async {
       await tester.pumpWidget(body(expanded: true, reduced: true));
       await tester.pumpAndSettle();
       await tester.pumpWidget(body(expanded: false, reduced: true));
@@ -256,15 +206,11 @@ void main() {
 
     testWidgets('animate false applies the state at once', (tester) async {
       await tester.pumpWidget(body(expanded: false, reduced: false));
-      await tester.pumpWidget(
-        body(expanded: true, reduced: false, animate: false),
-      );
+      await tester.pumpWidget(body(expanded: true, reduced: false, animate: false));
       await tester.pump();
       expect(tester.getSize(find.byKey(const ValueKey('body'))).height, 40);
 
-      await tester.pumpWidget(
-        body(expanded: false, reduced: false, animate: false),
-      );
+      await tester.pumpWidget(body(expanded: false, reduced: false, animate: false));
       await tester.pump();
       expect(find.byKey(const ValueKey('body')), findsNothing);
     });
@@ -280,10 +226,7 @@ void main() {
       ),
     );
 
-    Finder beamOf() => find.descendant(
-      of: find.byType(ShimmerBorder),
-      matching: find.byType(CustomPaint),
-    );
+    Finder beamOf() => find.descendant(of: find.byType(ShimmerBorder), matching: find.byType(CustomPaint));
 
     testWidgets('is a static accent ring under reduced motion', (tester) async {
       await tester.pumpWidget(ring(reduced: true));
@@ -299,38 +242,24 @@ void main() {
   });
 
   group("FrameSwitcher", () {
-    Widget switcher({
-      required bool reduced,
-      required String current,
-      double slide = 8,
-      bool animate = true,
-    }) => _app(
+    Widget switcher({required bool reduced, required String current, double slide = 8, bool animate = true}) => _app(
       reduced: reduced,
       child: FrameSwitcher(
         slide: slide,
         animate: animate,
-        child: SizedBox(
-          key: ValueKey(current),
-          width: 100,
-          height: 40,
-          child: Text(current),
-        ),
+        child: SizedBox(key: ValueKey(current), width: 100, height: 40, child: Text(current)),
       ),
     );
 
     /// Horizontal offset of the transform around the text [label].
     double dxOf(WidgetTester tester, String label) {
       final transform = tester.widget<Transform>(
-        find
-            .ancestor(of: find.text(label), matching: find.byType(Transform))
-            .first,
+        find.ancestor(of: find.text(label), matching: find.byType(Transform)).first,
       );
       return transform.transform.getTranslation().x;
     }
 
-    testWidgets("incoming slides from the right and outgoing leaves left", (
-      tester,
-    ) async {
+    testWidgets("incoming slides from the right and outgoing leaves left", (tester) async {
       await tester.pumpWidget(switcher(reduced: false, current: "a"));
       await tester.pumpWidget(switcher(reduced: false, current: "b"));
       await tester.pump();
@@ -343,12 +272,8 @@ void main() {
     });
 
     testWidgets("a negative slide reverses the direction", (tester) async {
-      await tester.pumpWidget(
-        switcher(reduced: false, current: "a", slide: -8),
-      );
-      await tester.pumpWidget(
-        switcher(reduced: false, current: "b", slide: -8),
-      );
+      await tester.pumpWidget(switcher(reduced: false, current: "a", slide: -8));
+      await tester.pumpWidget(switcher(reduced: false, current: "b", slide: -8));
       await tester.pump();
       expect(dxOf(tester, "b"), closeTo(-8, 0.01));
       await tester.pumpAndSettle();
@@ -366,32 +291,21 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets("reduced motion cross-fades in 150 ms or less without moving", (
-      tester,
-    ) async {
+    testWidgets("reduced motion cross-fades in 150 ms or less without moving", (tester) async {
       await tester.pumpWidget(switcher(reduced: true, current: "a"));
       await tester.pumpWidget(switcher(reduced: true, current: "b"));
       await tester.pump();
       // No slide wrapper at all under reduced motion: the child only fades.
-      expect(
-        find.ancestor(of: find.text("b"), matching: find.byType(Transform)),
-        findsNothing,
-      );
+      expect(find.ancestor(of: find.text("b"), matching: find.byType(Transform)), findsNothing);
       await tester.pump(const Duration(milliseconds: 130));
       expect(find.text("a"), findsNothing);
       expect(find.text("b"), findsOneWidget);
       await tester.pumpAndSettle();
     });
 
-    testWidgets("animate false swaps at once with no transition", (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        switcher(reduced: false, current: "a", animate: false),
-      );
-      await tester.pumpWidget(
-        switcher(reduced: false, current: "b", animate: false),
-      );
+    testWidgets("animate false swaps at once with no transition", (tester) async {
+      await tester.pumpWidget(switcher(reduced: false, current: "a", animate: false));
+      await tester.pumpWidget(switcher(reduced: false, current: "b", animate: false));
       await tester.pump();
       expect(find.text("a"), findsNothing);
       expect(find.text("b"), findsOneWidget);
@@ -399,9 +313,7 @@ void main() {
     });
 
     testWidgets("every child needs a key", (tester) async {
-      await tester.pumpWidget(
-        _app(reduced: false, child: const FrameSwitcher(child: Text("no key"))),
-      );
+      await tester.pumpWidget(_app(reduced: false, child: const FrameSwitcher(child: Text("no key"))));
       expect(tester.takeException(), isA<AssertionError>());
     });
   });

@@ -24,12 +24,7 @@ class PcpSnapshot extends PcpEnvelope {
     required String sessionId,
     required int seq,
     required super.payload,
-  }) : super(
-          kind: 'snapshot',
-          sessionId: sessionId,
-          seq: seq,
-          type: 'session.snapshot',
-        );
+  }) : super(kind: 'snapshot', sessionId: sessionId, seq: seq, type: 'session.snapshot');
 
   factory PcpSnapshot.fromJson(Map<String, dynamic> json) {
     return PcpSnapshot(
@@ -129,12 +124,7 @@ class TranscriptMeta {
   final int? totalEntries;
   final bool? hasMore;
 
-  const TranscriptMeta({
-    required this.entries,
-    this.leafId,
-    this.totalEntries,
-    this.hasMore,
-  });
+  const TranscriptMeta({required this.entries, this.leafId, this.totalEntries, this.hasMore});
 
   factory TranscriptMeta.fromJson(Map<String, dynamic> json) {
     return TranscriptMeta(

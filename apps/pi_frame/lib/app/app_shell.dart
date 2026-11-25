@@ -40,7 +40,7 @@ import '../features/command_palette/command_palette.dart';
 import '../features/settings/settings_view.dart';
 import '../features/welcome/welcome_view.dart';
 import '../data/notifications/notification_providers.dart';
-import '../data/notifications/session_notification_watcher.dart';
+import '../features/notifications/session_notification_watcher.dart';
 import '../features/settings/updates_watcher.dart';
 import '../data/update/update_providers.dart';
 import '../features/session_changes/session_changes_provider.dart';
@@ -77,9 +77,7 @@ Set<WorkspacePane> narrowCompanionPanes({
   if (totalWeight <= 0) return <WorkspacePane>{};
   return {
     for (final p in open)
-      if (p != WorkspacePane.chat &&
-          availableWidth * (weights[p] ?? 1) / totalWeight < minWidth)
-        p,
+      if (p != WorkspacePane.chat && availableWidth * (weights[p] ?? 1) / totalWeight < minWidth) p,
   };
 }
 
@@ -105,9 +103,7 @@ Map<WorkspacePane, double> clampRestoredPaneWeights({
   // Flex weights are rounded to whole numbers when laid out, so each minimum gets a
   // small margin; otherwise a pane could land a few pixels under its minimum.
   double minShare(WorkspacePane p) =>
-      (p == WorkspacePane.chat ? kChatMinWidth : kCompanionMinWidth) *
-      1.03 /
-      availableWidth;
+      (p == WorkspacePane.chat ? kChatMinWidth : kCompanionMinWidth) * 1.03 / availableWidth;
 
   final pinned = <WorkspacePane, double>{};
   var changed = true;
@@ -117,9 +113,7 @@ Map<WorkspacePane, double> clampRestoredPaneWeights({
     final freeTotal = free.fold<double>(0, (sum, p) => sum + result[p]!);
     final budget = 1.0 - pinned.values.fold<double>(0, (sum, v) => sum + v);
     for (final p in free) {
-      final share = freeTotal > 0
-          ? result[p]! / freeTotal * budget
-          : budget / free.length;
+      final share = freeTotal > 0 ? result[p]! / freeTotal * budget : budget / free.length;
       if (share < minShare(p)) {
         pinned[p] = minShare(p);
         changed = true;
@@ -127,13 +121,10 @@ Map<WorkspacePane, double> clampRestoredPaneWeights({
     }
   }
 
-  final freeTotal = open
-      .where((p) => !pinned.containsKey(p))
-      .fold<double>(0, (sum, p) => sum + result[p]!);
+  final freeTotal = open.where((p) => !pinned.containsKey(p)).fold<double>(0, (sum, p) => sum + result[p]!);
   final budget = 1.0 - pinned.values.fold<double>(0, (sum, v) => sum + v);
   for (final p in open) {
-    final share =
-        pinned[p] ?? (freeTotal > 0 ? result[p]! / freeTotal * budget : budget);
+    final share = pinned[p] ?? (freeTotal > 0 ? result[p]! / freeTotal * budget : budget);
     result[p] = share * 100;
   }
   return result;
@@ -185,10 +176,7 @@ class _ConnectionIndicator extends StatelessWidget {
           borderRadius: BorderRadius.circular(tokens.radiusSm),
           onTap: onTap,
           child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              minWidth: FrameSize.hitMin,
-              minHeight: FrameSize.hitMin,
-            ),
+            constraints: const BoxConstraints(minWidth: FrameSize.hitMin, minHeight: FrameSize.hitMin),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -196,18 +184,11 @@ class _ConnectionIndicator extends StatelessWidget {
                 Container(
                   width: 8,
                   height: 8,
-                  decoration: BoxDecoration(
-                    color: connected ? tokens.success : tokens.warning,
-                    shape: BoxShape.circle,
-                  ),
+                  decoration: BoxDecoration(color: connected ? tokens.success : tokens.warning, shape: BoxShape.circle),
                 ),
                 if (showLabel) ...[
                   const SizedBox(width: FrameSpace.x2),
-                  Text(
-                    label,
-                    style: FrameText.of(context).caption
-                        .copyWith(color: tokens.textMuted),
-                  ),
+                  Text(label, style: FrameText.of(context).caption.copyWith(color: tokens.textMuted)),
                 ],
                 const SizedBox(width: FrameSpace.x2),
               ],
@@ -253,13 +234,11 @@ class _ResizeDividerFocusState extends State<_ResizeDividerFocus> {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
-    if (event.logicalKey == LogicalKeyboardKey.arrowLeft &&
-        widget.onDecrease != null) {
+    if (event.logicalKey == LogicalKeyboardKey.arrowLeft && widget.onDecrease != null) {
       widget.onDecrease!();
       return KeyEventResult.handled;
     }
-    if (event.logicalKey == LogicalKeyboardKey.arrowRight &&
-        widget.onIncrease != null) {
+    if (event.logicalKey == LogicalKeyboardKey.arrowRight && widget.onIncrease != null) {
       widget.onIncrease!();
       return KeyEventResult.handled;
     }
@@ -296,10 +275,7 @@ class AppShell extends ConsumerStatefulWidget {
 }
 
 class _AppShellState extends ConsumerState<AppShell>
-    with
-        WindowListener,
-        WidgetsBindingObserver,
-        SingleTickerProviderStateMixin {
+    with WindowListener, WidgetsBindingObserver, SingleTickerProviderStateMixin {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   bool _closingWindow = false;
   late final bool _handlesNativeClose;
@@ -326,9 +302,8 @@ class _AppShellState extends ConsumerState<AppShell>
   // to the new one. Divider drags, keyboard toggles and palette toggles set
   // no animation. Under reduced motion the layout is final at once and the
   // entering pane cross-fades over _kReducedPaneFade.
-  late final AnimationController _paneTransition = AnimationController(
-    vsync: this,
-  )..addStatusListener(_onPaneTransitionStatus);
+  late final AnimationController _paneTransition = AnimationController(vsync: this)
+    ..addStatusListener(_onPaneTransitionStatus);
   // Slot widths shown in the last pane row, and the snapshot taken when a
   // transition starts. Both keyed by pane.
   Map<WorkspacePane, double> _slotPx = {};
@@ -361,9 +336,7 @@ class _AppShellState extends ConsumerState<AppShell>
   Map<WorkspacePane, bool>? _preReviewPaneVisibility;
   Map<WorkspacePane, double>? _preReviewPaneWeights;
   // Focus regions in Tab order (plan task 6.2). Each key is attached once per build.
-  final Map<FocusRegion, GlobalKey> _regionKeys = {
-    for (final region in FocusRegion.values) region: GlobalKey(),
-  };
+  final Map<FocusRegion, GlobalKey> _regionKeys = {for (final region in FocusRegion.values) region: GlobalKey()};
   // Escape layers this shell registered (drawers, settings), removed when they close.
   final Map<String, VoidCallback> _escapeHandles = {};
 
@@ -376,8 +349,7 @@ class _AppShellState extends ConsumerState<AppShell>
       _sidebarCollapsed = true; // Minimize Sessions pane
       _paneVisibility[WorkspacePane.repository] = false; // Hide Repository pane
       _paneVisibility[WorkspacePane.chat] = true;
-      _paneVisibility[WorkspacePane.git] =
-          true; // Use Git slot for Review Changes
+      _paneVisibility[WorkspacePane.git] = true; // Use Git slot for Review Changes
       _paneWeights[WorkspacePane.chat] = 50.0;
       _paneWeights[WorkspacePane.git] = 50.0;
       _collapsedPanes.remove(WorkspacePane.chat);
@@ -409,16 +381,10 @@ class _AppShellState extends ConsumerState<AppShell>
   void _persistLayout() {
     if (_preReviewPaneVisibility != null) return;
     LayoutStore.instance.save({
-      'visibility': {
-        for (final pane in WorkspacePane.values)
-          pane.name: _paneVisibility[pane] ?? true,
-      },
+      'visibility': {for (final pane in WorkspacePane.values) pane.name: _paneVisibility[pane] ?? true},
       'sidebarCollapsed': _sidebarCollapsed,
       'sidebarWidth': _sidebarWidth,
-      'paneWeights': {
-        for (final pane in WorkspacePane.values)
-          pane.name: _paneWeights[pane] ?? 1.0,
-      },
+      'paneWeights': {for (final pane in WorkspacePane.values) pane.name: _paneWeights[pane] ?? 1.0},
       'collapsedPanes': [
         for (final pane in WorkspacePane.values)
           if (_collapsedPanes.contains(pane)) pane.name,
@@ -455,9 +421,7 @@ class _AppShellState extends ConsumerState<AppShell>
     }
     final sidebarWidth = saved['sidebarWidth'];
     if (sidebarWidth is num && sidebarWidth.isFinite) {
-      _sidebarWidth = sidebarWidth
-          .clamp(_minimumSidebarWidth, _maximumSidebarWidth)
-          .toDouble();
+      _sidebarWidth = sidebarWidth.clamp(_minimumSidebarWidth, _maximumSidebarWidth).toDouble();
     }
     if (!_paneVisibility.containsValue(true)) {
       _paneVisibility[WorkspacePane.chat] = true;
@@ -492,16 +456,11 @@ class _AppShellState extends ConsumerState<AppShell>
     if (compact != null && remaining.contains(compact)) _compactPane = compact;
     if (!remaining.contains(_compactPane)) _compactPane = remaining.first;
     final companion = _paneNamed(saved['companionPane']);
-    if (companion != null &&
-        companion != WorkspacePane.chat &&
-        remaining.contains(companion)) {
+    if (companion != null && companion != WorkspacePane.chat && remaining.contains(companion)) {
       _companionPane = companion;
     }
     if (!remaining.contains(_companionPane)) {
-      _companionPane = remaining.firstWhere(
-        (item) => item != WorkspacePane.chat,
-        orElse: () => remaining.first,
-      );
+      _companionPane = remaining.firstWhere((item) => item != WorkspacePane.chat, orElse: () => remaining.first);
     }
   }
 
@@ -511,8 +470,7 @@ class _AppShellState extends ConsumerState<AppShell>
     WidgetsBinding.instance.addObserver(this);
     _applyPersistedLayout();
     final desktopLifecycle = ref.read(desktopWindowLifecycleProvider);
-    _handlesNativeClose =
-        desktopLifecycle && defaultTargetPlatform != TargetPlatform.windows;
+    _handlesNativeClose = desktopLifecycle && defaultTargetPlatform != TargetPlatform.windows;
     _hasWindowListener = desktopLifecycle;
     if (_hasWindowListener) {
       windowManager.addListener(this);
@@ -521,7 +479,7 @@ class _AppShellState extends ConsumerState<AppShell>
       }
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkFirstRunPiInstall();
+      unawaited(_checkFirstRunPiInstall());
     });
   }
 
@@ -559,9 +517,7 @@ class _AppShellState extends ConsumerState<AppShell>
     super.didChangePlatformBrightness();
     ref
         .read(activeThemeSpecProvider.notifier)
-        .onPlatformBrightnessChanged(
-          WidgetsBinding.instance.platformDispatcher.platformBrightness,
-        );
+        .onPlatformBrightnessChanged(WidgetsBinding.instance.platformDispatcher.platformBrightness);
   }
 
   @override
@@ -576,22 +532,22 @@ class _AppShellState extends ConsumerState<AppShell>
 
   @override
   void onWindowEnterFullScreen() {
-    WindowStateService.instance.recordCurrentWindowState();
+    unawaited(WindowStateService.instance.recordCurrentWindowState());
   }
 
   @override
   void onWindowLeaveFullScreen() {
-    WindowStateService.instance.recordCurrentWindowState();
+    unawaited(WindowStateService.instance.recordCurrentWindowState());
   }
 
   @override
   void onWindowMaximize() {
-    WindowStateService.instance.recordCurrentWindowState();
+    unawaited(WindowStateService.instance.recordCurrentWindowState());
   }
 
   @override
   void onWindowUnmaximize() {
-    WindowStateService.instance.recordCurrentWindowState();
+    unawaited(WindowStateService.instance.recordCurrentWindowState());
   }
 
   @override
@@ -600,11 +556,7 @@ class _AppShellState extends ConsumerState<AppShell>
     _closingWindow = true;
     try {
       unawaited(WindowStateService.instance.recordCurrentWindowState());
-      final allowClose = await resolveDirtyRepository(
-        context,
-        ref,
-        ref.read(activeSessionIdProvider),
-      );
+      final allowClose = await resolveDirtyRepository(context, ref, ref.read(activeSessionIdProvider));
       if (!mounted || !allowClose) return;
       await windowManager.setPreventClose(false);
       await windowManager.close();
@@ -629,12 +581,7 @@ class _AppShellState extends ConsumerState<AppShell>
 
   /// Registers or removes one of the shell's own Escape layers (plan task 6.3). [tag]
   /// names the layer; a new registration replaces the old one.
-  void _setEscapeLayer(
-    String tag,
-    EscapeLayer layer,
-    bool open,
-    bool Function() close,
-  ) {
+  void _setEscapeLayer(String tag, EscapeLayer layer, bool open, bool Function() close) {
     _escapeHandles.remove(tag)?.call();
     if (!open) return;
     _escapeHandles[tag] = ref.read(escapeLayersProvider).register(layer, close);
@@ -657,14 +604,10 @@ class _AppShellState extends ConsumerState<AppShell>
     final primary = FocusManager.instance.primaryFocus;
     final panes = FocusRegion.panes;
     final current = panes.indexWhere(
-      (pane) => pane.paneRegions.any(
-        (part) => focusIsWithin(_regionKeys[part]!, primary),
-      ),
+      (pane) => pane.paneRegions.any((part) => focusIsWithin(_regionKeys[part]!, primary)),
     );
     final step = backwards ? -1 : 1;
-    var index = current < 0
-        ? (backwards ? panes.length - 1 : 0)
-        : (current + step + panes.length) % panes.length;
+    var index = current < 0 ? (backwards ? panes.length - 1 : 0) : (current + step + panes.length) % panes.length;
     // Skip panes with nothing to focus (a closed companion, for example).
     for (var attempt = 0; attempt < panes.length; attempt++) {
       if (_focusRegion(panes[index])) return;
@@ -712,9 +655,7 @@ class _AppShellState extends ConsumerState<AppShell>
     // menus and dialogs, close themselves before the key reaches the shell. The composer
     // interrupts a run on Escape only when no layer is open.
     if (key == LogicalKeyboardKey.escape) {
-      return ref.read(escapeLayersProvider).closeTopmost()
-          ? KeyEventResult.handled
-          : KeyEventResult.ignored;
+      return ref.read(escapeLayersProvider).closeTopmost() ? KeyEventResult.handled : KeyEventResult.ignored;
     }
     // F6 / Shift+F6 move between panes (plan task 6.2).
     if (key == LogicalKeyboardKey.f6 && !commandKey && !alt) {
@@ -726,9 +667,7 @@ class _AppShellState extends ConsumerState<AppShell>
       final number = _pressedDigit(key);
       final region = number == null ? null : FocusRegion.numbered[number];
       if (region != null) {
-        return _focusRegion(region)
-            ? KeyEventResult.handled
-            : KeyEventResult.ignored;
+        return _focusRegion(region) ? KeyEventResult.handled : KeyEventResult.ignored;
       }
     }
 
@@ -740,20 +679,14 @@ class _AppShellState extends ConsumerState<AppShell>
       if (activeId != null) {
         final thread = ref.read(sideThreadFamily(activeId));
         if (!thread.isOpen) {
-          ref.read(chatSidecarTabFamily(activeId).notifier).state =
-              ChatSidecarTab.side;
+          ref.read(chatSidecarTabFamily(activeId).notifier).state = ChatSidecarTab.side;
         }
-        ref
-            .read(sideThreadFamily(activeId).notifier)
-            .togglePanel(instant: true);
+        ref.read(sideThreadFamily(activeId).notifier).togglePanel(instant: true);
         return KeyEventResult.handled;
       }
     }
     // Ctrl+Tab is the only one that is Ctrl-only; Cmd+Tab belongs to the OS.
-    if (key == LogicalKeyboardKey.tab &&
-        hardware.isControlPressed &&
-        !shift &&
-        !alt) {
+    if (key == LogicalKeyboardKey.tab && hardware.isControlPressed && !shift && !alt) {
       _switchToPreviousSession();
       return KeyEventResult.handled;
     }
@@ -842,9 +775,7 @@ class _AppShellState extends ConsumerState<AppShell>
     final strings = ref.watch(appStringsProvider);
     final activeId = ref.watch(activeSessionIdProvider);
     final settings = ref.watch(showSettingsProvider);
-    final connection =
-        ref.watch(connectionStateProvider).value ??
-        DaemonConnectionState.disconnected;
+    final connection = ref.watch(connectionStateProvider).value ?? DaemonConnectionState.disconnected;
     final connected = connection == DaemonConnectionState.connected;
     final connectionLabel = connected ? strings.localPi : strings.disconnected;
     final width = MediaQuery.sizeOf(context).width;
@@ -868,10 +799,7 @@ class _AppShellState extends ConsumerState<AppShell>
                     child: FocusRegionMarker(
                       region: FocusRegion.transcript,
                       regionKey: _regionKeys[FocusRegion.transcript]!,
-                      child: TranscriptView(
-                        key: ValueKey('transcript_$activeId'),
-                        sessionId: activeId,
-                      ),
+                      child: TranscriptView(key: ValueKey('transcript_$activeId'), sessionId: activeId),
                     ),
                   ),
                   FocusRegionMarker(
@@ -898,27 +826,18 @@ class _AppShellState extends ConsumerState<AppShell>
         child: Scaffold(
           key: _scaffoldKey,
           backgroundColor: tokens.background,
-          onDrawerChanged: (open) => _setEscapeLayer(
-            'drawer',
-            EscapeLayer.drawer,
-            open,
-            () {
-              final wasOpen = _scaffoldKey.currentState?.isDrawerOpen ?? false;
-              _scaffoldKey.currentState?.closeDrawer();
-              return wasOpen;
-            },
-          ),
-          onEndDrawerChanged: (open) =>
-              _setEscapeLayer('endDrawer', EscapeLayer.drawer, open, () {
-                final wasOpen =
-                    _scaffoldKey.currentState?.isEndDrawerOpen ?? false;
-                _scaffoldKey.currentState?.closeEndDrawer();
-                return wasOpen;
-              }),
+          onDrawerChanged: (open) => _setEscapeLayer('drawer', EscapeLayer.drawer, open, () {
+            final wasOpen = _scaffoldKey.currentState?.isDrawerOpen ?? false;
+            _scaffoldKey.currentState?.closeDrawer();
+            return wasOpen;
+          }),
+          onEndDrawerChanged: (open) => _setEscapeLayer('endDrawer', EscapeLayer.drawer, open, () {
+            final wasOpen = _scaffoldKey.currentState?.isEndDrawerOpen ?? false;
+            _scaffoldKey.currentState?.closeEndDrawer();
+            return wasOpen;
+          }),
           drawer: Drawer(
-            width:
-                _effectiveSidebarWidth(width, inDrawer: true) +
-                _sidebarDividerWidth,
+            width: _effectiveSidebarWidth(width, inDrawer: true) + _sidebarDividerWidth,
             child: _sessionsSidebar(width, inDrawer: true),
           ),
           endDrawer: activeId == null
@@ -928,10 +847,7 @@ class _AppShellState extends ConsumerState<AppShell>
                   // The panel draws its own heading. Escape and a tap on the scrim close it
                   // (plan task 6.3), so the shell adds no heading or close button here.
                   child: SafeArea(
-                    child: ContextPanel(
-                      key: ValueKey('drawer-context_$activeId'),
-                      sessionId: activeId,
-                    ),
+                    child: ContextPanel(key: ValueKey('drawer-context_$activeId'), sessionId: activeId),
                   ),
                 ),
           body: Stack(
@@ -943,9 +859,7 @@ class _AppShellState extends ConsumerState<AppShell>
               SafeArea(
                 // Rounded-corner phones: the web view reports no safe area, so leave the same margin
                 // below as at the sides; the panel's corners then follow the display curve.
-                minimum: EdgeInsets.only(
-                  bottom: phoneDisplayCornerRadius(context) == null ? 0 : 6,
-                ),
+                minimum: EdgeInsets.only(bottom: phoneDisplayCornerRadius(context) == null ? 0 : 6),
                 child: Column(
                   children: [
                     FocusRegionMarker(
@@ -953,12 +867,7 @@ class _AppShellState extends ConsumerState<AppShell>
                       regionKey: _regionKeys[FocusRegion.titleBar]!,
                       child: Container(
                         height: 42,
-                        margin: EdgeInsets.fromLTRB(
-                          width < 600 ? 12 : 8,
-                          width < 600 ? 6 : 4,
-                          width < 600 ? 12 : 8,
-                          4,
-                        ),
+                        margin: EdgeInsets.fromLTRB(width < 600 ? 12 : 8, width < 600 ? 6 : 4, width < 600 ? 12 : 8, 4),
                         decoration: BoxDecoration(
                           color: tokens.chassis,
                           borderRadius: BorderRadius.circular(tokens.radiusMd),
@@ -966,27 +875,19 @@ class _AppShellState extends ConsumerState<AppShell>
                         ),
                         child: Row(
                           children: [
-                            if (!kIsWeb &&
-                                defaultTargetPlatform == TargetPlatform.macOS &&
-                                nativeChrome)
+                            if (!kIsWeb && defaultTargetPlatform == TargetPlatform.macOS && nativeChrome)
                               const SizedBox(width: 76),
                             if (!showSessionRail)
                               IconButton(
                                 visualDensity: VisualDensity.compact,
                                 tooltip: strings.openSessionsTooltip,
-                                icon: const Icon(
-                                  Icons.menu_outlined,
-                                  size: FrameSize.icon,
-                                ),
-                                onPressed: () =>
-                                    _scaffoldKey.currentState?.openDrawer(),
+                                icon: const Icon(Icons.menu_outlined, size: FrameSize.icon),
+                                onPressed: () => _scaffoldKey.currentState?.openDrawer(),
                               ),
                             Expanded(
                               child: DesktopDragRegion(
                                 child: Padding(
-                                  padding: EdgeInsets.only(
-                                    left: showSessionRail ? 16 : 4,
-                                  ),
+                                  padding: EdgeInsets.only(left: showSessionRail ? 16 : 4),
                                   child: Row(
                                     children: [
                                       const PiFrameMark(size: FrameSize.iconLg),
@@ -995,21 +896,15 @@ class _AppShellState extends ConsumerState<AppShell>
                                         child: FittedBox(
                                           fit: BoxFit.scaleDown,
                                           alignment: Alignment.centerLeft,
-                                          child: const BrandWordmark(
-                                            size: FrameSize.icon,
-                                          ),
+                                          child: const BrandWordmark(size: FrameSize.icon),
                                         ),
                                       ),
                                       const SizedBox(width: 12),
                                       _ConnectionIndicator(
                                         connected: connected,
                                         label: connectionLabel,
-                                        tooltip: strings
-                                            .connectionIndicatorTooltip(
-                                              connectionLabel,
-                                            ),
-                                        showLabel:
-                                            width >= kConnectionLabelMinWidth,
+                                        tooltip: strings.connectionIndicatorTooltip(connectionLabel),
+                                        showLabel: width >= kConnectionLabelMinWidth,
                                         onTap: _openDiagnostics,
                                       ),
                                     ],
@@ -1018,8 +913,7 @@ class _AppShellState extends ConsumerState<AppShell>
                               ),
                             ),
                             if (ref.watch(nerdStatsSettingsProvider).enabled &&
-                                width >=
-                                    (ref.watch(isWebProvider) ? 450 : 760)) ...[
+                                width >= (ref.watch(isWebProvider) ? 450 : 760)) ...[
                               const SizedBox(width: 8),
                               NerdStatsBar(width: width),
                               const SizedBox(width: 8),
@@ -1030,20 +924,11 @@ class _AppShellState extends ConsumerState<AppShell>
                                   onPressed: _palette,
                                   style: TextButton.styleFrom(
                                     visualDensity: VisualDensity.compact,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 2,
-                                    ),
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                     foregroundColor: tokens.textSecondary,
                                   ),
-                                  icon: const Icon(
-                                    Icons.search_outlined,
-                                    size: FrameSize.icon,
-                                  ),
-                                  label: Text(
-                                    strings.commandsButtonLabel,
-                                    style: FrameText.of(context).label,
-                                  ),
+                                  icon: const Icon(Icons.search_outlined, size: FrameSize.icon),
+                                  label: Text(strings.commandsButtonLabel, style: FrameText.of(context).label),
                                 ),
                               ),
                             // Vista: pane layout and theme.
@@ -1053,18 +938,11 @@ class _AppShellState extends ConsumerState<AppShell>
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  if (width >= 900 &&
-                                      activeId != null &&
-                                      !settings)
+                                  if (width >= 900 && activeId != null && !settings)
                                     PopupMenuButton<WorkspacePane>(
-                                      key: const ValueKey(
-                                        'shell-layout-button',
-                                      ),
+                                      key: const ValueKey('shell-layout-button'),
                                       tooltip: strings.togglePanelsTooltip,
-                                      icon: const Icon(
-                                        Icons.view_column_outlined,
-                                        size: FrameSize.icon,
-                                      ),
+                                      icon: const Icon(Icons.view_column_outlined, size: FrameSize.icon),
                                       padding: EdgeInsets.zero,
                                       onSelected: _togglePane,
                                       itemBuilder: (context) => [
@@ -1076,8 +954,7 @@ class _AppShellState extends ConsumerState<AppShell>
                                                 Icon(
                                                   _paneVisibility[pane] == true
                                                       ? Icons.check_box_outlined
-                                                      : Icons
-                                                            .check_box_outline_blank,
+                                                      : Icons.check_box_outline_blank,
                                                   size: FrameSize.iconLg,
                                                 ),
                                                 const SizedBox(width: 8),
@@ -1089,21 +966,16 @@ class _AppShellState extends ConsumerState<AppShell>
                                     ),
                                   FrameIconAction(
                                     key: const ValueKey('shell-theme-toggle'),
-                                    tooltip:
-                                        Theme.of(context).brightness ==
-                                            Brightness.light
+                                    tooltip: Theme.of(context).brightness == Brightness.light
                                         ? strings.darkThemeTooltip
                                         : strings.lightThemeTooltip,
-                                    icon:
-                                        Theme.of(context).brightness ==
-                                            Brightness.light
+                                    icon: Theme.of(context).brightness == Brightness.light
                                         ? Icons.dark_mode_outlined
                                         : Icons.light_mode_outlined,
                                     onPressed: () => ref
                                         .read(activeThemeSpecProvider.notifier)
                                         .setTheme(
-                                          Theme.of(context).brightness ==
-                                                  Brightness.light
+                                          Theme.of(context).brightness == Brightness.light
                                               ? 'piframe-dark'
                                               : 'piframe-light',
                                         ),
@@ -1115,9 +987,7 @@ class _AppShellState extends ConsumerState<AppShell>
                               key: const ValueKey('shell-title-divider'),
                               width: 1,
                               height: 18,
-                              margin: const EdgeInsets.symmetric(
-                                horizontal: FrameSpace.x2,
-                              ),
+                              margin: const EdgeInsets.symmetric(horizontal: FrameSpace.x2),
                               color: tokens.borderStrong,
                             ),
                             // Area di lavoro: session drawer and settings.
@@ -1130,66 +1000,40 @@ class _AppShellState extends ConsumerState<AppShell>
                                   if (activeId != null && !settings)
                                     width >= kContextDrawerLabelMinWidth
                                         ? Tooltip(
-                                            message:
-                                                strings.sessionDrawerTooltip,
+                                            message: strings.sessionDrawerTooltip,
                                             child: TextButton.icon(
-                                              key: const ValueKey(
-                                                'shell-context-drawer-button',
-                                              ),
+                                              key: const ValueKey('shell-context-drawer-button'),
                                               style: TextButton.styleFrom(
-                                                visualDensity:
-                                                    VisualDensity.compact,
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: FrameSpace.x2,
-                                                      vertical: FrameSpace.x1,
-                                                    ),
-                                                foregroundColor:
-                                                    tokens.textSecondary,
+                                                visualDensity: VisualDensity.compact,
+                                                padding: const EdgeInsets.symmetric(
+                                                  horizontal: FrameSpace.x2,
+                                                  vertical: FrameSpace.x1,
+                                                ),
+                                                foregroundColor: tokens.textSecondary,
                                               ),
-                                              onPressed: () => _scaffoldKey
-                                                  .currentState
-                                                  ?.openEndDrawer(),
-                                              icon: const Icon(
-                                                Icons.insights_outlined,
-                                                size: FrameSize.icon,
-                                              ),
+                                              onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
+                                              icon: const Icon(Icons.insights_outlined, size: FrameSize.icon),
                                               label: Text(
                                                 strings.sessionDrawerLabel,
-                                                style: FrameText.of(context)
-                                                    .label,
+                                                style: FrameText.of(context).label,
                                               ),
                                             ),
                                           )
                                         : FrameIconAction(
-                                            key: const ValueKey(
-                                              'shell-context-drawer-button',
-                                            ),
+                                            key: const ValueKey('shell-context-drawer-button'),
                                             icon: Icons.insights_outlined,
-                                            tooltip:
-                                                strings.sessionDrawerTooltip,
-                                            onPressed: () => _scaffoldKey
-                                                .currentState
-                                                ?.openEndDrawer(),
+                                            tooltip: strings.sessionDrawerTooltip,
+                                            onPressed: () => _scaffoldKey.currentState?.openEndDrawer(),
                                           ),
                                   Stack(
                                     clipBehavior: Clip.none,
                                     children: [
                                       FrameIconAction(
-                                        key: const ValueKey(
-                                          'shell-settings-button',
-                                        ),
+                                        key: const ValueKey('shell-settings-button'),
                                         icon: Icons.settings_outlined,
                                         tooltip: strings.settingsTooltip,
                                         shortcut: strings.settingsShortcutLabel,
-                                        onPressed: () =>
-                                            ref
-                                                    .read(
-                                                      showSettingsProvider
-                                                          .notifier,
-                                                    )
-                                                    .state =
-                                                !settings,
+                                        onPressed: () => ref.read(showSettingsProvider.notifier).state = !settings,
                                       ),
                                       Positioned(
                                         top: 2,
@@ -1197,18 +1041,13 @@ class _AppShellState extends ConsumerState<AppShell>
                                         child: IgnorePointer(
                                           child: Consumer(
                                             builder: (context, ref, _) {
-                                              if (!ref.watch(
-                                                hasUpdateBadgeProvider,
-                                              )) {
+                                              if (!ref.watch(hasUpdateBadgeProvider)) {
                                                 return const SizedBox.shrink();
                                               }
                                               return Container(
                                                 width: 7,
                                                 height: 7,
-                                                decoration: BoxDecoration(
-                                                  color: tokens.accent,
-                                                  shape: BoxShape.circle,
-                                                ),
+                                                decoration: BoxDecoration(color: tokens.accent, shape: BoxShape.circle),
                                               );
                                             },
                                           ),
@@ -1219,23 +1058,15 @@ class _AppShellState extends ConsumerState<AppShell>
                                 ],
                               ),
                             ),
-                            if (nativeChrome &&
-                                defaultTargetPlatform ==
-                                    TargetPlatform.windows) ...[
+                            if (nativeChrome && defaultTargetPlatform == TargetPlatform.windows) ...[
                               Container(
                                 width: 1,
                                 height: 18,
-                                margin: const EdgeInsets.symmetric(
-                                  horizontal: 4,
-                                ),
+                                margin: const EdgeInsets.symmetric(horizontal: 4),
                                 color: tokens.borderStrong,
                               ),
                               DesktopCaptionButtons(
-                                onCloseRequested: () => resolveDirtyRepository(
-                                  context,
-                                  ref,
-                                  activeId,
-                                ),
+                                onCloseRequested: () => resolveDirtyRepository(context, ref, activeId),
                               ),
                             ] else
                               const SizedBox(width: 6),
@@ -1246,33 +1077,22 @@ class _AppShellState extends ConsumerState<AppShell>
                     if (!connected)
                       Container(
                         color: tokens.signalWarning.withValues(alpha: 0.16),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 4,
-                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                         child: Row(
                           children: [
-                            Icon(
-                              Icons.link_off_outlined,
-                              size: FrameSize.icon,
-                              color: tokens.warning,
-                            ),
+                            Icon(Icons.link_off_outlined, size: FrameSize.icon, color: tokens.warning),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
                                 connection == DaemonConnectionState.reconnecting
                                     ? strings.reconnectingToDaemon
                                     : strings.daemonUnreachableNotice,
-                                style: FrameText.of(context).label
-                                    .copyWith(color: tokens.textPrimary),
+                                style: FrameText.of(context).label.copyWith(color: tokens.textPrimary),
                               ),
                             ),
                             TextButton(
-                              style: TextButton.styleFrom(
-                                foregroundColor: tokens.textPrimary,
-                              ),
-                              onPressed: () =>
-                                  ref.invalidate(daemonEndpointProvider),
+                              style: TextButton.styleFrom(foregroundColor: tokens.textPrimary),
+                              onPressed: () => ref.invalidate(daemonEndpointProvider),
                               child: Text(strings.retryAction),
                             ),
                           ],
@@ -1285,26 +1105,17 @@ class _AppShellState extends ConsumerState<AppShell>
                       child: settings
                           ? SettingsView(
                               key: ValueKey('settings-view-$_settingsEpoch'),
-                              initialTabIndex: ref.watch(
-                                settingsTabIndexProvider,
-                              ),
+                              initialTabIndex: ref.watch(settingsTabIndexProvider),
                               initialSection: _settingsSection,
-                              onClose: () =>
-                                  ref
-                                          .read(showSettingsProvider.notifier)
-                                          .state =
-                                      false,
+                              onClose: () => ref.read(showSettingsProvider.notifier).state = false,
                             )
                           : Row(
                               children: [
                                 if (showSessionRail)
                                   FocusRegionMarker(
                                     region: FocusRegion.sessions,
-                                    regionKey:
-                                        _regionKeys[FocusRegion.sessions]!,
-                                    child: _sidebarCollapsed
-                                        ? _collapsedSidebarStrip(tokens)
-                                        : _sessionsSidebar(width),
+                                    regionKey: _regionKeys[FocusRegion.sessions]!,
+                                    child: _sidebarCollapsed ? _collapsedSidebarStrip(tokens) : _sessionsSidebar(width),
                                   ),
                                 Expanded(
                                   child: activeId == null
@@ -1346,12 +1157,8 @@ class _AppShellState extends ConsumerState<AppShell>
     );
     final isReviewing = ref.watch(isReviewingChangesProvider);
     final visible = _visiblePanes(chatFirst: width < 900);
-    final companions = visible
-        .where((pane) => pane != WorkspacePane.chat)
-        .toList();
-    final companionTabs = width >= 900 && width < 1440 && companions.length > 1
-        ? companions
-        : null;
+    final companions = visible.where((pane) => pane != WorkspacePane.chat).toList();
+    final companionTabs = width >= 900 && width < 1440 && companions.length > 1 ? companions : null;
     final selectedCompanion = companions.contains(_companionPane)
         ? _companionPane
         : (companions.isNotEmpty ? companions.first : null);
@@ -1370,14 +1177,12 @@ class _AppShellState extends ConsumerState<AppShell>
           ? SessionChangesPane(
               key: ValueKey('review_changes_$sessionId'),
               sessionId: sessionId,
-              onClose: () =>
-                  ref.read(isReviewingChangesProvider.notifier).state = false,
+              onClose: () => ref.read(isReviewingChangesProvider.notifier).state = false,
               companionTabs: companionTabs,
               activeCompanionTab: selectedCompanion,
               onSelectCompanionTab: (pane) => _selectCompanionPane(pane),
             )
-          : (ref.watch(browserPaneSupportedProvider) &&
-                    ref.watch(rightPaneModeProvider) == RightPaneMode.browser
+          : (ref.watch(browserPaneSupportedProvider) && ref.watch(rightPaneModeProvider) == RightPaneMode.browser
                 ? WebBrowserPane(
                     key: ValueKey('browser_$sessionId'),
                     sessionId: sessionId,
@@ -1397,27 +1202,14 @@ class _AppShellState extends ConsumerState<AppShell>
     };
     // Tab order by region (plan task 6.2). The chat pane's transcript and composer are
     // marked inside workArea().
-    panes[WorkspacePane.repository] = _regionMarker(
-      FocusRegion.repository,
-      panes[WorkspacePane.repository]!,
-    );
-    panes[WorkspacePane.git] = _regionMarker(
-      FocusRegion.companion,
-      panes[WorkspacePane.git]!,
-    );
+    panes[WorkspacePane.repository] = _regionMarker(FocusRegion.repository, panes[WorkspacePane.repository]!);
+    panes[WorkspacePane.git] = _regionMarker(FocusRegion.companion, panes[WorkspacePane.git]!);
 
     if (width < 900) {
-      final selected = visible.contains(_compactPane)
-          ? _compactPane
-          : visible.first;
+      final selected = visible.contains(_compactPane) ? _compactPane : visible.first;
       return Column(
         children: [
-          _paneSelector(
-            visible,
-            selected,
-            (pane) => _selectCompactPane(pane),
-            showLayoutMenu: true,
-          ),
+          _paneSelector(visible, selected, (pane) => _selectCompactPane(pane), showLayoutMenu: true),
           Expanded(
             child: IndexedStack(
               index: visible.indexOf(selected),
@@ -1430,10 +1222,7 @@ class _AppShellState extends ConsumerState<AppShell>
 
     if (width < 1440 && _paneVisibility[WorkspacePane.chat] == true) {
       if (companions.isNotEmpty && selectedCompanion != null) {
-        return _resizablePaneRow([
-          WorkspacePane.chat,
-          selectedCompanion,
-        ], panes);
+        return _resizablePaneRow([WorkspacePane.chat, selectedCompanion], panes);
       }
     }
 
@@ -1443,11 +1232,7 @@ class _AppShellState extends ConsumerState<AppShell>
   List<WorkspacePane> _visiblePanes({bool chatFirst = false}) {
     final order = chatFirst
         ? WorkspacePane.values
-        : const [
-            WorkspacePane.repository,
-            WorkspacePane.chat,
-            WorkspacePane.git,
-          ];
+        : const [WorkspacePane.repository, WorkspacePane.chat, WorkspacePane.git];
     return order.where((pane) => _paneVisibility[pane] == true).toList();
   }
 
@@ -1459,8 +1244,7 @@ class _AppShellState extends ConsumerState<AppShell>
       WorkspacePane.git =>
         ref.watch(isReviewingChangesProvider)
             ? strings.companionReviewTab
-            : (ref.watch(browserPaneSupportedProvider) &&
-                      ref.watch(rightPaneModeProvider) == RightPaneMode.browser
+            : (ref.watch(browserPaneSupportedProvider) && ref.watch(rightPaneModeProvider) == RightPaneMode.browser
                   ? strings.companionWebBrowserTab
                   : strings.paletteGitPaneName),
     };
@@ -1514,21 +1298,15 @@ class _AppShellState extends ConsumerState<AppShell>
       final remaining = _visiblePanes();
       if (!remaining.contains(_compactPane)) _compactPane = remaining.first;
       if (!remaining.contains(_companionPane)) {
-        _companionPane = remaining.firstWhere(
-          (item) => item != WorkspacePane.chat,
-          orElse: () => remaining.first,
-        );
+        _companionPane = remaining.firstWhere((item) => item != WorkspacePane.chat, orElse: () => remaining.first);
       }
     });
     _persistLayout();
   }
 
   /// Marks [child] as [region] for Tab order and F6 (see [FocusRegionMarker]).
-  Widget _regionMarker(FocusRegion region, Widget child) => FocusRegionMarker(
-    region: region,
-    regionKey: _regionKeys[region]!,
-    child: child,
-  );
+  Widget _regionMarker(FocusRegion region, Widget child) =>
+      FocusRegionMarker(region: region, regionKey: _regionKeys[region]!, child: child);
 
   /// Chat keeps the Agents/Workflows column as a sibling card on its right.
   Widget _paneCard(WorkspacePane pane, Widget child) {
@@ -1541,10 +1319,7 @@ class _AppShellState extends ConsumerState<AppShell>
       sessionId: sessionId,
       chat: _bentoPane(child),
       // The sidecar belongs to the chat pane for Tab order, after the transcript.
-      sidecar: FocusTraversalOrder(
-        order: NumericFocusOrder(FocusRegion.transcript.index.toDouble()),
-        child: sidecar,
-      ),
+      sidecar: FocusTraversalOrder(order: NumericFocusOrder(FocusRegion.transcript.index.toDouble()), child: sidecar),
     );
   }
 
@@ -1556,16 +1331,12 @@ class _AppShellState extends ConsumerState<AppShell>
     // iOS concentric corners: the bottom corners follow the display curve (display radius minus
     // the 8px the panel is inset from the screen edge).
     final displayRadius = phoneDisplayCornerRadius(context);
-    final bottomRadius = displayRadius == null
-        ? baseRadius
-        : concentricRadius(displayRadius, 8, min: baseRadius);
+    final bottomRadius = displayRadius == null ? baseRadius : concentricRadius(displayRadius, 8, min: baseRadius);
     // Inset between the frame edge and its content (matches the padding below).
     final paneInset = isMobile ? 2.0 : 3.0;
     return RepaintBoundary(
       child: Padding(
-        padding: isMobile
-            ? const EdgeInsets.symmetric(horizontal: 8, vertical: 2)
-            : EdgeInsets.all(paneInset),
+        padding: isMobile ? const EdgeInsets.symmetric(horizontal: 8, vertical: 2) : EdgeInsets.all(paneInset),
         child: Container(
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
@@ -1580,12 +1351,7 @@ class _AppShellState extends ConsumerState<AppShell>
           ),
           // Concentric: content clips at the outer radius minus the inset, so
           // headers and fills follow the frame corner without a gap.
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(
-              math.max(0, baseRadius - paneInset),
-            ),
-            child: child,
-          ),
+          child: ClipRRect(borderRadius: BorderRadius.circular(math.max(0, baseRadius - paneInset)), child: child),
         ),
       ),
     );
@@ -1593,9 +1359,7 @@ class _AppShellState extends ConsumerState<AppShell>
 
   void _collapsePane(WorkspacePane pane, {bool animate = true}) {
     final visible = _visiblePanes();
-    final openPanes = visible
-        .where((p) => !_collapsedPanes.contains(p))
-        .toList();
+    final openPanes = visible.where((p) => !_collapsedPanes.contains(p)).toList();
     if (openPanes.length <= 1) return; // Always keep at least one pane open
 
     _beginPaneTransition(animate: animate, showing: false);
@@ -1628,33 +1392,23 @@ class _AppShellState extends ConsumerState<AppShell>
     setState(() {
       _collapsedPanes.remove(pane);
       final visible = _visiblePanes();
-      final openOthers = visible
-          .where((p) => p != pane && !_collapsedPanes.contains(p))
-          .toList();
+      final openOthers = visible.where((p) => p != pane && !_collapsedPanes.contains(p)).toList();
 
       var restoreWeight = (_savedPaneWeights[pane] ?? 30).clamp(15.0, 50.0);
       // Restoring must not hand the pane a share narrower than the companion
       // minimum, or the layout would collapse it again straight away.
       if (_rowWidth > 0) {
-        final minWeight = (kCompanionMinWidth * 100 / _rowWidth * 1.05)
-            .clamp(15.0, 60.0)
-            .toDouble();
+        final minWeight = (kCompanionMinWidth * 100 / _rowWidth * 1.05).clamp(15.0, 60.0).toDouble();
         if (restoreWeight < minWeight) restoreWeight = minWeight;
       }
       _paneWeights[pane] = restoreWeight;
 
       if (openOthers.isNotEmpty) {
-        final totalOther = openOthers.fold<double>(
-          0.0,
-          (sum, p) => sum + (_paneWeights[p] ?? 30),
-        );
+        final totalOther = openOthers.fold<double>(0.0, (sum, p) => sum + (_paneWeights[p] ?? 30));
         final targetOther = (100.0 - restoreWeight).clamp(20.0, 85.0);
         final factor = totalOther > 0 ? targetOther / totalOther : 1.0;
         for (final other in openOthers) {
-          _paneWeights[other] = ((_paneWeights[other] ?? 30) * factor).clamp(
-            10.0,
-            85.0,
-          );
+          _paneWeights[other] = ((_paneWeights[other] ?? 30) * factor).clamp(10.0, 85.0);
         }
       }
     });
@@ -1671,13 +1425,10 @@ class _AppShellState extends ConsumerState<AppShell>
         ref.watch(rightPaneModeProvider) == RightPaneMode.browser;
     final iconData = switch (pane) {
       WorkspacePane.repository => Icons.folder_outlined,
-      WorkspacePane.git =>
-        isBrowser ? Icons.language_outlined : Icons.source_outlined,
+      WorkspacePane.git => isBrowser ? Icons.language_outlined : Icons.source_outlined,
       WorkspacePane.chat => Icons.chat_bubble_outline,
     };
-    final expandIcon = isLeft
-        ? Icons.chevron_right_outlined
-        : Icons.chevron_left_outlined;
+    final expandIcon = isLeft ? Icons.chevron_right_outlined : Icons.chevron_left_outlined;
     final label = _paneLabel(pane).toUpperCase();
 
     return RepaintBoundary(
@@ -1698,11 +1449,7 @@ class _AppShellState extends ConsumerState<AppShell>
                 padding: const EdgeInsets.all(4),
                 constraints: const BoxConstraints(),
                 tooltip: strings.expandPaneTooltip(_paneLabel(pane)),
-                icon: Icon(
-                  expandIcon,
-                  size: FrameSize.iconLg,
-                  color: tokens.accent,
-                ),
+                icon: Icon(expandIcon, size: FrameSize.iconLg, color: tokens.accent),
                 onPressed: () => _expandStripPane(pane),
               ),
               const SizedBox(height: 6),
@@ -1714,12 +1461,8 @@ class _AppShellState extends ConsumerState<AppShell>
                   child: Center(
                     child: Text(
                       label,
-                      style: FrameText.of(context).caption.copyWith(
-                        color: tokens.textMuted,
-
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.0,
-                      ),
+                      style: FrameText.of(context).caption
+                          .copyWith(color: tokens.textMuted, fontWeight: FontWeight.w700, letterSpacing: 1.0),
                     ),
                   ),
                 ),
@@ -1736,32 +1479,16 @@ class _AppShellState extends ConsumerState<AppShell>
     return _clampSidebarWidth(_sidebarWidth, windowWidth, inDrawer: inDrawer);
   }
 
-  double _clampSidebarWidth(
-    double value,
-    double windowWidth, {
-    bool inDrawer = false,
-  }) {
-    final maximum = inDrawer
-        ? (windowWidth - 32).clamp(0.0, _maximumSidebarWidth).toDouble()
-        : _maximumSidebarWidth;
-    final minimum = maximum < _minimumSidebarWidth
-        ? maximum
-        : _minimumSidebarWidth;
+  double _clampSidebarWidth(double value, double windowWidth, {bool inDrawer = false}) {
+    final maximum = inDrawer ? (windowWidth - 32).clamp(0.0, _maximumSidebarWidth).toDouble() : _maximumSidebarWidth;
+    final minimum = maximum < _minimumSidebarWidth ? maximum : _minimumSidebarWidth;
     return value.clamp(minimum, maximum).toDouble();
   }
 
-  void _resizeSidebar(
-    double delta,
-    double windowWidth, {
-    required bool inDrawer,
-  }) {
+  void _resizeSidebar(double delta, double windowWidth, {required bool inDrawer}) {
     final current = _effectiveSidebarWidth(windowWidth, inDrawer: inDrawer);
     setState(() {
-      _sidebarWidth = _clampSidebarWidth(
-        current + delta,
-        windowWidth,
-        inDrawer: inDrawer,
-      );
+      _sidebarWidth = _clampSidebarWidth(current + delta, windowWidth, inDrawer: inDrawer);
     });
   }
 
@@ -1771,11 +1498,7 @@ class _AppShellState extends ConsumerState<AppShell>
   }
 
   /// Keyboard step on the sessions divider (plan task 6.7). Same resize path as a drag.
-  void _stepSidebar(
-    double delta,
-    double windowWidth, {
-    required bool inDrawer,
-  }) {
+  void _stepSidebar(double delta, double windowWidth, {required bool inDrawer}) {
     _resizeSidebar(delta, windowWidth, inDrawer: inDrawer);
     _persistLayout();
   }
@@ -1783,28 +1506,13 @@ class _AppShellState extends ConsumerState<AppShell>
   /// The 1 px line drawn inside every divider. It turns accent-coloured while focused.
   Widget _dividerLine(BuildContext context, bool focused) {
     final tokens = context.tokens;
-    return Container(
-      width: focused ? 2 : 1,
-      height: 40,
-      color: focused ? tokens.accent : tokens.borderStrong,
-    );
+    return Container(width: focused ? 2 : 1, height: 40, color: focused ? tokens.accent : tokens.borderStrong);
   }
 
   Widget _sessionsSidebar(double windowWidth, {bool inDrawer = false}) {
-    final sidebarWidth = _effectiveSidebarWidth(
-      windowWidth,
-      inDrawer: inDrawer,
-    );
-    final increasedWidth = _clampSidebarWidth(
-      sidebarWidth + 20,
-      windowWidth,
-      inDrawer: inDrawer,
-    );
-    final decreasedWidth = _clampSidebarWidth(
-      sidebarWidth - 20,
-      windowWidth,
-      inDrawer: inDrawer,
-    );
+    final sidebarWidth = _effectiveSidebarWidth(windowWidth, inDrawer: inDrawer);
+    final increasedWidth = _clampSidebarWidth(sidebarWidth + 20, windowWidth, inDrawer: inDrawer);
+    final decreasedWidth = _clampSidebarWidth(sidebarWidth - 20, windowWidth, inDrawer: inDrawer);
     final sidebar = SizedBox(
       key: const ValueKey('sessions-sidebar-pane'),
       width: sidebarWidth,
@@ -1813,9 +1521,7 @@ class _AppShellState extends ConsumerState<AppShell>
           if (!inDrawer) const StartupUpdateBanner(inRail: true),
           Expanded(
             child: SessionsSidebar(
-              onSessionSelected: inDrawer
-                  ? () => _scaffoldKey.currentState?.closeDrawer()
-                  : null,
+              onSessionSelected: inDrawer ? () => _scaffoldKey.currentState?.closeDrawer() : null,
               onCollapse: inDrawer
                   ? null
                   : () {
@@ -1839,21 +1545,12 @@ class _AppShellState extends ConsumerState<AppShell>
             value: strings.dividerPixelValue(sidebarWidth.round()),
             increasedValue: strings.dividerPixelValue(increasedWidth.round()),
             decreasedValue: strings.dividerPixelValue(decreasedWidth.round()),
-            onIncrease: increasedWidth > sidebarWidth
-                ? () => _stepSidebar(20, windowWidth, inDrawer: inDrawer)
-                : null,
-            onDecrease: decreasedWidth < sidebarWidth
-                ? () => _stepSidebar(-20, windowWidth, inDrawer: inDrawer)
-                : null,
+            onIncrease: increasedWidth > sidebarWidth ? () => _stepSidebar(20, windowWidth, inDrawer: inDrawer) : null,
+            onDecrease: decreasedWidth < sidebarWidth ? () => _stepSidebar(-20, windowWidth, inDrawer: inDrawer) : null,
             builder: (context, focused) => GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onHorizontalDragStart: (_) =>
-                  ref.read(paneDraggingProvider.notifier).state = true,
-              onHorizontalDragUpdate: (details) => _resizeSidebar(
-                details.delta.dx,
-                windowWidth,
-                inDrawer: inDrawer,
-              ),
+              onHorizontalDragStart: (_) => ref.read(paneDraggingProvider.notifier).state = true,
+              onHorizontalDragUpdate: (details) => _resizeSidebar(details.delta.dx, windowWidth, inDrawer: inDrawer),
               onHorizontalDragEnd: (_) => _finishSidebarResize(),
               onHorizontalDragCancel: _finishSidebarResize,
               child: Tooltip(
@@ -1889,11 +1586,7 @@ class _AppShellState extends ConsumerState<AppShell>
                 padding: const EdgeInsets.all(6),
                 constraints: const BoxConstraints(),
                 tooltip: strings.expandSessionsSidebarTooltip,
-                icon: Icon(
-                  Icons.chevron_right_outlined,
-                  size: FrameSize.iconLg,
-                  color: tokens.accent,
-                ),
+                icon: Icon(Icons.chevron_right_outlined, size: FrameSize.iconLg, color: tokens.accent),
                 onPressed: () {
                   setState(() => _sidebarCollapsed = false);
                   _persistLayout();
@@ -1902,11 +1595,7 @@ class _AppShellState extends ConsumerState<AppShell>
               const SizedBox(height: 8),
               const PiFrameMark(size: FrameSize.iconLg),
               const SizedBox(height: 12),
-              Icon(
-                Icons.chat_bubble_outline,
-                size: FrameSize.icon,
-                color: tokens.textMuted,
-              ),
+              Icon(Icons.chat_bubble_outline, size: FrameSize.icon, color: tokens.textMuted),
               const SizedBox(height: 12),
               Expanded(
                 child: RotatedBox(
@@ -1914,12 +1603,8 @@ class _AppShellState extends ConsumerState<AppShell>
                   child: Center(
                     child: Text(
                       strings.sessionsRailHeader,
-                      style: FrameText.of(context).caption.copyWith(
-                        color: tokens.textMuted,
-
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.0,
-                      ),
+                      style: FrameText.of(context).caption
+                          .copyWith(color: tokens.textMuted, fontWeight: FontWeight.w700, letterSpacing: 1.0),
                     ),
                   ),
                 ),
@@ -1932,10 +1617,7 @@ class _AppShellState extends ConsumerState<AppShell>
     );
   }
 
-  Widget _resizablePaneRow(
-    List<WorkspacePane> panes,
-    Map<WorkspacePane, Widget> contents,
-  ) {
+  Widget _resizablePaneRow(List<WorkspacePane> panes, Map<WorkspacePane, Widget> contents) {
     if (panes.isEmpty) return const SizedBox.shrink();
     if (panes.length == 1 && _collapsedPanes.isEmpty && _exitingPanes.isEmpty) {
       return _paneCard(panes.single, contents[panes.single]!);
@@ -1950,11 +1632,8 @@ class _AppShellState extends ConsumerState<AppShell>
           const dividerWidth = 8.0;
           const collapsedWidth = 40.0;
           _rowWidth = constraints.maxWidth;
-          final openWidth =
-              constraints.maxWidth - dividerWidth * (rowPanes.length - 1);
-          final stateCollapsed = panes
-              .where((p) => _collapsedPanes.contains(p))
-              .length;
+          final openWidth = constraints.maxWidth - dividerWidth * (rowPanes.length - 1);
+          final stateCollapsed = panes.where((p) => _collapsedPanes.contains(p)).length;
           if (_pendingWeightClamp && openWidth > 0) {
             _pendingWeightClamp = false;
             _paneWeights.addAll(
@@ -1970,30 +1649,21 @@ class _AppShellState extends ConsumerState<AppShell>
           final narrow = narrowCompanionPanes(
             panes: panes,
             collapsed: _collapsedPanes,
-            weights: {
-              for (final p in panes)
-                p: (_paneWeights[p] ?? 1).round().clamp(1, 100).toInt(),
-            },
+            weights: {for (final p in panes) p: (_paneWeights[p] ?? 1).round().clamp(1, 100).toInt()},
             availableWidth: openWidth - collapsedWidth * stateCollapsed,
           );
-          bool isCollapsed(WorkspacePane p) =>
-              _collapsedPanes.contains(p) || narrow.contains(p);
+          bool isCollapsed(WorkspacePane p) => _collapsedPanes.contains(p) || narrow.contains(p);
           final collapsedCount = panes.where(isCollapsed).length;
           final availableWidth = openWidth - (collapsedWidth * collapsedCount);
-          int flexOf(WorkspacePane p) =>
-              (_paneWeights[p] ?? 1).round().clamp(1, 100).toInt();
-          final openFlex = panes
-              .where((p) => !isCollapsed(p))
-              .fold<int>(0, (sum, p) => sum + flexOf(p));
+          int flexOf(WorkspacePane p) => (_paneWeights[p] ?? 1).round().clamp(1, 100).toInt();
+          final openFlex = panes.where((p) => !isCollapsed(p)).fold<int>(0, (sum, p) => sum + flexOf(p));
           final targets = <WorkspacePane, double>{
             for (final p in rowPanes)
               p: !panes.contains(p)
                   ? 0.0
                   : isCollapsed(p)
                   ? collapsedWidth
-                  : (openFlex > 0
-                        ? availableWidth * flexOf(p) / openFlex
-                        : 0.0),
+                  : (openFlex > 0 ? availableWidth * flexOf(p) / openFlex : 0.0),
           };
           final shown = _displayedWidths(rowPanes, targets, openWidth);
           _slotPx = shown;
@@ -2013,22 +1683,12 @@ class _AppShellState extends ConsumerState<AppShell>
               final card = _paneCard(pane, contents[pane]!);
               body = Opacity(
                 opacity: _entryAlpha(pane, targets[pane]!),
-                child: isEntering
-                    ? FrameEnter(key: ValueKey('pane-enter-$pane'), child: card)
-                    : card,
+                child: isEntering ? FrameEnter(key: ValueKey('pane-enter-$pane'), child: card) : card,
               );
             }
-            children.add(
-              _paneSlot(
-                width: shown[pane]!,
-                layoutWidth: targets[pane]!,
-                child: body,
-              ),
-            );
+            children.add(_paneSlot(width: shown[pane]!, layoutWidth: targets[pane]!, child: body));
             if (index < rowPanes.length - 1) {
-              children.add(
-                _paneDivider(pane, rowPanes[index + 1], availableWidth),
-              );
+              children.add(_paneDivider(pane, rowPanes[index + 1], availableWidth));
             }
           }
           return Row(children: children);
@@ -2040,14 +1700,10 @@ class _AppShellState extends ConsumerState<AppShell>
   /// The visible panes plus any hidden pane still shrinking, at its old index.
   List<WorkspacePane> _withExitingPanes(List<WorkspacePane> panes) {
     final rows = List<WorkspacePane>.of(panes);
-    final exiting = _exitingPanes.entries.toList()
-      ..sort((a, b) => a.value.compareTo(b.value));
+    final exiting = _exitingPanes.entries.toList()..sort((a, b) => a.value.compareTo(b.value));
     for (final entry in exiting) {
       if (rows.contains(entry.key)) continue;
-      rows.insert(
-        entry.value > rows.length ? rows.length : entry.value,
-        entry.key,
-      );
+      rows.insert(entry.value > rows.length ? rows.length : entry.value, entry.key);
     }
     return rows;
   }
@@ -2080,11 +1736,7 @@ class _AppShellState extends ConsumerState<AppShell>
 
   /// Rounds slot widths down to a thousandth of a pixel and keeps a margin
   /// under [rowWidth], so the row never overflows on floating-point rounding.
-  Map<WorkspacePane, double> _snapToRow(
-    Map<WorkspacePane, double> raw,
-    List<WorkspacePane> rowPanes,
-    double rowWidth,
-  ) {
+  Map<WorkspacePane, double> _snapToRow(Map<WorkspacePane, double> raw, List<WorkspacePane> rowPanes, double rowWidth) {
     final out = <WorkspacePane, double>{};
     for (final p in rowPanes) {
       final v = raw[p] ?? 0;
@@ -2093,9 +1745,7 @@ class _AppShellState extends ConsumerState<AppShell>
     final total = out.values.fold<double>(0, (sum, v) => sum + v);
     final excess = total - (rowWidth - 0.001);
     if (excess > 0 && out.isNotEmpty) {
-      final largest = out.entries
-          .reduce((a, b) => a.value >= b.value ? a : b)
-          .key;
+      final largest = out.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
       final reduced = out[largest]! - excess;
       out[largest] = reduced > 0 ? reduced : 0.0;
     }
@@ -2119,11 +1769,7 @@ class _AppShellState extends ConsumerState<AppShell>
   /// One pane slot. [width] is the animated slot width, and [layoutWidth] the
   /// final width the child is laid out at, so its content does not reflow while
   /// the slot clips it.
-  Widget _paneSlot({
-    required double width,
-    required double layoutWidth,
-    required Widget child,
-  }) {
+  Widget _paneSlot({required double width, required double layoutWidth, required Widget child}) {
     return SizedBox(
       width: width,
       child: ClipRect(
@@ -2139,11 +1785,7 @@ class _AppShellState extends ConsumerState<AppShell>
     );
   }
 
-  Widget _paneDivider(
-    WorkspacePane left,
-    WorkspacePane right,
-    double availableWidth,
-  ) {
+  Widget _paneDivider(WorkspacePane left, WorkspacePane right, double availableWidth) {
     const dividerWidth = 8.0;
     return FocusTraversalOrder(
       order: NumericFocusOrder(_dividerFocusOrder(left)),
@@ -2157,8 +1799,7 @@ class _AppShellState extends ConsumerState<AppShell>
           onDecrease: () => _stepAdjacent(left, right, -20, availableWidth),
           builder: (context, focused) => GestureDetector(
             behavior: HitTestBehavior.opaque,
-            onHorizontalDragStart: (_) =>
-                ref.read(paneDraggingProvider.notifier).state = true,
+            onHorizontalDragStart: (_) => ref.read(paneDraggingProvider.notifier).state = true,
             onHorizontalDragEnd: (_) {
               ref.read(paneDraggingProvider.notifier).state = false;
               _persistLayout();
@@ -2167,8 +1808,7 @@ class _AppShellState extends ConsumerState<AppShell>
               ref.read(paneDraggingProvider.notifier).state = false;
               _persistLayout();
             },
-            onHorizontalDragUpdate: (details) =>
-                _resizeAdjacent(left, right, details.delta.dx, availableWidth),
+            onHorizontalDragUpdate: (details) => _resizeAdjacent(left, right, details.delta.dx, availableWidth),
             child: SizedBox(
               width: dividerWidth,
               child: Center(child: _dividerLine(context, focused)),
@@ -2188,12 +1828,7 @@ class _AppShellState extends ConsumerState<AppShell>
   };
 
   /// Keyboard step on a pane divider (plan task 6.7). Same path as a drag, then saved.
-  void _stepAdjacent(
-    WorkspacePane left,
-    WorkspacePane right,
-    double delta,
-    double availableWidth,
-  ) {
+  void _stepAdjacent(WorkspacePane left, WorkspacePane right, double delta, double availableWidth) {
     _resizeAdjacent(left, right, delta, availableWidth);
     _persistLayout();
   }
@@ -2206,12 +1841,7 @@ class _AppShellState extends ConsumerState<AppShell>
     return (leftWeight / total * 100).round();
   }
 
-  void _resizeAdjacent(
-    WorkspacePane left,
-    WorkspacePane right,
-    double delta,
-    double availableWidth,
-  ) {
+  void _resizeAdjacent(WorkspacePane left, WorkspacePane right, double delta, double availableWidth) {
     // Divider drags and keyboard steps are instant: no pane width transition.
     if (_collapsedPanes.contains(left)) {
       if (delta > 6) {
@@ -2234,9 +1864,7 @@ class _AppShellState extends ConsumerState<AppShell>
     final minimum = total * 0.15;
     final candidateLeft = leftWeight + delta / availableWidth * total;
 
-    final openCount = _visiblePanes()
-        .where((p) => !_collapsedPanes.contains(p))
-        .length;
+    final openCount = _visiblePanes().where((p) => !_collapsedPanes.contains(p)).length;
     if (openCount > 1) {
       if (candidateLeft < minimum) {
         _collapsePane(left, animate: false);
@@ -2265,18 +1893,15 @@ class _AppShellState extends ConsumerState<AppShell>
     final width = MediaQuery.sizeOf(context).width;
     final isMobile = width < 600;
     final isBrowser =
-        ref.watch(browserPaneSupportedProvider) &&
-        ref.watch(rightPaneModeProvider) == RightPaneMode.browser;
+        ref.watch(browserPaneSupportedProvider) && ref.watch(rightPaneModeProvider) == RightPaneMode.browser;
     final strings = ref.watch(appStringsProvider);
     // The run status rides on the Chat tab as a dot (task 10.3).
     final activeId = ref.watch(activeSessionIdProvider);
-    final running =
-        activeId != null && ref.watch(sessionStateFamily(activeId)).isStreaming;
+    final running = activeId != null && ref.watch(sessionStateFamily(activeId)).isStreaming;
     String label(WorkspacePane pane) => switch (pane) {
       WorkspacePane.chat => strings.companionChatTab,
       WorkspacePane.repository => strings.companionFileTab,
-      WorkspacePane.git =>
-        isBrowser ? strings.companionWebBrowserTab : strings.paletteGitPaneName,
+      WorkspacePane.git => isBrowser ? strings.companionWebBrowserTab : strings.paletteGitPaneName,
     };
     return Container(
       height: 44,
@@ -2301,9 +1926,7 @@ class _AppShellState extends ConsumerState<AppShell>
                     style: TextButton.styleFrom(
                       minimumSize: const Size(0, 36),
                       padding: const EdgeInsets.symmetric(horizontal: 6),
-                      foregroundColor: pane == selected
-                          ? tokens.accent
-                          : tokens.textPrimary,
+                      foregroundColor: pane == selected ? tokens.accent : tokens.textPrimary,
                       backgroundColor: tokens.chassis,
                       shape: const RoundedRectangleBorder(),
                     ),
@@ -2312,35 +1935,21 @@ class _AppShellState extends ConsumerState<AppShell>
                       // Selected tab: accent text and a 2 px accent underline.
                       decoration: BoxDecoration(
                         border: Border(
-                          bottom: BorderSide(
-                            color: pane == selected
-                                ? tokens.accent
-                                : tokens.chassis,
-                            width: 2,
-                          ),
+                          bottom: BorderSide(color: pane == selected ? tokens.accent : tokens.chassis, width: 2),
                         ),
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 4),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Flexible(
-                            child: Text(
-                              label(pane),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
+                          Flexible(child: Text(label(pane), maxLines: 1, overflow: TextOverflow.ellipsis)),
                           if (pane == WorkspacePane.chat && running) ...[
                             const SizedBox(width: 6),
                             Container(
                               key: const ValueKey('compact-chat-run-dot'),
                               width: 6,
                               height: 6,
-                              decoration: BoxDecoration(
-                                color: tokens.accent,
-                                shape: BoxShape.circle,
-                              ),
+                              decoration: BoxDecoration(color: tokens.accent, shape: BoxShape.circle),
                             ),
                           ],
                         ],
@@ -2361,9 +1970,7 @@ class _AppShellState extends ConsumerState<AppShell>
                     child: Row(
                       children: [
                         Icon(
-                          _paneVisibility[pane] == true
-                              ? Icons.check_box_outlined
-                              : Icons.check_box_outline_blank,
+                          _paneVisibility[pane] == true ? Icons.check_box_outlined : Icons.check_box_outline_blank,
                           size: FrameSize.iconLg,
                         ),
                         const SizedBox(width: 8),

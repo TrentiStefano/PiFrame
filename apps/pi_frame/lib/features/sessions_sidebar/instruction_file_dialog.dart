@@ -1,13 +1,19 @@
-import 'dart:io';
+import 'dart:async';
+
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+
 import '../../ui/precision.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
 import '../workspace/repository_workspace.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_shell.dart';
+import '../../data/platform/file_system_service.dart';
+import '../../data/platform/host_environment_service.dart';
+import '../../data/platform/process_service.dart';
 import '../../ui/frame_activity_indicator.dart';
 import '../../ui/frame_snack_bar.dart';
 
@@ -15,33 +21,21 @@ class InstructionFileDialog extends ConsumerStatefulWidget {
   final String folder;
   final String? sessionId;
 
-  const InstructionFileDialog({
-    super.key,
-    required this.folder,
-    this.sessionId,
-  });
+  const InstructionFileDialog({super.key, required this.folder, this.sessionId});
 
-  static Future<void> show(
-    BuildContext context, {
-    required String folder,
-    String? sessionId,
-  }) async {
+  static Future<void> show(BuildContext context, {required String folder, String? sessionId}) async {
     // Instruction files live on the host file system; a remote browser cannot
     // read or write them directly.
     if (kIsWeb) return;
     return showDialog<void>(
       context: context,
       barrierDismissible: true,
-      builder: (ctx) => InstructionFileDialog(
-        folder: folder,
-        sessionId: sessionId,
-      ),
+      builder: (ctx) => InstructionFileDialog(folder: folder, sessionId: sessionId),
     );
   }
 
   @override
-  ConsumerState<InstructionFileDialog> createState() =>
-      _InstructionFileDialogState();
+  ConsumerState<InstructionFileDialog> createState() => _InstructionFileDialogState();
 }
 
 class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
@@ -73,11 +67,7 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
   }
 
   String _folderName(String path) {
-    final parts = path
-        .replaceAll('\\', '/')
-        .split('/')
-        .where((s) => s.isNotEmpty)
-        .toList();
+    final parts = path.replaceAll('\\', '/').split('/').where((s) => s.isNotEmpty).toList();
     return parts.isEmpty ? 'Repository' : parts.last;
   }
 
@@ -101,17 +91,13 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
     });
 
     try {
+      final files = ref.read(fileSystemServiceProvider);
       for (final f in standardFiles) {
-        final path = _fullPath(f);
-        final file = File(path);
-        _fileExists[f] = file.existsSync();
+        _fileExists[f] = files.fileExistsSync(_fullPath(f));
       }
 
       // Pick first file that exists, or default to AGENTS.md
-      final firstExisting = standardFiles.firstWhere(
-        (f) => _fileExists[f] == true,
-        orElse: () => standardFiles.first,
-      );
+      final firstExisting = standardFiles.firstWhere((f) => _fileExists[f] == true, orElse: () => standardFiles.first);
       _selectedFile = firstExisting;
       _loadFileContent(_selectedFile);
     } catch (e) {
@@ -157,15 +143,11 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
 
   void _loadFileContent(String fileName) {
     final path = _fullPath(fileName);
-    final file = File(path);
+    final files = ref.read(fileSystemServiceProvider);
 
     String content = '';
-    if (file.existsSync()) {
-      try {
-        content = file.readAsStringSync();
-      } catch (_) {
-        content = '';
-      }
+    if (files.fileExistsSync(path)) {
+      content = files.readTextSync(path) ?? '';
     } else {
       content = _getStarterTemplate(fileName);
     }
@@ -196,9 +178,7 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
             ),
             title: Text(
               strings.unsavedChangesTitle,
-              style: FrameText.of(context).title.copyWith(color: tokens.textPrimary,
-                
-                fontWeight: FontWeight.bold),
+              style: FrameText.of(context).title.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.bold),
             ),
             content: Text(
               strings.unsavedChangesDiscardBody(_selectedFile, fileName),
@@ -210,10 +190,7 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
                 child: Text(strings.cancel, style: TextStyle(color: tokens.textMuted)),
               ),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: tokens.danger,
-                  foregroundColor: tokens.accentContrast,
-                ),
+                style: ElevatedButton.styleFrom(backgroundColor: tokens.danger, foregroundColor: tokens.accentContrast),
                 onPressed: () => Navigator.of(ctx).pop(true),
                 child: Text(strings.discardChangesAction),
               ),
@@ -241,13 +218,7 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
 
     try {
       final path = _fullPath(_selectedFile);
-      final file = File(path);
-
-      if (!file.parent.existsSync()) {
-        file.parent.createSync(recursive: true);
-      }
-
-      file.writeAsStringSync(_contentController.text);
+      ref.read(fileSystemServiceProvider).writeTextSync(path, _contentController.text);
 
       _initialContent = _contentController.text;
       _fileExists[_selectedFile] = true;
@@ -255,9 +226,7 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
       // If active session exists, refresh workspace files
       if (widget.sessionId != null) {
         try {
-          ref
-              .read(repositoryStateProvider(widget.sessionId!).notifier)
-              .loadFiles();
+          unawaited(ref.read(repositoryStateProvider(widget.sessionId!).notifier).loadFiles());
         } catch (_) {}
       }
 
@@ -265,10 +234,7 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
         setState(() {
           _saving = false;
         });
-        FrameSnackBar.show(
-          context,
-          message: ref.read(appStringsProvider).fileSavedNotice(_selectedFile),
-        );
+        FrameSnackBar.show(context, message: ref.read(appStringsProvider).fileSavedNotice(_selectedFile));
       }
     } catch (e) {
       if (mounted) {
@@ -291,19 +257,22 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
       String? generated;
 
       // In real runtime, attempt running Pi CLI if available
-      if (!Platform.environment.containsKey('FLUTTER_TEST')) {
+      if (ref.read(hostEnvironmentServiceProvider).variable('FLUTTER_TEST') == null) {
         try {
           final prompt = strings.generateInstructionsPrompt(_selectedFile);
-          final result = await Process.run(
-            'pi',
-            ['--tools', 'read,grep,find,ls', '-p', prompt],
-            workingDirectory: widget.folder,
-            runInShell: true,
-          ).timeout(const Duration(seconds: 10));
+          final result = await ref
+              .read(processServiceProvider)
+              .run(
+                'pi',
+                ['--tools', 'read,grep,find,ls', '-p', prompt],
+                workingDirectory: widget.folder,
+                runInShell: true,
+                timeout: const Duration(seconds: 10),
+              );
 
           if (result.exitCode == 0) {
-            final out = (result.stdout as String?)?.trim();
-            if (out != null && out.isNotEmpty && out.length > 50) {
+            final out = result.stdout.trim();
+            if (out.isNotEmpty && out.length > 50) {
               generated = out;
             }
           }
@@ -321,10 +290,7 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
           _generating = false;
         });
 
-        FrameSnackBar.show(
-          context,
-          message: strings.generateInstructionsSuccessNotice(_selectedFile),
-        );
+        FrameSnackBar.show(context, message: strings.generateInstructionsSuccessNotice(_selectedFile));
       }
     } catch (e) {
       if (mounted) {
@@ -337,17 +303,17 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
   }
 
   String _generateRepositoryInstructions(String folderPath, String targetFileName) {
-    final dir = Directory(folderPath);
+    final files = ref.read(fileSystemServiceProvider);
     final folderName = _folderName(folderPath);
     final targetUpper = targetFileName.split('/').last.toUpperCase();
 
     // Scan project files
-    final hasPubspec = File('$folderPath/pubspec.yaml').existsSync();
-    final hasPackageJson = File('$folderPath/package.json').existsSync();
-    final hasCargo = File('$folderPath/Cargo.toml').existsSync();
-    final hasPyproject = File('$folderPath/pyproject.toml').existsSync() ||
-        File('$folderPath/requirements.txt').existsSync();
-    final hasGo = File('$folderPath/go.mod').existsSync();
+    bool has(String name) => files.fileExistsSync('$folderPath/$name');
+    final hasPubspec = has('pubspec.yaml');
+    final hasPackageJson = has('package.json');
+    final hasCargo = has('Cargo.toml');
+    final hasPyproject = has('pyproject.toml') || has('requirements.txt');
+    final hasGo = has('go.mod');
 
     final techStack = <String>[];
     final buildCommands = <String>[];
@@ -388,14 +354,9 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
     // Top-level structure inspection
     final subdirs = <String>[];
     try {
-      if (dir.existsSync()) {
-        for (final entity in dir.listSync()) {
-          if (entity is Directory) {
-            final name = entity.path.replaceAll('\\', '/').split('/').last;
-            if (!name.startsWith('.') && name != 'node_modules' && name != 'build') {
-              subdirs.add(name);
-            }
-          }
+      for (final name in files.subdirectoryNamesSync(folderPath)) {
+        if (!name.startsWith('.') && name != 'node_modules' && name != 'build') {
+          subdirs.add(name);
         }
       }
     } catch (_) {}
@@ -493,12 +454,7 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
       ),
       insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(
-          maxWidth: 780,
-          maxHeight: 680,
-          minWidth: 480,
-          minHeight: 400,
-        ),
+        constraints: const BoxConstraints(maxWidth: 780, maxHeight: 680, minWidth: 480, minHeight: 400),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -506,9 +462,7 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
             Container(
               padding: const EdgeInsets.fromLTRB(18, 14, 14, 12),
               decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(color: tokens.border, width: 1),
-                ),
+                border: Border(bottom: BorderSide(color: tokens.border, width: 1)),
               ),
               child: Row(
                 children: [
@@ -518,11 +472,7 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
                       color: tokens.accent.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(tokens.radiusSm),
                     ),
-                    child: Icon(
-                      Icons.integration_instructions_outlined,
-                      size: FrameSize.iconLg,
-                      color: tokens.accent,
-                    ),
+                    child: Icon(Icons.integration_instructions_outlined, size: FrameSize.iconLg, color: tokens.accent),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -533,18 +483,17 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
                           children: [
                             Text(
                               strings.repoInstructionsAction,
-                              style: FrameText.of(context).title.copyWith(color: tokens.textPrimary,
-                                
+                              style: FrameText.of(context).title.copyWith(
+                                color: tokens.textPrimary,
+
                                 fontWeight: FontWeight.bold,
-                                fontFamily: tokens.headingFontFamily),
+                                fontFamily: tokens.headingFontFamily,
+                              ),
                             ),
                             const SizedBox(width: 8),
                             Flexible(
                               child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 1.5,
-                                ),
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                                 decoration: BoxDecoration(
                                   color: tokens.surfaceElevated,
                                   borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -554,9 +503,8 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
                                   _folderName(widget.folder),
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: FrameText.of(context).caption.copyWith(color: tokens.textSecondary,
-                                    
-                                    fontWeight: FontWeight.w600),
+                                  style: FrameText.of(context).caption
+                                      .copyWith(color: tokens.textSecondary, fontWeight: FontWeight.w600),
                                 ),
                               ),
                             ),
@@ -567,9 +515,8 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
                           widget.folder,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: FrameText.of(context).caption.copyWith(color: tokens.textMuted,
-                            
-                            fontFamily: tokens.monoFontFamily),
+                          style: FrameText.of(context).caption
+                              .copyWith(color: tokens.textMuted, fontFamily: tokens.monoFontFamily),
                         ),
                       ],
                     ),
@@ -588,18 +535,13 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
                 color: tokens.surfaceElevated.withValues(alpha: 0.4),
-                border: Border(
-                  bottom: BorderSide(color: tokens.border, width: 1),
-                ),
+                border: Border(bottom: BorderSide(color: tokens.border, width: 1)),
               ),
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
-                    for (final f in standardFiles) ...[
-                      _buildFileChip(f, tokens),
-                      const SizedBox(width: 6),
-                    ],
+                    for (final f in standardFiles) ...[_buildFileChip(f, tokens), const SizedBox(width: 6)],
                   ],
                 ),
               ),
@@ -615,10 +557,7 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
                     Icon(Icons.error_outline, size: FrameSize.icon, color: tokens.danger),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text(
-                        _errorMessage!,
-                        style: FrameText.of(context).label.copyWith(color: tokens.danger),
-                      ),
+                      child: Text(_errorMessage!, style: FrameText.of(context).label.copyWith(color: tokens.danger)),
                     ),
                   ],
                 ),
@@ -629,35 +568,28 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               decoration: BoxDecoration(
                 color: tokens.surface,
-                border: Border(
-                  bottom: BorderSide(color: tokens.border, width: 1),
-                ),
+                border: Border(bottom: BorderSide(color: tokens.border, width: 1)),
               ),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.file_present_outlined,
-                    size: FrameSize.icon,
-                    color: tokens.accent,
-                  ),
+                  Icon(Icons.file_present_outlined, size: FrameSize.icon, color: tokens.accent),
                   const SizedBox(width: 6),
                   Flexible(
                     child: Text(
                       _selectedFile,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: FrameText.of(context).label.copyWith(color: tokens.textPrimary,
-                        
+                      style: FrameText.of(context).label.copyWith(
+                        color: tokens.textPrimary,
+
                         fontFamily: tokens.monoFontFamily,
-                        fontWeight: FontWeight.w600),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 5,
-                      vertical: 1.5,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                     decoration: BoxDecoration(
                       color: exists
                           ? tokens.agentSettled.withValues(alpha: 0.12)
@@ -666,17 +598,18 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
                     ),
                     child: Text(
                       exists ? strings.presentOnDiskBadge : strings.newFileBadge,
-                      style: FrameText.of(context).caption.copyWith(color: exists ? tokens.agentSettled : tokens.syntaxFunction,
-                        
-                        fontWeight: FontWeight.w600),
+                      style: FrameText.of(context).caption.copyWith(
+                        color: exists ? tokens.agentSettled : tokens.syntaxFunction,
+
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Text(
                     strings.linesAndCharsCount(lineCount, charCount),
-                    style: FrameText.of(context).caption.copyWith(color: tokens.textMuted,
-                      
-                      fontFamily: tokens.monoFontFamily),
+                    style: FrameText.of(context).caption
+                        .copyWith(color: tokens.textMuted, fontFamily: tokens.monoFontFamily),
                   ),
                 ],
               ),
@@ -689,10 +622,7 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
                       child: SizedBox(
                         width: 24,
                         height: 24,
-                        child: FrameActivityIndicator(size: FrameSize.iconLg,
-                          strokeWidth: 2,
-                          color: tokens.accent,
-                        ),
+                        child: FrameActivityIndicator(size: FrameSize.iconLg, strokeWidth: 2, color: tokens.accent),
                       ),
                     )
                   : Container(
@@ -709,15 +639,13 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
                           expands: true,
                           keyboardType: TextInputType.multiline,
                           onChanged: (_) => setState(() {}),
-                          style: FrameText.of(context).label.copyWith(color: tokens.textPrimary,
-                            
-                            fontFamily: tokens.monoFontFamily,
-                            height: 1.45),
+                          style: FrameText.of(context).label
+                              .copyWith(color: tokens.textPrimary, fontFamily: tokens.monoFontFamily, height: 1.45),
                           decoration: InputDecoration(
                             border: InputBorder.none,
                             hintText: strings.enterInstructionsHint,
-                            hintStyle: FrameText.of(context).label.copyWith(color: tokens.textMuted,
-                              fontFamily: tokens.monoFontFamily),
+                            hintStyle: FrameText.of(context).label
+                                .copyWith(color: tokens.textMuted, fontFamily: tokens.monoFontFamily),
                           ),
                         ),
                       ),
@@ -729,9 +657,7 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
                 color: tokens.surface,
-                border: Border(
-                  top: BorderSide(color: tokens.border, width: 1),
-                ),
+                border: Border(top: BorderSide(color: tokens.border, width: 1)),
               ),
               child: Row(
                 children: [
@@ -743,10 +669,7 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
                               Container(
                                 width: 8,
                                 height: 8,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: tokens.syntaxNumber,
-                                ),
+                                decoration: BoxDecoration(shape: BoxShape.circle, color: tokens.syntaxNumber),
                               ),
                               const SizedBox(width: 6),
                               Flexible(
@@ -754,96 +677,76 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
                                   strings.unsavedChangesTitle,
                                   overflow: TextOverflow.ellipsis,
                                   maxLines: 1,
-                                  style: FrameText.of(context).caption.copyWith(color: tokens.syntaxNumber,
-                                    
-                                    fontWeight: FontWeight.w500),
+                                  style: FrameText.of(context).caption
+                                      .copyWith(color: tokens.syntaxNumber, fontWeight: FontWeight.w500),
                                 ),
                               ),
                             ],
                           )
                         : (exists
-                            ? Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    Icons.check_circle_outline,
-                                    size: FrameSize.icon,
-                                    color: tokens.agentSettled,
-                                  ),
-                                  const SizedBox(width: 4),
-                                  Flexible(
-                                    child: Text(
-                                      strings.syncedWithDiskStatus,
-                                      overflow: TextOverflow.ellipsis,
-                                      maxLines: 1,
-                                      style: FrameText.of(context).caption.copyWith(color: tokens.textMuted),
+                              ? Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Icon(Icons.check_circle_outline, size: FrameSize.icon, color: tokens.agentSettled),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(
+                                        strings.syncedWithDiskStatus,
+                                        overflow: TextOverflow.ellipsis,
+                                        maxLines: 1,
+                                        style: FrameText.of(context).caption.copyWith(color: tokens.textMuted),
+                                      ),
                                     ),
-                                  ),
-                                ],
-                              )
-                            : const SizedBox.shrink()),
+                                  ],
+                                )
+                              : const SizedBox.shrink()),
                   ),
                   const SizedBox(width: 8),
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    style: TextButton.styleFrom(
-                      foregroundColor: tokens.textMuted,
-                    ),
+                    style: TextButton.styleFrom(foregroundColor: tokens.textMuted),
                     child: Text(strings.close),
                   ),
                   const SizedBox(width: 8),
-                  PressFeedback(enabled: !(_generating || _saving), child: OutlinedButton.icon(
-                    key: const ValueKey('instruction-generate-pi-btn'),
-                    onPressed: _generating || _saving ? null : _generateWithPi,
-                    style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: tokens.accent),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
+                  PressFeedback(
+                    enabled: !(_generating || _saving),
+                    child: OutlinedButton.icon(
+                      key: const ValueKey('instruction-generate-pi-btn'),
+                      onPressed: _generating || _saving ? null : _generateWithPi,
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: tokens.accent),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm)),
                       ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(tokens.radiusSm),
+                      icon: _generating
+                          ? SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: FrameActivityIndicator(size: FrameSize.icon, strokeWidth: 2, color: tokens.accent),
+                            )
+                          : Icon(Icons.auto_awesome_outlined, size: FrameSize.icon, color: tokens.accent),
+                      label: Text(
+                        _generating ? strings.generatingStatus : strings.generateWithPiAction,
+                        style: FrameText.of(context).label.copyWith(color: tokens.accent, fontWeight: FontWeight.bold),
                       ),
                     ),
-                    icon: _generating
-                        ? SizedBox(
-                            width: 14,
-                            height: 14,
-                            child: FrameActivityIndicator(size: FrameSize.icon,
-                              strokeWidth: 2,
-                              color: tokens.accent,
-                            ),
-                          )
-                        : Icon(Icons.auto_awesome_outlined, size: FrameSize.icon, color: tokens.accent),
-                    label: Text(
-                      _generating ? strings.generatingStatus : strings.generateWithPiAction,
-                      style: FrameText.of(context).label.copyWith(color: tokens.accent,
-                        
-                        fontWeight: FontWeight.bold),
-                    ),
-                  )),
+                  ),
                   const SizedBox(width: 8),
                   ElevatedButton.icon(
                     key: const ValueKey('instruction-save-btn'),
-                    onPressed: _saving || (!_isDirty && exists)
-                        ? null
-                        : _saveCurrentFile,
+                    onPressed: _saving || (!_isDirty && exists) ? null : _saveCurrentFile,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: tokens.accent,
                       foregroundColor: tokens.accentContrast,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(tokens.radiusSm),
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm)),
                     ),
                     icon: _saving
                         ? SizedBox(
                             width: 14,
                             height: 14,
-                            child: FrameActivityIndicator(size: FrameSize.icon,
+                            child: FrameActivityIndicator(
+                              size: FrameSize.icon,
                               strokeWidth: 2,
                               color: tokens.accentContrast,
                             ),
@@ -874,9 +777,7 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: isSelected
-              ? tokens.accent.withValues(alpha: 0.15)
-              : tokens.surface,
+          color: isSelected ? tokens.accent.withValues(alpha: 0.15) : tokens.surface,
           borderRadius: BorderRadius.circular(tokens.radiusSm),
           border: Border.all(
             color: isSelected
@@ -893,29 +794,26 @@ class _InstructionFileDialogState extends ConsumerState<InstructionFileDialog> {
             Container(
               width: 6,
               height: 6,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: exists ? tokens.agentSettled : tokens.textMuted,
-              ),
+              decoration: BoxDecoration(shape: BoxShape.circle, color: exists ? tokens.agentSettled : tokens.textMuted),
             ),
             const SizedBox(width: 6),
             Text(
               fileName,
-              style: FrameText.of(context).caption.copyWith(color: isSelected
+              style: FrameText.of(context).caption.copyWith(
+                color: isSelected
                     ? tokens.textPrimary
                     : exists
                     ? tokens.textSecondary
                     : tokens.textMuted,
-                
+
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                fontFamily: tokens.monoFontFamily),
+                fontFamily: tokens.monoFontFamily,
+              ),
             ),
             const SizedBox(width: 5),
             Text(
               exists ? '' : '+',
-              style: FrameText.of(context).caption.copyWith(color: tokens.textMuted,
-                
-                fontWeight: FontWeight.bold),
+              style: FrameText.of(context).caption.copyWith(color: tokens.textMuted, fontWeight: FontWeight.bold),
             ),
           ],
         ),

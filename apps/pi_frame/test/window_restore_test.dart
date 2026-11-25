@@ -26,20 +26,15 @@ void main() {
     if (tempDir.existsSync()) tempDir.deleteSync(recursive: true);
   });
 
-  test(
-    'normal restore keeps size, ignores saved coordinates, and centers',
-    () async {
-      await service.saveState(
-        const WindowState(width: 1280, height: 800, x: 45, y: 90),
-      );
+  test('normal restore keeps size, ignores saved coordinates, and centers', () async {
+    await service.saveState(const WindowState(width: 1280, height: 800, x: 45, y: 90));
 
-      await service.restoreWindow();
+    await service.restoreWindow();
 
-      expect(manager.size, const Size(1280, 800));
-      expect(manager.centerCalls, 1);
-      expect(manager.positionCalls, 0);
-    },
-  );
+    expect(manager.size, const Size(1280, 800));
+    expect(manager.centerCalls, 1);
+    expect(manager.positionCalls, 0);
+  });
 
   test('default normal restore centers the default window size', () async {
     await service.restoreWindow();
@@ -49,17 +44,13 @@ void main() {
   });
 
   test('maximized and fullscreen states restore after normal size', () async {
-    await service.saveState(
-      const WindowState(width: 1260, height: 760, isMaximized: true),
-    );
+    await service.saveState(const WindowState(width: 1260, height: 760, isMaximized: true));
     await service.restoreWindow();
     expect(manager.size, const Size(1260, 760));
     expect(manager.maximizeCalls, 1);
     expect(manager.centerCalls, 0);
 
-    await service.saveState(
-      const WindowState(width: 1260, height: 760, isFullScreen: true),
-    );
+    await service.saveState(const WindowState(width: 1260, height: 760, isFullScreen: true));
     manager = _FakeWindowManager();
     service.setWindowManagerForTesting(manager);
     await service.restoreWindow();
@@ -85,32 +76,23 @@ void main() {
     expect(service.currentState.isMaximized, isTrue);
   });
 
-  test(
-    'minimizing preserves the last maximized state and normal bounds',
-    () async {
-      const previous = WindowState(
-        width: 1200,
-        height: 740,
-        x: 30,
-        y: 50,
-        isMaximized: true,
-      );
-      await service.saveState(previous);
-      manager
-        ..minimized = true
-        ..size = const Size(300, 200)
-        ..position = const Offset(-32000, -32000);
+  test('minimizing preserves the last maximized state and normal bounds', () async {
+    const previous = WindowState(width: 1200, height: 740, x: 30, y: 50, isMaximized: true);
+    await service.saveState(previous);
+    manager
+      ..minimized = true
+      ..size = const Size(300, 200)
+      ..position = const Offset(-32000, -32000);
 
-      await service.recordCurrentWindowState();
+    await service.recordCurrentWindowState();
 
-      expect(service.currentState.width, 1200);
-      expect(service.currentState.height, 740);
-      expect(service.currentState.isMaximized, isTrue);
-      final stored = jsonDecode(await stateFile.readAsString()) as Map;
-      expect(stored['isMaximized'], isTrue);
-      expect(stored['width'], 1200);
-    },
-  );
+    expect(service.currentState.width, 1200);
+    expect(service.currentState.height, 740);
+    expect(service.currentState.isMaximized, isTrue);
+    final stored = jsonDecode(await stateFile.readAsString()) as Map;
+    expect(stored['isMaximized'], isTrue);
+    expect(stored['width'], 1200);
+  });
 
   test('awaited state recording persists final normal bounds', () async {
     manager
@@ -153,8 +135,7 @@ class _FakeWindowManager implements WindowManager {
   Future<Offset> getPosition() async => position;
 
   @override
-  Future<void> setSize(Size value, {bool animate = false}) async =>
-      size = value;
+  Future<void> setSize(Size value, {bool animate = false}) async => size = value;
 
   @override
   Future<void> setPosition(Offset value, {bool animate = false}) async {

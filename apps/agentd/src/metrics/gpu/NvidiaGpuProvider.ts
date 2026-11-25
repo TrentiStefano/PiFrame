@@ -29,12 +29,7 @@ export class NvidiaGpuProvider implements GpuMetricsProvider {
     try {
       const child = this.spawnFn(
         'nvidia-smi',
-        [
-          '--query-gpu=utilization.gpu,memory.used,memory.total',
-          '--format=csv,noheader,nounits',
-          '-l',
-          '1'
-        ],
+        ['--query-gpu=utilization.gpu,memory.used,memory.total', '--format=csv,noheader,nounits', '-l', '1'],
         {
           shell: false,
           windowsHide: true,

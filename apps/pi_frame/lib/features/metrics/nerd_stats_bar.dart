@@ -29,14 +29,9 @@ class NerdStatsBar extends ConsumerWidget {
     final metrics = isWeb ? null : ref.watch(systemMetricsProvider);
     final fps = ref.watch(fpsProvider);
 
-    final isStaleOrUnavailable =
-        metrics == null || metrics.isStale || !metrics.hasCapability;
+    final isStaleOrUnavailable = metrics == null || metrics.isStale || !metrics.hasCapability;
 
-    final tooltip = buildNerdStatsTooltip(
-      isWeb: isWeb,
-      metrics: metrics,
-      fps: fps,
-    );
+    final tooltip = buildNerdStatsTooltip(isWeb: isWeb, metrics: metrics, fps: fps);
 
     final cpuVal = isStaleOrUnavailable ? null : metrics.cpuPercent;
     final ramVal = isStaleOrUnavailable ? null : metrics.memoryPercent;
@@ -62,25 +57,17 @@ class NerdStatsBar extends ConsumerWidget {
       waitDuration: FrameMotionTokens.tooltipWait,
       child: Container(
         key: const ValueKey('nerd-stats-bar'),
-        padding: const EdgeInsets.symmetric(
-          horizontal: FrameSpace.x2,
-          vertical: 3,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2, vertical: 3),
         decoration: BoxDecoration(
           color: tokens.surfaceElevated.withValues(alpha: 0.6),
           borderRadius: BorderRadius.circular(tokens.radiusSm),
           border: Border.all(color: tokens.border.withValues(alpha: 0.6)),
         ),
         child: isWeb
-            ? Text(
-                '$fps FPS',
-                style: FrameText.of(context).mono
-                    .copyWith(color: tokens.textSecondary),
-              )
+            ? Text('$fps FPS', style: FrameText.of(context).mono.copyWith(color: tokens.textSecondary))
             : Text.rich(
                 TextSpan(
-                  style: FrameText.of(context).mono
-                      .copyWith(color: tokens.textSecondary),
+                  style: FrameText.of(context).mono.copyWith(color: tokens.textSecondary),
                   children: [
                     TextSpan(
                       text: 'CPU ',
@@ -88,17 +75,11 @@ class NerdStatsBar extends ConsumerWidget {
                     ),
                     TextSpan(
                       text: cpuStr,
-                      style: TextStyle(
-                        color: cpuVal != null && cpuVal > 85.0
-                            ? tokens.warning
-                            : tokens.textSecondary,
-                      ),
+                      style: TextStyle(color: cpuVal != null && cpuVal > 85.0 ? tokens.warning : tokens.textSecondary),
                     ),
                     TextSpan(
                       text: ' · ',
-                      style: TextStyle(
-                        color: tokens.textMuted.withValues(alpha: 0.45),
-                      ),
+                      style: TextStyle(color: tokens.textMuted.withValues(alpha: 0.45)),
                     ),
                     TextSpan(
                       text: 'RAM ',
@@ -106,17 +87,11 @@ class NerdStatsBar extends ConsumerWidget {
                     ),
                     TextSpan(
                       text: ramStr,
-                      style: TextStyle(
-                        color: ramVal != null && ramVal > 85.0
-                            ? tokens.warning
-                            : tokens.textSecondary,
-                      ),
+                      style: TextStyle(color: ramVal != null && ramVal > 85.0 ? tokens.warning : tokens.textSecondary),
                     ),
                     TextSpan(
                       text: ' · ',
-                      style: TextStyle(
-                        color: tokens.textMuted.withValues(alpha: 0.45),
-                      ),
+                      style: TextStyle(color: tokens.textMuted.withValues(alpha: 0.45)),
                     ),
                     TextSpan(
                       text: 'DISK ',
@@ -125,16 +100,12 @@ class NerdStatsBar extends ConsumerWidget {
                     TextSpan(
                       text: diskStr,
                       style: TextStyle(
-                        color: diskVal != null && diskVal > 85.0
-                            ? tokens.warning
-                            : tokens.textSecondary,
+                        color: diskVal != null && diskVal > 85.0 ? tokens.warning : tokens.textSecondary,
                       ),
                     ),
                     TextSpan(
                       text: ' · ',
-                      style: TextStyle(
-                        color: tokens.textMuted.withValues(alpha: 0.45),
-                      ),
+                      style: TextStyle(color: tokens.textMuted.withValues(alpha: 0.45)),
                     ),
                     TextSpan(
                       text: 'GPU ',
@@ -142,17 +113,11 @@ class NerdStatsBar extends ConsumerWidget {
                     ),
                     TextSpan(
                       text: gpuStr,
-                      style: TextStyle(
-                        color: gpuVal != null && gpuVal > 85.0
-                            ? tokens.warning
-                            : tokens.textSecondary,
-                      ),
+                      style: TextStyle(color: gpuVal != null && gpuVal > 85.0 ? tokens.warning : tokens.textSecondary),
                     ),
                     TextSpan(
                       text: ' · ',
-                      style: TextStyle(
-                        color: tokens.textMuted.withValues(alpha: 0.45),
-                      ),
+                      style: TextStyle(color: tokens.textMuted.withValues(alpha: 0.45)),
                     ),
                     TextSpan(
                       text: '$fps FPS',

@@ -1,4 +1,4 @@
-import '../../domain/errors/user_facing_error.dart';
+import '../../data/errors/user_facing_error_mapping.dart';
 
 import 'dart:async';
 import 'dart:math' as math;
@@ -9,9 +9,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
-import 'package:window_manager/window_manager.dart';
 
-import 'package:file_selector/file_selector.dart';
+import '../../data/platform/file_dialog_service.dart';
+import '../../data/platform/widget_test_binding.dart';
+import '../../data/platform/window_service.dart';
 
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/composer/composer_settings.dart';
@@ -50,9 +51,7 @@ import '../../ui/motion.dart';
 import '../context_panel/context_window_selector.dart';
 import '../side/side_provider.dart';
 
-final composerSendingProvider = StateProvider.family<bool, String>(
-  (ref, sessionId) => false,
-);
+final composerSendingProvider = StateProvider.family<bool, String>((ref, sessionId) => false);
 
 class _ComposerSizeAnimator extends ConsumerWidget {
   final Widget child;
@@ -107,6 +106,9 @@ class Composer extends ConsumerStatefulWidget {
   ConsumerState<Composer> createState() => _ComposerState();
 }
 
+/// How long the pointer must rest over a minimized composer before it expands.
+const _minimizedHoverExpandDelay = Duration(seconds: 5);
+
 class _ComposerState extends ConsumerState<Composer> {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
@@ -129,8 +131,7 @@ class _ComposerState extends ConsumerState<Composer> {
   bool _isPointerOver = false;
   Timer? _hoverGraceTimer;
   Timer? _expand5sTimer;
-  final ValueNotifier<Offset?> _minimizedHoverOffsetNotifier =
-      ValueNotifier<Offset?>(null);
+  final ValueNotifier<Offset?> _minimizedHoverOffsetNotifier = ValueNotifier<Offset?>(null);
   bool _hasText = false;
   bool _isInputEnlarged = false;
   List<Map<String, dynamic>> _models = [];
@@ -156,13 +157,9 @@ class _ComposerState extends ConsumerState<Composer> {
     final sessionId = widget.sessionId;
     final notifier = ref.read(sessionStateFamily(sessionId).notifier);
     final models = await notifier.getAvailableModels();
-    if (mounted &&
-        widget.sessionId == sessionId &&
-        generation == _modelLoadGeneration) {
+    if (mounted && widget.sessionId == sessionId && generation == _modelLoadGeneration) {
       setState(() {
-        _models = models
-            .map((model) => Map<String, dynamic>.from(model))
-            .toList();
+        _models = models.map((model) => Map<String, dynamic>.from(model)).toList();
       });
     }
   }
@@ -171,17 +168,11 @@ class _ComposerState extends ConsumerState<Composer> {
     if (mounted) setState(() {});
   }
 
-  Future<void> _showEditSteerDialog(
-    BuildContext context,
-    int index,
-    String initialText,
-  ) async {
+  Future<void> _showEditSteerDialog(BuildContext context, int index, String initialText) async {
     final strings = ref.read(appStringsProvider);
     final tokens = context.tokens;
     final textController = TextEditingController(text: initialText);
-    final sessionNotifier = ref.read(
-      sessionStateFamily(widget.sessionId).notifier,
-    );
+    final sessionNotifier = ref.read(sessionStateFamily(widget.sessionId).notifier);
 
     await showFrameDialog<void>(
       context: context,
@@ -192,18 +183,13 @@ class _ComposerState extends ConsumerState<Composer> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              strings.steerEditDialogDesc,
-              style: FrameText.of(context).label
-                  .copyWith(color: tokens.textSecondary),
-            ),
+            Text(strings.steerEditDialogDesc, style: FrameText.of(context).label.copyWith(color: tokens.textSecondary)),
             const SizedBox(height: FrameSpace.x3),
             TextField(
               key: const ValueKey('edit-steer-dialog-field'),
               controller: textController,
               maxLines: 4,
-              style: FrameText.of(context).body
-                  .copyWith(color: tokens.textPrimary),
+              style: FrameText.of(context).body.copyWith(color: tokens.textPrimary),
               decoration: InputDecoration(
                 filled: true,
                 fillColor: tokens.background,
@@ -225,20 +211,13 @@ class _ComposerState extends ConsumerState<Composer> {
             role: FrameDialogActionRole.cancel,
             key: const ValueKey('edit-steer-dialog-load'),
             onPressed: () {
-              sessionNotifier.removeSteerMessage(index);
+              unawaited(sessionNotifier.removeSteerMessage(index));
               _controller.text = textController.text;
               _focusNode.requestFocus();
-              FrameSnackBar.show(
-                context,
-                message: strings.steerLoadedToComposer,
-                duration: const Duration(seconds: 2),
-              );
+              FrameSnackBar.show(context, message: strings.steerLoadedToComposer, duration: const Duration(seconds: 2));
             },
           ),
-          FrameDialogAction<void>(
-            label: strings.cancel,
-            role: FrameDialogActionRole.cancel,
-          ),
+          FrameDialogAction<void>(label: strings.cancel, role: FrameDialogActionRole.cancel),
           FrameDialogAction<void>(
             label: strings.steerUpdateAction,
             role: FrameDialogActionRole.primary,
@@ -246,7 +225,7 @@ class _ComposerState extends ConsumerState<Composer> {
             onPressed: () {
               final newText = textController.text.trim();
               if (newText.isNotEmpty) {
-                sessionNotifier.updateSteerMessage(index, newText);
+                unawaited(sessionNotifier.updateSteerMessage(index, newText));
               }
             },
           ),
@@ -264,33 +243,19 @@ class _ComposerState extends ConsumerState<Composer> {
     _controller.addListener(_onTextChanged);
     _focusNode.addListener(_onFocusChanged);
     _availableCommands = _mergeLocalCommands(const []);
-    _loadCommands();
-    _loadModels();
+    unawaited(_loadCommands());
+    unawaited(_loadModels());
   }
 
-  List<Map<String, dynamic>> _mergeLocalCommands(
-    List<Map<String, dynamic>> cmds,
-  ) {
+  List<Map<String, dynamic>> _mergeLocalCommands(List<Map<String, dynamic>> cmds) {
     final strings = ref.read(appStringsProvider);
     final localCommands = [
-      {
-        'name': 'side',
-        'description': strings.sideSlashDescription,
-        'argumentHint': '[question]',
-        'source': 'builtin',
-      },
-      {
-        'name': 'btw',
-        'description': strings.sideSlashDescription,
-        'argumentHint': '[question]',
-        'source': 'builtin',
-      },
+      {'name': 'side', 'description': strings.sideSlashDescription, 'argumentHint': '[question]', 'source': 'builtin'},
+      {'name': 'btw', 'description': strings.sideSlashDescription, 'argumentHint': '[question]', 'source': 'builtin'},
     ];
     final result = List<Map<String, dynamic>>.from(cmds);
     for (final local in localCommands) {
-      final existingIndex = result.indexWhere(
-        (c) => c['name'] == local['name'],
-      );
+      final existingIndex = result.indexWhere((c) => c['name'] == local['name']);
       if (existingIndex >= 0) {
         result[existingIndex] = local;
       } else {
@@ -326,10 +291,7 @@ class _ComposerState extends ConsumerState<Composer> {
         .pendingUiRequests
         .any(
           (request) =>
-              _isInteractionRequest(request) &&
-              !_dismissedUiRequestIds.contains(
-                request['requestId']?.toString(),
-              ),
+              _isInteractionRequest(request) && !_dismissedUiRequestIds.contains(request['requestId']?.toString()),
         );
   }
 
@@ -347,8 +309,7 @@ class _ComposerState extends ConsumerState<Composer> {
         final stillInMention =
             cursor > 0 &&
             cursor <= text.length &&
-            RegExp(r'@([a-zA-Z0-9_\-\./]*)$')
-                .hasMatch(text.substring(0, cursor));
+            RegExp(r'@([a-zA-Z0-9_\-\./]*)$').hasMatch(text.substring(0, cursor));
         if (!stillInMention) setState(() => _showFileMentionMenu = false);
       }
       return;
@@ -368,8 +329,7 @@ class _ComposerState extends ConsumerState<Composer> {
         return;
       }
     }
-    final show =
-        _activeCommand == null && text.startsWith('/') && !text.contains('\n');
+    final show = _activeCommand == null && text.startsWith('/') && !text.contains('\n');
     if (show && !_showSlashMenu) unawaited(_loadCommands());
     if (show != _showSlashMenu || _slashSelectedIndex != 0) {
       setState(() {
@@ -382,12 +342,11 @@ class _ComposerState extends ConsumerState<Composer> {
     final cursor = selection.baseOffset;
     if (cursor > 0 && cursor <= text.length) {
       final beforeCursor = text.substring(0, cursor);
-      final atMatch = RegExp(r'@([a-zA-Z0-9_\-\./]*)$')
-          .firstMatch(beforeCursor);
+      final atMatch = RegExp(r'@([a-zA-Z0-9_\-\./]*)$').firstMatch(beforeCursor);
       if (atMatch != null) {
         final query = atMatch.group(1)!;
         final start = atMatch.start;
-        _updateFileMentions(query, start);
+        unawaited(_updateFileMentions(query, start));
       } else if (_showFileMentionMenu) {
         setState(() => _showFileMentionMenu = false);
         _focusNode.requestFocus();
@@ -399,9 +358,7 @@ class _ComposerState extends ConsumerState<Composer> {
   }
 
   Future<void> _updateFileMentions(String query, int startIndex) async {
-    final repoNotifier = ref.read(
-      repositoryStateProvider(widget.sessionId).notifier,
-    );
+    final repoNotifier = ref.read(repositoryStateProvider(widget.sessionId).notifier);
     if (repoNotifier.currentState.files.isEmpty) {
       await repoNotifier.loadFiles();
     }
@@ -440,8 +397,7 @@ class _ComposerState extends ConsumerState<Composer> {
         text: newText,
         selection: TextSelection.collapsed(offset: newOffset),
       );
-      ref.read(composerDraftProvider(widget.sessionId).notifier).state =
-          newText;
+      ref.read(composerDraftProvider(widget.sessionId).notifier).state = newText;
     } else {
       final separator = text.isEmpty || text.endsWith(' ') ? '' : ' ';
       final newText = '$text$separator@$path ';
@@ -449,8 +405,7 @@ class _ComposerState extends ConsumerState<Composer> {
         text: newText,
         selection: TextSelection.collapsed(offset: newText.length),
       );
-      ref.read(composerDraftProvider(widget.sessionId).notifier).state =
-          newText;
+      ref.read(composerDraftProvider(widget.sessionId).notifier).state = newText;
     }
     setState(() {
       _showFileMentionMenu = false;
@@ -498,15 +453,8 @@ class _ComposerState extends ConsumerState<Composer> {
     final base = Radius.circular(tokens.radiusLg);
     final displayRadius = phoneDisplayCornerRadius(context);
     if (displayRadius == null) return BorderRadius.all(base);
-    final bottom = Radius.circular(
-      concentricRadius(displayRadius, 8 + 14, min: tokens.radiusLg),
-    );
-    return BorderRadius.only(
-      topLeft: base,
-      topRight: base,
-      bottomLeft: bottom,
-      bottomRight: bottom,
-    );
+    final bottom = Radius.circular(concentricRadius(displayRadius, 8 + 14, min: tokens.radiusLg));
+    return BorderRadius.only(topLeft: base, topRight: base, bottomLeft: bottom, bottomRight: bottom);
   }
 
   Future<void> _send({String? streamingBehavior}) async {
@@ -518,10 +466,7 @@ class _ComposerState extends ConsumerState<Composer> {
 
     if (_pendingUploads > 0) {
       // An upload is still running: sending now would drop the attachment silently.
-      FrameSnackBar.show(
-        context,
-        message: ref.read(appStringsProvider).composerUploadInProgress,
-      );
+      FrameSnackBar.show(context, message: ref.read(appStringsProvider).composerUploadInProgress);
       return;
     }
 
@@ -537,15 +482,9 @@ class _ComposerState extends ConsumerState<Composer> {
       _activateCommand(typed.$1, args: typed.$2);
       return;
     }
-    final savedDraft = ref.read(
-      composerDraftProvider(widget.sessionId).notifier,
-    );
-    final sending = ref.read(
-      composerSendingProvider(widget.sessionId).notifier,
-    );
-    final attachmentsNotifier = ref.read(
-      composerAttachmentsProvider(widget.sessionId).notifier,
-    );
+    final savedDraft = ref.read(composerDraftProvider(widget.sessionId).notifier);
+    final sending = ref.read(composerSendingProvider(widget.sessionId).notifier);
+    final attachmentsNotifier = ref.read(composerAttachmentsProvider(widget.sessionId).notifier);
     sending.state = true;
     try {
       final fullPrompt = attachments.isNotEmpty
@@ -575,11 +514,7 @@ class _ComposerState extends ConsumerState<Composer> {
     } catch (error) {
       if (mounted && streamingBehavior != null) {
         final strings = ref.read(appStringsProvider);
-        FrameSnackBar.show(
-          context,
-          message: strings.composerSendFailed(error),
-          isError: true,
-        );
+        FrameSnackBar.show(context, message: strings.composerSendFailed(error), isError: true);
       }
     } finally {
       if (sending.mounted) sending.state = false;
@@ -594,11 +529,7 @@ class _ComposerState extends ConsumerState<Composer> {
         title: strings.composerVerifySessionTitle,
         body: Text(strings.composerVerifySessionContent),
         actions: [
-          FrameDialogAction<bool>(
-            label: strings.cancel,
-            role: FrameDialogActionRole.cancel,
-            value: false,
-          ),
+          FrameDialogAction<bool>(label: strings.cancel, role: FrameDialogActionRole.cancel, value: false),
           FrameDialogAction<bool>(
             label: strings.composerContinueHereAction,
             role: FrameDialogActionRole.primary,
@@ -617,11 +548,7 @@ class _ComposerState extends ConsumerState<Composer> {
       ref.invalidate(sessionStateFamily(widget.sessionId));
     } catch (error) {
       if (mounted) {
-        FrameSnackBar.show(
-          context,
-          message: strings.composerResumeFailed(error),
-          isError: true,
-        );
+        FrameSnackBar.show(context, message: strings.composerResumeFailed(error), isError: true);
       }
     }
   }
@@ -632,11 +559,7 @@ class _ComposerState extends ConsumerState<Composer> {
     } catch (error) {
       if (mounted) {
         final strings = ref.read(appStringsProvider);
-        FrameSnackBar.show(
-          context,
-          message: strings.composerActionFailed(error),
-          isError: true,
-        );
+        FrameSnackBar.show(context, message: strings.composerActionFailed(error), isError: true);
       }
     }
   }
@@ -644,24 +567,22 @@ class _ComposerState extends ConsumerState<Composer> {
   void _onAttachSelected(String value) {
     switch (value) {
       case 'repo':
-        _addFileToContext();
+        unawaited(_addFileToContext());
         break;
       case 'external':
-        _addExternalFiles();
+        unawaited(_addExternalFiles());
         break;
       case 'link':
-        _addWebLink();
+        unawaited(_addWebLink());
         break;
       case 'image':
-        _addImageFiles();
+        unawaited(_addImageFiles());
         break;
     }
   }
 
   Future<void> _addFileToContext() async {
-    final repository = ref.read(
-      repositoryStateProvider(widget.sessionId).notifier,
-    );
+    final repository = ref.read(repositoryStateProvider(widget.sessionId).notifier);
     if (repository.currentState.files.isEmpty) await repository.loadFiles();
     if (!mounted) return;
     final state = repository.currentState;
@@ -669,19 +590,13 @@ class _ComposerState extends ConsumerState<Composer> {
     if (state.files.isEmpty) {
       FrameSnackBar.show(
         context,
-        message: state.error == null
-            ? strings.composerNoFilesAvailable
-            : describeError(state.error!, strings).summary,
+        message: state.error == null ? strings.composerNoFilesAvailable : describeError(state.error!, strings).summary,
         isError: state.error != null,
       );
       return;
     }
 
-    final result = await CopilotFilePicker.show(
-      context,
-      files: state.files,
-      strings: strings,
-    );
+    final result = await CopilotFilePicker.show(context, files: state.files, strings: strings);
     if (result == null || !mounted) return;
 
     final isImg = isImageExtension(result.path);
@@ -702,45 +617,30 @@ class _ComposerState extends ConsumerState<Composer> {
 
   Future<void> _addExternalFiles() async {
     try {
-      final files = await openFiles();
+      final files = await ref.read(fileDialogServiceProvider).pickFiles();
       if (files.isEmpty || !mounted) return;
 
       await _ingestFiles(files, idPrefix: 'att_ext');
     } catch (e) {
-      debugPrint('Selezione file annullata o non riuscita: $e');
+      debugPrint('File selection cancelled or failed: $e');
     }
   }
 
   /// Adds picked files to the composer. In the browser the bytes are uploaded to the daemon first
   /// (a `blob:` URL means nothing to the agent); send is blocked until every upload has finished.
-  Future<void> _ingestFiles(
-    List<XFile> files, {
-    required String idPrefix,
-    bool forceImage = false,
-  }) async {
+  Future<void> _ingestFiles(List<PickedFile> files, {required String idPrefix, bool forceImage = false}) async {
     if (files.isEmpty || !mounted) return;
     final strings = ref.read(appStringsProvider);
-    final notifier = ref.read(
-      composerAttachmentsProvider(widget.sessionId).notifier,
-    );
+    final notifier = ref.read(composerAttachmentsProvider(widget.sessionId).notifier);
     if (kIsWeb) setState(() => _pendingUploads += files.length);
     for (var i = 0; i < files.length; i++) {
       try {
-        final attachment = await ingestPickedFile(
-          files[i],
-          idPrefix: idPrefix,
-          index: i,
-          forceImage: forceImage,
-        );
+        final attachment = await ingestPickedFile(files[i], idPrefix: idPrefix, index: i, forceImage: forceImage);
         if (!mounted) return;
         notifier.add(attachment);
       } catch (error) {
         if (mounted) {
-          FrameSnackBar.show(
-            context,
-            message: strings.composerUploadFailed(files[i].name, error),
-            isError: true,
-          );
+          FrameSnackBar.show(context, message: strings.composerUploadFailed(files[i].name, error), isError: true);
         }
       } finally {
         if (kIsWeb && mounted) {
@@ -755,36 +655,24 @@ class _ComposerState extends ConsumerState<Composer> {
     final attachment = await WebLinkInputDialog.show(context);
     if (attachment == null || !mounted) return;
 
-    ref
-        .read(composerAttachmentsProvider(widget.sessionId).notifier)
-        .add(attachment);
+    ref.read(composerAttachmentsProvider(widget.sessionId).notifier).add(attachment);
     _focusNode.requestFocus();
   }
 
   Future<void> _addImageFiles() async {
     try {
       final strings = ref.read(appStringsProvider);
-      final files = await openFiles(
-        acceptedTypeGroups: [
-          XTypeGroup(
+      final files = await ref
+          .read(fileDialogServiceProvider)
+          .pickFiles(
             label: strings.composerImagesFilterLabel,
-            extensions: const [
-              'png',
-              'jpg',
-              'jpeg',
-              'gif',
-              'webp',
-              'bmp',
-              'svg',
-            ],
-          ),
-        ],
-      );
+            extensions: const ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'],
+          );
       if (files.isEmpty || !mounted) return;
 
       await _ingestFiles(files, idPrefix: 'att_img', forceImage: true);
     } catch (e) {
-      debugPrint('Selezione immagini annullata o non riuscita: $e');
+      debugPrint('Image selection cancelled or failed: $e');
     }
   }
 
@@ -794,19 +682,13 @@ class _ComposerState extends ConsumerState<Composer> {
       _isInterrupting = true;
     });
 
-    final sessionNotifier = ref.read(
-      sessionStateFamily(widget.sessionId).notifier,
-    );
+    final sessionNotifier = ref.read(sessionStateFamily(widget.sessionId).notifier);
     try {
       await sessionNotifier.interrupt();
     } catch (error) {
       if (mounted) {
         final strings = ref.read(appStringsProvider);
-        FrameSnackBar.show(
-          context,
-          message: strings.composerInterruptFailed(error),
-          isError: true,
-        );
+        FrameSnackBar.show(context, message: strings.composerInterruptFailed(error), isError: true);
       }
       return;
     } finally {
@@ -815,11 +697,7 @@ class _ComposerState extends ConsumerState<Composer> {
     if (!mounted) return;
 
     final strings = ref.read(appStringsProvider);
-    FrameSnackBar.show(
-      context,
-      message: strings.composerAgentInterrupted,
-      duration: const Duration(seconds: 3),
-    );
+    FrameSnackBar.show(context, message: strings.composerAgentInterrupted, duration: const Duration(seconds: 3));
   }
 
   void _onSelectSlashCommand(Map<String, dynamic> cmd) => _activateCommand(cmd);
@@ -856,18 +734,13 @@ class _ComposerState extends ConsumerState<Composer> {
 
   /// `/name` or `/name args` where name is a known command. With [requireArgsSeparator] only a
   /// name already followed by whitespace matches, so typing `/re` does not grab `/reload` early.
-  (Map<String, dynamic>, String)? _matchTypedCommand(
-    String text, {
-    bool requireArgsSeparator = false,
-  }) {
+  (Map<String, dynamic>, String)? _matchTypedCommand(String text, {bool requireArgsSeparator = false}) {
     final match = RegExp(r'^/(\S+)(\s+([\s\S]*))?$').firstMatch(text);
     if (match == null || (requireArgsSeparator && match.group(2) == null)) {
       return null;
     }
     final name = match.group(1)!.toLowerCase();
-    final command = _availableCommands
-        .where((c) => (c['name'] as String? ?? '').toLowerCase() == name)
-        .firstOrNull;
+    final command = _availableCommands.where((c) => (c['name'] as String? ?? '').toLowerCase() == name).firstOrNull;
     return command == null ? null : (command, match.group(3) ?? '');
   }
 
@@ -879,9 +752,7 @@ class _ComposerState extends ConsumerState<Composer> {
   ) async {
     final strings = ref.read(appStringsProvider);
     final notifier = ref.read(sessionStateFamily(widget.sessionId).notifier);
-    final sending = ref.read(
-      composerSendingProvider(widget.sessionId).notifier,
-    );
+    final sending = ref.read(composerSendingProvider(widget.sessionId).notifier);
     final name = command['name'] as String? ?? '';
     final source = command['source'] as String? ?? 'prompt';
     final line = args.isEmpty ? '/$name' : '/$name $args';
@@ -902,14 +773,10 @@ class _ComposerState extends ConsumerState<Composer> {
         default:
           // Prompt templates and skills expand into a real user message.
           await notifier.sendPrompt(
-            attachments.isNotEmpty
-                ? '${encodeAttachmentsTag(attachments)}\n$line'
-                : line,
+            attachments.isNotEmpty ? '${encodeAttachmentsTag(attachments)}\n$line' : line,
             streamingBehavior: streamingBehavior,
           );
-          ref
-              .read(composerAttachmentsProvider(widget.sessionId).notifier)
-              .clear();
+          ref.read(composerAttachmentsProvider(widget.sessionId).notifier).clear();
       }
       if (!mounted) return;
       setState(() => _activeCommand = null);
@@ -917,11 +784,7 @@ class _ComposerState extends ConsumerState<Composer> {
       ref.read(composerDraftProvider(widget.sessionId).notifier).state = '';
     } catch (error) {
       if (mounted) {
-        FrameSnackBar.show(
-          context,
-          message: strings.composerCommandFailed(error),
-          isError: true,
-        );
+        FrameSnackBar.show(context, message: strings.composerCommandFailed(error), isError: true);
       }
     } finally {
       if (sending.mounted) sending.state = false;
@@ -935,11 +798,8 @@ class _ComposerState extends ConsumerState<Composer> {
     switch (name) {
       case 'side':
       case 'btw':
-        ref.read(chatSidecarTabFamily(widget.sessionId).notifier).state =
-            ChatSidecarTab.side;
-        final sideNotifier = ref.read(
-          sideThreadFamily(widget.sessionId).notifier,
-        );
+        ref.read(chatSidecarTabFamily(widget.sessionId).notifier).state = ChatSidecarTab.side;
+        final sideNotifier = ref.read(sideThreadFamily(widget.sessionId).notifier);
         if (args.isEmpty) {
           await sideNotifier.openSide();
         } else {
@@ -968,18 +828,13 @@ class _ComposerState extends ConsumerState<Composer> {
           throw StateError(strings.composerModelAmbiguous);
         }
         final selected = matches.single;
-        await notifier.setModel(
-          selected['provider']?.toString() ?? 'default',
-          selected['id']?.toString() ?? args,
-        );
+        await notifier.setModel(selected['provider']?.toString() ?? 'default', selected['id']?.toString() ?? args);
         return;
       case 'thinking':
         if (args.isEmpty) return _showThinkingPicker(context);
         final levels = await notifier.getAvailableThinkingLevels();
         if (!mounted) return;
-        final level = levels
-            .where((item) => item.toLowerCase() == args.toLowerCase())
-            .firstOrNull;
+        final level = levels.where((item) => item.toLowerCase() == args.toLowerCase()).firstOrNull;
         if (level == null) {
           throw StateError(strings.composerThinkingLevelNotAvailable(args));
         }
@@ -1013,24 +868,17 @@ class _ComposerState extends ConsumerState<Composer> {
         final latest = ref
             .read(sessionStateFamily(widget.sessionId))
             .entries
-            .where(
-              (entry) =>
-                  entry.role == 'assistant' && entry.text.trim().isNotEmpty,
-            )
+            .where((entry) => entry.role == 'assistant' && entry.text.trim().isNotEmpty)
             .lastOrNull;
         if (latest == null) {
           throw StateError(strings.composerNoAgentMessageToCopy);
         }
         await Clipboard.setData(ClipboardData(text: latest.text));
         if (!mounted) return;
-        FrameSnackBar.show(
-          context,
-          message: strings.composerLastAgentMessageCopied,
-        );
+        FrameSnackBar.show(context, message: strings.composerLastAgentMessageCopied);
         return;
       case 'name':
-        final current =
-            ref.read(sessionStateFamily(widget.sessionId)).sessionName ?? '';
+        final current = ref.read(sessionStateFamily(widget.sessionId)).sessionName ?? '';
         final name = args.isEmpty ? await _askSessionName(current) : args;
         if (name == null || name.trim().isEmpty) return;
         await notifier.rename(name.trim());
@@ -1052,7 +900,7 @@ class _ComposerState extends ConsumerState<Composer> {
         if (!await resolveDirtyRepository(context, ref, widget.sessionId)) {
           return;
         }
-        await windowManager.close();
+        await ref.read(windowServiceProvider).close();
         return;
       default:
         FrameSnackBar.show(
@@ -1079,10 +927,7 @@ class _ComposerState extends ConsumerState<Composer> {
             onSubmitted: (value) => Navigator.pop(dialogContext, value),
           ),
           actions: [
-            FrameDialogAction<String>(
-              label: strings.cancel,
-              role: FrameDialogActionRole.cancel,
-            ),
+            FrameDialogAction<String>(label: strings.cancel, role: FrameDialogActionRole.cancel),
             FrameDialogAction<String>(
               label: strings.save,
               role: FrameDialogActionRole.primary,
@@ -1120,9 +965,7 @@ class _ComposerState extends ConsumerState<Composer> {
     final state = ref.read(sessionStateFamily(widget.sessionId));
     var entryId = args.isEmpty ? null : args;
     if (entryId == null) {
-      final userEntries = state.entries
-          .where((entry) => entry.role == 'user')
-          .toList();
+      final userEntries = state.entries.where((entry) => entry.role == 'user').toList();
       if (userEntries.isEmpty) {
         throw StateError(strings.composerForkNoUserMessages);
       }
@@ -1139,23 +982,14 @@ class _ComposerState extends ConsumerState<Composer> {
               itemBuilder: (_, index) {
                 final entry = userEntries[userEntries.length - 1 - index];
                 return ListTile(
-                  title: Text(
-                    entry.text,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                  title: Text(entry.text, maxLines: 2, overflow: TextOverflow.ellipsis),
                   subtitle: Text(entry.id),
                   onTap: () => Navigator.pop(dialogContext, entry.id),
                 );
               },
             ),
           ),
-          actions: [
-            FrameDialogAction<String>(
-              label: strings.cancel,
-              role: FrameDialogActionRole.cancel,
-            ),
-          ],
+          actions: [FrameDialogAction<String>(label: strings.cancel, role: FrameDialogActionRole.cancel)],
         ),
       );
       if (entryId == null) return;
@@ -1192,27 +1026,14 @@ class _ComposerState extends ConsumerState<Composer> {
                     final session = sessions[index];
                     final id = session['id']?.toString() ?? '';
                     return ListTile(
-                      title: Text(
-                        sessionNames[id] ?? session['name']?.toString() ?? id,
-                      ),
-                      subtitle: Text(
-                        session['cwd']?.toString() ?? '',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      onTap: id.isEmpty
-                          ? null
-                          : () => Navigator.pop(dialogContext, id),
+                      title: Text(sessionNames[id] ?? session['name']?.toString() ?? id),
+                      subtitle: Text(session['cwd']?.toString() ?? '', maxLines: 1, overflow: TextOverflow.ellipsis),
+                      onTap: id.isEmpty ? null : () => Navigator.pop(dialogContext, id),
                     );
                   },
                 ),
         ),
-        actions: [
-          FrameDialogAction<String>(
-            label: strings.cancel,
-            role: FrameDialogActionRole.cancel,
-          ),
-        ],
+        actions: [FrameDialogAction<String>(label: strings.cancel, role: FrameDialogActionRole.cancel)],
       ),
     );
     if (selectedId == null || !mounted) return;
@@ -1237,22 +1058,12 @@ class _ComposerState extends ConsumerState<Composer> {
             Text(strings.composerSessionInfoSession(state.sessionId)),
             Text(strings.composerSessionInfoFolder(state.cwd)),
             Text(strings.composerSessionInfoModel(state.currentModel ?? '—')),
-            Text(
-              strings.composerSessionInfoThinking(
-                state.currentThinkingLevel ?? '—',
-              ),
-            ),
+            Text(strings.composerSessionInfoThinking(state.currentThinkingLevel ?? '—')),
             const SizedBox(height: FrameSpace.x3),
-            for (final entry in stats.entries)
-              Text('${entry.key}: ${entry.value}'),
+            for (final entry in stats.entries) Text('${entry.key}: ${entry.value}'),
           ],
         ),
-        actions: [
-          FrameDialogAction<void>(
-            label: strings.close,
-            role: FrameDialogActionRole.cancel,
-          ),
-        ],
+        actions: [FrameDialogAction<void>(label: strings.close, role: FrameDialogActionRole.cancel)],
       ),
     );
   }
@@ -1281,10 +1092,7 @@ class _ComposerState extends ConsumerState<Composer> {
       context: context,
       position: RelativeRect.fromLTRB(
         offset.dx,
-        (offset.dy - (models.length * 40).clamp(100, 360).toDouble()).clamp(
-          40.0,
-          double.infinity,
-        ),
+        (offset.dy - (models.length * 40).clamp(100, 360).toDouble()).clamp(40.0, double.infinity),
         offset.dx + 260,
         offset.dy,
       ),
@@ -1318,9 +1126,7 @@ class _ComposerState extends ConsumerState<Composer> {
                       name,
                       style: FrameText.of(context).label.copyWith(
                         color: isCurrent ? tokens.accent : tokens.textPrimary,
-                        fontWeight: isCurrent
-                            ? FontWeight.bold
-                            : FontWeight.w500,
+                        fontWeight: isCurrent ? FontWeight.bold : FontWeight.w500,
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -1328,18 +1134,12 @@ class _ComposerState extends ConsumerState<Composer> {
                     if (m['provider'] != null)
                       Text(
                         m['provider'].toString(),
-                        style: FrameText.of(context).caption
-                            .copyWith(color: tokens.textMuted),
+                        style: FrameText.of(context).caption.copyWith(color: tokens.textMuted),
                       ),
                   ],
                 ),
               ),
-              if (isCurrent)
-                Icon(
-                  Icons.check_outlined,
-                  size: FrameSize.icon,
-                  color: tokens.accent,
-                ),
+              if (isCurrent) Icon(Icons.check_outlined, size: FrameSize.icon, color: tokens.accent),
             ],
           ),
         );
@@ -1359,14 +1159,10 @@ class _ComposerState extends ConsumerState<Composer> {
       const Duration(seconds: 10),
       onTimeout: () => const <String>[],
     );
-    final effectiveLevels = levels.isNotEmpty
-        ? levels
-        : const ['off', 'low', 'medium', 'high'];
+    final effectiveLevels = levels.isNotEmpty ? levels : const ['off', 'low', 'medium', 'high'];
     if (!mounted || !chipContext.mounted) return;
     final tokens = context.tokens;
-    final current = ref
-        .read(sessionStateFamily(widget.sessionId))
-        .currentThinkingLevel;
+    final current = ref.read(sessionStateFamily(widget.sessionId)).currentThinkingLevel;
 
     final renderBox = chipContext.findRenderObject() as RenderBox?;
     final offset = renderBox?.localToGlobal(Offset.zero) ?? Offset.zero;
@@ -1375,10 +1171,7 @@ class _ComposerState extends ConsumerState<Composer> {
       context: context,
       position: RelativeRect.fromLTRB(
         offset.dx,
-        (offset.dy - (effectiveLevels.length * 36).toDouble() - 10).clamp(
-          40.0,
-          double.infinity,
-        ),
+        (offset.dy - (effectiveLevels.length * 36).toDouble() - 10).clamp(40.0, double.infinity),
         offset.dx + 160,
         offset.dy,
       ),
@@ -1395,10 +1188,7 @@ class _ComposerState extends ConsumerState<Composer> {
           height: 34,
           child: Row(
             children: [
-              ThinkingLevelBars(
-                level: lvl,
-                litColor: isCurrent ? tokens.thinking : tokens.textSecondary,
-              ),
+              ThinkingLevelBars(level: lvl, litColor: isCurrent ? tokens.thinking : tokens.textSecondary),
               const SizedBox(width: FrameSpace.x2),
               Expanded(
                 child: Text(
@@ -1409,12 +1199,7 @@ class _ComposerState extends ConsumerState<Composer> {
                   ),
                 ),
               ),
-              if (isCurrent)
-                Icon(
-                  Icons.check_outlined,
-                  size: FrameSize.icon,
-                  color: tokens.thinking,
-                ),
+              if (isCurrent) Icon(Icons.check_outlined, size: FrameSize.icon, color: tokens.thinking),
             ],
           ),
         );
@@ -1435,18 +1220,11 @@ class _ComposerState extends ConsumerState<Composer> {
       await _loadModels();
       if (!mounted || widget.sessionId != sessionId) return;
       final currentState = ref.read(sessionStateFamily(sessionId));
-      final model = _models.firstWhere(
-        currentState.matchesModel,
-        orElse: () => const <String, dynamic>{},
-      );
+      final model = _models.firstWhere(currentState.matchesModel, orElse: () => const <String, dynamic>{});
       final maximum = modelContextWindow(model);
       if (maximum == null || maximum <= 0) {
         final strings = ref.read(appStringsProvider);
-        FrameSnackBar.show(
-          context,
-          message: strings.composerModelContextNotAvailableDaemon,
-          isError: true,
-        );
+        FrameSnackBar.show(context, message: strings.composerModelContextNotAvailableDaemon, isError: true);
         return;
       }
       final strings = ref.read(appStringsProvider);
@@ -1458,22 +1236,13 @@ class _ComposerState extends ConsumerState<Composer> {
           title: strings.composerContextSizeTitle,
           maxWidth: 340,
           body: ContextWindowSelector(sessionId: sessionId, model: model),
-          actions: [
-            FrameDialogAction<void>(
-              label: strings.close,
-              role: FrameDialogActionRole.cancel,
-            ),
-          ],
+          actions: [FrameDialogAction<void>(label: strings.close, role: FrameDialogActionRole.cancel)],
         ),
       );
     } catch (error) {
       if (mounted) {
         final strings = ref.read(appStringsProvider);
-        FrameSnackBar.show(
-          context,
-          message: strings.composerContextSelectionFailed(error),
-          isError: true,
-        );
+        FrameSnackBar.show(context, message: strings.composerContextSelectionFailed(error), isError: true);
       }
     } finally {
       if (mounted) setState(() => _isContextPickerLoading = false);
@@ -1484,11 +1253,7 @@ class _ComposerState extends ConsumerState<Composer> {
     return PopupMenuButton<String>(
       key: const ValueKey('composer-attach-popup-btn'),
       tooltip: strings.composerAttachTooltip,
-      icon: Icon(
-        Icons.attach_file_outlined,
-        size: FrameSize.icon,
-        color: tokens.textSecondary,
-      ),
+      icon: Icon(Icons.attach_file_outlined, size: FrameSize.icon, color: tokens.textSecondary),
       padding: EdgeInsets.zero,
       constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
       color: tokens.surfaceElevated,
@@ -1507,19 +1272,14 @@ class _ComposerState extends ConsumerState<Composer> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.folder_open_outlined,
-                size: FrameSize.icon,
-                color: tokens.accent,
-              ),
+              Icon(Icons.folder_open_outlined, size: FrameSize.icon, color: tokens.accent),
               const SizedBox(width: FrameSpace.x2),
               Flexible(
                 child: Text(
                   strings.composerAttachFromRepo,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: FrameText.of(context).label
-                      .copyWith(color: tokens.textPrimary),
+                  style: FrameText.of(context).label.copyWith(color: tokens.textPrimary),
                 ),
               ),
             ],
@@ -1533,19 +1293,14 @@ class _ComposerState extends ConsumerState<Composer> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.upload_file_outlined,
-                size: FrameSize.icon,
-                color: tokens.syntaxFunction,
-              ),
+              Icon(Icons.upload_file_outlined, size: FrameSize.icon, color: tokens.syntaxFunction),
               const SizedBox(width: FrameSpace.x2),
               Flexible(
                 child: Text(
                   strings.composerAttachExternalFile,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: FrameText.of(context).label
-                      .copyWith(color: tokens.textPrimary),
+                  style: FrameText.of(context).label.copyWith(color: tokens.textPrimary),
                 ),
               ),
             ],
@@ -1559,19 +1314,14 @@ class _ComposerState extends ConsumerState<Composer> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.link_outlined,
-                size: FrameSize.icon,
-                color: tokens.syntaxKeyword,
-              ),
+              Icon(Icons.link_outlined, size: FrameSize.icon, color: tokens.syntaxKeyword),
               const SizedBox(width: FrameSpace.x2),
               Flexible(
                 child: Text(
                   strings.composerAttachWebLink,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: FrameText.of(context).label
-                      .copyWith(color: tokens.textPrimary),
+                  style: FrameText.of(context).label.copyWith(color: tokens.textPrimary),
                 ),
               ),
             ],
@@ -1585,19 +1335,14 @@ class _ComposerState extends ConsumerState<Composer> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.image_outlined,
-                size: FrameSize.icon,
-                color: tokens.syntaxType,
-              ),
+              Icon(Icons.image_outlined, size: FrameSize.icon, color: tokens.syntaxType),
               const SizedBox(width: FrameSpace.x2),
               Flexible(
                 child: Text(
                   strings.composerAttachImage,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: FrameText.of(context).label
-                      .copyWith(color: tokens.textPrimary),
+                  style: FrameText.of(context).label.copyWith(color: tokens.textPrimary),
                 ),
               ),
             ],
@@ -1614,42 +1359,24 @@ class _ComposerState extends ConsumerState<Composer> {
     final bottomPadding = MediaQuery.paddingOf(context).bottom;
     final isMobile = screenWidth < 600;
     final horizontalMargin = isMobile ? 14.0 : 8.0;
-    final bottomMargin = isMobile
-        ? (bottomPadding > 0 ? bottomPadding + 4.0 : 12.0)
-        : 8.0;
+    final bottomMargin = isMobile ? (bottomPadding > 0 ? bottomPadding + 4.0 : 12.0) : 8.0;
     final isSending = ref.watch(composerSendingProvider(widget.sessionId));
-    final attachments = ref.watch(
-      composerAttachmentsProvider(widget.sessionId),
-    );
+    final attachments = ref.watch(composerAttachmentsProvider(widget.sessionId));
     // Keep the whole composer (text, attachments AND the button row) inside the space that is left
     // above the on-screen keyboard. A long message used to grow past it, which clipped the toolbar
     // and pushed the text being typed out of view.
     final visibleHeight =
-        widget.availableHeight ??
-        (MediaQuery.sizeOf(context).height -
-            MediaQuery.viewInsetsOf(context).bottom);
-    final chromeHeight =
-        110.0 +
-        (attachments.isNotEmpty ? 66.0 : 0.0) +
-        (_pendingUploads > 0 ? 24.0 : 0.0);
-    final inputBudget =
-        visibleHeight * (_isInputEnlarged ? 0.85 : 0.7) - chromeHeight;
+        widget.availableHeight ?? (MediaQuery.sizeOf(context).height - MediaQuery.viewInsetsOf(context).bottom);
+    final chromeHeight = 110.0 + (attachments.isNotEmpty ? 66.0 : 0.0) + (_pendingUploads > 0 ? 24.0 : 0.0);
+    final inputBudget = visibleHeight * (_isInputEnlarged ? 0.85 : 0.7) - chromeHeight;
     final maxInputLines = (inputBudget / 21).floor().clamp(2, 16);
-    ref.listen<int>(composerFocusRequestProvider(widget.sessionId), (
-      previous,
-      request,
-    ) {
+    ref.listen<int>(composerFocusRequestProvider(widget.sessionId), (previous, request) {
       if (request != previous) _focusNode.requestFocus();
     });
-    ref.listen<String>(composerDraftProvider(widget.sessionId), (
-      previous,
-      draft,
-    ) {
+    ref.listen<String>(composerDraftProvider(widget.sessionId), (previous, draft) {
       if (_controller.text != draft) {
         final currentSelection = _controller.selection;
-        final newOffset =
-            currentSelection.isValid &&
-                currentSelection.baseOffset <= draft.length
+        final newOffset = currentSelection.isValid && currentSelection.baseOffset <= draft.length
             ? currentSelection.baseOffset
             : draft.length;
         _controller.value = TextEditingValue(
@@ -1688,8 +1415,7 @@ class _ComposerState extends ConsumerState<Composer> {
           s.steeringQueue,
           s.followUpQueue,
           s.pendingUiRequests,
-          s.agentStatus != AgentStatus.workerError &&
-              s.activeToolCalls.isNotEmpty,
+          s.agentStatus != AgentStatus.workerError && s.activeToolCalls.isNotEmpty,
           s.currentModel,
           s.currentModelProvider,
           s.currentModelId,
@@ -1699,9 +1425,7 @@ class _ComposerState extends ConsumerState<Composer> {
         ),
       ),
     );
-    final sessionNotifier = ref.read(
-      sessionStateFamily(widget.sessionId).notifier,
-    );
+    final sessionNotifier = ref.read(sessionStateFamily(widget.sessionId).notifier);
     if (readOnly) {
       return Padding(
         padding: const EdgeInsets.all(16),
@@ -1736,38 +1460,22 @@ class _ComposerState extends ConsumerState<Composer> {
                       if (client == null) {
                         throw StateError(strings.composerDaemonNotConnected);
                       }
-                      if (!await resolveDirtyRepository(
-                        context,
-                        ref,
-                        ref.read(activeSessionIdProvider),
-                      )) {
+                      if (!await resolveDirtyRepository(context, ref, ref.read(activeSessionIdProvider))) {
                         return;
                       }
-                      final result = await client.cloneSession(
-                        widget.sessionId,
-                      );
+                      final result = await client.cloneSession(widget.sessionId);
                       if (!mounted || !context.mounted) return;
-                      final data =
-                          (result['data'] as Map<String, dynamic>?) ?? result;
-                      final targetSessionId =
-                          (data['sessionId'] ?? data['id']) as String?;
+                      final data = (result['data'] as Map<String, dynamic>?) ?? result;
+                      final targetSessionId = (data['sessionId'] ?? data['id']) as String?;
                       if (targetSessionId != null) {
-                        if (!await switchSessionSafely(
-                          context,
-                          ref,
-                          targetSessionId,
-                        )) {
+                        if (!await switchSessionSafely(context, ref, targetSessionId)) {
                           return;
                         }
                         ref.invalidate(sessionListProvider);
                       }
                     } catch (error) {
                       if (context.mounted) {
-                        FrameSnackBar.show(
-                          context,
-                          message: strings.composerDuplicationFailed(error),
-                          isError: true,
-                        );
+                        FrameSnackBar.show(context, message: strings.composerDuplicationFailed(error), isError: true);
                       }
                     }
                   },
@@ -1784,38 +1492,27 @@ class _ComposerState extends ConsumerState<Composer> {
     final activeModelMap = _models.firstWhere(
       (model) => currentModelId != null
           ? model['id']?.toString() == currentModelId &&
-                (currentModelProvider == null ||
-                    model['provider']?.toString() == currentModelProvider)
+                (currentModelProvider == null || model['provider']?.toString() == currentModelProvider)
           : model['name'] == currentModel || model['id'] == currentModel,
       orElse: () => const {},
     );
     final isVariablePricing =
         hasVariableContextPricing(activeModelMap) ||
         (currentModel != null &&
-            (currentModel.toLowerCase().contains('luna') ||
-                currentModel.toLowerCase().contains('haiku')));
-    final effectiveContextWindow =
-        contextOverride ?? modelContextWindow(activeModelMap);
-    final isLongPrompt =
-        _controller.text.length > 80 || _controller.text.contains('\n');
+            (currentModel.toLowerCase().contains('luna') || currentModel.toLowerCase().contains('haiku')));
+    final effectiveContextWindow = contextOverride ?? modelContextWindow(activeModelMap);
+    final isLongPrompt = _controller.text.length > 80 || _controller.text.contains('\n');
 
     final pendingInteractionRequests = pendingUiRequests
         .where(
           (request) =>
-              !_dismissedUiRequestIds.contains(
-                request['requestId']?.toString(),
-              ) &&
-              _isInteractionRequest(request),
+              !_dismissedUiRequestIds.contains(request['requestId']?.toString()) && _isInteractionRequest(request),
         )
         .toList();
 
     final isReviewing = ref.watch(isReviewingChangesProvider);
-    final hasModifiedFiles = ref.watch(
-      sessionHasModifiedFilesProvider(widget.sessionId),
-    );
-    final changeCount = ref.watch(
-      sessionChangesProvider(widget.sessionId).select((s) => s.files.length),
-    );
+    final hasModifiedFiles = ref.watch(sessionHasModifiedFilesProvider(widget.sessionId));
+    final changeCount = ref.watch(sessionChangesProvider(widget.sessionId).select((s) => s.files.length));
 
     final isShimmerActive =
         isSending ||
@@ -1825,20 +1522,14 @@ class _ComposerState extends ConsumerState<Composer> {
         agentStatus == AgentStatus.compacting ||
         activeToolCallsNotEmpty;
 
-    final isAgentAnswering =
-        isStreaming ||
-        agentStatus == AgentStatus.working ||
-        activeToolCallsNotEmpty;
+    final isAgentAnswering = isStreaming || agentStatus == AgentStatus.working || activeToolCallsNotEmpty;
 
     if (!isAgentAnswering && _isManuallyExpanded) {
       _isManuallyExpanded = false;
     }
 
     final isFocused = _focusNode.hasFocus;
-    final hasInputtedText =
-        _hasText ||
-        _controller.text.trim().isNotEmpty ||
-        _activeCommand != null;
+    final hasInputtedText = _hasText || _controller.text.trim().isNotEmpty || _activeCommand != null;
     final hasAttachments = attachments.isNotEmpty;
     final shouldMinimize =
         isAgentAnswering &&
@@ -1857,7 +1548,7 @@ class _ComposerState extends ConsumerState<Composer> {
         _hoverGraceTimer = null;
         if (shouldMinimize) {
           _expand5sTimer?.cancel();
-          _expand5sTimer = Timer(const Duration(seconds: 5), () {
+          _expand5sTimer = Timer(_minimizedHoverExpandDelay, () {
             if (mounted && _isPointerOver) {
               setState(() {
                 _isManuallyExpanded = true;
@@ -1869,7 +1560,7 @@ class _ComposerState extends ConsumerState<Composer> {
       },
       onHover: (event) {
         if (shouldMinimize && _expand5sTimer == null && _isPointerOver) {
-          _expand5sTimer = Timer(const Duration(seconds: 5), () {
+          _expand5sTimer = Timer(_minimizedHoverExpandDelay, () {
             if (mounted && _isPointerOver) {
               setState(() {
                 _isManuallyExpanded = true;
@@ -1896,14 +1587,10 @@ class _ComposerState extends ConsumerState<Composer> {
       child: AnimatedContainer(
         duration: FrameMotion.panel,
         curve: FrameMotion.panelCurve,
-        margin: EdgeInsets.fromLTRB(
-          horizontalMargin,
-          4,
-          horizontalMargin,
-          bottomMargin,
-        ),
+        margin: EdgeInsets.fromLTRB(horizontalMargin, 4, horizontalMargin, bottomMargin),
         child: ShimmerBorder(
           isActive: isShimmerActive,
+          animate: !isWidgetTestBinding,
           borderRadius: _composerRadius(tokens),
           child: _ComposerSizeAnimator(
             child: AnimatedSwitcher(
@@ -1915,20 +1602,12 @@ class _ComposerState extends ConsumerState<Composer> {
                   alignment: Alignment.bottomCenter,
                   clipBehavior: Clip.hardEdge,
                   children: [
-                    ...previousChildren.map(
-                      (child) => Positioned(
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        child: child,
-                      ),
-                    ),
+                    ...previousChildren.map((child) => Positioned(left: 0, right: 0, bottom: 0, child: child)),
                     ?currentChild,
                   ],
                 );
               },
-              transitionBuilder: (child, animation) =>
-                  FadeTransition(opacity: animation, child: child),
+              transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: child),
               child: MouseRegion(
                 onEnter: (event) {
                   if (shouldMinimize) {
@@ -1947,39 +1626,31 @@ class _ComposerState extends ConsumerState<Composer> {
                   valueListenable: _minimizedHoverOffsetNotifier,
                   builder: (context, hoverOffset, childWidget) {
                     return CustomPaint(
-                      foregroundPainter:
-                          hoverOffset == null ||
-                                  FrameMotion.reduced(context)
-                              ? null
-                              : _GlowPointerPainter(
-                                  pointerPosition: hoverOffset,
-                                  borderRadius: _composerRadius(tokens),
-                                  glowColor: tokens.accent,
-                                  borderColor: tokens.accent,
-                                ),
+                      foregroundPainter: hoverOffset == null || FrameMotion.reduced(context)
+                          ? null
+                          : _GlowPointerPainter(
+                              pointerPosition: hoverOffset,
+                              borderRadius: _composerRadius(tokens),
+                              glowColor: tokens.accent,
+                              borderColor: tokens.accent,
+                            ),
                       child: childWidget,
                     );
                   },
                   child: Container(
                     key: ValueKey('composer_box_${shouldMinimize ? 'min' : 'max'}'),
-                    padding: shouldMinimize
-                        ? EdgeInsets.zero
-                        : const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                    padding: shouldMinimize ? EdgeInsets.zero : const EdgeInsets.fromLTRB(12, 10, 12, 10),
                     decoration: BoxDecoration(
                       color: tokens.surfaceElevated,
                       borderRadius: _composerRadius(tokens),
-                      border: isShimmerActive
-                          ? null
-                          : Border.all(color: tokens.border, width: 1),
+                      border: isShimmerActive ? null : Border.all(color: tokens.border, width: 1),
                     ),
                     child: pendingInteractionRequests.isNotEmpty
                         ? Padding(
                             key: const ValueKey('composer-extension-ui-card'),
                             padding: const EdgeInsets.only(bottom: FrameSpace.x2),
                             child: ExtensionUiDialog(
-                              key: ValueKey(
-                                'ext_ui_${pendingInteractionRequests.last['requestId']}',
-                              ),
+                              key: ValueKey('ext_ui_${pendingInteractionRequests.last['requestId']}'),
                               sessionId: widget.sessionId,
                               request: pendingInteractionRequests.last,
                               isCard: true,
@@ -1987,1512 +1658,979 @@ class _ComposerState extends ConsumerState<Composer> {
                                 if (!mounted) return;
                                 setState(
                                   () => _dismissedUiRequestIds.add(
-                                    pendingInteractionRequests.last['requestId']
-                                        .toString(),
+                                    pendingInteractionRequests.last['requestId'].toString(),
                                   ),
                                 );
                               },
                             ),
                           )
                         : shouldMinimize
-                        ? _buildMinimizedBar(
-                            tokens,
-                            strings,
-                            isStreaming,
-                            runStartedAt,
-                          )
+                        ? _buildMinimizedBar(tokens, strings, isStreaming, runStartedAt)
                         : Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // Status line while Pi answers.
-                          ComposerRunStatusLine(
-                            active: isAgentAnswering,
-                            startedAt: runStartedAt,
-                            label: strings.composerAgentAnswering,
-                            interruptLabel: strings.composerStopAction,
-                            onInterrupt: null,
-                          ),
-                          // File Mention overlay if active
-                          if (_showFileMentionMenu &&
-                              _matchingMentionFiles.isNotEmpty)
-                            Padding(
-                              key: const ValueKey('composer-file-mention-menu'),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 6,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Status line while Pi answers.
+                              ComposerRunStatusLine(
+                                active: isAgentAnswering,
+                                startedAt: runStartedAt,
+                                label: strings.composerAgentAnswering,
+                                interruptLabel: strings.composerStopAction,
+                                onInterrupt: null,
                               ),
-                              child: FileMentionMenu(
-                                key: const ValueKey(
-                                  'composer-file-mention-list',
+                              // File Mention overlay if active
+                              if (_showFileMentionMenu && _matchingMentionFiles.isNotEmpty)
+                                Padding(
+                                  key: const ValueKey('composer-file-mention-menu'),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                                  child: FileMentionMenu(
+                                    key: const ValueKey('composer-file-mention-list'),
+                                    files: _matchingMentionFiles,
+                                    query: _fileMentionQuery,
+                                    selectedIndex: _fileMentionSelectedIndex,
+                                    onSelect: _completeFileMention,
+                                    strings: strings,
+                                  ),
                                 ),
-                                files: _matchingMentionFiles,
-                                query: _fileMentionQuery,
-                                selectedIndex: _fileMentionSelectedIndex,
-                                onSelect: _completeFileMention,
-                                strings: strings,
-                              ),
-                            ),
 
-                          // Slash Menu overlay if active
-                          if (_showSlashMenu && _availableCommands.isNotEmpty)
-                            Padding(
-                              key: const ValueKey('composer-slash-menu'),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 6,
-                              ),
-                              child: SlashMenu(
-                                key: const ValueKey('composer-slash-list'),
-                                commands: _availableCommands,
-                                filter: _controller.text,
-                                selectedIndex: _slashSelectedIndex,
-                                onSelect: _onSelectSlashCommand,
-                                sourceLabel: strings.composerCommandSourceLabel,
-                              ),
-                            ),
+                              // Slash Menu overlay if active
+                              if (_showSlashMenu && _availableCommands.isNotEmpty)
+                                Padding(
+                                  key: const ValueKey('composer-slash-menu'),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                                  child: SlashMenu(
+                                    key: const ValueKey('composer-slash-list'),
+                                    commands: _availableCommands,
+                                    filter: _controller.text,
+                                    selectedIndex: _slashSelectedIndex,
+                                    onSelect: _onSelectSlashCommand,
+                                    sourceLabel: strings.composerCommandSourceLabel,
+                                  ),
+                                ),
 
-                          // Pending Queue bar (if any queue exists)
-                          if (totalQueued > 0)
-                            Container(
-                              key: const ValueKey('composer-queue-bar'),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 6,
-                              ),
-                              color: tokens.surfaceElevated,
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Row(
+                              // Pending Queue bar (if any queue exists)
+                              if (totalQueued > 0)
+                                Container(
+                                  key: const ValueKey('composer-queue-bar'),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                                  color: tokens.surfaceElevated,
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
                                     children: [
-                                      Icon(
-                                        Icons.queue_outlined,
-                                        size: FrameSize.icon,
-                                        color: tokens.accent,
+                                      Row(
+                                        children: [
+                                          Icon(Icons.queue_outlined, size: FrameSize.icon, color: tokens.accent),
+                                          const SizedBox(width: FrameSpace.x2),
+                                          Expanded(
+                                            child: Text(
+                                              strings.composerQueuedSummary(
+                                                totalQueued,
+                                                steeringQueue.length,
+                                                followUpQueue.length,
+                                              ),
+                                              style: FrameText.of(context).label.copyWith(color: tokens.textSecondary),
+                                            ),
+                                          ),
+                                          if (steeringQueue.isNotEmpty)
+                                            IconButton(
+                                              key: const ValueKey('composer-queue-toggle-expand'),
+                                              tooltip: strings.composerToggleQueueTooltip(_queueExpanded),
+                                              icon: Icon(
+                                                _queueExpanded
+                                                    ? Icons.keyboard_arrow_up_outlined
+                                                    : Icons.keyboard_arrow_down_outlined,
+                                                size: FrameSize.icon,
+                                                color: tokens.textSecondary,
+                                              ),
+                                              onPressed: () => setState(() => _queueExpanded = !_queueExpanded),
+                                            ),
+                                          TextButton.icon(
+                                            style: TextButton.styleFrom(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              minimumSize: Size.zero,
+                                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                            ),
+                                            icon: Icon(Icons.clear_all_outlined, size: 14, color: tokens.textMuted),
+                                            label: Text(
+                                              strings.composerClearQueueAction,
+                                              style: FrameText.of(context).caption.copyWith(color: tokens.textMuted),
+                                            ),
+                                            onPressed: () => _runAction(sessionNotifier.clearQueue),
+                                          ),
+                                        ],
                                       ),
+                                      if (_queueExpanded && steeringQueue.isNotEmpty) ...[
+                                        const SizedBox(height: 6),
+                                        for (var i = 0; i < steeringQueue.length; i++)
+                                          Container(
+                                            key: ValueKey('steer-queue-item-$i'),
+                                            margin: const EdgeInsets.only(bottom: 4),
+                                            padding: const EdgeInsets.fromLTRB(8, 4, 6, 4),
+                                            decoration: BoxDecoration(
+                                              color: tokens.surface,
+                                              borderRadius: BorderRadius.circular(tokens.radiusSm),
+                                              border: Border.all(color: tokens.border),
+                                            ),
+                                            child: Row(
+                                              children: [
+                                                Container(
+                                                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                                                  decoration: BoxDecoration(
+                                                    color: tokens.accent.withValues(alpha: 0.15),
+                                                    borderRadius: BorderRadius.circular(tokens.radiusSm),
+                                                  ),
+                                                  child: Text(
+                                                    'STEER #${i + 1}',
+                                                    style: FrameText.of(context).caption
+                                                        .copyWith(color: tokens.accent, fontWeight: FontWeight.bold),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: FrameSpace.x2),
+                                                Expanded(
+                                                  child: Text(
+                                                    steeringQueue[i],
+                                                    maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
+                                                    style: FrameText.of(context).label.copyWith(
+                                                      color: tokens.textPrimary,
+                                                      fontFamily: tokens.monoFontFamily,
+                                                    ),
+                                                  ),
+                                                ),
+                                                IconButton(
+                                                  key: ValueKey('edit-steer-btn-$i'),
+                                                  tooltip: strings.composerEditSteerTooltip,
+                                                  icon: Icon(Icons.edit_outlined, size: 14, color: tokens.accent),
+                                                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                                                  padding: EdgeInsets.zero,
+                                                  onPressed: () => _showEditSteerDialog(context, i, steeringQueue[i]),
+                                                ),
+                                                IconButton(
+                                                  key: ValueKey('delete-steer-btn-$i'),
+                                                  tooltip: strings.composerDeleteFromQueueTooltip,
+                                                  icon: Icon(Icons.close_outlined, size: 14, color: tokens.textMuted),
+                                                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
+                                                  padding: EdgeInsets.zero,
+                                                  onPressed: () => sessionNotifier.removeSteerMessage(i),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+
+                              // Worker Crash Recovery Banner
+                              if (isError)
+                                Container(
+                                  key: const ValueKey('composer-crash-banner'),
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  color: tokens.danger.withValues(alpha: 0.15),
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.warning_amber_outlined, size: FrameSize.iconLg, color: tokens.danger),
                                       const SizedBox(width: FrameSpace.x2),
                                       Expanded(
                                         child: Text(
-                                          strings.composerQueuedSummary(
-                                            totalQueued,
-                                            steeringQueue.length,
-                                            followUpQueue.length,
-                                          ),
+                                          strings.composerWorkerCrashBanner,
                                           style: FrameText.of(context).label
-                                              .copyWith(
-                                                color: tokens.textSecondary,
-                                              ),
+                                              .copyWith(color: tokens.danger, fontWeight: FontWeight.w500),
                                         ),
                                       ),
-                                      if (steeringQueue.isNotEmpty)
-                                        IconButton(
-                                          key: const ValueKey(
-                                            'composer-queue-toggle-expand',
-                                          ),
-                                          tooltip: strings
-                                              .composerToggleQueueTooltip(
-                                                _queueExpanded,
-                                              ),
-                                          icon: Icon(
-                                            _queueExpanded
-                                                ? Icons
-                                                      .keyboard_arrow_up_outlined
-                                                : Icons
-                                                      .keyboard_arrow_down_outlined,
-                                            size: FrameSize.icon,
-                                            color: tokens.textSecondary,
-                                          ),
-                                          onPressed: () => setState(
-                                            () => _queueExpanded =
-                                                !_queueExpanded,
-                                          ),
-                                        ),
-                                      TextButton.icon(
-                                        style: TextButton.styleFrom(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 8,
-                                            vertical: 4,
-                                          ),
+                                      const SizedBox(width: FrameSpace.x2),
+                                      ElevatedButton.icon(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: tokens.accent,
+                                          foregroundColor: tokens.accentContrast,
+                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                                           minimumSize: Size.zero,
-                                          tapTargetSize:
-                                              MaterialTapTargetSize.shrinkWrap,
                                         ),
-                                        icon: Icon(
-                                          Icons.clear_all_outlined,
-                                          size: 14,
-                                          color: tokens.textMuted,
-                                        ),
+                                        icon: const Icon(Icons.refresh_outlined, size: FrameSize.icon),
                                         label: Text(
-                                          strings.composerClearQueueAction,
-                                          style: FrameText.of(context).caption
-                                              .copyWith(
-                                                color: tokens.textMuted,
-                                              ),
+                                          strings.composerRecoverSessionAction,
+                                          style: FrameText.of(context).label.copyWith(fontWeight: FontWeight.bold),
                                         ),
-                                        onPressed: () => _runAction(
-                                          sessionNotifier.clearQueue,
-                                        ),
+                                        onPressed: () => _runAction(sessionNotifier.recoverSession),
                                       ),
                                     ],
                                   ),
-                                  if (_queueExpanded &&
-                                      steeringQueue.isNotEmpty) ...[
-                                    const SizedBox(height: 6),
-                                    for (
-                                      var i = 0;
-                                      i < steeringQueue.length;
-                                      i++
-                                    )
-                                      Container(
-                                        key: ValueKey('steer-queue-item-$i'),
-                                        margin: const EdgeInsets.only(
-                                          bottom: 4,
-                                        ),
-                                        padding: const EdgeInsets.fromLTRB(
-                                          8,
-                                          4,
-                                          6,
-                                          4,
-                                        ),
-                                        decoration: BoxDecoration(
-                                          color: tokens.surface,
-                                          borderRadius: BorderRadius.circular(
-                                            tokens.radiusSm,
-                                          ),
-                                          border: Border.all(
-                                            color: tokens.border,
-                                          ),
-                                        ),
-                                        child: Row(
-                                          children: [
-                                            Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 5,
-                                                    vertical: 2,
-                                                  ),
-                                              decoration: BoxDecoration(
-                                                color: tokens.accent.withValues(
-                                                  alpha: 0.15,
-                                                ),
-                                                borderRadius:
-                                                    BorderRadius.circular(
-                                                      tokens.radiusSm,
-                                                    ),
-                                              ),
-                                              child: Text(
-                                                'STEER #${i + 1}',
-                                                style: FrameText.of(context)
-                                                    .caption
-                                                    .copyWith(
-                                                      color: tokens.accent,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                    ),
-                                              ),
-                                            ),
-                                            const SizedBox(
-                                              width: FrameSpace.x2,
-                                            ),
-                                            Expanded(
-                                              child: Text(
-                                                steeringQueue[i],
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                style: FrameText.of(context)
-                                                    .label
-                                                    .copyWith(
-                                                      color: tokens.textPrimary,
-                                                      fontFamily:
-                                                          tokens.monoFontFamily,
-                                                    ),
-                                              ),
-                                            ),
-                                            IconButton(
-                                              key: ValueKey(
-                                                'edit-steer-btn-$i',
-                                              ),
-                                              tooltip: strings
-                                                  .composerEditSteerTooltip,
-                                              icon: Icon(
-                                                Icons.edit_outlined,
-                                                size: 14,
-                                                color: tokens.accent,
-                                              ),
-                                              constraints: const BoxConstraints(
-                                                minWidth: 26,
-                                                minHeight: 26,
-                                              ),
-                                              padding: EdgeInsets.zero,
-                                              onPressed: () =>
-                                                  _showEditSteerDialog(
-                                                    context,
-                                                    i,
-                                                    steeringQueue[i],
-                                                  ),
-                                            ),
-                                            IconButton(
-                                              key: ValueKey(
-                                                'delete-steer-btn-$i',
-                                              ),
-                                              tooltip: strings
-                                                  .composerDeleteFromQueueTooltip,
-                                              icon: Icon(
-                                                Icons.close_outlined,
-                                                size: 14,
-                                                color: tokens.textMuted,
-                                              ),
-                                              constraints: const BoxConstraints(
-                                                minWidth: 26,
-                                                minHeight: 26,
-                                              ),
-                                              padding: EdgeInsets.zero,
-                                              onPressed: () => sessionNotifier
-                                                  .removeSteerMessage(i),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                  ],
-                                ],
-                              ),
-                            ),
+                                ),
 
-                          // Worker Crash Recovery Banner
-                          if (isError)
-                            Container(
-                              key: const ValueKey('composer-crash-banner'),
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
-                              ),
-                              color: tokens.danger.withValues(alpha: 0.15),
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.warning_amber_outlined,
-                                    size: FrameSize.iconLg,
-                                    color: tokens.danger,
-                                  ),
-                                  const SizedBox(width: FrameSpace.x2),
-                                  Expanded(
-                                    child: Text(
-                                      strings.composerWorkerCrashBanner,
-                                      style: FrameText.of(context).label
-                                          .copyWith(
-                                            color: tokens.danger,
-                                            fontWeight: FontWeight.w500,
-                                          ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: FrameSpace.x2),
-                                  ElevatedButton.icon(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: tokens.accent,
-                                      foregroundColor: tokens.accentContrast,
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 12,
-                                        vertical: 6,
-                                      ),
-                                      minimumSize: Size.zero,
-                                    ),
-                                    icon: const Icon(
-                                      Icons.refresh_outlined,
-                                      size: FrameSize.icon,
-                                    ),
-                                    label: Text(
-                                      strings.composerRecoverSessionAction,
-                                      style: FrameText.of(context).label
-                                          .copyWith(
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                    ),
-                                    onPressed: () => _runAction(
-                                      sessionNotifier.recoverSession,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                          // Input area
-                          Padding(
-                            key: const ValueKey('composer-input-area'),
-                            padding: const EdgeInsets.all(4),
-                            child: Focus(
-                              key: const ValueKey('composer-input-focus'),
-                              // The text field below is the Tab stop. This wrapper only
-                              // routes keys from it, so it must not add a stop of its own.
-                              canRequestFocus: false,
-                              skipTraversal: true,
-                              onKeyEvent: (node, event) {
-                                if (event is KeyDownEvent ||
-                                    event is KeyRepeatEvent) {
-                                  final slashItems = _showSlashMenu
-                                      ? SlashMenu.filtered(
-                                          _availableCommands,
-                                          _controller.text,
-                                        )
-                                      : const <Map<String, dynamic>>[];
-                                  final key = event.logicalKey;
-                                  if (slashItems.isNotEmpty) {
-                                    if (key == LogicalKeyboardKey.arrowDown ||
-                                        key == LogicalKeyboardKey.arrowUp) {
-                                      final step =
-                                          key == LogicalKeyboardKey.arrowDown
-                                          ? 1
-                                          : -1;
-                                      setState(() {
-                                        _slashSelectedIndex =
-                                            (_slashSelectedIndex + step) %
-                                            slashItems.length;
-                                      });
-                                      return KeyEventResult.handled;
-                                    }
-                                    if (event is KeyDownEvent &&
-                                        (key == LogicalKeyboardKey.tab ||
-                                            key == LogicalKeyboardKey.enter ||
-                                            key ==
-                                                LogicalKeyboardKey
-                                                    .numpadEnter) &&
-                                        !HardwareKeyboard
-                                            .instance
-                                            .isShiftPressed) {
-                                      _activateCommand(
-                                        slashItems[_slashSelectedIndex.clamp(
-                                          0,
-                                          slashItems.length - 1,
-                                        )],
-                                      );
-                                      return KeyEventResult.handled;
-                                    }
-                                    if (key == LogicalKeyboardKey.escape) {
-                                      setState(() => _showSlashMenu = false);
-                                      return KeyEventResult.handled;
-                                    }
-                                  }
-                                  final selection = _controller.selection;
-                                  if (_activeCommand != null &&
-                                      key == LogicalKeyboardKey.backspace &&
-                                      selection.isCollapsed &&
-                                      selection.baseOffset <= 0) {
-                                    _removeCommand();
-                                    return KeyEventResult.handled;
-                                  }
-                                }
-                                if (event is KeyDownEvent) {
-                                  // File Mention keyboard navigation
-                                  if (_showFileMentionMenu &&
-                                      _matchingMentionFiles.isNotEmpty) {
-                                    if (event.logicalKey ==
-                                        LogicalKeyboardKey.arrowDown) {
-                                      setState(() {
-                                        _fileMentionSelectedIndex =
-                                            (_fileMentionSelectedIndex + 1) %
-                                            _matchingMentionFiles.length;
-                                      });
-                                      return KeyEventResult.handled;
-                                    }
-                                    if (event.logicalKey ==
-                                        LogicalKeyboardKey.arrowUp) {
-                                      setState(() {
-                                        _fileMentionSelectedIndex =
-                                            (_fileMentionSelectedIndex -
-                                                1 +
-                                                _matchingMentionFiles.length) %
-                                            _matchingMentionFiles.length;
-                                      });
-                                      return KeyEventResult.handled;
-                                    }
-                                    if (event.logicalKey ==
-                                            LogicalKeyboardKey.tab ||
-                                        event.logicalKey ==
-                                            LogicalKeyboardKey.enter ||
-                                        event.logicalKey ==
-                                            LogicalKeyboardKey.numpadEnter) {
-                                      final chosen =
-                                          _matchingMentionFiles[_fileMentionSelectedIndex]['path']
-                                              ?.toString() ??
-                                          '';
-                                      if (chosen.isNotEmpty) {
-                                        _completeFileMention(chosen);
+                              // Input area
+                              Padding(
+                                key: const ValueKey('composer-input-area'),
+                                padding: const EdgeInsets.all(4),
+                                child: Focus(
+                                  key: const ValueKey('composer-input-focus'),
+                                  // The text field below is the Tab stop. This wrapper only
+                                  // routes keys from it, so it must not add a stop of its own.
+                                  canRequestFocus: false,
+                                  skipTraversal: true,
+                                  onKeyEvent: (node, event) {
+                                    if (event is KeyDownEvent || event is KeyRepeatEvent) {
+                                      final slashItems = _showSlashMenu
+                                          ? SlashMenu.filtered(_availableCommands, _controller.text)
+                                          : const <Map<String, dynamic>>[];
+                                      final key = event.logicalKey;
+                                      if (slashItems.isNotEmpty) {
+                                        if (key == LogicalKeyboardKey.arrowDown || key == LogicalKeyboardKey.arrowUp) {
+                                          final step = key == LogicalKeyboardKey.arrowDown ? 1 : -1;
+                                          setState(() {
+                                            _slashSelectedIndex = (_slashSelectedIndex + step) % slashItems.length;
+                                          });
+                                          return KeyEventResult.handled;
+                                        }
+                                        if (event is KeyDownEvent &&
+                                            (key == LogicalKeyboardKey.tab ||
+                                                key == LogicalKeyboardKey.enter ||
+                                                key == LogicalKeyboardKey.numpadEnter) &&
+                                            !HardwareKeyboard.instance.isShiftPressed) {
+                                          _activateCommand(
+                                            slashItems[_slashSelectedIndex.clamp(0, slashItems.length - 1)],
+                                          );
+                                          return KeyEventResult.handled;
+                                        }
+                                        if (key == LogicalKeyboardKey.escape) {
+                                          setState(() => _showSlashMenu = false);
+                                          return KeyEventResult.handled;
+                                        }
                                       }
-                                      return KeyEventResult.handled;
-                                    }
-                                    if (event.logicalKey ==
-                                        LogicalKeyboardKey.escape) {
-                                      setState(
-                                        () => _showFileMentionMenu = false,
-                                      );
-                                      return KeyEventResult.handled;
-                                    }
-                                  }
-
-                                  if (event.logicalKey ==
-                                      LogicalKeyboardKey.escape) {
-                                    // With a layer open (drawer, Review mode...), Escape
-                                    // goes to the shell, which closes that layer first.
-                                    if (isStreaming &&
-                                        !ref
-                                            .read(escapeLayersProvider)
-                                            .isOpen) {
-                                      _interrupt();
-                                      return KeyEventResult.handled;
-                                    }
-                                  }
-                                }
-
-                                final isEnter =
-                                    event.logicalKey ==
-                                        LogicalKeyboardKey.enter ||
-                                    event.logicalKey ==
-                                        LogicalKeyboardKey.numpadEnter;
-
-                                if (isEnter &&
-                                    (event is KeyDownEvent ||
-                                        event is KeyRepeatEvent)) {
-                                  // b. IME composition active -> never send
-                                  if (_controller.value.composing.isValid) {
-                                    return KeyEventResult.ignored;
-                                  }
-
-                                  final isShift =
-                                      HardwareKeyboard.instance.isShiftPressed;
-                                  final isCtrl = HardwareKeyboard
-                                      .instance
-                                      .isControlPressed;
-                                  final isMeta =
-                                      HardwareKeyboard.instance.isMetaPressed;
-                                  final isAlt =
-                                      HardwareKeyboard.instance.isAltPressed;
-                                  final sendWithEnter =
-                                      composerSettings.sendWithEnter;
-
-                                  void triggerSend() {
-                                    if (isStreaming) {
-                                      _send(streamingBehavior: 'steer');
-                                    } else {
-                                      _send();
-                                    }
-                                  }
-
-                                  if (sendWithEnter) {
-                                    // ON mode:
-                                    // Shift+Enter -> newline (manual insertion kept: multiline TextField does not insert \n on Shift+Enter)
-                                    if (isShift) {
-                                      _insertNewlineAtSelection();
-                                      return KeyEventResult.handled;
-                                    }
-                                    // Ctrl/Cmd+Enter or plain Enter sends
-                                    if (isCtrl || isMeta || !isAlt) {
-                                      if (event is KeyDownEvent) {
-                                        triggerSend();
+                                      final selection = _controller.selection;
+                                      if (_activeCommand != null &&
+                                          key == LogicalKeyboardKey.backspace &&
+                                          selection.isCollapsed &&
+                                          selection.baseOffset <= 0) {
+                                        _removeCommand();
+                                        return KeyEventResult.handled;
                                       }
-                                      return KeyEventResult.handled;
                                     }
-                                  } else {
-                                    // OFF mode:
-                                    // Ctrl/Cmd+Enter sends; everything else returns KeyEventResult.ignored
-                                    // so TextField inserts newlines natively (restore original behavior; numpadEnter included).
-                                    if (isCtrl || isMeta) {
-                                      if (event is KeyDownEvent) {
-                                        triggerSend();
+                                    if (event is KeyDownEvent) {
+                                      // File Mention keyboard navigation
+                                      if (_showFileMentionMenu && _matchingMentionFiles.isNotEmpty) {
+                                        if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+                                          setState(() {
+                                            _fileMentionSelectedIndex =
+                                                (_fileMentionSelectedIndex + 1) % _matchingMentionFiles.length;
+                                          });
+                                          return KeyEventResult.handled;
+                                        }
+                                        if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+                                          setState(() {
+                                            _fileMentionSelectedIndex =
+                                                (_fileMentionSelectedIndex - 1 + _matchingMentionFiles.length) %
+                                                _matchingMentionFiles.length;
+                                          });
+                                          return KeyEventResult.handled;
+                                        }
+                                        if (event.logicalKey == LogicalKeyboardKey.tab ||
+                                            event.logicalKey == LogicalKeyboardKey.enter ||
+                                            event.logicalKey == LogicalKeyboardKey.numpadEnter) {
+                                          final chosen =
+                                              _matchingMentionFiles[_fileMentionSelectedIndex]['path']?.toString() ??
+                                              '';
+                                          if (chosen.isNotEmpty) {
+                                            _completeFileMention(chosen);
+                                          }
+                                          return KeyEventResult.handled;
+                                        }
+                                        if (event.logicalKey == LogicalKeyboardKey.escape) {
+                                          setState(() => _showFileMentionMenu = false);
+                                          return KeyEventResult.handled;
+                                        }
                                       }
-                                      return KeyEventResult.handled;
+
+                                      if (event.logicalKey == LogicalKeyboardKey.escape) {
+                                        // With a layer open (drawer, Review mode...), Escape
+                                        // goes to the shell, which closes that layer first.
+                                        if (isStreaming && !ref.read(escapeLayersProvider).isOpen) {
+                                          unawaited(_interrupt());
+                                          return KeyEventResult.handled;
+                                        }
+                                      }
+                                    }
+
+                                    final isEnter =
+                                        event.logicalKey == LogicalKeyboardKey.enter ||
+                                        event.logicalKey == LogicalKeyboardKey.numpadEnter;
+
+                                    if (isEnter && (event is KeyDownEvent || event is KeyRepeatEvent)) {
+                                      // b. IME composition active -> never send
+                                      if (_controller.value.composing.isValid) {
+                                        return KeyEventResult.ignored;
+                                      }
+
+                                      final isShift = HardwareKeyboard.instance.isShiftPressed;
+                                      final isCtrl = HardwareKeyboard.instance.isControlPressed;
+                                      final isMeta = HardwareKeyboard.instance.isMetaPressed;
+                                      final isAlt = HardwareKeyboard.instance.isAltPressed;
+                                      final sendWithEnter = composerSettings.sendWithEnter;
+
+                                      void triggerSend() {
+                                        if (isStreaming) {
+                                          unawaited(_send(streamingBehavior: 'steer'));
+                                        } else {
+                                          unawaited(_send());
+                                        }
+                                      }
+
+                                      if (sendWithEnter) {
+                                        // ON mode:
+                                        // Shift+Enter -> newline (manual insertion kept: multiline TextField does not insert \n on Shift+Enter)
+                                        if (isShift) {
+                                          _insertNewlineAtSelection();
+                                          return KeyEventResult.handled;
+                                        }
+                                        // Ctrl/Cmd+Enter or plain Enter sends
+                                        if (isCtrl || isMeta || !isAlt) {
+                                          if (event is KeyDownEvent) {
+                                            triggerSend();
+                                          }
+                                          return KeyEventResult.handled;
+                                        }
+                                      } else {
+                                        // OFF mode:
+                                        // Ctrl/Cmd+Enter sends; everything else returns KeyEventResult.ignored
+                                        // so TextField inserts newlines natively (restore original behavior; numpadEnter included).
+                                        if (isCtrl || isMeta) {
+                                          if (event is KeyDownEvent) {
+                                            triggerSend();
+                                          }
+                                          return KeyEventResult.handled;
+                                        }
+                                        return KeyEventResult.ignored;
+                                      }
                                     }
                                     return KeyEventResult.ignored;
-                                  }
-                                }
-                                return KeyEventResult.ignored;
-                              },
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  if (_pendingUploads > 0)
-                                    Padding(
-                                      key: const ValueKey(
-                                        'composer-upload-progress',
-                                      ),
-                                      padding: const EdgeInsets.only(bottom: 6),
-                                      child: Row(
-                                        children: [
-                                          SizedBox(
-                                            width: 12,
-                                            height: 12,
-                                            child: FrameActivityIndicator(
-                                              size: 12,
-                                              color: Theme.of(context)
-                                                  .colorScheme
-                                                  .primary,
-                                              strokeWidth: 2,
-                                            ),
-                                          ),
-                                          const SizedBox(width: FrameSpace.x2),
-                                          Text(
-                                            strings
-                                                .composerUploadingAttachments(
-                                                  _pendingUploads,
-                                                ),
-                                            style: FrameText.of(context).caption
-                                                .copyWith(
-                                                  color: tokens.textSecondary,
-                                                ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  if (attachments.isNotEmpty)
-                                    AttachmentListBar(
-                                      key: const ValueKey(
-                                        'composer-attachments-bar',
-                                      ),
-                                      attachments: attachments,
-                                      isEditable: true,
-                                      onRemove: (a) => ref
-                                          .read(
-                                            composerAttachmentsProvider(
-                                              widget.sessionId,
-                                            ).notifier,
-                                          )
-                                          .remove(a.id),
-                                    ),
-                                  Stack(
+                                  },
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.stretch,
                                     children: [
-                                      Row(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          AnimatedSize(
-                                            duration:
-                                                MediaQuery.disableAnimationsOf(
-                                                  context,
-                                                )
-                                                ? Duration.zero
-                                                : FrameMotion.small,
-                                            curve: FrameMotion.enterCurve,
-                                            child: AnimatedSwitcher(
-                                              duration:
-                                                  MediaQuery.disableAnimationsOf(
-                                                    context,
-                                                  )
-                                                  ? Duration.zero
-                                                  : FrameMotion.small,
-                                              transitionBuilder:
-                                                  (child, animation) =>
-                                                      FadeTransition(
-                                                        opacity: animation,
-                                                        child: ScaleTransition(
-                                                          scale: Tween(
-                                                            begin: 0.85,
-                                                            end: 1.0,
-                                                          ).animate(animation),
-                                                          alignment: Alignment
-                                                              .centerLeft,
-                                                          child: child,
-                                                        ),
-                                                      ),
-                                              child: _activeCommand == null
-                                                  ? const SizedBox(
-                                                      key: ValueKey(
-                                                        'no-command',
-                                                      ),
-                                                    )
-                                                  : Padding(
-                                                      key: ValueKey(
-                                                        'command-${_activeCommand!['name']}',
-                                                      ),
-                                                      padding:
-                                                          const EdgeInsets.fromLTRB(
-                                                            2,
-                                                            2,
-                                                            4,
-                                                            0,
-                                                          ),
-                                                      child: ComposerCommandChip(
-                                                        key: const ValueKey(
-                                                          'composer-command-chip',
-                                                        ),
-                                                        name:
-                                                            _activeCommand!['name']
-                                                                as String? ??
-                                                            '',
-                                                        sourceLabel: strings
-                                                            .composerCommandSourceLabel(
-                                                              _activeCommand!['source']
-                                                                      as String? ??
-                                                                  'prompt',
-                                                            ),
-                                                        removeTooltip: strings
-                                                            .composerRemoveCommandTooltip,
-                                                        running:
-                                                            _commandRunning,
-                                                        onRemove:
-                                                            _removeCommand,
-                                                      ),
-                                                    ),
-                                            ),
-                                          ),
-                                          Expanded(
-                                            key: const ValueKey(
-                                              'composer-input',
-                                            ),
-                                            child: TextField(
-                                              key: const ValueKey(
-                                                'composer-text-field',
-                                              ),
-                                              cursorColor: tokens.accent,
-                                              controller: _controller,
-                                              focusNode: _focusNode,
-                                              maxLines: math.min(
-                                                _isInputEnlarged ? 16 : 5,
-                                                maxInputLines,
-                                              ),
-                                              minLines: math.min(
-                                                _isInputEnlarged ? 8 : 2,
-                                                maxInputLines,
-                                              ),
-                                              onChanged: (_) {
-                                                if (mounted) setState(() {});
-                                              },
-                                              // Phone browser: Flutter's text and the hidden native <textarea>
-                                              // behind it must wrap identically, otherwise iOS (long-press
-                                              // selection, spacebar trackpad) moves the caret by lines that
-                                              // do not exist on screen. 16px is also what stops iOS from
-                                              // zooming the page when the field gets focus; the 21px line
-                                              // height is unchanged.
-                                              style: TextStyle(
-                                                color: tokens.textPrimary,
-                                                fontSize: kIsWeb && isMobile
-                                                    ? 16
-                                                    : 14.5,
-                                                height: kIsWeb && isMobile
-                                                    ? 21 / 16
-                                                    : 1.45,
-                                              ),
-                                              cursorWidth: kIsWeb && isMobile
-                                                  ? 2.5
-                                                  : 2.0,
-                                              decoration: InputDecoration(
-                                                hintText: _activeCommand != null
-                                                    ? strings.composerCommandArgsHint(
-                                                        _activeCommand!['name']
-                                                                as String? ??
-                                                            '',
-                                                        _activeCommand!['argumentHint']
-                                                                as String? ??
-                                                            '',
-                                                      )
-                                                    : strings.composerInputHint(
-                                                        isStreaming:
-                                                            isStreaming,
-                                                        sendWithEnter:
-                                                            composerSettings
-                                                                .sendWithEnter,
-                                                      ),
-                                                hintStyle: FrameText.of(context)
-                                                    .body
-                                                    .copyWith(
-                                                      color: tokens.textMuted,
-                                                    ),
-                                                filled: false,
-                                                border: InputBorder.none,
-                                                enabledBorder: InputBorder.none,
-                                                focusedBorder: InputBorder.none,
-                                                contentPadding: EdgeInsets.fromLTRB(
-                                                  4,
-                                                  2,
-                                                  (!isMobile &&
-                                                          (isLongPrompt ||
-                                                              _isInputEnlarged))
-                                                      ? 80
-                                                      : 4,
-                                                  6,
+                                      if (_pendingUploads > 0)
+                                        Padding(
+                                          key: const ValueKey('composer-upload-progress'),
+                                          padding: const EdgeInsets.only(bottom: 6),
+                                          child: Row(
+                                            children: [
+                                              SizedBox(
+                                                width: 12,
+                                                height: 12,
+                                                child: FrameActivityIndicator(
+                                                  size: 12,
+                                                  color: Theme.of(context).colorScheme.primary,
+                                                  strokeWidth: 2,
                                                 ),
                                               ),
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                      if (!isMobile &&
-                                          (isLongPrompt || _isInputEnlarged))
-                                        Positioned(
-                                          top: 2,
-                                          right: 2,
-                                          child: Tooltip(
-                                            message: strings
-                                                .composerEnlargeTooltip(
-                                                  _isInputEnlarged,
-                                                ),
-                                            child: InkWell(
-                                              key: const ValueKey(
-                                                'composer-enlarge-prompt-btn',
+                                              const SizedBox(width: FrameSpace.x2),
+                                              Text(
+                                                strings.composerUploadingAttachments(_pendingUploads),
+                                                style: FrameText.of(context).caption
+                                                    .copyWith(color: tokens.textSecondary),
                                               ),
-                                              borderRadius:
-                                                  BorderRadius.circular(
-                                                    tokens.radiusSm,
-                                                  ),
-                                              onTap: () => setState(
-                                                () => _isInputEnlarged =
-                                                    !_isInputEnlarged,
-                                              ),
-                                              child: Container(
-                                                padding:
-                                                    const EdgeInsets.symmetric(
-                                                      horizontal: 6,
-                                                      vertical: 3,
-                                                    ),
-                                                decoration: BoxDecoration(
-                                                  color: tokens.surfaceElevated,
-                                                  borderRadius:
-                                                      BorderRadius.circular(
-                                                        tokens.radiusSm,
-                                                      ),
-                                                  border: Border.all(
-                                                    color: _isInputEnlarged
-                                                        ? tokens.accent
-                                                        : tokens.border,
-                                                    width: 1,
-                                                  ),
-                                                ),
-                                                child: Row(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  children: [
-                                                    Icon(
-                                                      _isInputEnlarged
-                                                          ? Icons
-                                                                .close_fullscreen
-                                                          : Icons
-                                                                .open_in_full_outlined,
-                                                      size: 11,
-                                                      color: _isInputEnlarged
-                                                          ? tokens.accent
-                                                          : tokens
-                                                                .textSecondary,
-                                                    ),
-                                                    const SizedBox(width: 3),
-                                                    Text(
-                                                      strings
-                                                          .composerEnlargeLabel(
-                                                            _isInputEnlarged,
-                                                          ),
-                                                      style:
-                                                          FrameText.of(
-                                                            context,
-                                                          ).caption.copyWith(
-                                                            color:
-                                                                _isInputEnlarged
-                                                                ? tokens.accent
-                                                                : tokens
-                                                                      .textSecondary,
-                                                            fontWeight:
-                                                                FontWeight.w600,
-                                                          ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ),
+                                            ],
                                           ),
                                         ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: FrameSpace.x1),
-                                  LayoutBuilder(
-                                    builder: (context, rowBox) => Row(
-                                      children: [
-                                        Expanded(
-                                          // Chip budget (plan 4.4). The model name takes the width the other
-                                          // chips leave. The thinking label drops before the name does. The
-                                          // scroll view is only a last resort below the chips' floor width.
-                                          child: LayoutBuilder(
-                                            builder: (context, chipBox) {
-                                              final showThinkingLabel =
-                                                  chipBox.maxWidth >=
-                                                  kComposerThinkingLabelMinBox;
-                                              // Compact: no picker arrows, and the context chip shows its icon only.
-                                              final compact =
-                                                  chipBox.maxWidth <
-                                                  kComposerCompactChipBox;
-                                              final thinkingWidth =
-                                                  (kComposerThinkingChipWidth -
-                                                      (compact
-                                                          ? kComposerChipArrowWidth
-                                                          : 0)) +
-                                                  (showThinkingLabel
-                                                      ? kComposerThinkingLabelWidth
-                                                      : 0);
-                                              final showContextLabel = !compact;
-                                              final contextWidth =
-                                                  isVariablePricing
-                                                  ? kComposerChipGap +
-                                                        (showContextLabel
-                                                            ? kComposerContextChipWidth
-                                                            : kComposerContextIconChipWidth -
-                                                                  kComposerChipArrowWidth)
-                                                  : 0.0;
-                                              final modelWidth =
-                                                  (chipBox.maxWidth -
-                                                          thinkingWidth -
-                                                          contextWidth -
-                                                          kComposerChipGap)
-                                                      .clamp(
-                                                        kComposerModelChipMinWidth,
-                                                        kComposerModelChipMaxWidth,
-                                                      )
-                                                      .toDouble();
-                                              return SingleChildScrollView(
-                                                scrollDirection:
-                                                    Axis.horizontal,
-                                                child: Row(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  children: [
-                                                    ConstrainedBox(
-                                                      constraints:
-                                                          BoxConstraints(
-                                                            maxWidth:
-                                                                modelWidth,
-                                                          ),
-                                                      child: Builder(
-                                                        builder: (chipCtx) => Tooltip(
-                                                          message: strings
-                                                              .composerChangeModelTooltip,
-                                                          child: InkWell(
-                                                            key: const ValueKey(
-                                                              'composer-model-picker-btn',
+                                      if (attachments.isNotEmpty)
+                                        AttachmentListBar(
+                                          key: const ValueKey('composer-attachments-bar'),
+                                          attachments: attachments,
+                                          isEditable: true,
+                                          onRemove: (a) => ref
+                                              .read(composerAttachmentsProvider(widget.sessionId).notifier)
+                                              .remove(a.id),
+                                        ),
+                                      Stack(
+                                        children: [
+                                          Row(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              AnimatedSize(
+                                                duration: MediaQuery.disableAnimationsOf(context)
+                                                    ? Duration.zero
+                                                    : FrameMotion.small,
+                                                curve: FrameMotion.enterCurve,
+                                                child: AnimatedSwitcher(
+                                                  duration: MediaQuery.disableAnimationsOf(context)
+                                                      ? Duration.zero
+                                                      : FrameMotion.small,
+                                                  transitionBuilder: (child, animation) => FadeTransition(
+                                                    opacity: animation,
+                                                    child: ScaleTransition(
+                                                      scale: Tween(begin: 0.85, end: 1.0).animate(animation),
+                                                      alignment: Alignment.centerLeft,
+                                                      child: child,
+                                                    ),
+                                                  ),
+                                                  child: _activeCommand == null
+                                                      ? const SizedBox(key: ValueKey('no-command'))
+                                                      : Padding(
+                                                          key: ValueKey('command-${_activeCommand!['name']}'),
+                                                          padding: const EdgeInsets.fromLTRB(2, 2, 4, 0),
+                                                          child: ComposerCommandChip(
+                                                            key: const ValueKey('composer-command-chip'),
+                                                            name: _activeCommand!['name'] as String? ?? '',
+                                                            sourceLabel: strings.composerCommandSourceLabel(
+                                                              _activeCommand!['source'] as String? ?? 'prompt',
                                                             ),
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                  tokens
-                                                                      .radiusSm,
-                                                                ),
-                                                            onTap: () =>
-                                                                _guardPicker(
-                                                                  () =>
-                                                                      _showModelPicker(
-                                                                        chipCtx,
-                                                                      ),
-                                                                ),
-                                                            child: Container(
-                                                              height: 26,
-                                                              padding:
-                                                                  const EdgeInsets.symmetric(
-                                                                    horizontal:
-                                                                        7,
+                                                            removeTooltip: strings.composerRemoveCommandTooltip,
+                                                            running: _commandRunning,
+                                                            onRemove: _removeCommand,
+                                                          ),
+                                                        ),
+                                                ),
+                                              ),
+                                              Expanded(
+                                                key: const ValueKey('composer-input'),
+                                                child: TextField(
+                                                  key: const ValueKey('composer-text-field'),
+                                                  cursorColor: tokens.accent,
+                                                  controller: _controller,
+                                                  focusNode: _focusNode,
+                                                  maxLines: math.min(_isInputEnlarged ? 16 : 5, maxInputLines),
+                                                  minLines: math.min(_isInputEnlarged ? 8 : 2, maxInputLines),
+                                                  onChanged: (_) {
+                                                    if (mounted) setState(() {});
+                                                  },
+                                                  // Phone browser: Flutter's text and the hidden native <textarea>
+                                                  // behind it must wrap identically, otherwise iOS (long-press
+                                                  // selection, spacebar trackpad) moves the caret by lines that
+                                                  // do not exist on screen. 16px is also what stops iOS from
+                                                  // zooming the page when the field gets focus; the 21px line
+                                                  // height is unchanged.
+                                                  style: TextStyle(
+                                                    color: tokens.textPrimary,
+                                                    fontSize: kIsWeb && isMobile ? 16 : 14.5,
+                                                    height: kIsWeb && isMobile ? 21 / 16 : 1.45,
+                                                  ),
+                                                  cursorWidth: kIsWeb && isMobile ? 2.5 : 2.0,
+                                                  decoration: InputDecoration(
+                                                    hintText: _activeCommand != null
+                                                        ? strings.composerCommandArgsHint(
+                                                            _activeCommand!['name'] as String? ?? '',
+                                                            _activeCommand!['argumentHint'] as String? ?? '',
+                                                          )
+                                                        : strings.composerInputHint(
+                                                            isStreaming: isStreaming,
+                                                            sendWithEnter: composerSettings.sendWithEnter,
+                                                          ),
+                                                    hintStyle: FrameText.of(context).body
+                                                        .copyWith(color: tokens.textMuted),
+                                                    filled: false,
+                                                    border: InputBorder.none,
+                                                    enabledBorder: InputBorder.none,
+                                                    focusedBorder: InputBorder.none,
+                                                    contentPadding: EdgeInsets.fromLTRB(
+                                                      4,
+                                                      2,
+                                                      (!isMobile && (isLongPrompt || _isInputEnlarged)) ? 80 : 4,
+                                                      6,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          if (!isMobile && (isLongPrompt || _isInputEnlarged))
+                                            Positioned(
+                                              top: 2,
+                                              right: 2,
+                                              child: Tooltip(
+                                                message: strings.composerEnlargeTooltip(_isInputEnlarged),
+                                                child: InkWell(
+                                                  key: const ValueKey('composer-enlarge-prompt-btn'),
+                                                  borderRadius: BorderRadius.circular(tokens.radiusSm),
+                                                  onTap: () => setState(() => _isInputEnlarged = !_isInputEnlarged),
+                                                  child: Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                                                    decoration: BoxDecoration(
+                                                      color: tokens.surfaceElevated,
+                                                      borderRadius: BorderRadius.circular(tokens.radiusSm),
+                                                      border: Border.all(
+                                                        color: _isInputEnlarged ? tokens.accent : tokens.border,
+                                                        width: 1,
+                                                      ),
+                                                    ),
+                                                    child: Row(
+                                                      mainAxisSize: MainAxisSize.min,
+                                                      children: [
+                                                        Icon(
+                                                          _isInputEnlarged
+                                                              ? Icons.close_fullscreen
+                                                              : Icons.open_in_full_outlined,
+                                                          size: 11,
+                                                          color: _isInputEnlarged
+                                                              ? tokens.accent
+                                                              : tokens.textSecondary,
+                                                        ),
+                                                        const SizedBox(width: 3),
+                                                        Text(
+                                                          strings.composerEnlargeLabel(_isInputEnlarged),
+                                                          style: FrameText.of(context).caption.copyWith(
+                                                            color: _isInputEnlarged
+                                                                ? tokens.accent
+                                                                : tokens.textSecondary,
+                                                            fontWeight: FontWeight.w600,
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                            ),
+                                        ],
+                                      ),
+                                      const SizedBox(height: FrameSpace.x1),
+                                      LayoutBuilder(
+                                        builder: (context, rowBox) => Row(
+                                          children: [
+                                            Expanded(
+                                              // Chip budget (plan 4.4). The model name takes the width the other
+                                              // chips leave. The thinking label drops before the name does. The
+                                              // scroll view is only a last resort below the chips' floor width.
+                                              child: LayoutBuilder(
+                                                builder: (context, chipBox) {
+                                                  final showThinkingLabel =
+                                                      chipBox.maxWidth >= kComposerThinkingLabelMinBox;
+                                                  // Compact: no picker arrows, and the context chip shows its icon only.
+                                                  final compact = chipBox.maxWidth < kComposerCompactChipBox;
+                                                  final thinkingWidth =
+                                                      (kComposerThinkingChipWidth -
+                                                          (compact ? kComposerChipArrowWidth : 0)) +
+                                                      (showThinkingLabel ? kComposerThinkingLabelWidth : 0);
+                                                  final showContextLabel = !compact;
+                                                  final contextWidth = isVariablePricing
+                                                      ? kComposerChipGap +
+                                                            (showContextLabel
+                                                                ? kComposerContextChipWidth
+                                                                : kComposerContextIconChipWidth -
+                                                                      kComposerChipArrowWidth)
+                                                      : 0.0;
+                                                  final modelWidth =
+                                                      (chipBox.maxWidth -
+                                                              thinkingWidth -
+                                                              contextWidth -
+                                                              kComposerChipGap)
+                                                          .clamp(kComposerModelChipMinWidth, kComposerModelChipMaxWidth)
+                                                          .toDouble();
+                                                  return SingleChildScrollView(
+                                                    scrollDirection: Axis.horizontal,
+                                                    child: Row(
+                                                      mainAxisSize: MainAxisSize.min,
+                                                      children: [
+                                                        ConstrainedBox(
+                                                          constraints: BoxConstraints(maxWidth: modelWidth),
+                                                          child: Builder(
+                                                            builder: (chipCtx) => Tooltip(
+                                                              message: strings.composerChangeModelTooltip,
+                                                              child: InkWell(
+                                                                key: const ValueKey('composer-model-picker-btn'),
+                                                                borderRadius: BorderRadius.circular(tokens.radiusSm),
+                                                                onTap: () =>
+                                                                    _guardPicker(() => _showModelPicker(chipCtx)),
+                                                                child: Container(
+                                                                  height: 26,
+                                                                  padding: const EdgeInsets.symmetric(
+                                                                    horizontal: 7,
                                                                     vertical: 3,
                                                                   ),
-                                                              decoration: BoxDecoration(
-                                                                color: tokens
-                                                                    .surfaceElevated,
-                                                                borderRadius:
-                                                                    BorderRadius.circular(
-                                                                      tokens
-                                                                          .radiusSm,
+                                                                  decoration: BoxDecoration(
+                                                                    color: tokens.surfaceElevated,
+                                                                    borderRadius: BorderRadius.circular(
+                                                                      tokens.radiusSm,
                                                                     ),
-                                                                border: Border.all(
-                                                                  color: tokens
-                                                                      .border,
-                                                                ),
-                                                              ),
-                                                              child: Row(
-                                                                mainAxisSize:
-                                                                    MainAxisSize
-                                                                        .min,
-                                                                children: [
-                                                                  Icon(
-                                                                    Icons
-                                                                        .smart_toy_outlined,
-                                                                    size: 13,
-                                                                    color: tokens
-                                                                        .accent,
+                                                                    border: Border.all(color: tokens.border),
                                                                   ),
-                                                                  const SizedBox(
-                                                                    width: 4,
-                                                                  ),
-                                                                  // The name truncates to the chip's budget; it is never hidden.
-                                                                  Flexible(
-                                                                    child: Text(
-                                                                      currentModel ??
-                                                                          strings
-                                                                              .composerModelDefaultLabel,
-                                                                      maxLines:
-                                                                          1,
-                                                                      overflow:
-                                                                          TextOverflow
-                                                                              .ellipsis,
-                                                                      style: FrameText.of(context).caption.copyWith(
-                                                                        color: tokens
-                                                                            .textSecondary,
-                                                                        fontWeight:
-                                                                            FontWeight.w500,
+                                                                  child: Row(
+                                                                    mainAxisSize: MainAxisSize.min,
+                                                                    children: [
+                                                                      Icon(
+                                                                        Icons.smart_toy_outlined,
+                                                                        size: 13,
+                                                                        color: tokens.accent,
                                                                       ),
-                                                                    ),
+                                                                      const SizedBox(width: 4),
+                                                                      // The name truncates to the chip's budget; it is never hidden.
+                                                                      Flexible(
+                                                                        child: Text(
+                                                                          currentModel ??
+                                                                              strings.composerModelDefaultLabel,
+                                                                          maxLines: 1,
+                                                                          overflow: TextOverflow.ellipsis,
+                                                                          style: FrameText.of(context).caption.copyWith(
+                                                                            color: tokens.textSecondary,
+                                                                            fontWeight: FontWeight.w500,
+                                                                          ),
+                                                                        ),
+                                                                      ),
+                                                                      const SizedBox(width: 2),
+                                                                      Icon(
+                                                                        Icons.keyboard_arrow_down,
+                                                                        size: 13,
+                                                                        color: tokens.textMuted,
+                                                                      ),
+                                                                    ],
                                                                   ),
-                                                                  const SizedBox(
-                                                                    width: 2,
-                                                                  ),
-                                                                  Icon(
-                                                                    Icons
-                                                                        .keyboard_arrow_down,
-                                                                    size: 13,
-                                                                    color: tokens
-                                                                        .textMuted,
-                                                                  ),
-                                                                ],
+                                                                ),
                                                               ),
                                                             ),
                                                           ),
                                                         ),
-                                                      ),
-                                                    ),
-                                                    const SizedBox(
-                                                      width: kComposerChipGap,
-                                                    ),
-                                                    Builder(
-                                                      builder: (chipCtx) => Tooltip(
-                                                        message: strings
-                                                            .composerThinkingLevelTooltip,
-                                                        child: InkWell(
-                                                          key: const ValueKey(
-                                                            'composer-thinking-picker-btn',
-                                                          ),
-                                                          borderRadius:
-                                                              BorderRadius.circular(
-                                                                tokens.radiusSm,
-                                                              ),
-                                                          onTap: () => _guardPicker(
-                                                            () =>
-                                                                _showThinkingPicker(
-                                                                  chipCtx,
-                                                                ),
-                                                          ),
-                                                          child: Container(
-                                                            height: 26,
-                                                            padding:
-                                                                const EdgeInsets.symmetric(
+                                                        const SizedBox(width: kComposerChipGap),
+                                                        Builder(
+                                                          builder: (chipCtx) => Tooltip(
+                                                            message: strings.composerThinkingLevelTooltip,
+                                                            child: InkWell(
+                                                              key: const ValueKey('composer-thinking-picker-btn'),
+                                                              borderRadius: BorderRadius.circular(tokens.radiusSm),
+                                                              onTap: () =>
+                                                                  _guardPicker(() => _showThinkingPicker(chipCtx)),
+                                                              child: Container(
+                                                                height: 26,
+                                                                padding: const EdgeInsets.symmetric(
                                                                   horizontal: 6,
                                                                   vertical: 3,
                                                                 ),
-                                                            decoration: BoxDecoration(
-                                                              color: tokens
-                                                                  .surfaceElevated,
-                                                              borderRadius:
-                                                                  BorderRadius.circular(
-                                                                    tokens
-                                                                        .radiusSm,
-                                                                  ),
-                                                              border: Border.all(
-                                                                color: tokens
-                                                                    .border,
-                                                              ),
-                                                            ),
-                                                            child: Row(
-                                                              mainAxisSize:
-                                                                  MainAxisSize
-                                                                      .min,
-                                                              children: [
-                                                                // The bars show the level in four steps. The label drops first when space is short.
-                                                                ThinkingLevelBars(
-                                                                  level:
-                                                                      currentThinkingLevel,
-                                                                  litColor: tokens
-                                                                      .thinking,
+                                                                decoration: BoxDecoration(
+                                                                  color: tokens.surfaceElevated,
+                                                                  borderRadius: BorderRadius.circular(tokens.radiusSm),
+                                                                  border: Border.all(color: tokens.border),
                                                                 ),
-                                                                if (showThinkingLabel) ...[
-                                                                  const SizedBox(
-                                                                    width: 3,
-                                                                  ),
-                                                                  Text(
-                                                                    strings.thinkingLevelLabel(
-                                                                      currentThinkingLevel ?? 'medium',
+                                                                child: Row(
+                                                                  mainAxisSize: MainAxisSize.min,
+                                                                  children: [
+                                                                    // The bars show the level in four steps. The label drops first when space is short.
+                                                                    ThinkingLevelBars(
+                                                                      level: currentThinkingLevel,
+                                                                      litColor: tokens.thinking,
                                                                     ),
-                                                                    maxLines: 1,
-                                                                    style: FrameText.of(context).caption.copyWith(
-                                                                      color: tokens
-                                                                          .textSecondary,
-                                                                      fontWeight:
-                                                                          FontWeight
-                                                                              .w500,
-                                                                    ),
-                                                                  ),
-                                                                ],
-                                                                if (!compact) ...[
-                                                                  const SizedBox(
-                                                                    width: 2,
-                                                                  ),
-                                                                  Icon(
-                                                                    Icons
-                                                                        .keyboard_arrow_down,
-                                                                    size: 13,
-                                                                    color: tokens
-                                                                        .textMuted,
-                                                                  ),
-                                                                ],
-                                                              ],
+                                                                    if (showThinkingLabel) ...[
+                                                                      const SizedBox(width: 3),
+                                                                      Text(
+                                                                        strings.thinkingLevelLabel(
+                                                                          currentThinkingLevel ?? 'medium',
+                                                                        ),
+                                                                        maxLines: 1,
+                                                                        style: FrameText.of(context).caption.copyWith(
+                                                                          color: tokens.textSecondary,
+                                                                          fontWeight: FontWeight.w500,
+                                                                        ),
+                                                                      ),
+                                                                    ],
+                                                                    if (!compact) ...[
+                                                                      const SizedBox(width: 2),
+                                                                      Icon(
+                                                                        Icons.keyboard_arrow_down,
+                                                                        size: 13,
+                                                                        color: tokens.textMuted,
+                                                                      ),
+                                                                    ],
+                                                                  ],
+                                                                ),
+                                                              ),
                                                             ),
                                                           ),
                                                         ),
-                                                      ),
-                                                    ),
-                                                    if (isVariablePricing) ...[
-                                                      const SizedBox(
-                                                        width: kComposerChipGap,
-                                                      ),
-                                                      Builder(
-                                                        builder: (chipCtx) => Tooltip(
-                                                          message: strings
-                                                              .composerVariablePricingContextTooltip,
-                                                          child: InkWell(
-                                                            key: const ValueKey(
-                                                              'composer-context-size-picker-btn',
-                                                            ),
-                                                            borderRadius:
-                                                                BorderRadius.circular(
-                                                                  tokens
-                                                                      .radiusSm,
-                                                                ),
-                                                            onTap:
-                                                                _showContextSizePicker,
-                                                            child: Container(
-                                                              height: 26,
-                                                              padding:
-                                                                  const EdgeInsets.symmetric(
-                                                                    horizontal:
-                                                                        7,
+                                                        if (isVariablePricing) ...[
+                                                          const SizedBox(width: kComposerChipGap),
+                                                          Builder(
+                                                            builder: (chipCtx) => Tooltip(
+                                                              message: strings.composerVariablePricingContextTooltip,
+                                                              child: InkWell(
+                                                                key: const ValueKey('composer-context-size-picker-btn'),
+                                                                borderRadius: BorderRadius.circular(tokens.radiusSm),
+                                                                onTap: _showContextSizePicker,
+                                                                child: Container(
+                                                                  height: 26,
+                                                                  padding: const EdgeInsets.symmetric(
+                                                                    horizontal: 7,
                                                                     vertical: 3,
                                                                   ),
-                                                              decoration: BoxDecoration(
-                                                                color: tokens
-                                                                    .surfaceElevated,
-                                                                borderRadius:
-                                                                    BorderRadius.circular(
-                                                                      tokens
-                                                                          .radiusSm,
+                                                                  decoration: BoxDecoration(
+                                                                    color: tokens.surfaceElevated,
+                                                                    borderRadius: BorderRadius.circular(
+                                                                      tokens.radiusSm,
                                                                     ),
-                                                                border: Border.all(
-                                                                  color: tokens
-                                                                      .accent
-                                                                      .withValues(
-                                                                        alpha:
-                                                                            0.35,
-                                                                      ),
+                                                                    border: Border.all(
+                                                                      color: tokens.accent.withValues(alpha: 0.35),
+                                                                    ),
+                                                                  ),
+                                                                  child: Row(
+                                                                    mainAxisSize: MainAxisSize.min,
+                                                                    children: [
+                                                                      if (_isContextPickerLoading)
+                                                                        SizedBox(
+                                                                          width: 12,
+                                                                          height: 12,
+                                                                          child: FrameActivityIndicator(
+                                                                            size: 12,
+                                                                            strokeWidth: 1.5,
+                                                                            color: tokens.accent,
+                                                                          ),
+                                                                        )
+                                                                      else
+                                                                        Icon(
+                                                                          Icons.tune_outlined,
+                                                                          size: 12,
+                                                                          color: tokens.accent,
+                                                                        ),
+                                                                      if (showContextLabel) ...[
+                                                                        const SizedBox(width: 3),
+                                                                        Text(
+                                                                          formatTokens(effectiveContextWindow),
+                                                                          maxLines: 1,
+                                                                          style: FrameText.of(context).caption.copyWith(
+                                                                            color: tokens.accent,
+                                                                            fontWeight: FontWeight.w600,
+                                                                          ),
+                                                                        ),
+                                                                      ],
+                                                                      if (!compact) ...[
+                                                                        const SizedBox(width: 2),
+                                                                        Icon(
+                                                                          Icons.keyboard_arrow_down,
+                                                                          size: 12,
+                                                                          color: tokens.textMuted,
+                                                                        ),
+                                                                      ],
+                                                                    ],
+                                                                  ),
                                                                 ),
-                                                              ),
-                                                              child: Row(
-                                                                mainAxisSize:
-                                                                    MainAxisSize
-                                                                        .min,
-                                                                children: [
-                                                                  if (_isContextPickerLoading)
-                                                                    SizedBox(
-                                                                      width: 12,
-                                                                      height:
-                                                                          12,
-                                                                      child: FrameActivityIndicator(
-                                                                        size:
-                                                                            12,
-                                                                        strokeWidth:
-                                                                            1.5,
-                                                                        color: tokens
-                                                                            .accent,
-                                                                      ),
-                                                                    )
-                                                                  else
-                                                                    Icon(
-                                                                      Icons
-                                                                          .tune_outlined,
-                                                                      size: 12,
-                                                                      color: tokens
-                                                                          .accent,
-                                                                    ),
-                                                                  if (showContextLabel) ...[
-                                                                    const SizedBox(
-                                                                      width: 3,
-                                                                    ),
-                                                                    Text(
-                                                                      formatTokens(
-                                                                        effectiveContextWindow,
-                                                                      ),
-                                                                      maxLines:
-                                                                          1,
-                                                                      style: FrameText.of(context).caption.copyWith(
-                                                                        color: tokens
-                                                                            .accent,
-                                                                        fontWeight:
-                                                                            FontWeight.w600,
-                                                                      ),
-                                                                    ),
-                                                                  ],
-                                                                  if (!compact) ...[
-                                                                    const SizedBox(
-                                                                      width: 2,
-                                                                    ),
-                                                                    Icon(
-                                                                      Icons
-                                                                          .keyboard_arrow_down,
-                                                                      size: 12,
-                                                                      color: tokens
-                                                                          .textMuted,
-                                                                    ),
-                                                                  ],
-                                                                ],
                                                               ),
                                                             ),
                                                           ),
-                                                        ),
-                                                      ),
-                                                    ],
-                                                  ],
-                                                ),
-                                              );
-                                            },
-                                          ),
-                                        ),
-                                        // A 28 px target like the other row controls (the padded IconButton is 40).
-                                        FrameIconAction(
-                                          key: const ValueKey(
-                                            'composer-enlarge-toggle-btn',
-                                          ),
-                                          icon: _isInputEnlarged
-                                              ? Icons.close_fullscreen_outlined
-                                              : Icons.open_in_full_outlined,
-                                          tooltip: strings
-                                              .composerEnlargeTooltip(
-                                                _isInputEnlarged,
+                                                        ],
+                                                      ],
+                                                    ),
+                                                  );
+                                                },
                                               ),
-                                          selected:
-                                              _isInputEnlarged || isLongPrompt,
-                                          onPressed: () => setState(
-                                            () => _isInputEnlarged =
-                                                !_isInputEnlarged,
-                                          ),
-                                        ),
-                                        const SizedBox(width: FrameSpace.x1),
-                                        _buildAttachButton(tokens, strings),
-                                        const SizedBox(width: FrameSpace.x1),
-                                        if (isStreaming ||
-                                            agentStatus ==
-                                                AgentStatus.working ||
-                                            activeToolCallsNotEmpty) ...[
-                                          IconButton(
-                                            icon: _isInterrupting
-                                                ? SizedBox(
-                                                    width: 16,
-                                                    height: 16,
-                                                    child:
-                                                        FrameActivityIndicator(
+                                            ),
+                                            // A 28 px target like the other row controls (the padded IconButton is 40).
+                                            FrameIconAction(
+                                              key: const ValueKey('composer-enlarge-toggle-btn'),
+                                              icon: _isInputEnlarged
+                                                  ? Icons.close_fullscreen_outlined
+                                                  : Icons.open_in_full_outlined,
+                                              tooltip: strings.composerEnlargeTooltip(_isInputEnlarged),
+                                              selected: _isInputEnlarged || isLongPrompt,
+                                              onPressed: () => setState(() => _isInputEnlarged = !_isInputEnlarged),
+                                            ),
+                                            const SizedBox(width: FrameSpace.x1),
+                                            _buildAttachButton(tokens, strings),
+                                            const SizedBox(width: FrameSpace.x1),
+                                            if (isStreaming ||
+                                                agentStatus == AgentStatus.working ||
+                                                activeToolCallsNotEmpty) ...[
+                                              IconButton(
+                                                icon: _isInterrupting
+                                                    ? SizedBox(
+                                                        width: 16,
+                                                        height: 16,
+                                                        child: FrameActivityIndicator(
                                                           size: FrameSize.icon,
                                                           strokeWidth: 2,
-                                                          color: tokens
-                                                              .textSecondary,
+                                                          color: tokens.textSecondary,
                                                         ),
-                                                  )
-                                                : Icon(
-                                                    Icons.stop_circle_outlined,
-                                                    color: tokens.signalDanger,
-                                                    size: FrameSize.iconLg,
-                                                  ),
-                                            tooltip:
-                                                strings.composerStopEscTooltip,
-                                            padding: EdgeInsets.zero,
-                                            constraints: const BoxConstraints(
-                                              minWidth: 28,
-                                              minHeight: 28,
-                                            ),
-                                            onPressed: _isInterrupting
-                                                ? null
-                                                : _interrupt,
-                                          ),
-                                          const SizedBox(width: FrameSpace.x1),
-                                          Tooltip(
-                                            message: strings
-                                                .composerSteerTooltip(
-                                                  sendWithEnter:
-                                                      composerSettings
-                                                          .sendWithEnter,
-                                                ),
-                                            child: Container(
-                                              width: 28,
-                                              height: 28,
-                                              decoration: BoxDecoration(
-                                                color: tokens.accent,
-                                                borderRadius:
-                                                    BorderRadius.circular(
-                                                      tokens.radiusSm,
-                                                    ),
-                                              ),
-                                              child: IconButton(
-                                                key: const ValueKey(
-                                                  'composer-steer-btn',
-                                                ),
+                                                      )
+                                                    : Icon(
+                                                        Icons.stop_circle_outlined,
+                                                        color: tokens.signalDanger,
+                                                        size: FrameSize.iconLg,
+                                                      ),
+                                                tooltip: strings.composerStopEscTooltip,
                                                 padding: EdgeInsets.zero,
-                                                style: IconButton.styleFrom(
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          tokens.radiusSm,
-                                                        ),
-                                                  ),
+                                                constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                                                onPressed: _isInterrupting ? null : _interrupt,
+                                              ),
+                                              const SizedBox(width: FrameSpace.x1),
+                                              Tooltip(
+                                                message: strings.composerSteerTooltip(
+                                                  sendWithEnter: composerSettings.sendWithEnter,
                                                 ),
-                                                icon: Stack(
-                                                  alignment: Alignment.center,
-                                                  children: [
-                                                    Icon(
-                                                      Icons.bolt_outlined,
-                                                      size: FrameSize.icon,
-                                                      color:
-                                                          tokens.accentContrast,
+                                                child: Container(
+                                                  width: 28,
+                                                  height: 28,
+                                                  decoration: BoxDecoration(
+                                                    color: tokens.accent,
+                                                    borderRadius: BorderRadius.circular(tokens.radiusSm),
+                                                  ),
+                                                  child: IconButton(
+                                                    key: const ValueKey('composer-steer-btn'),
+                                                    padding: EdgeInsets.zero,
+                                                    style: IconButton.styleFrom(
+                                                      shape: RoundedRectangleBorder(
+                                                        borderRadius: BorderRadius.circular(tokens.radiusSm),
+                                                      ),
                                                     ),
-                                                    SizedBox(
-                                                      width: 0,
-                                                      height: 0,
-                                                      child: Text(
-                                                        'Steer',
-                                                        style:
-                                                            FrameText.of(
-                                                              context,
-                                                            ).caption.copyWith(
-                                                              color: tokens
-                                                                  .background
-                                                                  .withValues(
-                                                                    alpha: 0,
-                                                                  ),
+                                                    icon: Stack(
+                                                      alignment: Alignment.center,
+                                                      children: [
+                                                        Icon(
+                                                          Icons.bolt_outlined,
+                                                          size: FrameSize.icon,
+                                                          color: tokens.accentContrast,
+                                                        ),
+                                                        SizedBox(
+                                                          width: 0,
+                                                          height: 0,
+                                                          child: Text(
+                                                            'Steer',
+                                                            style: FrameText.of(context).caption.copyWith(
+                                                              color: tokens.background.withValues(alpha: 0),
                                                             ),
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                                onPressed: isSending
-                                                    ? null
-                                                    : () => _send(
-                                                        streamingBehavior:
-                                                            'steer',
-                                                      ),
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: FrameSpace.x1),
-                                          Tooltip(
-                                            message:
-                                                strings.composerFollowUpTooltip,
-                                            child: Container(
-                                              width: 28,
-                                              height: 28,
-                                              decoration: BoxDecoration(
-                                                color: tokens.surfaceElevated,
-                                                borderRadius:
-                                                    BorderRadius.circular(
-                                                      tokens.radiusSm,
-                                                    ),
-                                                border: Border.all(
-                                                  color: tokens.border,
-                                                ),
-                                              ),
-                                              child: IconButton(
-                                                key: const ValueKey(
-                                                  'composer-followup-btn',
-                                                ),
-                                                padding: EdgeInsets.zero,
-                                                style: IconButton.styleFrom(
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          tokens.radiusSm,
+                                                          ),
                                                         ),
+                                                      ],
+                                                    ),
+                                                    onPressed: isSending
+                                                        ? null
+                                                        : () => _send(streamingBehavior: 'steer'),
                                                   ),
                                                 ),
-                                                icon: Stack(
-                                                  alignment: Alignment.center,
-                                                  children: [
-                                                    Icon(
-                                                      Icons.more_time_outlined,
-                                                      size: FrameSize.icon,
-                                                      color: tokens.textPrimary,
+                                              ),
+                                              const SizedBox(width: FrameSpace.x1),
+                                              Tooltip(
+                                                message: strings.composerFollowUpTooltip,
+                                                child: Container(
+                                                  width: 28,
+                                                  height: 28,
+                                                  decoration: BoxDecoration(
+                                                    color: tokens.surfaceElevated,
+                                                    borderRadius: BorderRadius.circular(tokens.radiusSm),
+                                                    border: Border.all(color: tokens.border),
+                                                  ),
+                                                  child: IconButton(
+                                                    key: const ValueKey('composer-followup-btn'),
+                                                    padding: EdgeInsets.zero,
+                                                    style: IconButton.styleFrom(
+                                                      shape: RoundedRectangleBorder(
+                                                        borderRadius: BorderRadius.circular(tokens.radiusSm),
+                                                      ),
                                                     ),
-                                                    SizedBox(
-                                                      width: 0,
-                                                      height: 0,
-                                                      child: Text(
-                                                        'Follow-up',
-                                                        style:
-                                                            FrameText.of(
-                                                              context,
-                                                            ).caption.copyWith(
-                                                              color: tokens
-                                                                  .background
-                                                                  .withValues(
-                                                                    alpha: 0,
-                                                                  ),
+                                                    icon: Stack(
+                                                      alignment: Alignment.center,
+                                                      children: [
+                                                        Icon(
+                                                          Icons.more_time_outlined,
+                                                          size: FrameSize.icon,
+                                                          color: tokens.textPrimary,
+                                                        ),
+                                                        SizedBox(
+                                                          width: 0,
+                                                          height: 0,
+                                                          child: Text(
+                                                            'Follow-up',
+                                                            style: FrameText.of(context).caption.copyWith(
+                                                              color: tokens.background.withValues(alpha: 0),
                                                             ),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                    onPressed: isSending
+                                                        ? null
+                                                        : () => _send(streamingBehavior: 'followUp'),
+                                                  ),
+                                                ),
+                                              ),
+                                            ] else ...[
+                                              if (hasModifiedFiles || isReviewing) ...[
+                                                ComposerReviewButton(
+                                                  label: strings.composerReviewChangesLabel(changeCount),
+                                                  showLabel: rowBox.maxWidth >= kComposerReviewLabelMinRowWidth,
+                                                  reviewing: isReviewing,
+                                                  enabledTooltip: strings.composerReviewChangesTooltip(isReviewing),
+                                                  disabledTooltip: strings.composerReviewChangesNoneTooltip,
+                                                  onPressed: !hasModifiedFiles
+                                                      ? null
+                                                      : () => ref
+                                                            .read(isReviewingChangesProvider.notifier)
+                                                            .update((v) => !v),
+                                                ),
+                                                const SizedBox(width: FrameSpace.x1),
+                                              ],
+                                              Tooltip(
+                                                key: const ValueKey('composer-send'),
+                                                message: strings.composerSendTooltip(
+                                                  sendWithEnter: composerSettings.sendWithEnter,
+                                                ),
+                                                child: PressFeedback(
+                                                  child: FilledButton(
+                                                    key: const ValueKey('composer-send-btn'),
+                                                    style: FilledButton.styleFrom(
+                                                      backgroundColor: tokens.accent,
+                                                      foregroundColor: tokens.accentContrast,
+                                                      padding: EdgeInsets.zero,
+                                                      minimumSize: const Size(28, 28),
+                                                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                                      shape: RoundedRectangleBorder(
+                                                        borderRadius: BorderRadius.circular(tokens.radiusSm),
                                                       ),
                                                     ),
-                                                  ],
-                                                ),
-                                                onPressed: isSending
-                                                    ? null
-                                                    : () => _send(
-                                                        streamingBehavior:
-                                                            'followUp',
-                                                      ),
-                                              ),
-                                            ),
-                                          ),
-                                        ] else ...[
-                                          if (hasModifiedFiles ||
-                                              isReviewing) ...[
-                                            ComposerReviewButton(
-                                              label: strings
-                                                  .composerReviewChangesLabel(
-                                                    changeCount,
-                                                  ),
-                                              showLabel:
-                                                  rowBox.maxWidth >=
-                                                  kComposerReviewLabelMinRowWidth,
-                                              reviewing: isReviewing,
-                                              enabledTooltip: strings
-                                                  .composerReviewChangesTooltip(
-                                                    isReviewing,
-                                                  ),
-                                              disabledTooltip: strings
-                                                  .composerReviewChangesNoneTooltip,
-                                              onPressed: !hasModifiedFiles
-                                                  ? null
-                                                  : () => ref
-                                                        .read(
-                                                          isReviewingChangesProvider
-                                                              .notifier,
-                                                        )
-                                                        .update((v) => !v),
-                                            ),
-                                            const SizedBox(
-                                              width: FrameSpace.x1,
-                                            ),
-                                          ],
-                                          Tooltip(
-                                            key: const ValueKey(
-                                              'composer-send',
-                                            ),
-                                            message: strings
-                                                .composerSendTooltip(
-                                                  sendWithEnter:
-                                                      composerSettings
-                                                          .sendWithEnter,
-                                                ),
-                                            child: PressFeedback(
-                                              child: FilledButton(
-                                                key: const ValueKey(
-                                                  'composer-send-btn',
-                                                ),
-                                                style: FilledButton.styleFrom(
-                                                  backgroundColor:
-                                                      tokens.accent,
-                                                  foregroundColor:
-                                                      tokens.accentContrast,
-                                                  padding: EdgeInsets.zero,
-                                                  minimumSize: const Size(
-                                                    28,
-                                                    28,
-                                                  ),
-                                                  tapTargetSize:
-                                                      MaterialTapTargetSize
-                                                          .shrinkWrap,
-                                                  shape: RoundedRectangleBorder(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                          tokens.radiusSm,
-                                                        ),
-                                                  ),
-                                                ),
-                                                onPressed: isSending
-                                                    ? null
-                                                    : () => _send(),
-                                                child: Stack(
-                                                  alignment: Alignment.center,
-                                                  children: [
-                                                    if (isSending)
-                                                      SizedBox(
-                                                        width: 14,
-                                                        height: 14,
-                                                        child:
-                                                            FrameActivityIndicator(
+                                                    onPressed: isSending ? null : () => _send(),
+                                                    child: Stack(
+                                                      alignment: Alignment.center,
+                                                      children: [
+                                                        if (isSending)
+                                                          SizedBox(
+                                                            width: 14,
+                                                            height: 14,
+                                                            child: FrameActivityIndicator(
                                                               size: 14,
                                                               strokeWidth: 2,
-                                                              color: tokens
-                                                                  .accentContrast,
+                                                              color: tokens.accentContrast,
                                                             ),
-                                                      )
-                                                    else
-                                                      Icon(
-                                                        Icons
-                                                            .arrow_upward_outlined,
-                                                        size: FrameSize.icon,
-                                                        color: tokens
-                                                            .accentContrast,
-                                                      ),
-                                                    SizedBox(
-                                                      width: 0,
-                                                      height: 0,
-                                                      child: Text(
-                                                        strings
-                                                            .composerSendLabel,
-                                                        style:
-                                                            FrameText.of(
-                                                              context,
-                                                            ).caption.copyWith(
-                                                              color: tokens
-                                                                  .background
-                                                                  .withValues(
-                                                                    alpha: 0,
-                                                                  ),
+                                                          )
+                                                        else
+                                                          Icon(
+                                                            Icons.arrow_upward_outlined,
+                                                            size: FrameSize.icon,
+                                                            color: tokens.accentContrast,
+                                                          ),
+                                                        SizedBox(
+                                                          width: 0,
+                                                          height: 0,
+                                                          child: Text(
+                                                            strings.composerSendLabel,
+                                                            style: FrameText.of(context).caption.copyWith(
+                                                              color: tokens.background.withValues(alpha: 0),
                                                             ),
-                                                      ),
-                                                    ),
-                                                    if (isSending)
-                                                      const SizedBox(
-                                                        width: 0,
-                                                        height: 0,
-                                                        child: Icon(
-                                                          Icons
-                                                              .arrow_upward_outlined,
-                                                          size: 0,
+                                                          ),
                                                         ),
-                                                      ),
-                                                  ],
+                                                        if (isSending)
+                                                          const SizedBox(
+                                                            width: 0,
+                                                            height: 0,
+                                                            child: Icon(Icons.arrow_upward_outlined, size: 0),
+                                                          ),
+                                                      ],
+                                                    ),
+                                                  ),
                                                 ),
                                               ),
-                                            ),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
+                                            ],
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ],
+                                ),
                               ),
-                            ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
                   ),
                 ),
               ),
             ),
           ),
         ),
-      );
+      ),
+    );
   }
 
-  Widget _buildMinimizedBar(
-    FrameTokens tokens,
-    AppStrings strings,
-    bool isStreaming,
-    int? runStartedAt,
-  ) {
-    final isTest = WidgetsBinding.instance.runtimeType.toString().contains(
-      'Test',
-    );
+  Widget _buildMinimizedBar(FrameTokens tokens, AppStrings strings, bool isStreaming, int? runStartedAt) {
+    final isTest = WidgetsBinding.instance.runtimeType.toString().contains('Test');
     return InkWell(
       key: const ValueKey('composer-minimized-bar'),
       borderRadius: _composerRadius(tokens),
@@ -3512,11 +2650,7 @@ class _ComposerState extends ConsumerState<Composer> {
               height: 14,
               child: isTest
                   ? Icon(Icons.sync, size: 14, color: tokens.agentWorking)
-                  : FrameActivityIndicator(
-                      size: 14,
-                      strokeWidth: 1.5,
-                      color: tokens.agentWorking,
-                    ),
+                  : FrameActivityIndicator(size: 14, strokeWidth: 1.5, color: tokens.agentWorking),
             ),
             const SizedBox(width: 10),
             Expanded(
@@ -3524,10 +2658,7 @@ class _ComposerState extends ConsumerState<Composer> {
                 strings.composerAgentAnsweringMinimized,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: FrameText.of(context).label.copyWith(
-                  color: tokens.textSecondary,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: FrameText.of(context).label.copyWith(color: tokens.textSecondary, fontWeight: FontWeight.w500),
               ),
             ),
             _MinimizedElapsedTimer(startedAt: runStartedAt, tokens: tokens),
@@ -3538,25 +2669,16 @@ class _ComposerState extends ConsumerState<Composer> {
                 borderRadius: BorderRadius.circular(tokens.radiusSm),
                 onTap: _interrupt,
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 3,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        Icons.stop_circle_outlined,
-                        size: 13,
-                        color: tokens.signalDanger,
-                      ),
+                      Icon(Icons.stop_circle_outlined, size: 13, color: tokens.signalDanger),
                       const SizedBox(width: 4),
                       Text(
                         strings.composerStopAction,
-                        style: FrameText.of(context).caption.copyWith(
-                          color: tokens.signalDanger,
-                          fontWeight: FontWeight.w600,
-                        ),
+                        style: FrameText.of(context).caption
+                            .copyWith(color: tokens.signalDanger, fontWeight: FontWeight.w600),
                       ),
                     ],
                   ),
@@ -3582,6 +2704,9 @@ class _MinimizedElapsedTimer extends StatefulWidget {
   State<_MinimizedElapsedTimer> createState() => _MinimizedElapsedTimerState();
 }
 
+/// How often the elapsed-time label redraws while a run is in progress.
+const _elapsedRefreshInterval = Duration(seconds: 1);
+
 class _MinimizedElapsedTimerState extends State<_MinimizedElapsedTimer> {
   late final int _fallbackStart = DateTime.now().millisecondsSinceEpoch;
   Timer? _ticker;
@@ -3589,7 +2714,7 @@ class _MinimizedElapsedTimerState extends State<_MinimizedElapsedTimer> {
   @override
   void initState() {
     super.initState();
-    _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+    _ticker = Timer.periodic(_elapsedRefreshInterval, (_) {
       if (mounted) setState(() {});
     });
   }
@@ -3603,15 +2728,12 @@ class _MinimizedElapsedTimerState extends State<_MinimizedElapsedTimer> {
   @override
   Widget build(BuildContext context) {
     final start = widget.startedAt ?? _fallbackStart;
-    final elapsed = Duration(
-      milliseconds: DateTime.now().millisecondsSinceEpoch - start,
-    );
+    final elapsed = Duration(milliseconds: DateTime.now().millisecondsSinceEpoch - start);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Text(
         formatRunElapsed(elapsed),
-        style: FrameText.of(context).caption
-            .copyWith(color: widget.tokens.textMuted),
+        style: FrameText.of(context).caption.copyWith(color: widget.tokens.textMuted),
       ),
     );
   }
@@ -3646,11 +2768,7 @@ class _GlowPointerPainter extends CustomPainter {
       ..shader = ui.Gradient.radial(
         pos,
         radius,
-        [
-          glowColor.withValues(alpha: 0.22),
-          glowColor.withValues(alpha: 0.08),
-          glowColor.withValues(alpha: 0.0),
-        ],
+        [glowColor.withValues(alpha: 0.22), glowColor.withValues(alpha: 0.08), glowColor.withValues(alpha: 0.0)],
         const [0.0, 0.45, 1.0],
       );
 
@@ -3663,11 +2781,7 @@ class _GlowPointerPainter extends CustomPainter {
       ..shader = ui.Gradient.radial(
         pos,
         radius,
-        [
-          borderColor.withValues(alpha: 0.85),
-          glowColor.withValues(alpha: 0.4),
-          glowColor.withValues(alpha: 0.0),
-        ],
+        [borderColor.withValues(alpha: 0.85), glowColor.withValues(alpha: 0.4), glowColor.withValues(alpha: 0.0)],
         const [0.0, 0.5, 1.0],
       );
 

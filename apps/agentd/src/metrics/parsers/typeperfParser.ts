@@ -36,16 +36,16 @@ export function parseTypeperfHeader(headerLine: string): TypeperfColumnMapping[]
   const mappings: TypeperfColumnMapping[] = [];
 
   for (let i = 1; i < cols.length; i++) {
-    const col = cols[i];
+    const col = cols[i] ?? '';
     const engineMatch = col.match(/GPU Engine\(([^)]+)\)/i);
-    const instanceName = engineMatch ? engineMatch[1] : col;
+    const instanceName = engineMatch?.[1] ?? col;
 
     // Pattern: pid_.._luid_X_phys_N_eng_M_engtype_T
     const match = instanceName.match(/luid_([a-z0-9_]+?)_phys_(\d+)_eng_(\d+)/i);
     if (match) {
-      const luid = match[1];
-      const phys = match[2];
-      const eng = match[3];
+      const luid = match[1] ?? '';
+      const phys = match[2] ?? '';
+      const eng = match[3] ?? '';
       const engineKey = `${luid}_phys_${phys}_eng_${eng}`;
       mappings.push({ colIndex: i, engineKey });
     }
@@ -54,10 +54,7 @@ export function parseTypeperfHeader(headerLine: string): TypeperfColumnMapping[]
   return mappings;
 }
 
-export function parseTypeperfRow(
-  rowLine: string,
-  mappings: TypeperfColumnMapping[]
-): number | null {
+export function parseTypeperfRow(rowLine: string, mappings: TypeperfColumnMapping[]): number | null {
   const trimmed = rowLine.trim();
   if (!trimmed || mappings.length === 0) return null;
   const cols = splitCsvLine(trimmed);
@@ -68,7 +65,7 @@ export function parseTypeperfRow(
 
   for (const m of mappings) {
     if (m.colIndex < cols.length) {
-      const val = parseFloat(cols[m.colIndex]);
+      const val = parseFloat(cols[m.colIndex] ?? '');
       if (!isNaN(val) && isFinite(val)) {
         hasValidNumber = true;
         engineSums.set(m.engineKey, (engineSums.get(m.engineKey) || 0) + Math.max(0, val));

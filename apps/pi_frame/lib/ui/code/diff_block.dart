@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,6 +18,9 @@ class DiffBlock extends StatefulWidget {
   @override
   State<DiffBlock> createState() => _DiffBlockState();
 }
+
+/// How long the "copied" feedback stays on the copy button.
+const _copiedFeedbackDuration = Duration(seconds: 2);
 
 class _DiffBlockState extends State<DiffBlock> {
   bool _copied = false;
@@ -50,9 +55,11 @@ class _DiffBlockState extends State<DiffBlock> {
     await Clipboard.setData(ClipboardData(text: widget.diffText));
     if (mounted) {
       setState(() => _copied = true);
-      Future.delayed(const Duration(seconds: 2), () {
-        if (mounted) setState(() => _copied = false);
-      });
+      unawaited(
+        Future<void>.delayed(_copiedFeedbackDuration, () {
+          if (mounted) setState(() => _copied = false);
+        }),
+      );
     }
   }
 
@@ -60,8 +67,7 @@ class _DiffBlockState extends State<DiffBlock> {
   Widget build(BuildContext context) {
     final tokens = context.tokens;
     final hasScope =
-        context.findAncestorWidgetOfExactType<UncontrolledProviderScope>() !=
-            null ||
+        context.findAncestorWidgetOfExactType<UncontrolledProviderScope>() != null ||
         context.findAncestorWidgetOfExactType<ProviderScope>() != null;
     if (hasScope) {
       return Consumer(
@@ -71,14 +77,10 @@ class _DiffBlockState extends State<DiffBlock> {
         },
       );
     }
-    return _buildContent(context, tokens, const AppStrings(AppLanguage.it));
+    return _buildContent(context, tokens, const AppStrings(AppLanguage.defaultLanguage));
   }
 
-  Widget _buildContent(
-    BuildContext context,
-    FrameTokens tokens,
-    AppStrings strings,
-  ) {
+  Widget _buildContent(BuildContext context, FrameTokens tokens, AppStrings strings) {
     _parseDiffIfNeeded(widget.diffText);
     final lines = _cachedLines;
     final additions = _cachedAdditions;
@@ -105,9 +107,7 @@ class _DiffBlockState extends State<DiffBlock> {
                   topLeft: Radius.circular(tokens.radiusSm),
                   topRight: Radius.circular(tokens.radiusSm),
                 ),
-                border: Border(
-                  bottom: BorderSide(color: tokens.border, width: 1),
-                ),
+                border: Border(bottom: BorderSide(color: tokens.border, width: 1)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -116,11 +116,7 @@ class _DiffBlockState extends State<DiffBlock> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.difference_outlined,
-                          size: 14,
-                          color: tokens.textSecondary,
-                        ),
+                        Icon(Icons.difference_outlined, size: 14, color: tokens.textSecondary),
                         const SizedBox(width: 6),
                         // A long file name is cut, so the copy button stays on
                         // screen in a narrow pane.
@@ -148,8 +144,7 @@ class _DiffBlockState extends State<DiffBlock> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                        if (additions > 0 && deletions > 0)
-                          const SizedBox(width: 6),
+                        if (additions > 0 && deletions > 0) const SizedBox(width: 6),
                         if (deletions > 0)
                           Text(
                             '-$deletions',
@@ -167,27 +162,20 @@ class _DiffBlockState extends State<DiffBlock> {
                     onTap: _copyToClipboard,
                     borderRadius: BorderRadius.circular(4),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(
                             _copied ? Icons.check_outlined : Icons.copy_outlined,
                             size: 12,
-                            color: _copied
-                                ? tokens.success
-                                : tokens.textSecondary,
+                            color: _copied ? tokens.success : tokens.textSecondary,
                           ),
                           const SizedBox(width: 4),
                           Text(
                             _copied ? strings.copiedAction : strings.copyAction,
                             style: TextStyle(
-                              color: _copied
-                                  ? tokens.textPrimary
-                                  : tokens.textSecondary,
+                              color: _copied ? tokens.textPrimary : tokens.textSecondary,
                               fontSize: 11,
                               fontFamily: tokens.monoFontFamily,
                             ),
@@ -203,9 +191,7 @@ class _DiffBlockState extends State<DiffBlock> {
             // Diff lines
             LayoutBuilder(
               builder: (context, constraints) {
-                final minWidth = constraints.hasBoundedWidth
-                    ? constraints.maxWidth
-                    : 0.0;
+                final minWidth = constraints.hasBoundedWidth ? constraints.maxWidth : 0.0;
                 return SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: ConstrainedBox(
@@ -213,9 +199,7 @@ class _DiffBlockState extends State<DiffBlock> {
                     child: IntrinsicWidth(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: lines
-                            .map((line) => _buildDiffLine(line, tokens, lang))
-                            .toList(),
+                        children: lines.map((line) => _buildDiffLine(line, tokens, lang)).toList(),
                       ),
                     ),
                   ),
@@ -247,10 +231,7 @@ class _DiffBlockState extends State<DiffBlock> {
               WidgetSpan(
                 alignment: PlaceholderAlignment.middle,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 5,
-                    vertical: 1,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                   margin: const EdgeInsets.only(right: 6),
                   decoration: BoxDecoration(
                     color: tokens.accent.withValues(alpha: 0.15),
@@ -285,11 +266,9 @@ class _DiffBlockState extends State<DiffBlock> {
 
     final trimmed = line.trimLeft();
     final isAddition =
-        (line.startsWith('+') && !line.startsWith('+++')) ||
-        (trimmed.startsWith('+') && !trimmed.startsWith('+++'));
+        (line.startsWith('+') && !line.startsWith('+++')) || (trimmed.startsWith('+') && !trimmed.startsWith('+++'));
     final isDeletion =
-        (line.startsWith('-') && !line.startsWith('---')) ||
-        (trimmed.startsWith('-') && !trimmed.startsWith('---'));
+        (line.startsWith('-') && !line.startsWith('---')) || (trimmed.startsWith('-') && !trimmed.startsWith('---'));
     final isHeader = line.startsWith('+++') || line.startsWith('---');
 
     final Color bg;
@@ -359,11 +338,7 @@ class _DiffBlockState extends State<DiffBlock> {
               ),
             ...codeSpans,
           ],
-          style: TextStyle(
-            fontFamily: tokens.monoFontFamily,
-            fontSize: 12,
-            height: 1.4,
-          ),
+          style: TextStyle(fontFamily: tokens.monoFontFamily, fontSize: 12, height: 1.4),
         ),
       ),
     );

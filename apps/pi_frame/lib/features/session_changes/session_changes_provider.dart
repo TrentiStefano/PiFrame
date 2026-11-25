@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_workspace.dart';
@@ -8,18 +11,12 @@ import '../../domain/session/agent_status.dart';
 final isReviewingChangesProvider = StateProvider<bool>((ref) => false);
 
 /// Diff view display mode: single unified column vs two split columns.
-enum DiffViewMode {
-  singleColumn,
-  twoColumn,
-}
+enum DiffViewMode { singleColumn, twoColumn }
 
-final diffViewModeProvider = StateProvider<DiffViewMode>(
-  (ref) => DiffViewMode.singleColumn,
-);
+final diffViewModeProvider = StateProvider<DiffViewMode>((ref) => DiffViewMode.singleColumn);
 
 /// Set of file paths currently expanded in the Review Changes pane.
-final expandedReviewFilesProvider =
-    StateProvider.family<Set<String>, String>((ref, sessionId) => {});
+final expandedReviewFilesProvider = StateProvider.family<Set<String>, String>((ref, sessionId) => {});
 
 /// Represents a single file that has been modified.
 class SessionChangedFile {
@@ -52,17 +49,16 @@ class SessionChangedFile {
     String? status,
     String? diff,
     bool? isLoadingDiff,
-  }) =>
-      SessionChangedFile(
-        path: path ?? this.path,
-        filename: filename ?? this.filename,
-        directory: directory ?? this.directory,
-        additions: additions ?? this.additions,
-        deletions: deletions ?? this.deletions,
-        status: status ?? this.status,
-        diff: diff ?? this.diff,
-        isLoadingDiff: isLoadingDiff ?? this.isLoadingDiff,
-      );
+  }) => SessionChangedFile(
+    path: path ?? this.path,
+    filename: filename ?? this.filename,
+    directory: directory ?? this.directory,
+    additions: additions ?? this.additions,
+    deletions: deletions ?? this.deletions,
+    status: status ?? this.status,
+    diff: diff ?? this.diff,
+    isLoadingDiff: isLoadingDiff ?? this.isLoadingDiff,
+  );
 }
 
 /// State of the session changed files.
@@ -87,23 +83,21 @@ class SessionChangesState {
     int? totalAdditions,
     int? totalDeletions,
     String? error,
-  }) =>
-      SessionChangesState(
-        isLoading: isLoading ?? this.isLoading,
-        files: files ?? this.files,
-        totalAdditions: totalAdditions ?? this.totalAdditions,
-        totalDeletions: totalDeletions ?? this.totalDeletions,
-        error: error,
-      );
+  }) => SessionChangesState(
+    isLoading: isLoading ?? this.isLoading,
+    files: files ?? this.files,
+    totalAdditions: totalAdditions ?? this.totalAdditions,
+    totalDeletions: totalDeletions ?? this.totalDeletions,
+    error: error,
+  );
 }
 
 class SessionChangesNotifier extends StateNotifier<SessionChangesState> {
   final Ref ref;
   final String sessionId;
 
-  SessionChangesNotifier(this.ref, this.sessionId)
-      : super(const SessionChangesState()) {
-    refresh();
+  SessionChangesNotifier(this.ref, this.sessionId) : super(const SessionChangesState()) {
+    unawaited(refresh());
   }
 
   static String _extractFileName(String path) {
@@ -178,21 +172,13 @@ class SessionChangesNotifier extends StateNotifier<SessionChangesState> {
           directory: _extractDirectory(path),
           additions: add,
           deletions: del,
-          status: f['status'] == 'untracked'
-              ? 'added'
-              : (f['status']?.toString() ?? 'modified'),
+          status: f['status'] == 'untracked' ? 'added' : (f['status']?.toString() ?? 'modified'),
         );
       }
 
-      final list = fileMap.values.toList()
-        ..sort((a, b) => a.path.toLowerCase().compareTo(b.path.toLowerCase()));
+      final list = fileMap.values.toList()..sort((a, b) => a.path.toLowerCase().compareTo(b.path.toLowerCase()));
 
-      state = state.copyWith(
-        isLoading: false,
-        files: list,
-        totalAdditions: totalAdd,
-        totalDeletions: totalDel,
-      );
+      state = state.copyWith(isLoading: false, files: list, totalAdditions: totalAdd, totalDeletions: totalDel);
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
@@ -226,10 +212,7 @@ class SessionChangesNotifier extends StateNotifier<SessionChangesState> {
       final finalFiles = List<SessionChangedFile>.from(state.files);
       final finalIdx = finalFiles.indexWhere((f) => f.path == filePath);
       if (finalIdx >= 0) {
-        finalFiles[finalIdx] = finalFiles[finalIdx].copyWith(
-          diff: diffText,
-          isLoadingDiff: false,
-        );
+        finalFiles[finalIdx] = finalFiles[finalIdx].copyWith(diff: diffText, isLoadingDiff: false);
         state = state.copyWith(files: finalFiles);
       }
     } catch (_) {
@@ -237,29 +220,31 @@ class SessionChangesNotifier extends StateNotifier<SessionChangesState> {
       final finalFiles = List<SessionChangedFile>.from(state.files);
       final finalIdx = finalFiles.indexWhere((f) => f.path == filePath);
       if (finalIdx >= 0) {
-        finalFiles[finalIdx] = finalFiles[finalIdx].copyWith(
-          isLoadingDiff: false,
-          diff: strings.cannotLoadFileDiff,
-        );
+        finalFiles[finalIdx] = finalFiles[finalIdx].copyWith(isLoadingDiff: false, diff: strings.cannotLoadFileDiff);
         state = state.copyWith(files: finalFiles);
       }
     }
   }
 }
 
-final sessionChangesProvider = StateNotifierProvider.family<
-    SessionChangesNotifier, SessionChangesState, String>((ref, sessionId) {
+final sessionChangesProvider = StateNotifierProvider.family<SessionChangesNotifier, SessionChangesState, String>((
+  ref,
+  sessionId,
+) {
   return SessionChangesNotifier(ref, sessionId);
 });
 
 /// Indicates whether the session has modified files and the agent is settled.
-final sessionHasModifiedFilesProvider =
-    Provider.family<bool, String>((ref, sessionId) {
-  final isSettled = ref.watch(sessionStateFamily(sessionId).select((session) =>
-      !session.isStreaming &&
-      session.agentStatus != AgentStatus.working &&
-      session.agentStatus != AgentStatus.retrying &&
-      session.agentStatus != AgentStatus.compacting));
+final sessionHasModifiedFilesProvider = Provider.family<bool, String>((ref, sessionId) {
+  final isSettled = ref.watch(
+    sessionStateFamily(sessionId).select(
+      (session) =>
+          !session.isStreaming &&
+          session.agentStatus != AgentStatus.working &&
+          session.agentStatus != AgentStatus.retrying &&
+          session.agentStatus != AgentStatus.compacting,
+    ),
+  );
 
   if (!isSettled) return false;
 

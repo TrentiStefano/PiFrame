@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -8,12 +9,13 @@ class UpdatesPeriodicWatcher extends ConsumerStatefulWidget {
   const UpdatesPeriodicWatcher({super.key});
 
   @override
-  ConsumerState<UpdatesPeriodicWatcher> createState() =>
-      _UpdatesPeriodicWatcherState();
+  ConsumerState<UpdatesPeriodicWatcher> createState() => _UpdatesPeriodicWatcherState();
 }
 
-class _UpdatesPeriodicWatcherState
-    extends ConsumerState<UpdatesPeriodicWatcher> {
+/// How often the updates watcher checks whether an update check is due.
+const _updateDueCheckInterval = Duration(hours: 1);
+
+class _UpdatesPeriodicWatcherState extends ConsumerState<UpdatesPeriodicWatcher> {
   Timer? _timer;
 
   @override
@@ -23,7 +25,7 @@ class _UpdatesPeriodicWatcherState
       _checkIfDue();
     });
     // Check every hour if periodic interval is due
-    _timer = Timer.periodic(const Duration(hours: 1), (_) {
+    _timer = Timer.periodic(_updateDueCheckInterval, (_) {
       _checkIfDue();
     });
   }
@@ -32,7 +34,7 @@ class _UpdatesPeriodicWatcherState
     if (!mounted) return;
     final settings = ref.read(updateSettingsProvider);
     if (settings.shouldCheckNow(DateTime.now())) {
-      ref.read(updateControllerProvider.notifier).checkForUpdates(isManual: false);
+      unawaited(ref.read(updateControllerProvider.notifier).checkForUpdates(isManual: false));
     }
   }
 

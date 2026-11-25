@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+
 import '../../../ui/precision.dart';
+
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -7,7 +9,7 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 import '../../../data/daemon/daemon_providers.dart';
 import '../../../data/language/language_settings.dart';
 import '../../../data/language/strings_workspace.dart';
-import '../../../domain/errors/user_facing_error.dart';
+import '../../../data/errors/user_facing_error_mapping.dart';
 import '../../../ui/code/diff_block.dart';
 import '../../../ui/escape_layers.dart';
 import '../../../ui/frame_dialog.dart';
@@ -33,15 +35,11 @@ class GitDiffTarget {
 }
 
 /// Loads the diff of [path] from the daemon.
-Future<String> _loadDiffText(
-  WidgetRef ref,
-  String sessionId,
-  String path,
-) async {
+Future<String> _loadDiffText(WidgetRef ref, String sessionId, String path) async {
   final client = ref.read(pcpClientProvider);
   if (client == null) throw StateError('daemon not connected');
   final result = await client.getWorkspaceDiff(sessionId, filePath: path);
-  return (result['data']?['diff'] ?? result['diff'])?.toString() ?? '';
+  return ((result['data'] as Map<String, dynamic>?)?['diff'] ?? result['diff'])?.toString() ?? '';
 }
 
 /// "Open in window": the diff of [path] in a dialog. The width follows the
@@ -62,25 +60,13 @@ Future<void> showGitDiffWindowDialog({
       dialog: FrameDialog<void>(
         title: path,
         maxWidth: gitDiffWindowMaxWidth,
-        body: DiffBlock(
-          diffText: diff.isEmpty ? strings.noDifferencesFound : diff,
-          filename: path,
-        ),
-        actions: [
-          FrameDialogAction<void>(
-            label: strings.close,
-            role: FrameDialogActionRole.cancel,
-          ),
-        ],
+        body: DiffBlock(diffText: diff.isEmpty ? strings.noDifferencesFound : diff, filename: path),
+        actions: [FrameDialogAction<void>(label: strings.close, role: FrameDialogActionRole.cancel)],
       ),
     );
   } catch (error) {
     if (context.mounted) {
-      FrameSnackBar.show(
-        context,
-        message: strings.diffUnavailable(error),
-        isError: true,
-      );
+      FrameSnackBar.show(context, message: strings.diffUnavailable(error), isError: true);
     }
   }
 }
@@ -223,40 +209,28 @@ class _GitDiffPaneState extends ConsumerState<GitDiffPane> {
                 key: const ValueKey('git-diff-next-btn'),
                 icon: Icons.keyboard_arrow_down_outlined,
                 tooltip: strings.gitDiffNextFile,
-                onPressed: index < widget.targets.length - 1
-                    ? () => _step(1, keyboard: false)
-                    : null,
+                onPressed: index < widget.targets.length - 1 ? () => _step(1, keyboard: false) : null,
               ),
               FrameIconAction(
                 key: const ValueKey('git-diff-stage-btn'),
-                icon: target.stagedOnly
-                    ? Icons.remove_circle_outline
-                    : Icons.add_outlined,
+                icon: target.stagedOnly ? Icons.remove_circle_outline : Icons.add_outlined,
                 tooltip: target.stagedOnly
                     ? strings.unstageFileTooltip(target.path)
                     : strings.stageFileTooltip(target.path),
-                onPressed: widget.writesOff
-                    ? null
-                    : () => widget.onStageToggle(target),
+                onPressed: widget.writesOff ? null : () => widget.onStageToggle(target),
               ),
               FrameIconAction(
                 key: const ValueKey('git-diff-discard-btn'),
                 icon: Icons.undo_outlined,
                 tooltip: strings.discardFileTooltip(target.path),
-                onPressed: widget.writesOff
-                    ? null
-                    : () => widget.onDiscard(target.path),
+                onPressed: widget.writesOff ? null : () => widget.onDiscard(target.path),
               ),
               FrameIconAction(
                 key: const ValueKey('git-diff-window-btn'),
                 icon: Icons.open_in_new_outlined,
                 tooltip: strings.gitDiffOpenWindow,
-                onPressed: () => showGitDiffWindowDialog(
-                  context: context,
-                  ref: ref,
-                  sessionId: widget.sessionId,
-                  path: target.path,
-                ),
+                onPressed: () =>
+                    showGitDiffWindowDialog(context: context, ref: ref, sessionId: widget.sessionId, path: target.path),
               ),
             ],
             tabs: Padding(
@@ -299,12 +273,7 @@ class _GitDiffPaneState extends ConsumerState<GitDiffPane> {
 
 /// The loaded diff of one file. Reloads when [revision] changes.
 class _GitDiffFile extends ConsumerStatefulWidget {
-  const _GitDiffFile({
-    super.key,
-    required this.sessionId,
-    required this.path,
-    required this.revision,
-  });
+  const _GitDiffFile({super.key, required this.sessionId, required this.path, required this.revision});
 
   final String sessionId;
   final String path;
@@ -347,19 +316,13 @@ class _GitDiffFileState extends ConsumerState<_GitDiffFile> {
         }
         if (!snapshot.hasData) {
           return Center(
-            child: Text(
-              strings.gitDiffLoading,
-              style: text.body.copyWith(color: tokens.textMuted),
-            ),
+            child: Text(strings.gitDiffLoading, style: text.body.copyWith(color: tokens.textMuted)),
           );
         }
         final diff = snapshot.data!;
         return SingleChildScrollView(
           padding: const EdgeInsets.all(FrameSpace.x2),
-          child: DiffBlock(
-            diffText: diff.isEmpty ? strings.noDifferencesFound : diff,
-            filename: widget.path,
-          ),
+          child: DiffBlock(diffText: diff.isEmpty ? strings.noDifferencesFound : diff, filename: widget.path),
         );
       },
     );
@@ -388,23 +351,13 @@ Future<bool?> showGitDiscardDialog({
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  strings.discardAllChangesWarning,
-                  key: const ValueKey('discard-file-warning'),
-                ),
+                Text(strings.discardAllChangesWarning, key: const ValueKey('discard-file-warning')),
                 const SizedBox(height: FrameSpace.x2),
-                Text(
-                  '$path\n${status?['rootPath'] ?? '—'} · ${status?['branch'] ?? '—'}',
-                ),
+                Text('$path\n${status?['rootPath'] ?? '—'} · ${status?['branch'] ?? '—'}'),
                 const SizedBox(height: FrameSpace.x2),
                 Expanded(
                   child: SingleChildScrollView(
-                    child: DiffBlock(
-                      diffText: diff.isEmpty
-                          ? strings.diffUnavailableShort
-                          : diff,
-                      filename: path,
-                    ),
+                    child: DiffBlock(diffText: diff.isEmpty ? strings.diffUnavailableShort : diff, filename: path),
                   ),
                 ),
               ],
@@ -419,15 +372,18 @@ Future<bool?> showGitDiscardDialog({
           onPressed: () => Navigator.pop(dialogContext, false),
           child: Text(strings.cancel),
         ),
-        PressFeedback(enabled: true, child: FilledButton(
-          key: const ValueKey('discard-file-confirm-btn'),
-          style: FilledButton.styleFrom(
-            backgroundColor: dialogContext.tokens.danger,
-            foregroundColor: dialogContext.tokens.surface,
+        PressFeedback(
+          enabled: true,
+          child: FilledButton(
+            key: const ValueKey('discard-file-confirm-btn'),
+            style: FilledButton.styleFrom(
+              backgroundColor: dialogContext.tokens.danger,
+              foregroundColor: dialogContext.tokens.surface,
+            ),
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(strings.discardChangesBtn),
           ),
-          onPressed: () => Navigator.pop(dialogContext, true),
-          child: Text(strings.discardChangesBtn),
-        )),
+        ),
       ],
     ),
   );

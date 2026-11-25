@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
+
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_workspace.dart';
 import '../../ui/code/syntax_highlighter.dart';
@@ -12,11 +13,7 @@ class ReviewFileDiffViewer extends ConsumerStatefulWidget {
   final SessionChangedFile file;
   final DiffViewMode mode;
 
-  const ReviewFileDiffViewer({
-    super.key,
-    required this.file,
-    required this.mode,
-  });
+  const ReviewFileDiffViewer({super.key, required this.file, required this.mode});
 
   @override
   ConsumerState<ReviewFileDiffViewer> createState() => _ReviewFileDiffViewerState();
@@ -31,7 +28,7 @@ class _ReviewFileDiffViewerState extends ConsumerState<ReviewFileDiffViewer> {
     try {
       return ref.watch(appStringsProvider);
     } catch (_) {
-      return const AppStrings(AppLanguage.it);
+      return const AppStrings(AppLanguage.defaultLanguage);
     }
   }
 
@@ -61,10 +58,7 @@ class _ReviewFileDiffViewerState extends ConsumerState<ReviewFileDiffViewer> {
               child: FrameActivityIndicator(size: FrameSize.icon, color: tokens.accent),
             ),
             const SizedBox(width: 8),
-            Text(
-              strings.loadingDiff,
-              style: TextStyle(color: tokens.textMuted, fontSize: 11),
-            ),
+            Text(strings.loadingDiff, style: TextStyle(color: tokens.textMuted, fontSize: 11)),
           ],
         ),
       );
@@ -76,14 +70,8 @@ class _ReviewFileDiffViewerState extends ConsumerState<ReviewFileDiffViewer> {
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
         alignment: Alignment.centerLeft,
         child: Text(
-          widget.file.diff?.isNotEmpty == true
-              ? widget.file.diff!
-              : strings.noDiffToShow,
-          style: TextStyle(
-            color: tokens.textMuted,
-            fontSize: 11,
-            fontFamily: tokens.monoFontFamily,
-          ),
+          widget.file.diff?.isNotEmpty == true ? widget.file.diff! : strings.noDiffToShow,
+          style: TextStyle(color: tokens.textMuted, fontSize: 11, fontFamily: tokens.monoFontFamily),
         ),
       );
     }
@@ -104,11 +92,7 @@ class _ReviewFileDiffViewerState extends ConsumerState<ReviewFileDiffViewer> {
     );
   }
 
-  Widget _buildSingleColumnDiff(
-    ParsedDiff parsed,
-    FrameTokens tokens,
-    String lang,
-  ) {
+  Widget _buildSingleColumnDiff(ParsedDiff parsed, FrameTokens tokens, String lang) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: IntrinsicWidth(
@@ -119,13 +103,11 @@ class _ReviewFileDiffViewerState extends ConsumerState<ReviewFileDiffViewer> {
               if (hIndex > 0)
                 _buildCollapsedGap(
                   hIndex,
-                  parsed.hunks[hIndex - 1].newStart +
-                      parsed.hunks[hIndex - 1].newCount,
+                  parsed.hunks[hIndex - 1].newStart + parsed.hunks[hIndex - 1].newCount,
                   parsed.hunks[hIndex].newStart,
                   tokens,
                 ),
-              for (final line in parsed.hunks[hIndex].lines)
-                _buildSingleColumnLine(line, tokens, lang),
+              for (final line in parsed.hunks[hIndex].lines) _buildSingleColumnLine(line, tokens, lang),
             ],
           ],
         ),
@@ -133,17 +115,11 @@ class _ReviewFileDiffViewerState extends ConsumerState<ReviewFileDiffViewer> {
     );
   }
 
-  Widget _buildSingleColumnLine(
-    DiffLine line,
-    FrameTokens tokens,
-    String lang,
-  ) {
+  Widget _buildSingleColumnLine(DiffLine line, FrameTokens tokens, String lang) {
     final isAdd = line.type == DiffLineType.addition;
     final isDel = line.type == DiffLineType.deletion;
 
-    final bg = isAdd
-        ? tokens.diffAddedBg
-        : (isDel ? tokens.diffRemovedBg : null);
+    final bg = isAdd ? tokens.diffAddedBg : (isDel ? tokens.diffRemovedBg : null);
 
     final prefixColor = isAdd
         ? tokens.diffAddedFg
@@ -155,9 +131,7 @@ class _ReviewFileDiffViewerState extends ConsumerState<ReviewFileDiffViewer> {
       line.text,
       lang,
       tokens,
-      defaultColor: isAdd
-          ? tokens.diffAddedFg
-          : (isDel ? tokens.diffRemovedFg : tokens.diffContextFg),
+      defaultColor: isAdd ? tokens.diffAddedFg : (isDel ? tokens.diffRemovedFg : tokens.diffContextFg),
     );
 
     return Container(
@@ -207,22 +181,14 @@ class _ReviewFileDiffViewerState extends ConsumerState<ReviewFileDiffViewer> {
           // Code content
           Text.rich(
             TextSpan(children: codeSpans),
-            style: TextStyle(
-              fontFamily: tokens.monoFontFamily,
-              fontSize: 11.5,
-              height: 1.35,
-            ),
+            style: TextStyle(fontFamily: tokens.monoFontFamily, fontSize: 11.5, height: 1.35),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildTwoColumnDiff(
-    ParsedDiff parsed,
-    FrameTokens tokens,
-    String lang,
-  ) {
+  Widget _buildTwoColumnDiff(ParsedDiff parsed, FrameTokens tokens, String lang) {
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: IntrinsicWidth(
@@ -233,13 +199,11 @@ class _ReviewFileDiffViewerState extends ConsumerState<ReviewFileDiffViewer> {
               if (hIndex > 0)
                 _buildCollapsedGap(
                   hIndex,
-                  parsed.hunks[hIndex - 1].newStart +
-                      parsed.hunks[hIndex - 1].newCount,
+                  parsed.hunks[hIndex - 1].newStart + parsed.hunks[hIndex - 1].newCount,
                   parsed.hunks[hIndex].newStart,
                   tokens,
                 ),
-              for (final row in parsed.hunks[hIndex].toSplitRows())
-                _buildTwoColumnRow(row, tokens, lang),
+              for (final row in parsed.hunks[hIndex].toSplitRows()) _buildTwoColumnRow(row, tokens, lang),
             ],
           ],
         ),
@@ -247,21 +211,13 @@ class _ReviewFileDiffViewerState extends ConsumerState<ReviewFileDiffViewer> {
     );
   }
 
-  Widget _buildTwoColumnRow(
-    SplitDiffRow row,
-    FrameTokens tokens,
-    String lang,
-  ) {
+  Widget _buildTwoColumnRow(SplitDiffRow row, FrameTokens tokens, String lang) {
     final left = row.left;
     final right = row.right;
 
-    final leftBg = left?.type == DiffLineType.deletion
-        ? tokens.diffRemovedBg
-        : null;
+    final leftBg = left?.type == DiffLineType.deletion ? tokens.diffRemovedBg : null;
 
-    final rightBg = right?.type == DiffLineType.addition
-        ? tokens.diffAddedBg
-        : null;
+    final rightBg = right?.type == DiffLineType.addition ? tokens.diffAddedBg : null;
 
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -295,16 +251,10 @@ class _ReviewFileDiffViewerState extends ConsumerState<ReviewFileDiffViewer> {
                         left.text,
                         lang,
                         tokens,
-                        defaultColor: left.type == DiffLineType.deletion
-                            ? tokens.diffRemovedFg
-                            : tokens.diffContextFg,
+                        defaultColor: left.type == DiffLineType.deletion ? tokens.diffRemovedFg : tokens.diffContextFg,
                       ),
                     ),
-                    style: TextStyle(
-                      fontFamily: tokens.monoFontFamily,
-                      fontSize: 11.5,
-                      height: 1.35,
-                    ),
+                    style: TextStyle(fontFamily: tokens.monoFontFamily, fontSize: 11.5, height: 1.35),
                   ),
                 )
               else
@@ -343,16 +293,10 @@ class _ReviewFileDiffViewerState extends ConsumerState<ReviewFileDiffViewer> {
                         right.text,
                         lang,
                         tokens,
-                        defaultColor: right.type == DiffLineType.addition
-                            ? tokens.diffAddedFg
-                            : tokens.diffContextFg,
+                        defaultColor: right.type == DiffLineType.addition ? tokens.diffAddedFg : tokens.diffContextFg,
                       ),
                     ),
-                    style: TextStyle(
-                      fontFamily: tokens.monoFontFamily,
-                      fontSize: 11.5,
-                      height: 1.35,
-                    ),
+                    style: TextStyle(fontFamily: tokens.monoFontFamily, fontSize: 11.5, height: 1.35),
                   ),
                 )
               else
@@ -364,12 +308,7 @@ class _ReviewFileDiffViewerState extends ConsumerState<ReviewFileDiffViewer> {
     );
   }
 
-  Widget _buildCollapsedGap(
-    int gapIndex,
-    int prevEnd,
-    int nextStart,
-    FrameTokens tokens,
-  ) {
+  Widget _buildCollapsedGap(int gapIndex, int prevEnd, int nextStart, FrameTokens tokens) {
     final strings = _getStrings();
     final count = (nextStart - prevEnd).clamp(1, 100000);
     final isExpanded = _expandedHunkGaps.contains(gapIndex);
@@ -390,10 +329,7 @@ class _ReviewFileDiffViewerState extends ConsumerState<ReviewFileDiffViewer> {
             children: [
               Text(
                 isExpanded ? strings.linesExpanded : strings.moreLines(count),
-                style: FrameText.of(context).mono.copyWith(
-                  color: tokens.textSecondary,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: FrameText.of(context).mono.copyWith(color: tokens.textSecondary, fontWeight: FontWeight.w500),
               ),
               const SizedBox(width: 8),
               _buildSmallExpandBtn('+10', () {
@@ -410,11 +346,7 @@ class _ReviewFileDiffViewerState extends ConsumerState<ReviewFileDiffViewer> {
     );
   }
 
-  Widget _buildSmallExpandBtn(
-    String label,
-    VoidCallback onTap,
-    FrameTokens tokens,
-  ) {
+  Widget _buildSmallExpandBtn(String label, VoidCallback onTap, FrameTokens tokens) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(tokens.radiusSm),
@@ -427,10 +359,7 @@ class _ReviewFileDiffViewerState extends ConsumerState<ReviewFileDiffViewer> {
         ),
         child: Text(
           label,
-          style: FrameText.of(context).caption.copyWith(
-            color: tokens.textMuted,
-            fontWeight: FontWeight.bold,
-          ),
+          style: FrameText.of(context).caption.copyWith(color: tokens.textMuted, fontWeight: FontWeight.bold),
         ),
       ),
     );

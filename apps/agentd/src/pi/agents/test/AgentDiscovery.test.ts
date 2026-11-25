@@ -3,11 +3,7 @@ import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import {
-  detectSubagentPackages,
-  discoverAgents,
-  displayPath,
-} from '../agentDiscovery.js';
+import { detectSubagentPackages, discoverAgents, displayPath } from '../agentDiscovery.js';
 
 function createTempDir(prefix: string): { dir: string; cleanup: () => void } {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -17,7 +13,7 @@ function createTempDir(prefix: string): { dir: string; cleanup: () => void } {
       try {
         fs.rmSync(dir, { recursive: true, force: true });
       } catch {}
-    },
+    }
   };
 }
 
@@ -33,19 +29,16 @@ test('detectSubagentPackages: detects installed nicobailon and tintinweb package
     // 1. Initially neither installed
     const res1 = detectSubagentPackages(tempAgentDir, {});
     assert.equal(res1.packages.length, 2);
-    assert.equal(res1.packages[0].id, 'pi-subagents');
-    assert.equal(res1.packages[0].installed, false);
-    assert.equal(res1.packages[0].version, null);
-    assert.equal(res1.packages[1].id, '@tintinweb/pi-subagents');
-    assert.equal(res1.packages[1].installed, false);
+    assert.equal(res1.packages[0]!.id, 'pi-subagents');
+    assert.equal(res1.packages[0]!.installed, false);
+    assert.equal(res1.packages[0]!.version, null);
+    assert.equal(res1.packages[1]!.id, '@tintinweb/pi-subagents');
+    assert.equal(res1.packages[1]!.installed, false);
 
     // 2. Install fake nicobailon package
     const nicoDir = path.join(tempAgentDir, 'npm', 'node_modules', 'pi-subagents');
     fs.mkdirSync(nicoDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(nicoDir, 'package.json'),
-      JSON.stringify({ name: 'pi-subagents', version: '0.9.5' })
-    );
+    fs.writeFileSync(path.join(nicoDir, 'package.json'), JSON.stringify({ name: 'pi-subagents', version: '0.9.5' }));
 
     const res2 = detectSubagentPackages(tempAgentDir, {});
     const nicoPkg = res2.packages.find((p) => p.id === 'pi-subagents');
@@ -55,13 +48,7 @@ test('detectSubagentPackages: detects installed nicobailon and tintinweb package
     assert.equal(res2.nicobailonDir, nicoDir);
 
     // 3. Install fake tintinweb package
-    const tintinDir = path.join(
-      tempAgentDir,
-      'npm',
-      'node_modules',
-      '@tintinweb',
-      'pi-subagents'
-    );
+    const tintinDir = path.join(tempAgentDir, 'npm', 'node_modules', '@tintinweb', 'pi-subagents');
     fs.mkdirSync(tintinDir, { recursive: true });
     fs.writeFileSync(
       path.join(tintinDir, 'package.json'),
@@ -88,10 +75,7 @@ test('discoverAgents: discovers nicobailon agents with external CLI profile and 
     const nicoDir = path.join(tempAgentDir, 'npm', 'node_modules', 'pi-subagents');
     const nicoAgentsDir = path.join(nicoDir, 'agents');
     fs.mkdirSync(nicoAgentsDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(nicoDir, 'package.json'),
-      JSON.stringify({ name: 'pi-subagents', version: '0.9.5' })
-    );
+    fs.writeFileSync(path.join(nicoDir, 'package.json'), JSON.stringify({ name: 'pi-subagents', version: '0.9.5' }));
 
     // worker.md (builtin)
     fs.writeFileSync(
@@ -205,10 +189,7 @@ test('discoverAgents: user agent shadows builtin package agent', () => {
     const nicoDir = path.join(tempAgentDir, 'npm', 'node_modules', 'pi-subagents');
     const nicoAgentsDir = path.join(nicoDir, 'agents');
     fs.mkdirSync(nicoAgentsDir, { recursive: true });
-    fs.writeFileSync(
-      path.join(nicoDir, 'package.json'),
-      JSON.stringify({ name: 'pi-subagents', version: '0.9.5' })
-    );
+    fs.writeFileSync(path.join(nicoDir, 'package.json'), JSON.stringify({ name: 'pi-subagents', version: '0.9.5' }));
 
     fs.writeFileSync(
       path.join(nicoAgentsDir, 'worker.md'),

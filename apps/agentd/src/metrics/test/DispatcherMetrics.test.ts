@@ -1,6 +1,5 @@
 import test from 'node:test';
 import * as assert from 'node:assert/strict';
-import { EventEmitter } from 'node:events';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import * as fs from 'node:fs';
@@ -13,21 +12,7 @@ import { RemoteManager } from '../../remote/RemoteManager.js';
 import { DEFAULT_CONFIG } from '../../config/config.js';
 import { SystemMetricsService } from '../SystemMetricsService.js';
 import { NullGpuProvider } from '../gpu/NullGpuProvider.js';
-
-class MockWebSocket extends EventEmitter {
-  public readyState = 1;
-  public sentMessages: string[] = [];
-
-  public send(data: string, cb?: () => void): void {
-    this.sentMessages.push(data);
-    if (cb) cb();
-  }
-
-  public close(): void {
-    this.readyState = 3;
-    this.emit('close');
-  }
-}
+import { MockWebSocket, timerHandle } from './fakes.js';
 
 function createSetup() {
   const manager = new ConnectionManager();
@@ -44,7 +29,7 @@ function createSetup() {
 
   const metricsService = new SystemMetricsService({
     timerProvider: {
-      setInterval: () => 1 as any,
+      setInterval: () => timerHandle(),
       clearInterval: () => {}
     },
     gpuProvider: new NullGpuProvider(),
@@ -58,7 +43,7 @@ function createSetup() {
   // Local connection
   const localWs = new MockWebSocket();
   const localConn = new Connection({
-    ws: localWs as any,
+    ws: localWs,
     expectedToken: 'tok',
     daemonVersion: '0.1.0',
     startedAt: Date.now(),
@@ -77,7 +62,7 @@ function createSetup() {
   // Remote connection (view mode)
   const remoteViewWs = new MockWebSocket();
   const remoteViewConn = new Connection({
-    ws: remoteViewWs as any,
+    ws: remoteViewWs,
     expectedToken: 'tok',
     daemonVersion: '0.1.0',
     startedAt: Date.now(),
@@ -94,7 +79,7 @@ function createSetup() {
   // Remote connection (control mode)
   const remoteControlWs = new MockWebSocket();
   const remoteControlConn = new Connection({
-    ws: remoteControlWs as any,
+    ws: remoteControlWs,
     expectedToken: 'tok',
     daemonVersion: '0.1.0',
     startedAt: Date.now(),
@@ -110,7 +95,9 @@ function createSetup() {
 
   const cleanup = () => {
     metricsService.stop();
-    try { fs.unlinkSync(tmpDev); } catch {}
+    try {
+      fs.unlinkSync(tmpDev);
+    } catch {}
   };
 
   return {
@@ -185,7 +172,7 @@ test('Dispatcher: rejects extra properties in subscribe / unsubscribe payloads',
       commandId: 'cid_invalid_sub',
       sessionId: '@daemon',
       type: 'system.metrics.subscribe',
-      payload: { extraProperty: 123 } as any
+      payload: { extraProperty: 123 }
     });
 
     const msgs = setup.localWs.sentMessages.map((m) => JSON.parse(m));

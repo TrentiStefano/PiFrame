@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,6 +8,8 @@ import 'package:pi_frame_theme/pi_frame_theme.dart';
 import '../../data/daemon/daemon_providers.dart';
 import '../../data/language/language_settings.dart';
 import '../../data/language/strings_shell.dart';
+import '../../data/platform/file_dialog_service.dart';
+import '../../data/platform/file_system_service.dart';
 import '../../domain/session/session_labels.dart';
 import '../../ui/frame_dialog.dart';
 import '../../ui/frame_icon_action.dart';
@@ -23,13 +24,11 @@ const Duration _validationDelay = FrameMotion.debounce;
 
 /// Asks for the working folder of a new session. Returns the trimmed path, or
 /// null when cancelled. Enter creates when the folder is valid; Escape cancels.
-Future<String?> showNewSessionDialog(
-  BuildContext context, {
-  String initialDirectory = '',
-}) => showFrameDialogBuilder<String>(
-  context: context,
-  builder: (_) => _NewSessionDialog(initialDirectory: initialDirectory),
-);
+Future<String?> showNewSessionDialog(BuildContext context, {String initialDirectory = ''}) =>
+    showFrameDialogBuilder<String>(
+      context: context,
+      builder: (_) => _NewSessionDialog(initialDirectory: initialDirectory),
+    );
 
 class _NewSessionDialog extends ConsumerStatefulWidget {
   const _NewSessionDialog({required this.initialDirectory});
@@ -41,10 +40,8 @@ class _NewSessionDialog extends ConsumerStatefulWidget {
 }
 
 class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
-  late final TextEditingController _controller = TextEditingController(
-    text: widget.initialDirectory,
-  );
-  late FolderProbe _probe = probeFolder(widget.initialDirectory);
+  late final TextEditingController _controller = TextEditingController(text: widget.initialDirectory);
+  late FolderProbe _probe = probeFolder(widget.initialDirectory, ref.read(fileSystemServiceProvider));
   // The text that [_probe] describes. Create stays disabled until they match.
   late String _probedText = widget.initialDirectory.trim();
   Timer? _debounce;
@@ -61,7 +58,7 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
   bool get _canCreate => _probe.isValid && _probedText == _path;
 
   void _runProbe(String text) {
-    final probe = probeFolder(text);
+    final probe = probeFolder(text, ref.read(fileSystemServiceProvider));
     setState(() {
       _probe = probe;
       _probedText = text.trim();
@@ -84,7 +81,7 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
 
   void _submit() {
     _debounce?.cancel();
-    final probe = probeFolder(_path);
+    final probe = probeFolder(_path, ref.read(fileSystemServiceProvider));
     setState(() {
       _probe = probe;
       _probedText = _path;
@@ -94,17 +91,14 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
 
   Future<void> _pickDirectory() async {
     try {
-      final directory = await getDirectoryPath();
+      final directory = await ref.read(fileDialogServiceProvider).pickDirectory();
       if (!mounted || directory == null) return;
       _debounce?.cancel();
       _controller.text = directory;
       _runProbe(directory);
     } catch (error) {
       if (mounted) {
-        FrameSnackBar.show(
-          context,
-          message: ref.read(appStringsProvider).directoryNotAvailable(error),
-        );
+        FrameSnackBar.show(context, message: ref.read(appStringsProvider).directoryNotAvailable(error));
       }
     }
   }
@@ -112,9 +106,7 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
   String? _helperText(AppStrings strings) => switch (_probe.status) {
     FolderStatus.folder => strings.folderFoundNotice,
     FolderStatus.gitRepo =>
-      _probe.branch == null
-          ? strings.gitRepoDetectedPlainNotice
-          : strings.gitRepoDetectedNotice(_probe.branch!),
+      _probe.branch == null ? strings.gitRepoDetectedPlainNotice : strings.gitRepoDetectedNotice(_probe.branch!),
     FolderStatus.unverified => strings.browserPathNotice,
     FolderStatus.empty || FolderStatus.notFound => null,
   };
@@ -124,11 +116,8 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
     final strings = ref.watch(appStringsProvider);
     final tokens = context.tokens;
     final text = FrameText.of(context);
-    final showNotFound =
-        _probe.status == FolderStatus.notFound && _probedText == _path;
-    final folders = recentSessionFolders(
-      ref.watch(sessionListProvider).value ?? const [],
-    );
+    final showNotFound = _probe.status == FolderStatus.notFound && _probedText == _path;
+    final folders = recentSessionFolders(ref.watch(sessionListProvider).value ?? const []);
     final folderNames = folderDisplayNames(folders);
 
     return FrameDialog<String>(
@@ -150,9 +139,7 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
                   decoration: InputDecoration(
                     labelText: strings.workingDirectoryLabel,
                     hintText: strings.folderPathPlaceholder,
-                    errorText: showNotFound
-                        ? strings.folderNotFoundNotice
-                        : null,
+                    errorText: showNotFound ? strings.folderNotFoundNotice : null,
                     helperText: _helperText(strings),
                   ),
                 ),
@@ -175,10 +162,7 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
             const SizedBox(height: FrameSpace.x4),
             Semantics(
               header: true,
-              child: Text(
-                strings.recentFoldersHeader,
-                style: text.label.copyWith(color: tokens.textMuted),
-              ),
+              child: Text(strings.recentFoldersHeader, style: text.label.copyWith(color: tokens.textMuted)),
             ),
             const SizedBox(height: FrameSpace.x1),
             for (final folder in folders)
@@ -186,11 +170,7 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
                 key: ValueKey('new-session-recent-$folder'),
                 name: folderNames[folder] ?? folder,
                 secondary: folder,
-                leading: Icon(
-                  Icons.folder_outlined,
-                  size: FrameSize.icon,
-                  color: tokens.textSecondary,
-                ),
+                leading: Icon(Icons.folder_outlined, size: FrameSize.icon, color: tokens.textSecondary),
                 selected: folder == _path,
                 onTap: () => _selectFolder(folder),
               ),
@@ -198,10 +178,7 @@ class _NewSessionDialogState extends ConsumerState<_NewSessionDialog> {
         ],
       ),
       actions: [
-        FrameDialogAction<String>(
-          label: strings.cancel,
-          role: FrameDialogActionRole.cancel,
-        ),
+        FrameDialogAction<String>(label: strings.cancel, role: FrameDialogActionRole.cancel),
         FrameDialogAction<String>(
           key: const ValueKey('new-session-create'),
           label: strings.createAction,

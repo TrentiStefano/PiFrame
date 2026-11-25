@@ -1,48 +1,33 @@
 import 'dart:convert';
-import 'dart:io';
-import 'package:flutter/foundation.dart';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../data/platform/user_data_service.dart';
+
+const _fileName = 'removed_repos.json';
+
 class RemovedReposNotifier extends StateNotifier<Set<String>> {
-  RemovedReposNotifier() : super(const <String>{}) {
+  final UserDataService? _storage;
+
+  RemovedReposNotifier([UserDataService? storage]) : _storage = storage, super(const <String>{}) {
     _load();
   }
 
-  File? _getStorageFile() {
-    if (kIsWeb) return null;
-    try {
-      final env = Platform.environment;
-      final home = Platform.isWindows
-          ? (env['USERPROFILE'] ?? 'C:\\Users\\Default')
-          : (env['HOME'] ?? '/tmp');
-      final dir = Directory('$home/.piframe');
-      if (!dir.existsSync()) {
-        dir.createSync(recursive: true);
-      }
-      return File('${dir.path}/removed_repos.json');
-    } catch (_) {
-      return null;
-    }
-  }
-
   void _load() {
-    final file = _getStorageFile();
-    if (file != null && file.existsSync()) {
-      try {
-        final content = file.readAsStringSync();
-        final list = (jsonDecode(content) as List?)?.cast<String>() ?? [];
-        state = list.toSet();
-      } catch (_) {}
-    }
+    final content = _storage?.read(_fileName);
+    if (content == null) return;
+    try {
+      final list = (jsonDecode(content) as List?)?.cast<String>() ?? [];
+      state = list.toSet();
+    } catch (_) {}
   }
 
   void _save() {
-    final file = _getStorageFile();
-    if (file != null) {
-      try {
-        file.writeAsStringSync(jsonEncode(state.toList()));
-      } catch (_) {}
-    }
+    final storage = _storage;
+    if (storage == null) return;
+    try {
+      storage.write(_fileName, jsonEncode(state.toList()));
+    } catch (_) {}
   }
 
   void removeRepo(String repoPath) {
@@ -60,7 +45,6 @@ class RemovedReposNotifier extends StateNotifier<Set<String>> {
   }
 }
 
-final removedReposProvider =
-    StateNotifierProvider<RemovedReposNotifier, Set<String>>((ref) {
-  return RemovedReposNotifier();
+final removedReposProvider = StateNotifierProvider<RemovedReposNotifier, Set<String>>((ref) {
+  return RemovedReposNotifier(ref.read(userDataServiceProvider));
 });

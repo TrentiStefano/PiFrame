@@ -5,6 +5,7 @@ import { pipeline } from 'node:stream/promises';
 import { Readable } from 'node:stream';
 import { getPiFrameBaseDir } from '../config/config.js';
 import { BaseTunnelProvider, killProcessTree, type TunnelStartResult } from './TunnelProvider.js';
+import { errorMessage } from '../errors/errors.js';
 
 const START_TIMEOUT_MS = 30_000;
 
@@ -72,17 +73,21 @@ export class CloudflaredTunnelProvider extends BaseTunnelProvider {
     }
 
     const fileStream = fs.createWriteStream(tmpFile, { mode: 0o755 });
-    await pipeline(Readable.fromWeb(res.body as any), fileStream);
+    await pipeline(Readable.fromWeb(res.body), fileStream);
 
     const stat = fs.statSync(tmpFile);
     if (stat.size < 10 * 1024 * 1024) {
-      try { fs.unlinkSync(tmpFile); } catch {}
+      try {
+        fs.unlinkSync(tmpFile);
+      } catch {}
       throw new Error(`Downloaded binary is incomplete or corrupted (${stat.size} bytes)`);
     }
 
     fs.renameSync(tmpFile, destFile);
     if (!isWin) {
-      try { fs.chmodSync(destFile, 0o755); } catch {}
+      try {
+        fs.chmodSync(destFile, 0o755);
+      } catch {}
     }
 
     return destFile;
@@ -112,8 +117,8 @@ export class CloudflaredTunnelProvider extends BaseTunnelProvider {
           windowsHide: true,
           detached: process.platform !== 'win32'
         });
-      } catch (err: any) {
-        this.setState('error', { error: err.message });
+      } catch (err: unknown) {
+        this.setState('error', { error: errorMessage(err) });
         return reject(err);
       }
       this.process = proc;
@@ -147,7 +152,7 @@ export class CloudflaredTunnelProvider extends BaseTunnelProvider {
       proc.on('error', (err) => {
         if (this.process !== proc) return;
         clearTimeout(timer);
-        this.setState('error', { error: err.message, url: null });
+        this.setState('error', { error: errorMessage(err), url: null });
         if (!resolved) {
           resolved = true;
           reject(err);

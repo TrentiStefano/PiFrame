@@ -1,6 +1,8 @@
-import 'dart:io';
-import 'package:flutter/foundation.dart';
 import 'semver.dart';
+
+/// The platform a release installer is chosen for. The app maps the platform
+/// it runs on to one of these (data/update/release_platform.dart).
+enum ReleasePlatform { windows, macOS, linux, web, other }
 
 class ReleaseAsset {
   final String name;
@@ -8,12 +10,7 @@ class ReleaseAsset {
   final int size;
   final String contentType;
 
-  const ReleaseAsset({
-    required this.name,
-    required this.downloadUrl,
-    required this.size,
-    required this.contentType,
-  });
+  const ReleaseAsset({required this.name, required this.downloadUrl, required this.size, required this.contentType});
 
   factory ReleaseAsset.fromJson(Map<String, dynamic> json) {
     return ReleaseAsset(
@@ -31,16 +28,11 @@ class ReleaseAsset {
     'content_type': contentType,
   };
 
-  bool get isWindowsInstaller =>
-      name.toLowerCase().endsWith('.exe');
+  bool get isWindowsInstaller => name.toLowerCase().endsWith('.exe');
 
-  bool get isMacDmg =>
-      name.toLowerCase().endsWith('.dmg');
+  bool get isMacDmg => name.toLowerCase().endsWith('.dmg');
 
-  bool get isMacArm =>
-      isMacDmg &&
-      (name.toLowerCase().contains('arm64') ||
-          name.toLowerCase().contains('aarch64'));
+  bool get isMacArm => isMacDmg && (name.toLowerCase().contains('arm64') || name.toLowerCase().contains('aarch64'));
 
   bool get isMacIntel =>
       isMacDmg &&
@@ -48,8 +40,7 @@ class ReleaseAsset {
           name.toLowerCase().contains('intel') ||
           name.toLowerCase().contains('x86_64'));
 
-  bool get isLinuxDeb =>
-      name.toLowerCase().endsWith('.deb');
+  bool get isLinuxDeb => name.toLowerCase().endsWith('.deb');
 }
 
 class AppRelease {
@@ -73,10 +64,7 @@ class AppRelease {
 
   factory AppRelease.fromJson(Map<String, dynamic> json) {
     final rawAssets = json['assets'] as List? ?? const [];
-    final assets = rawAssets
-        .whereType<Map<String, dynamic>>()
-        .map(ReleaseAsset.fromJson)
-        .toList();
+    final assets = rawAssets.whereType<Map<String, dynamic>>().map(ReleaseAsset.fromJson).toList();
 
     DateTime? publishedAt;
     final publishedStr = json['published_at']?.toString();
@@ -106,73 +94,31 @@ class AppRelease {
     'assets': assets.map((a) => a.toJson()).toList(),
   };
 
-  ReleaseAsset? findPlatformAsset({
-    TargetPlatform? platformOverride,
-    String? archOverride,
-  }) {
-    if (kIsWeb) return null;
-
-    final platform = platformOverride ?? _detectPlatform();
-    final arch = archOverride ?? _detectArch();
+  ReleaseAsset? findPlatformAsset({required ReleasePlatform platform, String arch = 'x64'}) {
+    if (platform == ReleasePlatform.web) return null;
 
     ReleaseAsset? matched;
-    if (platform == TargetPlatform.windows) {
+    if (platform == ReleasePlatform.windows) {
       // Find Inno Setup exe
-      matched = assets.cast<ReleaseAsset?>().firstWhere(
-            (a) => a != null && a.isWindowsInstaller,
-            orElse: () => null,
-          );
-    } else if (platform == TargetPlatform.macOS) {
+      matched = assets.cast<ReleaseAsset?>().firstWhere((a) => a != null && a.isWindowsInstaller, orElse: () => null);
+    } else if (platform == ReleasePlatform.macOS) {
       // Try matching architecture first
       final isArm = arch.contains('arm') || arch.contains('aarch');
       if (isArm) {
-        matched = assets.cast<ReleaseAsset?>().firstWhere(
-              (a) => a != null && a.isMacArm,
-              orElse: () => null,
-            );
+        matched = assets.cast<ReleaseAsset?>().firstWhere((a) => a != null && a.isMacArm, orElse: () => null);
       } else {
-        matched = assets.cast<ReleaseAsset?>().firstWhere(
-              (a) => a != null && a.isMacIntel,
-              orElse: () => null,
-            );
+        matched = assets.cast<ReleaseAsset?>().firstWhere((a) => a != null && a.isMacIntel, orElse: () => null);
       }
       // Fallback to any DMG
-      matched ??= assets.cast<ReleaseAsset?>().firstWhere(
-            (a) => a != null && a.isMacDmg,
-            orElse: () => null,
-          );
-    } else if (platform == TargetPlatform.linux) {
+      matched ??= assets.cast<ReleaseAsset?>().firstWhere((a) => a != null && a.isMacDmg, orElse: () => null);
+    } else if (platform == ReleasePlatform.linux) {
       // Debian installer package
-      matched = assets.cast<ReleaseAsset?>().firstWhere(
-            (a) => a != null && a.isLinuxDeb,
-            orElse: () => null,
-          );
+      matched = assets.cast<ReleaseAsset?>().firstWhere((a) => a != null && a.isLinuxDeb, orElse: () => null);
     }
 
     // Fallback: if no platform-specific installer matched, but an asset is available,
     // return it so single-asset releases and test mocks work cross-platform.
     return matched ?? (assets.isNotEmpty ? assets.first : null);
-  }
-
-  static TargetPlatform _detectPlatform() {
-    try {
-      if (Platform.environment.containsKey('FLUTTER_TEST')) {
-        return defaultTargetPlatform;
-      }
-      if (Platform.isWindows) return TargetPlatform.windows;
-      if (Platform.isMacOS) return TargetPlatform.macOS;
-      if (Platform.isLinux) return TargetPlatform.linux;
-    } catch (_) {}
-    return defaultTargetPlatform;
-  }
-
-  static String _detectArch() {
-    try {
-      final v = Platform.version.toLowerCase();
-      if (v.contains('arm64') || v.contains('aarch64')) return 'arm64';
-      if (v.contains('x64') || v.contains('x86_64')) return 'x64';
-    } catch (_) {}
-    return 'x64';
   }
 }
 
@@ -189,17 +135,6 @@ enum UpdateCheckInterval {
         return const Duration(days: 7);
       case UpdateCheckInterval.monthly:
         return const Duration(days: 30);
-    }
-  }
-
-  String get label {
-    switch (this) {
-      case UpdateCheckInterval.daily:
-        return 'Ogni giorno';
-      case UpdateCheckInterval.weekly:
-        return 'Ogni settimana (consigliato)';
-      case UpdateCheckInterval.monthly:
-        return 'Ogni mese';
     }
   }
 
@@ -223,11 +158,7 @@ class UpdateSettings {
   final UpdateCheckInterval interval;
   final DateTime? lastChecked;
 
-  const UpdateSettings({
-    this.autoCheckEnabled = false,
-    this.interval = UpdateCheckInterval.weekly,
-    this.lastChecked,
-  });
+  const UpdateSettings({this.autoCheckEnabled = false, this.interval = UpdateCheckInterval.weekly, this.lastChecked});
 
   bool shouldCheckNow(DateTime now) {
     if (!autoCheckEnabled) return false;
@@ -280,16 +211,7 @@ class UpdateSettings {
   int get hashCode => Object.hash(autoCheckEnabled, interval, lastChecked);
 }
 
-enum UpdateStatus {
-  idle,
-  checking,
-  upToDate,
-  updateAvailable,
-  downloading,
-  readyToInstall,
-  installing,
-  error,
-}
+enum UpdateStatus { idle, checking, upToDate, updateAvailable, downloading, readyToInstall, installing, error }
 
 class UpdateState {
   final UpdateStatus status;
@@ -316,7 +238,8 @@ class UpdateState {
 
   bool get isChecking => status == UpdateStatus.checking;
   bool get isDownloading => status == UpdateStatus.downloading;
-  bool get hasUpdate => status == UpdateStatus.updateAvailable ||
+  bool get hasUpdate =>
+      status == UpdateStatus.updateAvailable ||
       status == UpdateStatus.downloading ||
       status == UpdateStatus.readyToInstall ||
       status == UpdateStatus.installing;

@@ -6,7 +6,8 @@
   "type": "module",
   "description": "WebSocket fault injection proxy for resilience testing",
   "scripts": {
-    "build": "tsc"
+    "build": "tsc -p tsconfig.json",
+    "test": "pnpm run build && node --test test/relay.test.mjs"
   },
   "dependencies": {
     "ws": "^8.18.0"

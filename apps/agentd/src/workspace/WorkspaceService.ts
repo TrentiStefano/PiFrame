@@ -1,10 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
-import type {
-  WorkspaceListBranchesResult,
-  WorkspaceSwitchBranchResult,
-} from '@piframe/pcp-ts';
+import type { WorkspaceListBranchesResult, WorkspaceSwitchBranchResult } from '@piframe/pcp-ts';
 import {
   checkIsGitRepo,
   getGitDiff,
@@ -18,8 +15,9 @@ import {
   validateBranchName,
   verifyBranchExists,
   type GitStatusResult,
-  type GitSwitchHooks,
+  type GitSwitchHooks
 } from './gitClient.js';
+import { errorCode } from '../errors/errors.js';
 
 type FileInfo = { path: string; sizeBytes: number };
 
@@ -37,8 +35,15 @@ function inside(root: string, target: string): boolean {
 }
 
 function normalizeRelativePath(input: unknown): string {
-  if (typeof input !== 'string' || input.length === 0 || input.includes('\0') || input.includes('\\') ||
-      path.posix.isAbsolute(input) || path.win32.isAbsolute(input) || /^[a-zA-Z]:/.test(input)) {
+  if (
+    typeof input !== 'string' ||
+    input.length === 0 ||
+    input.includes('\0') ||
+    input.includes('\\') ||
+    path.posix.isAbsolute(input) ||
+    path.win32.isAbsolute(input) ||
+    /^[a-zA-Z]:/.test(input)
+  ) {
     throw workspaceError('Path must be a non-empty repository-relative path.', 'WORKSPACE_PATH_INVALID');
   }
   const segments = input.split('/');
@@ -82,7 +87,8 @@ export class WorkspaceService {
     const cached = this.rootCache.get(cwd);
     if (cached && now - cached.at < this.ROOT_TTL_MS) return cached.root;
     const root = checkIsGitRepo(cwd).then((repo) =>
-      repo.isRepo && repo.rootPath ? fs.promises.realpath(repo.rootPath) : null);
+      repo.isRepo && repo.rootPath ? fs.promises.realpath(repo.rootPath) : null
+    );
     // A failed lookup must not be remembered.
     root.catch(() => this.rootCache.delete(cwd));
     this.rootCache.set(cwd, { root, at: now });
@@ -187,8 +193,8 @@ export class WorkspaceService {
             }
             if (!inside(root, await canonicalParent)) return null;
             return { path: relativePath, sizeBytes: entry.size };
-          } catch (error: any) {
-            if (error?.code !== 'ENOENT') throw error;
+          } catch (error: unknown) {
+            if (errorCode(error) !== 'ENOENT') throw error;
             return null;
           }
         })
@@ -207,24 +213,42 @@ export class WorkspaceService {
     return { rootPath: root, files, truncated };
   }
 
-  async readFile(cwd: string, requestedPath: string): Promise<{ rootPath: string; path: string; content: string; revision: string; sizeBytes: number }> {
+  async readFile(
+    cwd: string,
+    requestedPath: string
+  ): Promise<{ rootPath: string; path: string; content: string; revision: string; sizeBytes: number }> {
     const root = await this.resolveRepositoryRoot(cwd);
     const safePath = await this.resolvePath(root, requestedPath, false);
     const stat = await fs.promises.stat(safePath);
     if (!stat.isFile()) throw workspaceError('Only regular text files can be read.', 'WORKSPACE_UNSUPPORTED_FILE');
-    if (stat.size > MAX_FILE_BYTES) throw workspaceError(`File exceeds ${MAX_FILE_BYTES} byte limit.`, 'WORKSPACE_FILE_TOO_LARGE');
+    if (stat.size > MAX_FILE_BYTES)
+      throw workspaceError(`File exceeds ${MAX_FILE_BYTES} byte limit.`, 'WORKSPACE_FILE_TOO_LARGE');
     const bytes = await fs.promises.readFile(safePath);
-    if (bytes.length > MAX_FILE_BYTES) throw workspaceError(`File exceeds ${MAX_FILE_BYTES} byte limit.`, 'WORKSPACE_FILE_TOO_LARGE');
+    if (bytes.length > MAX_FILE_BYTES)
+      throw workspaceError(`File exceeds ${MAX_FILE_BYTES} byte limit.`, 'WORKSPACE_FILE_TOO_LARGE');
     const content = await isTextFile(bytes);
-    return { rootPath: root, path: path.relative(root, safePath).split(path.sep).join('/'), content, revision: revision(bytes), sizeBytes: bytes.length };
+    return {
+      rootPath: root,
+      path: path.relative(root, safePath).split(path.sep).join('/'),
+      content,
+      revision: revision(bytes),
+      sizeBytes: bytes.length
+    };
   }
 
-  async saveFile(cwd: string, requestedPath: string, content: unknown, expectedRevision: unknown, assertCanWrite?: () => void): Promise<{ path: string; revision: string }> {
+  async saveFile(
+    cwd: string,
+    requestedPath: string,
+    content: unknown,
+    expectedRevision: unknown,
+    assertCanWrite?: () => void
+  ): Promise<{ path: string; revision: string }> {
     const root = await this.resolveRepositoryRoot(cwd);
     const relativePath = normalizeRelativePath(requestedPath);
     if (typeof content !== 'string') throw workspaceError('File content must be text.', 'WORKSPACE_INVALID_CONTENT');
     const bytes = Buffer.from(content, 'utf8');
-    if (bytes.length > MAX_FILE_BYTES) throw workspaceError(`File exceeds ${MAX_FILE_BYTES} byte limit.`, 'WORKSPACE_FILE_TOO_LARGE');
+    if (bytes.length > MAX_FILE_BYTES)
+      throw workspaceError(`File exceeds ${MAX_FILE_BYTES} byte limit.`, 'WORKSPACE_FILE_TOO_LARGE');
     if (typeof expectedRevision !== 'string' || !/^[a-f0-9]{64}$/.test(expectedRevision)) {
       throw workspaceError('A valid expected file revision is required.', 'WORKSPACE_REVISION_REQUIRED');
     }
@@ -256,7 +280,14 @@ export class WorkspaceService {
     });
   }
 
-  async gitAction(cwd: string, action: unknown, pathsInput: unknown, expectedStagedPathsInput?: unknown, message?: unknown, assertCanWrite?: () => void): Promise<{ status: GitStatusResult }> {
+  async gitAction(
+    cwd: string,
+    action: unknown,
+    pathsInput: unknown,
+    expectedStagedPathsInput?: unknown,
+    message?: unknown,
+    assertCanWrite?: () => void
+  ): Promise<{ status: GitStatusResult }> {
     const root = await this.resolveRepositoryRoot(cwd);
     if (!['stage', 'unstage', 'commit', 'discard', 'fetch', 'pull', 'push', 'sync'].includes(String(action))) {
       throw workspaceError('Unsupported Git action.', 'WORKSPACE_GIT_ACTION_INVALID');
@@ -264,10 +295,12 @@ export class WorkspaceService {
     const actionName = String(action);
     const isRemote = REMOTE_ACTIONS.includes(actionName);
     const paths = this.normalizePaths(pathsInput, actionName === 'commit' || isRemote);
-    const safePaths = await Promise.all(paths.map(async (item) => {
-      await this.resolvePath(root, item, true, true);
-      return item;
-    }));
+    const safePaths = await Promise.all(
+      paths.map(async (item) => {
+        await this.resolvePath(root, item, true, true);
+        return item;
+      })
+    );
 
     return this.serialize(root, async () => {
       assertCanWrite?.();
@@ -296,10 +329,15 @@ export class WorkspaceService {
             await fs.promises.unlink(target);
             continue;
           }
-          const existsInHead = await runGitStrict(['cat-file', '-e', `HEAD:${item}`], root).then(() => true, () => false);
+          const existsInHead = await runGitStrict(['cat-file', '-e', `HEAD:${item}`], root).then(
+            () => true,
+            () => false
+          );
           if (change.stagedStatus === 'A' && !existsInHead) {
             await runGitStrict(['rm', '--cached', '--force', '--', item], root);
-            await fs.promises.unlink(target).catch((error: any) => { if (error?.code !== 'ENOENT') throw error; });
+            await fs.promises.unlink(target).catch((error: unknown) => {
+              if (errorCode(error) !== 'ENOENT') throw error;
+            });
           } else {
             await runGitStrict(['restore', '--source=HEAD', '--staged', '--worktree', '--', item], root);
           }
@@ -314,14 +352,18 @@ export class WorkspaceService {
         }
         const actual = await getStagedPaths(root);
         if (actual.join('\0') !== expected.join('\0')) {
-          throw workspaceError('Staged file set changed; refresh and confirm the staged files before committing.', 'WORKSPACE_STAGED_SET_MISMATCH');
+          throw workspaceError(
+            'Staged file set changed; refresh and confirm the staged files before committing.',
+            'WORKSPACE_STAGED_SET_MISMATCH'
+          );
         }
         await runGitStrict(['commit', '-m', message, '--'], root);
       }
 
       this.invalidate(root);
       const refreshedStatus = await getGitStatus(root);
-      if (!refreshedStatus.isRepository) throw workspaceError('Git repository disappeared after mutation.', 'WORKSPACE_NOT_REPOSITORY');
+      if (!refreshedStatus.isRepository)
+        throw workspaceError('Git repository disappeared after mutation.', 'WORKSPACE_NOT_REPOSITORY');
       return { status: refreshedStatus };
     });
   }
@@ -335,11 +377,17 @@ export class WorkspaceService {
       throw workspaceError('Explicit repository-relative paths are required.', 'WORKSPACE_PATH_INVALID');
     }
     const paths = input.map(normalizeRelativePath).sort();
-    if (new Set(paths).size !== paths.length) throw workspaceError('Duplicate paths are not allowed.', 'WORKSPACE_PATH_INVALID');
+    if (new Set(paths).size !== paths.length)
+      throw workspaceError('Duplicate paths are not allowed.', 'WORKSPACE_PATH_INVALID');
     return paths;
   }
 
-  private async resolvePath(root: string, requestedPath: string, allowMissing: boolean, forWrite = false): Promise<string> {
+  private async resolvePath(
+    root: string,
+    requestedPath: string,
+    allowMissing: boolean,
+    forWrite = false
+  ): Promise<string> {
     const relativePath = normalizeRelativePath(requestedPath);
     const target = path.resolve(root, ...relativePath.split('/'));
     if (!inside(root, target)) throw workspaceError('Path escapes repository root.', 'WORKSPACE_PATH_INVALID');
@@ -351,17 +399,21 @@ export class WorkspaceService {
       if (!allowMissing) throw workspaceError('File does not exist.', 'WORKSPACE_FILE_NOT_FOUND');
       throw workspaceError('Parent directory does not exist.', 'WORKSPACE_FILE_NOT_FOUND');
     }
-    if (!inside(root, realParent)) throw workspaceError('Path escapes repository through a symlink.', 'WORKSPACE_PATH_INVALID');
+    if (!inside(root, realParent))
+      throw workspaceError('Path escapes repository through a symlink.', 'WORKSPACE_PATH_INVALID');
 
     try {
       const entry = await fs.promises.lstat(target);
-      if (forWrite && entry.isSymbolicLink()) throw workspaceError('Writes through symlinks are not allowed.', 'WORKSPACE_PATH_INVALID');
+      if (forWrite && entry.isSymbolicLink())
+        throw workspaceError('Writes through symlinks are not allowed.', 'WORKSPACE_PATH_INVALID');
       const realTarget = await fs.promises.realpath(target);
-      if (!inside(root, realTarget)) throw workspaceError('Path escapes repository through a symlink.', 'WORKSPACE_PATH_INVALID');
-      if (!entry.isSymbolicLink() && !inside(root, realTarget)) throw workspaceError('Path escapes repository root.', 'WORKSPACE_PATH_INVALID');
+      if (!inside(root, realTarget))
+        throw workspaceError('Path escapes repository through a symlink.', 'WORKSPACE_PATH_INVALID');
+      if (!entry.isSymbolicLink() && !inside(root, realTarget))
+        throw workspaceError('Path escapes repository root.', 'WORKSPACE_PATH_INVALID');
       return forWrite ? target : realTarget;
-    } catch (error: any) {
-      if (error?.code !== 'ENOENT') throw error;
+    } catch (error: unknown) {
+      if (errorCode(error) !== 'ENOENT') throw error;
       if (!allowMissing) throw workspaceError('File does not exist.', 'WORKSPACE_FILE_NOT_FOUND');
       return target;
     }
@@ -372,13 +424,16 @@ export class WorkspaceService {
     try {
       const stat = await fs.promises.stat(target);
       if (!stat.isFile()) throw workspaceError('Only regular text files can be saved.', 'WORKSPACE_UNSUPPORTED_FILE');
-      if (stat.size > MAX_FILE_BYTES) throw workspaceError(`File exceeds ${MAX_FILE_BYTES} byte limit.`, 'WORKSPACE_FILE_TOO_LARGE');
+      if (stat.size > MAX_FILE_BYTES)
+        throw workspaceError(`File exceeds ${MAX_FILE_BYTES} byte limit.`, 'WORKSPACE_FILE_TOO_LARGE');
       bytes = await fs.promises.readFile(target);
-    } catch (error: any) {
-      if (error?.code === 'ENOENT') throw workspaceError('File changed or was removed; reload before saving.', 'WORKSPACE_REVISION_CONFLICT');
+    } catch (error: unknown) {
+      if (errorCode(error) === 'ENOENT')
+        throw workspaceError('File changed or was removed; reload before saving.', 'WORKSPACE_REVISION_CONFLICT');
       throw error;
     }
-    if (revision(bytes) !== expected) throw workspaceError('File changed on disk; reload before saving.', 'WORKSPACE_REVISION_CONFLICT');
+    if (revision(bytes) !== expected)
+      throw workspaceError('File changed on disk; reload before saving.', 'WORKSPACE_REVISION_CONFLICT');
   }
 
   private async serialize<T>(root: string, task: () => Promise<T>): Promise<T> {
@@ -386,7 +441,7 @@ export class WorkspaceService {
     const current = previous.catch(() => {}).then(task);
     this.mutationQueues.set(root, current);
     try {
-      return await current as T;
+      return await current;
     } finally {
       if (this.mutationQueues.get(root) === current) this.mutationQueues.delete(root);
     }

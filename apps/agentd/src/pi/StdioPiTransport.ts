@@ -8,6 +8,7 @@ import { JsonlFramer } from './jsonlFramer.js';
 import { resolvePiLaunch } from './executable.js';
 import { getAugmentedEnv } from './env.js';
 import { parseWslPath } from '../workspace/gitClient.js';
+import { errorMessage } from '../errors/errors.js';
 
 /**
  * A \\wsl.localhost cwd is served by the WSL VM. When the VM has stopped (idle timeout, e.g. after sleep)
@@ -17,7 +18,13 @@ import { parseWslPath } from '../workspace/gitClient.js';
 export async function wakeWslWorkspace(cwd: string): Promise<void> {
   const wsl = parseWslPath(cwd);
   if (!wsl) return;
-  if (await access(cwd).then(() => true, () => false)) return; // reachable: skip the ~0.5s wsl.exe round trip
+  if (
+    await access(cwd).then(
+      () => true,
+      () => false
+    )
+  )
+    return; // reachable: skip the ~0.5s wsl.exe round trip
   try {
     await promisify(execFile)('wsl.exe', ['-d', wsl.distro, '--exec', 'true'], { timeout: 60_000, windowsHide: true });
   } catch {
@@ -97,7 +104,9 @@ export class StdioPiTransport implements PiTransport {
     });
 
     let resolveExit!: (info: ExitInfo) => void;
-    this.exitPromise = new Promise<ExitInfo>((resolve) => { resolveExit = resolve; });
+    this.exitPromise = new Promise<ExitInfo>((resolve) => {
+      resolveExit = resolve;
+    });
     let exitFinished = false;
     const finishExit = (code: number | null, signal: NodeJS.Signals | null, cause?: Error) => {
       if (exitFinished) return;
@@ -158,7 +167,7 @@ export class StdioPiTransport implements PiTransport {
     await spawned;
   }
 
-  private handleIncomingObject(obj: any): void {
+  private handleIncomingObject(obj: PiResponse | PiEvent): void {
     if (obj.type === 'response') {
       const resp = obj as PiResponse;
       if (resp.id) {
@@ -184,7 +193,11 @@ export class StdioPiTransport implements PiTransport {
     this.enqueueEvent(obj);
   }
 
-  private completePending(id: string, entry: { resolve: (res: PiResponse) => void; reject: (err: Error) => void; timer?: NodeJS.Timeout }, response: PiResponse): void {
+  private completePending(
+    id: string,
+    entry: { resolve: (res: PiResponse) => void; reject: (err: Error) => void; timer?: NodeJS.Timeout },
+    response: PiResponse
+  ): void {
     if (entry.timer) clearTimeout(entry.timer);
     this.pendingCommands.delete(id);
     this.fifoPendingCommands = this.fifoPendingCommands.filter((pending) => pending.id !== id);
@@ -209,7 +222,7 @@ export class StdioPiTransport implements PiTransport {
     const command = cmd.command;
     const arguments_ = cmd.arguments ?? {};
     const isUiResponse = command === 'extension_ui_response';
-    const commandId = isUiResponse ? String(arguments_.id ?? '') : (cmd.id || `pi_${ulid()}`);
+    const commandId = isUiResponse ? String(arguments_.id ?? '') : cmd.id || `pi_${ulid()}`;
     const payload = JSON.stringify({ type: command, ...arguments_, id: commandId }) + '\n';
 
     if (isUiResponse) {
@@ -222,7 +235,7 @@ export class StdioPiTransport implements PiTransport {
     }
 
     return new Promise<PiResponse>((resolve, reject) => {
-      const timeoutMs = command === 'abort' ? undefined : cmd.timeoutMs ?? this.commandTimeoutMs;
+      const timeoutMs = command === 'abort' ? undefined : (cmd.timeoutMs ?? this.commandTimeoutMs);
       let timer: NodeJS.Timeout | undefined;
       const removePending = () => {
         if (timer) clearTimeout(timer);
@@ -239,12 +252,13 @@ export class StdioPiTransport implements PiTransport {
             if (entry) {
               entry.timer = undefined;
               entry.resolve = () => {};
-              entry.reject = (err) => this.enqueueEvent({
-                type: 'worker.diagnostic',
-                level: 'error',
-                message: `Pi rejected the prompt after a slow acknowledgement: ${err.message}`,
-                source: 'pi'
-              });
+              entry.reject = (err) =>
+                this.enqueueEvent({
+                  type: 'worker.diagnostic',
+                  level: 'error',
+                  message: `Pi rejected the prompt after a slow acknowledgement: ${errorMessage(err)}`,
+                  source: 'pi'
+                });
             }
             resolve({ type: 'response', id: commandId, command, success: true, data: { disposition: 'pending' } });
             return;
@@ -298,12 +312,16 @@ export class StdioPiTransport implements PiTransport {
 
     const graceMs = opts.graceMs || 5000;
     if (!this.child.killed) {
-      try { this.child.kill('SIGTERM'); } catch {}
+      try {
+        this.child.kill('SIGTERM');
+      } catch {}
     }
 
     const forceKillTimer = setTimeout(() => {
       if (this.child && !this.isStopped) {
-        try { this.child.kill('SIGKILL'); } catch {}
+        try {
+          this.child.kill('SIGKILL');
+        } catch {}
       }
     }, graceMs);
 

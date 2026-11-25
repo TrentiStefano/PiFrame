@@ -48,20 +48,13 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          sessionStateFamily(sessionId).overrideWith(
-            (ref) => SessionStateNotifier(sessionId, null)..state = sessionState,
-          ),
-          subagentsFamily(sessionId).overrideWith(
-            (ref) => _EmptySubagentsNotifier(ref, sessionId),
-          ),
+          sessionStateFamily(sessionId)
+              .overrideWith((ref) => SessionStateNotifier(sessionId, null)..state = sessionState),
+          subagentsFamily(sessionId).overrideWith((ref) => _EmptySubagentsNotifier(ref, sessionId)),
         ],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
-          home: const Scaffold(
-            body: TranscriptView(sessionId: sessionId),
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+          home: const Scaffold(body: TranscriptView(sessionId: sessionId)),
         ),
       ),
     );
@@ -78,7 +71,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Dialog Level 0 Overview
-    expect(find.text('Dettaglio costi sessione'), findsOneWidget);
+    expect(find.text('Session Cost Breakdown'), findsOneWidget);
     expect(find.byKey(const ValueKey('cost-breakdown-agent-row')), findsOneWidget);
 
     // Click on Agent cost row to open Level 1 (Agent Models)
@@ -86,8 +79,8 @@ void main() {
     await tester.pumpAndSettle();
 
     // Dialog Level 1: Agent Models
-    expect(find.text('Costi modelli agente'), findsOneWidget);
-    expect(find.text('Costo riportato da Pi'), findsOneWidget);
+    expect(find.text('Agent Model Costs'), findsOneWidget);
+    expect(find.text('Cost reported by Pi'), findsOneWidget);
 
     // Check all models and their costs
     expect(find.text('github-copilot/gpt-6.1-sol'), findsOneWidget);
@@ -107,7 +100,9 @@ void main() {
     expect(find.text('43.0M tokens'), findsOneWidget);
   });
 
-  testWidgets('Cost breakdown aggregates per-model costs from session entries when byModel is not in stats', (tester) async {
+  testWidgets('Cost breakdown aggregates per-model costs from session entries when byModel is not in stats', (
+    tester,
+  ) async {
     const sessionId = 'session_entries_cost';
 
     final sessionState = SessionState(
@@ -143,28 +138,19 @@ void main() {
           },
         ),
       ],
-      usage: const {
-        'cost': 0.040,
-      },
+      usage: const {'cost': 0.040},
     );
 
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          sessionStateFamily(sessionId).overrideWith(
-            (ref) => SessionStateNotifier(sessionId, null)..state = sessionState,
-          ),
-          subagentsFamily(sessionId).overrideWith(
-            (ref) => _EmptySubagentsNotifier(ref, sessionId),
-          ),
+          sessionStateFamily(sessionId)
+              .overrideWith((ref) => SessionStateNotifier(sessionId, null)..state = sessionState),
+          subagentsFamily(sessionId).overrideWith((ref) => _EmptySubagentsNotifier(ref, sessionId)),
         ],
         child: MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
-          home: const Scaffold(
-            body: TranscriptView(sessionId: sessionId),
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+          home: const Scaffold(body: TranscriptView(sessionId: sessionId)),
         ),
       ),
     );
@@ -180,7 +166,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('cost-breakdown-agent-row')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Costi modelli agente'), findsOneWidget);
+    expect(find.text('Agent Model Costs'), findsOneWidget);
     expect(find.text('model-a'), findsOneWidget);
     expect(find.text('\$0.0150'), findsOneWidget);
     expect(find.text('15.0k tokens'), findsOneWidget);

@@ -1,12 +1,16 @@
 import 'dart:async';
 import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path/path.dart' as p;
 
-import '../../app/app_version.dart';
+import '../runtime/app_version.dart';
 import '../../domain/update/semver.dart';
 import '../../domain/update/update_models.dart';
+import '../language/language_settings.dart';
+import '../language/strings_settings.dart';
 import 'github_update_client.dart';
+import 'release_platform.dart';
 import 'installer_launcher.dart';
 import 'update_storage.dart';
 
@@ -27,7 +31,7 @@ class UpdateSettingsNotifier extends StateNotifier<UpdateSettings> {
   bool _userModified = false;
 
   UpdateSettingsNotifier(this._storage) : super(const UpdateSettings()) {
-    _load();
+    unawaited(_load());
   }
 
   Future<void> _load() async {
@@ -56,8 +60,7 @@ class UpdateSettingsNotifier extends StateNotifier<UpdateSettings> {
   }
 }
 
-final updateSettingsProvider =
-    StateNotifierProvider<UpdateSettingsNotifier, UpdateSettings>((ref) {
+final updateSettingsProvider = StateNotifierProvider<UpdateSettingsNotifier, UpdateSettings>((ref) {
   final storage = ref.watch(updateStorageProvider);
   return UpdateSettingsNotifier(storage);
 });
@@ -67,21 +70,23 @@ class UpdateController extends StateNotifier<UpdateState> {
   final String currentVersionString;
   Completer<void>? _cancelCompleter;
 
-  UpdateController(
-    this._ref, {
-    this.currentVersionString = piFrameVersion,
-  }) : super(UpdateState(currentVersion: currentVersionString));
+  UpdateController(this._ref, {this.currentVersionString = piFrameVersion})
+    : super(UpdateState(currentVersion: currentVersionString));
 
   UpdateClient get _client => _ref.read(updateClientProvider);
   InstallerLauncher get _launcher => _ref.read(installerLauncherProvider);
+  AppStrings get _strings => _ref.read(appStringsProvider);
+
+  /// The translated reason for an update failure, or the raw text for other errors.
+  String _errorText(Object e) {
+    if (e is UpdateException && e.failure != null) return _strings.updateFailureMessage(e.failure!, e.statusCode);
+    return e.toString();
+  }
 
   Future<void> checkForUpdates({bool isManual = true}) async {
     if (state.isChecking || state.isDownloading) return;
 
-    state = state.copyWith(
-      status: UpdateStatus.checking,
-      clearErrorMessage: true,
-    );
+    state = state.copyWith(status: UpdateStatus.checking, clearErrorMessage: true);
 
     try {
       final release = await _client.fetchLatestRelease();
@@ -96,38 +101,26 @@ class UpdateController extends StateNotifier<UpdateState> {
       final currentSemVer = SemVer.tryParse(currentVersionString);
       final releaseSemVer = release.semVer;
 
-      if (releaseSemVer != null &&
-          currentSemVer != null &&
-          releaseSemVer > currentSemVer) {
-        final asset = release.findPlatformAsset();
-        state = state.copyWith(
-          status: UpdateStatus.updateAvailable,
-          latestRelease: release,
-          selectedAsset: asset,
-        );
+      if (releaseSemVer != null && currentSemVer != null && releaseSemVer > currentSemVer) {
+        final asset = release.findPlatformAsset(platform: currentReleasePlatform(), arch: currentReleaseArch());
+        state = state.copyWith(status: UpdateStatus.updateAvailable, latestRelease: release, selectedAsset: asset);
       } else {
-        state = state.copyWith(
-          status: UpdateStatus.upToDate,
-          latestRelease: release,
-        );
+        state = state.copyWith(status: UpdateStatus.upToDate, latestRelease: release);
       }
     } catch (e) {
-      state = state.copyWith(
-        status: UpdateStatus.error,
-        errorMessage: e.toString(),
-      );
+      state = state.copyWith(status: UpdateStatus.error, errorMessage: _errorText(e));
     }
   }
 
   Future<void> downloadUpdate({ReleaseAsset? assetOverride}) async {
     final release = state.latestRelease;
-    final asset = assetOverride ?? state.selectedAsset ?? release?.findPlatformAsset();
+    final asset =
+        assetOverride ??
+        state.selectedAsset ??
+        release?.findPlatformAsset(platform: currentReleasePlatform(), arch: currentReleaseArch());
 
     if (release == null || asset == null) {
-      state = state.copyWith(
-        status: UpdateStatus.error,
-        errorMessage: 'Nessun file scaricabile disponibile per il tuo sistema operativo.',
-      );
+      state = state.copyWith(status: UpdateStatus.error, errorMessage: _strings.updateNoAssetForPlatform);
       return;
     }
 
@@ -161,22 +154,12 @@ class UpdateController extends StateNotifier<UpdateState> {
         );
       }
 
-      state = state.copyWith(
-        status: UpdateStatus.readyToInstall,
-        downloadProgress: 1.0,
-        downloadedFilePath: destPath,
-      );
+      state = state.copyWith(status: UpdateStatus.readyToInstall, downloadProgress: 1.0, downloadedFilePath: destPath);
     } catch (e) {
       if (_cancelCompleter != null && _cancelCompleter!.isCompleted) {
-        state = state.copyWith(
-          status: UpdateStatus.updateAvailable,
-          downloadProgress: 0.0,
-        );
+        state = state.copyWith(status: UpdateStatus.updateAvailable, downloadProgress: 0.0);
       } else {
-        state = state.copyWith(
-          status: UpdateStatus.error,
-          errorMessage: 'Download fallito: $e',
-        );
+        state = state.copyWith(status: UpdateStatus.error, errorMessage: _strings.updateDownloadFailed(_errorText(e)));
       }
     } finally {
       _cancelCompleter = null;
@@ -187,10 +170,7 @@ class UpdateController extends StateNotifier<UpdateState> {
     if (_cancelCompleter != null && !_cancelCompleter!.isCompleted) {
       _cancelCompleter!.complete();
     }
-    state = state.copyWith(
-      status: UpdateStatus.updateAvailable,
-      downloadProgress: 0.0,
-    );
+    state = state.copyWith(status: UpdateStatus.updateAvailable, downloadProgress: 0.0);
   }
 
   Future<void> installUpdate() async {
@@ -203,10 +183,7 @@ class UpdateController extends StateNotifier<UpdateState> {
     try {
       await _launcher.launchInstaller(path, release: release);
     } catch (e) {
-      state = state.copyWith(
-        status: UpdateStatus.error,
-        errorMessage: 'Impossibile avviare l\'installazione: $e',
-      );
+      state = state.copyWith(status: UpdateStatus.error, errorMessage: _strings.updateInstallLaunchFailed('$e'));
     }
   }
 
@@ -221,8 +198,7 @@ class UpdateController extends StateNotifier<UpdateState> {
   }
 }
 
-final updateControllerProvider =
-    StateNotifierProvider<UpdateController, UpdateState>((ref) {
+final updateControllerProvider = StateNotifierProvider<UpdateController, UpdateState>((ref) {
   return UpdateController(ref);
 });
 

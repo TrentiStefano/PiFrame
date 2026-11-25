@@ -51,10 +51,7 @@ class PcpCommand extends PcpEnvelope {
     );
   }
 
-  static PcpCommand workspaceListBranches({
-    required String commandId,
-    required String sessionId,
-  }) {
+  static PcpCommand workspaceListBranches({required String commandId, required String sessionId}) {
     return PcpCommand.create(
       commandId: commandId,
       sessionId: sessionId,
@@ -86,10 +83,7 @@ class PcpCommand extends PcpEnvelope {
     );
   }
 
-  static PcpCommand piAgentsUpdate({
-    required String commandId,
-    required List<Map<String, dynamic>> changes,
-  }) {
+  static PcpCommand piAgentsUpdate({required String commandId, required List<Map<String, dynamic>> changes}) {
     return PcpCommand.create(
       commandId: commandId,
       sessionId: '@daemon',
@@ -98,11 +92,7 @@ class PcpCommand extends PcpEnvelope {
     );
   }
 
-  static PcpCommand sideOpen({
-    required String commandId,
-    required String sessionId,
-    String? question,
-  }) {
+  static PcpCommand sideOpen({required String commandId, required String sessionId, String? question}) {
     return PcpCommand.create(
       commandId: commandId,
       sessionId: sessionId,
@@ -111,11 +101,7 @@ class PcpCommand extends PcpEnvelope {
     );
   }
 
-  static PcpCommand sidePrompt({
-    required String commandId,
-    required String sideId,
-    required String text,
-  }) {
+  static PcpCommand sidePrompt({required String commandId, required String sideId, required String text}) {
     return PcpCommand.create(
       commandId: commandId,
       sessionId: sideId,
@@ -124,28 +110,12 @@ class PcpCommand extends PcpEnvelope {
     );
   }
 
-  static PcpCommand sideAbort({
-    required String commandId,
-    required String sideId,
-  }) {
-    return PcpCommand.create(
-      commandId: commandId,
-      sessionId: sideId,
-      type: 'side.abort',
-      payload: {'sideId': sideId},
-    );
+  static PcpCommand sideAbort({required String commandId, required String sideId}) {
+    return PcpCommand.create(commandId: commandId, sessionId: sideId, type: 'side.abort', payload: {'sideId': sideId});
   }
 
-  static PcpCommand sideClose({
-    required String commandId,
-    required String sideId,
-  }) {
-    return PcpCommand.create(
-      commandId: commandId,
-      sessionId: sideId,
-      type: 'side.close',
-      payload: {'sideId': sideId},
-    );
+  static PcpCommand sideClose({required String commandId, required String sideId}) {
+    return PcpCommand.create(commandId: commandId, sessionId: sideId, type: 'side.close', payload: {'sideId': sideId});
   }
 
   factory PcpCommand.fromJson(Map<String, dynamic> json) {
@@ -156,8 +126,7 @@ class PcpCommand extends PcpEnvelope {
       commandId: json['commandId'] as String? ?? '',
       sessionId: json['sessionId'] as String?,
       type: json['type'] as String? ?? '',
-      payload:
-          (json['payload'] as Map<String, dynamic>?) ?? <String, dynamic>{},
+      payload: (json['payload'] as Map<String, dynamic>?) ?? <String, dynamic>{},
     );
   }
 }

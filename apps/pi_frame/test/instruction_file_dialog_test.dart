@@ -1,4 +1,5 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,9 +22,7 @@ void main() {
   Widget wrapWithTheme(Widget child) {
     return ProviderScope(
       child: MaterialApp(
-        theme: ThemeData.dark().copyWith(
-          extensions: const [FrameTokens.dark],
-        ),
+        theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
         home: Scaffold(body: child),
       ),
     );
@@ -35,18 +34,14 @@ void main() {
       final agentsFile = File('${tempDir.path}/AGENTS.md');
       agentsFile.writeAsStringSync('# Original Agent Instructions\nAlways be helpful.');
 
-      await tester.pumpWidget(
-        wrapWithTheme(
-          InstructionFileDialog(folder: tempDir.path),
-        ),
-      );
+      await tester.pumpWidget(wrapWithTheme(InstructionFileDialog(folder: tempDir.path)));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
       // Should display dialog header and AGENTS.md chip
-      expect(find.text('Istruzioni repository'), findsOneWidget);
+      expect(find.text('Repository instructions'), findsOneWidget);
       expect(find.byKey(const ValueKey('instruction-chip-AGENTS.md')), findsOneWidget);
-      expect(find.text('Presente sul disco'), findsOneWidget);
+      expect(find.text('Present on disk'), findsOneWidget);
 
       // Verify loaded content
       final editorFinder = find.byKey(const ValueKey('instruction-editor-AGENTS.md'));
@@ -54,15 +49,12 @@ void main() {
       expect(find.textContaining('Original Agent Instructions'), findsOneWidget);
 
       // Edit the text
-      await tester.enterText(
-        editorFinder,
-        '# Updated Agent Instructions\nNew guidelines for pairing.',
-      );
+      await tester.enterText(editorFinder, '# Updated Agent Instructions\nNew guidelines for pairing.');
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
       // Dirty indicator
-      expect(find.text('Modifiche non salvate'), findsOneWidget);
+      expect(find.text('Unsaved changes'), findsOneWidget);
 
       // Save file
       final saveBtn = find.byKey(const ValueKey('instruction-save-btn'));
@@ -75,17 +67,11 @@ void main() {
       final diskContent = agentsFile.readAsStringSync();
       expect(diskContent, contains('Updated Agent Instructions'));
       expect(diskContent, contains('New guidelines for pairing.'));
-      expect(find.text('Sincronizzato con il disco'), findsOneWidget);
+      expect(find.text('Synced with disk'), findsOneWidget);
     });
 
-    testWidgets('can create new instruction file like CLAUDE.md or .github/copilot-instructions.md', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        wrapWithTheme(
-          InstructionFileDialog(folder: tempDir.path),
-        ),
-      );
+    testWidgets('can create new instruction file like CLAUDE.md or .github/copilot-instructions.md', (tester) async {
+      await tester.pumpWidget(wrapWithTheme(InstructionFileDialog(folder: tempDir.path)));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
@@ -96,7 +82,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('File nuovo'), findsOneWidget);
+      expect(find.text('New file'), findsOneWidget);
 
       final editorFinder = find.byKey(const ValueKey('instruction-editor-CLAUDE.md'));
       expect(editorFinder, findsOneWidget);
@@ -108,9 +94,7 @@ void main() {
       // Save
       await tester.tap(find.byKey(const ValueKey('instruction-save-btn')));
       await tester.pump();
-      ScaffoldMessenger.of(
-        tester.element(find.byType(InstructionFileDialog)),
-      ).clearSnackBars();
+      ScaffoldMessenger.of(tester.element(find.byType(InstructionFileDialog))).clearSnackBars();
       await tester.pumpAndSettle();
 
       // Verify created on disk
@@ -119,17 +103,13 @@ void main() {
       expect(claudeFile.readAsStringSync(), contains('Run pnpm test before commit.'));
 
       // Now create nested .github/copilot-instructions.md
-      final copilotChip = find.byKey(
-        const ValueKey('instruction-chip-.github/copilot-instructions.md'),
-      );
+      final copilotChip = find.byKey(const ValueKey('instruction-chip-.github/copilot-instructions.md'));
       expect(copilotChip, findsOneWidget);
       await tester.tap(copilotChip);
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      final copilotEditor = find.byKey(
-        const ValueKey('instruction-editor-.github/copilot-instructions.md'),
-      );
+      final copilotEditor = find.byKey(const ValueKey('instruction-editor-.github/copilot-instructions.md'));
       await tester.enterText(copilotEditor, '# Copilot Custom Instructions');
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
@@ -148,11 +128,7 @@ void main() {
       File('${tempDir.path}/pubspec.yaml').writeAsStringSync('name: my_flutter_app\n');
       Directory('${tempDir.path}/lib').createSync();
 
-      await tester.pumpWidget(
-        wrapWithTheme(
-          InstructionFileDialog(folder: tempDir.path),
-        ),
-      );
+      await tester.pumpWidget(wrapWithTheme(InstructionFileDialog(folder: tempDir.path)));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
@@ -167,7 +143,7 @@ void main() {
       // Check that editor has received generated instruction content
       final editorFinder = find.byKey(const ValueKey('instruction-editor-AGENTS.md'));
       expect(editorFinder, findsOneWidget);
-      expect(find.textContaining('Istruzioni per gli agenti'), findsOneWidget);
+      expect(find.textContaining('Agent Instructions'), findsOneWidget);
       expect(find.textContaining('flutter test'), findsOneWidget);
 
       // Save
@@ -183,4 +159,3 @@ void main() {
     });
   });
 }
-

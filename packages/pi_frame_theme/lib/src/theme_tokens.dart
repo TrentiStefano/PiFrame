@@ -16,6 +16,7 @@ class FrameTokens extends ThemeExtension<FrameTokens> {
   final Color accent;
   final Color accentContrast;
   final Color focusRing;
+
   /// Outline of text fields, the composer and search fields. At least 3:1
   /// against `surface` in the official themes (WCAG non-text contrast).
   final Color inputBorder;
@@ -357,10 +358,7 @@ class FrameTokens extends ThemeExtension<FrameTokens> {
   }
 
   @override
-  ThemeExtension<FrameTokens> lerp(
-    ThemeExtension<FrameTokens>? other,
-    double t,
-  ) {
+  ThemeExtension<FrameTokens> lerp(ThemeExtension<FrameTokens>? other, double t) {
     if (other is! FrameTokens) return this;
     return FrameTokens(
       background: Color.lerp(background, other.background, t)!,
@@ -384,11 +382,7 @@ class FrameTokens extends ThemeExtension<FrameTokens> {
       agentRetrying: Color.lerp(agentRetrying, other.agentRetrying, t)!,
       agentCompacting: Color.lerp(agentCompacting, other.agentCompacting, t)!,
       agentSettled: Color.lerp(agentSettled, other.agentSettled, t)!,
-      agentAwaitingUser: Color.lerp(
-        agentAwaitingUser,
-        other.agentAwaitingUser,
-        t,
-      )!,
+      agentAwaitingUser: Color.lerp(agentAwaitingUser, other.agentAwaitingUser, t)!,
       agentError: Color.lerp(agentError, other.agentError, t)!,
       userBubble: Color.lerp(userBubble, other.userBubble, t)!,
       thinking: Color.lerp(thinking, other.thinking, t)!,
@@ -405,11 +399,7 @@ class FrameTokens extends ThemeExtension<FrameTokens> {
       syntaxType: Color.lerp(syntaxType, other.syntaxType, t)!,
       syntaxVariable: Color.lerp(syntaxVariable, other.syntaxVariable, t)!,
       syntaxOperator: Color.lerp(syntaxOperator, other.syntaxOperator, t)!,
-      syntaxPunctuation: Color.lerp(
-        syntaxPunctuation,
-        other.syntaxPunctuation,
-        t,
-      )!,
+      syntaxPunctuation: Color.lerp(syntaxPunctuation, other.syntaxPunctuation, t)!,
       syntaxInvalid: Color.lerp(syntaxInvalid, other.syntaxInvalid, t)!,
       radiusSm: (radiusSm + (other.radiusSm - radiusSm) * t),
       radiusMd: (radiusMd + (other.radiusMd - radiusMd) * t),
@@ -441,6 +431,5 @@ double frameContrastRatio(Color a, Color b) {
 }
 
 extension FrameTokensExtension on BuildContext {
-  FrameTokens get tokens =>
-      Theme.of(this).extension<FrameTokens>() ?? FrameTokens.dark;
+  FrameTokens get tokens => Theme.of(this).extension<FrameTokens>() ?? FrameTokens.dark;
 }

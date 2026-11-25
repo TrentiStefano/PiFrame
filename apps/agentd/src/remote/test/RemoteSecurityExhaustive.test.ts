@@ -1,11 +1,22 @@
 import { test } from 'node:test';
 import * as assert from 'node:assert';
-import * as http from 'node:http';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import { WebSocket } from 'ws';
-import { validateCustomTunnelUrl, validateCustomTunnelCommand, validateRemotePatch, DEFAULT_CONFIG } from '../../config/config.js';
+import {
+  validateCustomTunnelUrl,
+  validateCustomTunnelCommand,
+  validateRemotePatch,
+  DEFAULT_CONFIG
+} from '../../config/config.js';
+import type { ConnectionSocket } from '../../server/connection.js';
+
+function listeningPort(server: { address(): { port: number } | string | null }): number {
+  const address = server.address();
+  if (address === null || typeof address === 'string') throw new Error('server is not listening on a TCP port');
+  return address.port;
+}
 import { parseCommandLine } from '../TunnelProvider.js';
 import { RemoteAuthManager } from '../RemoteAuthManager.js';
 import { RemoteManager } from '../RemoteManager.js';
@@ -15,14 +26,20 @@ import { createWsServer } from '../../server/wsServer.js';
 test('Security: validateCustomTunnelUrl and validateCustomTunnelCommand enforce strict syntax', () => {
   // Valid https
   assert.strictEqual(validateCustomTunnelUrl('https://my-tunnel.example.com/'), 'https://my-tunnel.example.com');
-  assert.strictEqual(validateCustomTunnelUrl('https://tunnel.example.com:8443/path'), 'https://tunnel.example.com:8443');
+  assert.strictEqual(
+    validateCustomTunnelUrl('https://tunnel.example.com:8443/path'),
+    'https://tunnel.example.com:8443'
+  );
 
   // Reject non-https
   assert.throws(() => validateCustomTunnelUrl('http://my-tunnel.example.com'), /must use https/);
   assert.throws(() => validateCustomTunnelUrl('ftp://my-tunnel.example.com'), /must use https/);
 
   // Reject credentials
-  assert.throws(() => validateCustomTunnelUrl('https://admin:secret@tunnel.example.com'), /must not contain credentials/);
+  assert.throws(
+    () => validateCustomTunnelUrl('https://admin:secret@tunnel.example.com'),
+    /must not contain credentials/
+  );
 
   // Reject loopback addresses
   assert.throws(() => validateCustomTunnelUrl('https://localhost'), /loopback/);
@@ -32,7 +49,10 @@ test('Security: validateCustomTunnelUrl and validateCustomTunnelCommand enforce 
   assert.throws(() => validateCustomTunnelUrl('https://0.0.0.0'), /loopback/);
 
   // validateCustomTunnelCommand rejects control characters and newlines
-  assert.strictEqual(validateCustomTunnelCommand('bore local $PORT --to example.com'), 'bore local $PORT --to example.com');
+  assert.strictEqual(
+    validateCustomTunnelCommand('bore local $PORT --to example.com'),
+    'bore local $PORT --to example.com'
+  );
   assert.throws(() => validateCustomTunnelCommand('cmd.exe\ncalc.exe'), /single-line/);
   assert.throws(() => validateCustomTunnelCommand('cmd.exe\x00calc.exe'), /single-line/);
 
@@ -77,7 +97,7 @@ test('Security: 25 unauthenticated remote WS attempts do NOT block or delay loca
     listener: 'local'
   });
   await new Promise<void>((r) => localServer.listen(0, '127.0.0.1', () => r()));
-  localPort = (localServer.address() as any).port;
+  localPort = listeningPort(localServer);
 
   const remoteServer = createHttpServer({
     config: DEFAULT_CONFIG,
@@ -88,10 +108,10 @@ test('Security: 25 unauthenticated remote WS attempts do NOT block or delay loca
     listener: 'remote'
   });
   await new Promise<void>((r) => remoteServer.listen(0, '127.0.0.1', () => r()));
-  remotePort = (remoteServer.address() as any).port;
+  remotePort = listeningPort(remoteServer);
   remoteManager.setListenerPort(remotePort);
 
-  const { wss, manager } = createWsServer({
+  const { wss } = createWsServer({
     httpServer: localServer,
     remoteHttpServer: remoteServer,
     config: DEFAULT_CONFIG,
@@ -114,29 +134,36 @@ test('Security: 25 unauthenticated remote WS attempts do NOT block or delay loca
     // Blast 25 bad WS connections to the remote listener
     const badConnections: Promise<number>[] = [];
     for (let i = 0; i < 25; i++) {
-      badConnections.push(new Promise<number>((resolve) => {
-        const ws = new WebSocket(`ws://127.0.0.1:${remotePort}`, {
-          headers: {
-            Host: tunnelHost,
-            Origin: `https://${tunnelHost}`
-          }
-        });
-        ws.on('open', () => {
-          ws.send(JSON.stringify({
-            protocol: 1, kind: 'hello', id: `hl_bad_${i}`, ts: Date.now(),
-            payload: { token: 'invalid_remote_token' }
-          }));
-        });
-        ws.on('unexpected-response', (_, res) => {
-          resolve(res.statusCode || 0);
-        });
-        ws.on('close', (code) => {
-          resolve(code);
-        });
-        ws.on('error', () => {
-          resolve(0);
-        });
-      }));
+      badConnections.push(
+        new Promise<number>((resolve) => {
+          const ws = new WebSocket(`ws://127.0.0.1:${remotePort}`, {
+            headers: {
+              Host: tunnelHost,
+              Origin: `https://${tunnelHost}`
+            }
+          });
+          ws.on('open', () => {
+            ws.send(
+              JSON.stringify({
+                protocol: 1,
+                kind: 'hello',
+                id: `hl_bad_${i}`,
+                ts: Date.now(),
+                payload: { token: 'invalid_remote_token' }
+              })
+            );
+          });
+          ws.on('unexpected-response', (_, res) => {
+            resolve(res.statusCode || 0);
+          });
+          ws.on('close', (code) => {
+            resolve(code);
+          });
+          ws.on('error', () => {
+            resolve(0);
+          });
+        })
+      );
     }
 
     await Promise.all(badConnections);
@@ -147,16 +174,21 @@ test('Security: 25 unauthenticated remote WS attempts do NOT block or delay loca
 
     await new Promise<void>((resolve, reject) => {
       localWs.on('open', () => {
-        localWs.send(JSON.stringify({
-          protocol: 1, kind: 'hello', id: 'hl_local', ts: Date.now(),
-          type: 'connection.hello',
-          payload: {
-            token: masterToken,
-            client: { name: 'desktop', version: '1.0' },
-            encoding: 'json',
-            capabilities: []
-          }
-        }));
+        localWs.send(
+          JSON.stringify({
+            protocol: 1,
+            kind: 'hello',
+            id: 'hl_local',
+            ts: Date.now(),
+            type: 'connection.hello',
+            payload: {
+              token: masterToken,
+              client: { name: 'desktop', version: '1.0' },
+              encoding: 'json',
+              capabilities: []
+            }
+          })
+        );
       });
       localWs.on('message', (raw) => {
         const msg = JSON.parse(raw.toString());
@@ -180,7 +212,9 @@ test('Security: 25 unauthenticated remote WS attempts do NOT block or delay loca
     remoteServer.close();
     if (origHome) process.env.PI_FRAME_HOME = origHome;
     else delete process.env.PI_FRAME_HOME;
-    try { fs.rmSync(testHome, { recursive: true, force: true }); } catch {}
+    try {
+      fs.rmSync(testHome, { recursive: true, force: true });
+    } catch {}
   }
 });
 
@@ -206,15 +240,18 @@ test('Security: remote.installCloudflared is blocked for remote connections', as
   const pairing = auth.generatePairing(60000);
   const paired = auth.pair(pairing.secret, 'Test Client', '127.0.0.1', 'control');
 
-  const remoteWs = new (class extends (await import('node:events')).EventEmitter {
+  const remoteWs = new (class extends (await import('node:events')).EventEmitter implements ConnectionSocket {
     readyState = 1;
     sentMessages: string[] = [];
-    send(data: string, cb?: () => void) { this.sentMessages.push(data); cb?.(); }
+    send(data: string, cb?: () => void) {
+      this.sentMessages.push(data);
+      cb?.();
+    }
     close() {}
   })();
 
   const remoteConn = new Connection({
-    ws: remoteWs as any,
+    ws: remoteWs,
     expectedToken: 'tok',
     daemonVersion: '0.1.0',
     startedAt: Date.now(),
@@ -229,14 +266,21 @@ test('Security: remote.installCloudflared is blocked for remote connections', as
 
   // Remote connection trying to trigger installation must be rejected with REMOTE_FORBIDDEN
   await disp.handle(remoteConn, {
-    protocol: 1, kind: 'command', id: 'cmd_cf_rem', ts: Date.now(),
-    commandId: 'c_cf_rem', type: 'remote.installCloudflared', payload: {}
+    protocol: 1,
+    kind: 'command',
+    id: 'cmd_cf_rem',
+    ts: Date.now(),
+    commandId: 'c_cf_rem',
+    type: 'remote.installCloudflared',
+    payload: {}
   });
 
-  const lastRes = remoteWs.sentMessages.map(m => JSON.parse(m)).find(m => m.kind === 'result');
+  const lastRes = remoteWs.sentMessages.map((m) => JSON.parse(m)).find((m) => m.kind === 'result');
   assert.ok(lastRes);
   assert.strictEqual(lastRes.payload.state, 'rejected');
   assert.ok(lastRes.payload.error.includes('not permitted'));
 
-  try { fs.unlinkSync(tmpDev); } catch {}
+  try {
+    fs.unlinkSync(tmpDev);
+  } catch {}
 });

@@ -12,9 +12,7 @@ Widget _host(String sessionId, SessionState state, {double width = 900}) {
   return ProviderScope(
     overrides: [
       daemonEndpointProvider.overrideWith((ref) async => null),
-      sessionStateFamily(sessionId).overrideWith(
-        (ref) => SessionStateNotifier(sessionId, null)..state = state,
-      ),
+      sessionStateFamily(sessionId).overrideWith((ref) => SessionStateNotifier(sessionId, null)..state = state),
     ],
     child: MaterialApp(
       theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
@@ -48,14 +46,9 @@ void main() {
     testWidgets('lit bars match the level', (tester) async {
       await tester.pumpWidget(
         MaterialApp(
-          theme: ThemeData.dark().copyWith(
-            extensions: const [FrameTokens.dark],
-          ),
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
           home: Scaffold(
-            body: ThinkingLevelBars(
-              level: 'high',
-              litColor: FrameTokens.dark.thinking,
-            ),
+            body: ThinkingLevelBars(level: 'high', litColor: FrameTokens.dark.thinking),
           ),
         ),
       );
@@ -65,76 +58,56 @@ void main() {
   });
 
   group('Composer review button (plan 4.4)', () {
-    testWidgets(
-      'with no changes the composer hides it',
-      (tester) async {
-        // Since c255a95 the composer shows the button only when Pi changed files
-        // (or while a review is open), instead of a disabled placeholder.
-        const sessionId = 'controls-no-changes';
-        await tester.pumpWidget(
-          _host(
-            sessionId,
-            const SessionState(sessionId: sessionId, cwd: '/fixture'),
-          ),
-        );
-        await tester.pumpAndSettle();
+    testWidgets('with no changes the composer hides it', (tester) async {
+      // Since c255a95 the composer shows the button only when Pi changed files
+      // (or while a review is open), instead of a disabled placeholder.
+      const sessionId = 'controls-no-changes';
+      await tester.pumpWidget(_host(sessionId, const SessionState(sessionId: sessionId, cwd: '/fixture')));
+      await tester.pumpAndSettle();
 
-        expect(find.byKey(const ValueKey('review-changes-btn')), findsNothing);
-      },
-    );
+      expect(find.byKey(const ValueKey('review-changes-btn')), findsNothing);
+    });
 
-    testWidgets(
-      'a disabled button explains when it turns on',
-      (tester) async {
-        await tester.pumpWidget(
-          MaterialApp(
-            theme: ThemeData.dark().copyWith(
-              extensions: const [FrameTokens.dark],
-            ),
-            home: const Scaffold(
-              body: ComposerReviewButton(
-                label: 'Rivedi modifiche',
-                showLabel: true,
-                reviewing: true,
-                enabledTooltip: 'Chiudi revisione',
-                disabledTooltip: 'Nessuna modifica da rivedere',
-                onPressed: null,
-              ),
+    testWidgets('a disabled button explains when it turns on', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+          home: const Scaffold(
+            body: ComposerReviewButton(
+              label: 'Rivedi modifiche',
+              showLabel: true,
+              reviewing: true,
+              enabledTooltip: 'Chiudi revisione',
+              disabledTooltip: 'Nessuna modifica da rivedere',
+              onPressed: null,
             ),
           ),
-        );
+        ),
+      );
 
-        final button = tester.widget<TextButton>(
-          find.byKey(const ValueKey('review-changes-btn')),
-        );
-        expect(button.onPressed, isNull);
-        expect(find.byTooltip('Nessuna modifica da rivedere'), findsOneWidget);
-      },
-    );
+      final button = tester.widget<TextButton>(find.byKey(const ValueKey('review-changes-btn')));
+      expect(button.onPressed, isNull);
+      expect(find.byTooltip('Nessuna modifica da rivedere'), findsOneWidget);
+    });
 
-    testWidgets(
-      'label reads "Rivedi modifiche" without a count when there is nothing to review',
-      (tester) async {
-        // The label text itself is covered by strings_composer_test.dart; here the button is built directly.
-        await tester.pumpWidget(
-          MaterialApp(
-            theme: ThemeData.dark().copyWith(
-              extensions: const [FrameTokens.dark],
-            ),
-            home: Scaffold(
-              body: ComposerReviewButton(
-                label: 'Rivedi modifiche',
-                showLabel: true,
-                reviewing: false,
-                enabledTooltip: 'Rivedi modifiche ai file',
-                disabledTooltip: 'Nessuna modifica',
-                onPressed: null,
-              ),
+    testWidgets('label reads "Rivedi modifiche" without a count when there is nothing to review', (tester) async {
+      // The label text itself is covered by strings_composer_test.dart; here the button is built directly.
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+          home: Scaffold(
+            body: ComposerReviewButton(
+              label: 'Rivedi modifiche',
+              showLabel: true,
+              reviewing: false,
+              enabledTooltip: 'Rivedi modifiche ai file',
+              disabledTooltip: 'Nessuna modifica',
+              onPressed: null,
             ),
           ),
-        );
-        expect(find.text('Rivedi modifiche'), findsOneWidget);
-      },
-    );
+        ),
+      );
+      expect(find.text('Rivedi modifiche'), findsOneWidget);
+    });
   });
 }

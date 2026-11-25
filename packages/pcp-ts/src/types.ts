@@ -1,21 +1,12 @@
 /**
- * PCP/1 (PiFrame Protocol) TypeScript Type Definitions
+ * PCP/1 (PiFrame Communication Protocol) TypeScript Type Definitions
  * Normative contract for client-daemon communication.
  */
 
 export type ProtocolVersion = 1;
 
 export type ProtocolKind =
-  | 'hello'
-  | 'welcome'
-  | 'command'
-  | 'ack'
-  | 'result'
-  | 'event'
-  | 'snapshot'
-  | 'error'
-  | 'ping'
-  | 'pong';
+  'hello' | 'welcome' | 'command' | 'ack' | 'result' | 'event' | 'snapshot' | 'error' | 'ping' | 'pong';
 
 export interface PcpEnvelope<T = Record<string, unknown>> {
   protocol: ProtocolVersion;
@@ -403,7 +394,7 @@ export interface SideClosePayload {
 export interface SideOpenedPayload {
   sideId: string;
   parentSessionId: string;
-  model: any;
+  model: unknown;
 }
 
 export interface SideClosedPayload {
@@ -519,33 +510,80 @@ export interface PcpSnapshot extends PcpEnvelope<PcpSnapshotPayload> {
 // Errors
 // -----------------------------------------------------------------------------
 
-export type PcpErrorCode =
-  | 'AUTH_FAILED'
-  | 'PROTOCOL_VERSION_UNSUPPORTED'
-  | 'INVALID_MESSAGE'
-  | 'SESSION_NOT_FOUND'
-  | 'SESSION_BUSY'
-  | 'WORKER_UNAVAILABLE'
-  | 'WORKER_CRASHED'
-  | 'PI_NOT_FOUND'
-  | 'PI_VERSION_UNSUPPORTED'
-  | 'COMMAND_REJECTED'
-  | 'COMMAND_TIMEOUT'
-  | 'UI_REQUEST_NOT_CLAIMED'
-  | 'UI_REQUEST_EXPIRED'
-  | 'JOURNAL_GAP'
-  | 'CONFIG_INVALID'
-  | 'RATE_LIMITED'
-  | 'INTERNAL'
-  | 'REMOTE_FORBIDDEN'
-  | 'BRANCH_INVALID_NAME'
-  | 'BRANCH_NOT_FOUND'
-  | 'WORKSPACE_DIRTY'
-  | 'BRANCH_SWITCH_FAILED'
-  | 'AGENTS_VALIDATION_FAILED'
-  | 'AGENTS_CONFIG_UNREADABLE'
-  | 'AGENTS_CONFIG_LOCKED'
-  | 'AGENTS_PACKAGE_NOT_INSTALLED';
+/** Every error code the daemon can send; mirrors the code enum in packages/pcp-spec/schema/error.schema.json. */
+export const PCP_ERROR_CODES = [
+  'AUTH_FAILED',
+  'PROTOCOL_VERSION_UNSUPPORTED',
+  'INVALID_MESSAGE',
+  'SESSION_NOT_FOUND',
+  'SESSION_BUSY',
+  'WORKER_UNAVAILABLE',
+  'WORKER_CRASHED',
+  'PI_NOT_FOUND',
+  'PI_VERSION_UNSUPPORTED',
+  'COMMAND_REJECTED',
+  'COMMAND_TIMEOUT',
+  'UI_REQUEST_NOT_CLAIMED',
+  'UI_REQUEST_EXPIRED',
+  'JOURNAL_GAP',
+  'CONFIG_INVALID',
+  'RATE_LIMITED',
+  'INTERNAL',
+  'REMOTE_FORBIDDEN',
+  'BRANCH_INVALID_NAME',
+  'BRANCH_NOT_FOUND',
+  'WORKSPACE_DIRTY',
+  'BRANCH_SWITCH_FAILED',
+  'AGENTS_VALIDATION_FAILED',
+  'AGENTS_CONFIG_UNREADABLE',
+  'AGENTS_CONFIG_LOCKED',
+  'AGENTS_PACKAGE_NOT_INSTALLED',
+  'GIT_FAILED',
+  'INVALID_JSON',
+  'INVALID_MODEL_CATALOG',
+  'LISTENER_NOT_INITIALIZED',
+  'MODEL_CATALOG_FAILED',
+  'NO_CREDENTIALS',
+  'PACKAGE_UPDATE_UNSUPPORTED_PLATFORM',
+  'PAIRING_EXPIRED',
+  'PAIRING_INVALID',
+  'PAYLOAD_TOO_LARGE',
+  'PI_EXECUTION_FAILED',
+  'PI_VERSION_UNPARSEABLE',
+  'REMOTE_DEVICE_LIMIT',
+  'REMOTE_NOT_ACTIVE',
+  'RESPONSE_TOO_LARGE',
+  'SESSION_DIRECTORY_READ_FAILED',
+  'SIDE_LIMIT_REACHED',
+  'SIDE_NOT_FOUND',
+  'SIDE_RPC_BLOCKED',
+  'SIDE_STREAM_READ_ONLY',
+  'SIDE_UNSAFE_TOOLS',
+  'TOKEN_REFRESH_FAILED',
+  'UNTRUSTED_ENDPOINT',
+  'WORKSPACE_COMMIT_MESSAGE_REQUIRED',
+  'WORKSPACE_FILE_NOT_FOUND',
+  'WORKSPACE_FILE_TOO_LARGE',
+  'WORKSPACE_GIT_ACTION_INVALID',
+  'WORKSPACE_INVALID',
+  'WORKSPACE_INVALID_CONTENT',
+  'WORKSPACE_NOT_FOUND',
+  'WORKSPACE_NOT_REPOSITORY',
+  'WORKSPACE_PATH_INVALID',
+  'WORKSPACE_REVISION_CONFLICT',
+  'WORKSPACE_REVISION_REQUIRED',
+  'WORKSPACE_STAGED_SET_MISMATCH',
+  'WORKSPACE_STALE_STATUS',
+  'WORKSPACE_UNSUPPORTED_FILE'
+] as const;
+
+export type PcpErrorCode = (typeof PCP_ERROR_CODES)[number];
+
+/** True when a value is one of the protocol's error codes; narrows an unknown code without a cast. */
+export function isPcpErrorCode(value: unknown): value is PcpErrorCode {
+  const codes: ReadonlyArray<string> = PCP_ERROR_CODES;
+  return typeof value === 'string' && codes.includes(value);
+}
 
 export interface PcpErrorPayload {
   code: PcpErrorCode;
@@ -681,18 +719,8 @@ export interface PiAgentsUpdatePayload {
 // Message Unions
 // -----------------------------------------------------------------------------
 
-export type ClientMessage =
-  | PcpHello
-  | PcpCommand<any>
-  | PcpPong;
+export type ClientMessage = PcpHello | PcpCommand<any> | PcpPong;
 
-export type ServerMessage =
-  | PcpWelcome
-  | PcpAck
-  | PcpResult<any>
-  | PcpEvent<any>
-  | PcpSnapshot
-  | PcpError
-  | PcpPing;
+export type ServerMessage = PcpWelcome | PcpAck | PcpResult<any> | PcpEvent<any> | PcpSnapshot | PcpError | PcpPing;
 
 export type PcpMessage = ClientMessage | ServerMessage;

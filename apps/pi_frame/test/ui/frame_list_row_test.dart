@@ -13,8 +13,7 @@ Widget _host(Widget child, {double textScale = 1, double width = 400}) {
   return MaterialApp(
     theme: ThemeData(extensions: const [FrameTokens.dark]),
     builder: (context, app) => MediaQuery(
-      data: MediaQuery.of(context)
-          .copyWith(textScaler: TextScaler.linear(textScale)),
+      data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(textScale)),
       child: app!,
     ),
     home: Scaffold(
@@ -45,27 +44,13 @@ FrameListRow _row({
     leading: const Icon(Icons.description, size: 16),
     trailing: const Text('M'),
     actions: withAction
-        ? [
-            FrameIconAction(
-              key: _actionKey,
-              icon: Icons.close,
-              tooltip: 'Chiudi',
-              onPressed: () {},
-            ),
-          ]
+        ? [FrameIconAction(key: _actionKey, icon: Icons.close, tooltip: 'Chiudi', onPressed: () {})]
         : const [],
   );
 }
 
 double _opacityOfAction(WidgetTester tester) {
-  return tester
-      .widget<Opacity>(
-        find.ancestor(
-          of: find.byKey(_actionKey),
-          matching: find.byType(Opacity),
-        ),
-      )
-      .opacity;
+  return tester.widget<Opacity>(find.ancestor(of: find.byKey(_actionKey), matching: find.byType(Opacity))).opacity;
 }
 
 void main() {
@@ -74,31 +59,18 @@ void main() {
     final height = tester.getSize(find.byKey(_rowKey)).height;
     expect(height >= FrameSize.rowList, isTrue, reason: 'height $height');
 
-    await tester.pumpWidget(
-      _host(_row(name: 'a.dart', secondary: 'lib/a.dart'), textScale: 1.4),
-    );
+    await tester.pumpWidget(_host(_row(name: 'a.dart', secondary: 'lib/a.dart'), textScale: 1.4));
     final taller = tester.getSize(find.byKey(_rowKey)).height;
     expect(taller >= FrameSize.rowList, isTrue);
   });
 
   testWidgets('minHeight lets a dense row go below rowList', (tester) async {
-    await tester.pumpWidget(
-      _host(
-        FrameListRow(
-          key: _rowKey,
-          name: 'session',
-          minHeight: 32,
-          onTap: () {},
-        ),
-      ),
-    );
+    await tester.pumpWidget(_host(FrameListRow(key: _rowKey, name: 'session', minHeight: 32, onTap: () {})));
     final height = tester.getSize(find.byKey(_rowKey)).height;
     expect(height, 32);
   });
 
-  testWidgets('actions stay in the tree, hidden until hover or focus', (
-    tester,
-  ) async {
+  testWidgets('actions stay in the tree, hidden until hover or focus', (tester) async {
     await tester.pumpWidget(_host(_row()));
 
     expect(find.byKey(_actionKey), findsOneWidget);
@@ -125,8 +97,7 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pump();
       final focused = FocusManager.instance.primaryFocus?.context;
-      reached =
-          focused?.findAncestorWidgetOfExactType<FrameIconAction>() != null;
+      reached = focused?.findAncestorWidgetOfExactType<FrameIconAction>() != null;
     }
 
     expect(reached, isTrue);
@@ -153,11 +124,7 @@ void main() {
     await tester.pumpWidget(_host(_row(onSecondaryTap: (p) => position = p)));
 
     final center = tester.getCenter(find.byKey(_rowKey));
-    final gesture = await tester.startGesture(
-      center,
-      kind: PointerDeviceKind.mouse,
-      buttons: kSecondaryMouseButton,
-    );
+    final gesture = await tester.startGesture(center, kind: PointerDeviceKind.mouse, buttons: kSecondaryMouseButton);
     await gesture.up();
     await tester.pump();
 
@@ -170,14 +137,7 @@ void main() {
 
     final decoration =
         tester
-                .widget<Container>(
-                  find
-                      .descendant(
-                        of: find.byKey(_rowKey),
-                        matching: find.byType(Container),
-                      )
-                      .first,
-                )
+                .widget<Container>(find.descendant(of: find.byKey(_rowKey), matching: find.byType(Container)).first)
                 .decoration
             as BoxDecoration;
     expect(decoration.color, FrameTokens.dark.surfaceElevated);
@@ -186,11 +146,7 @@ void main() {
   testWidgets('long secondary path is middle-truncated', (tester) async {
     await tester.pumpWidget(
       _host(
-        _row(
-          secondary:
-              r'C:\Repos\PiFrame\wt-p2-widgets-a\apps\pi_frame\lib\main.dart',
-          withAction: false,
-        ),
+        _row(secondary: r'C:\Repos\PiFrame\wt-p2-widgets-a\apps\pi_frame\lib\main.dart', withAction: false),
         width: 220,
       ),
     );

@@ -9,11 +9,7 @@ import { ulid } from 'ulid';
 
 import { SideConversationManager } from '../SideConversationManager.js';
 import { SideTransport } from '../SideTransport.js';
-import {
-  renderConversationSnapshot,
-  renderMessageBlock,
-  SIDE_GUARDRAIL_PREAMBLE
-} from '../SideSnapshotRenderer.js';
+import { renderConversationSnapshot, SIDE_GUARDRAIL_PREAMBLE, type SnapshotEntry } from '../SideSnapshotRenderer.js';
 import { SessionRegistry } from '../../sessions/SessionRegistry.js';
 import { Session } from '../../sessions/Session.js';
 import { ConnectionManager } from '../../server/wsServer.js';
@@ -21,8 +17,21 @@ import { Connection } from '../../server/connection.js';
 import { Dispatcher } from '../../commands/Dispatcher.js';
 import type { PiTransport } from '../../pi/PiTransport.js';
 import type { PiCommand, PiResponse, PiEvent, TransportHealth, PiCapabilities, ExitInfo } from '../../pi/piCommands.js';
+import type { ConnectionSocket } from '../../server/connection.js';
+import { errorCode, errorMessage } from '../../errors/errors.js';
+import type { PcpCommand } from '@piframe/pcp-ts';
 
-class MockWebSocket extends EventEmitter {
+/** The fields this test reads from a frame the daemon wrote over the socket. */
+interface WireFrame {
+  kind?: string;
+  type?: string;
+  sessionId?: string;
+  commandId?: string;
+  seq?: number;
+  payload?: Record<string, unknown>;
+}
+
+class MockWebSocket extends EventEmitter implements ConnectionSocket {
   public readyState = 1;
   public sentMessages: string[] = [];
   public closedCode?: number;
@@ -40,6 +49,20 @@ class MockWebSocket extends EventEmitter {
     this.closedReason = reason;
     this.emit('close');
   }
+}
+
+/** A real connection over an in-memory socket, with the id the test expects. */
+function namedConnection(id: string): Connection {
+  const conn = new Connection({
+    ws: new MockWebSocket(),
+    expectedToken: 'test-token',
+    daemonVersion: '0.1.0',
+    startedAt: Date.now(),
+    piInfo: { path: 'node', version: '0.85.1', supported: true },
+    onCommand: async () => {},
+    onClose: () => {}
+  });
+  return Object.assign(conn, { id });
 }
 
 class FakePiTransport implements PiTransport {
@@ -71,7 +94,7 @@ class FakePiTransport implements PiTransport {
 
     if (cmd.command === 'get_state') {
       return {
-        id: cmd.id,
+        id: cmd.id!,
         type: 'response',
         command: 'get_state',
         success: true,
@@ -86,7 +109,7 @@ class FakePiTransport implements PiTransport {
 
     if (cmd.command === 'get_messages') {
       return {
-        id: cmd.id,
+        id: cmd.id!,
         type: 'response',
         command: 'get_messages',
         success: true,
@@ -145,7 +168,7 @@ class FakePiTransport implements PiTransport {
       }, 5);
 
       return {
-        id: cmd.id,
+        id: cmd.id!,
         type: 'response',
         command: 'prompt',
         success: true,
@@ -157,7 +180,7 @@ class FakePiTransport implements PiTransport {
       this.pushEvent({ type: 'agent_end', willRetry: false });
       this.pushEvent({ type: 'agent_settled' });
       return {
-        id: cmd.id,
+        id: cmd.id!,
         type: 'response',
         command: 'abort',
         success: true
@@ -165,7 +188,7 @@ class FakePiTransport implements PiTransport {
     }
 
     return {
-      id: cmd.id,
+      id: cmd.id!,
       type: 'response',
       command: cmd.command,
       success: true,
@@ -253,7 +276,7 @@ function createSideTestContext() {
 
   const ws = new MockWebSocket();
   const conn = new Connection({
-    ws: ws as any,
+    ws: ws,
     expectedToken: 'test-token',
     daemonVersion: '0.1.0',
     startedAt: Date.now(),
@@ -308,9 +331,9 @@ test('SideTransport RPC allowlist: allows prompt, abort, get_state; blocks every
       async () => {
         await side.send({ command: cmd });
       },
-      (err: any) => {
-        assert.equal(err.code, 'SIDE_RPC_BLOCKED');
-        assert.ok(err.message.includes('blocked for side conversation worker'));
+      (err: unknown) => {
+        assert.equal(errorCode(err), 'SIDE_RPC_BLOCKED');
+        assert.ok(errorMessage(err)?.includes('blocked for side conversation worker'));
         return true;
       }
     );
@@ -359,7 +382,7 @@ test('SideSnapshotRenderer: formats user, assistant, tool summaries, truncates t
 });
 
 test('SideSnapshotRenderer: caps snapshot to maxChars, keeps most recent, notes truncation', () => {
-  const messages: any[] = [];
+  const messages: SnapshotEntry[] = [];
   for (let i = 1; i <= 20; i++) {
     messages.push({
       role: 'user',
@@ -406,9 +429,11 @@ test('spawn args include exact read-only flags and exclude bash/edit/write', asy
 
     // Verify required flags
     assert.deepEqual(args.slice(0, 8), [
-      '--mode', 'rpc',
+      '--mode',
+      'rpc',
       '--no-session',
-      '--tools', 'read,grep,find,ls',
+      '--tools',
+      'read,grep,find,ls',
       '--no-mcp',
       '--no-extensions',
       '--no-skills'
@@ -429,6 +454,7 @@ test('spawn args include exact read-only flags and exclude bash/edit/write', asy
     // Context file permissions
     const promptPathIdx = args.indexOf('--append-system-prompt');
     const contextFilePath = args[promptPathIdx + 1];
+    assert.ok(contextFilePath);
     assert.ok(fs.existsSync(contextFilePath));
     const stat = fs.statSync(contextFilePath);
     // On POSIX mode & 0o777 is 0o600; on Windows stat.mode contains file type bits
@@ -467,9 +493,9 @@ test('Unsafe tools exposed via get_state triggers SIDE_UNSAFE_TOOLS and aborts',
       async () => {
         await sideMgr.open({ parentSessionId: parentSession.id });
       },
-      (err: any) => {
-        assert.equal(err.code, 'SIDE_UNSAFE_TOOLS');
-        assert.ok(err.message.includes('Unsafe tool "bash"'));
+      (err: unknown) => {
+        assert.equal(errorCode(err), 'SIDE_UNSAFE_TOOLS');
+        assert.ok(errorMessage(err)?.includes('Unsafe tool "bash"'));
         return true;
       }
     );
@@ -546,9 +572,7 @@ test('Isolation: main session journal receives NO side events', async () => {
     );
 
     // Verify side events were delivered to connection on streamId, not main session
-    const sideEvents = ctx.ws.sentMessages
-      .map((m) => JSON.parse(m))
-      .filter((m) => m.sessionId === streamId);
+    const sideEvents = ctx.ws.sentMessages.map((m) => JSON.parse(m)).filter((m) => m.sessionId === streamId);
 
     assert.ok(sideEvents.length > 0);
     assert.ok(sideEvents.some((e) => e.type === 'side.opened'));
@@ -576,7 +600,7 @@ test('Lifecycle: close deletes temp dir and kills worker', async () => {
     await ctx.sideManager.close(sideId, 'user');
 
     assert.ok(!fs.existsSync(contextDir), 'Temp runtime context dir must be deleted on close');
-    assert.equal(ctx.fakeTransports[0].stopCalls.length, 1, 'Worker stop must be called');
+    assert.equal(ctx.fakeTransports[0]!.stopCalls.length, 1, 'Worker stop must be called');
   } finally {
     ctx.cleanup();
   }
@@ -612,9 +636,7 @@ test('Lifecycle: idle timeout closes side thread with reason idle', async () => 
 
     assert.equal(sideMgr.getSide(sideId), undefined, 'Thread should be closed after idle timeout');
 
-    const closedEvent = ctx.ws.sentMessages
-      .map((m) => JSON.parse(m))
-      .find((m) => m.type === 'side.closed');
+    const closedEvent = ctx.ws.sentMessages.map((m) => JSON.parse(m)).find((m) => m.type === 'side.closed');
 
     assert.ok(closedEvent);
     assert.equal(closedEvent.payload.reason, 'idle');
@@ -643,9 +665,7 @@ test('Lifecycle: parent close triggers side close with reason parentClosed', asy
 
     assert.equal(ctx.sideManager.getSide(sideId), undefined);
 
-    const closedEvent = ctx.ws.sentMessages
-      .map((m) => JSON.parse(m))
-      .find((m) => m.type === 'side.closed');
+    const closedEvent = ctx.ws.sentMessages.map((m) => JSON.parse(m)).find((m) => m.type === 'side.closed');
 
     assert.ok(closedEvent);
     assert.equal(closedEvent.payload.reason, 'parentClosed');
@@ -690,7 +710,7 @@ test('Limits: max 4 total concurrent side threads', async () => {
 
     // Open 4
     for (let i = 0; i < 4; i++) {
-      await ctx.sideManager.open({ parentSessionId: parentSessions[i].id });
+      await ctx.sideManager.open({ parentSessionId: parentSessions[i]!.id });
     }
 
     assert.equal(ctx.sideManager.getActiveCount(), 4);
@@ -698,10 +718,10 @@ test('Limits: max 4 total concurrent side threads', async () => {
     // 5th must fail
     await assert.rejects(
       async () => {
-        await ctx.sideManager.open({ parentSessionId: parentSessions[4].id });
+        await ctx.sideManager.open({ parentSessionId: parentSessions[4]!.id });
       },
-      (err: any) => {
-        assert.equal(err.code, 'SIDE_LIMIT_REACHED');
+      (err: unknown) => {
+        assert.equal(errorCode(err), 'SIDE_LIMIT_REACHED');
         return true;
       }
     );
@@ -731,7 +751,7 @@ test('Dispatcher: remote view mode forbidden for open/prompt, allowed for abort/
 
     const remoteWs = new MockWebSocket();
     const remoteViewConn = new Connection({
-      ws: remoteWs as any,
+      ws: remoteWs,
       expectedToken: 'remote-tok',
       daemonVersion: '0.1.0',
       startedAt: Date.now(),
@@ -745,7 +765,13 @@ test('Dispatcher: remote view mode forbidden for open/prompt, allowed for abort/
     ctx.connManager.add(remoteViewConn);
 
     // Helper to send command via dispatcher and return parsed result
-    const send = async (c: Connection, mockWs: MockWebSocket, type: string, payload: any, sId?: string) => {
+    const send = async (
+      c: Connection,
+      mockWs: MockWebSocket,
+      type: string,
+      payload: Record<string, unknown>,
+      sId?: string
+    ) => {
       const start = mockWs.sentMessages.length;
       await ctx.dispatcher.handle(c, {
         protocol: 1,
@@ -756,10 +782,10 @@ test('Dispatcher: remote view mode forbidden for open/prompt, allowed for abort/
         sessionId: sId,
         type,
         payload
-      } as any);
+      } as PcpCommand);
       const msgs = mockWs.sentMessages.slice(start).map((m: string) => JSON.parse(m));
-      const errorMsg = msgs.find((m: any) => m.kind === 'error');
-      const resultMsg = msgs.find((m: any) => m.kind === 'result');
+      const errorMsg = msgs.find((m: WireFrame) => m.kind === 'error');
+      const resultMsg = msgs.find((m: WireFrame) => m.kind === 'result');
       return {
         error: errorMsg?.payload,
         result: resultMsg?.payload,
@@ -795,7 +821,7 @@ test('Dispatcher: remote view mode forbidden for open/prompt, allowed for abort/
     // 5. Remote in control mode -> open and prompt ALLOWED
     const remoteCtrlWs = new MockWebSocket();
     const remoteControlConn = new Connection({
-      ws: remoteCtrlWs as any,
+      ws: remoteCtrlWs,
       expectedToken: 'remote-tok-2',
       daemonVersion: '0.1.0',
       startedAt: Date.now(),
@@ -807,7 +833,7 @@ test('Dispatcher: remote view mode forbidden for open/prompt, allowed for abort/
     remoteControlConn.deviceId = 'dev_ctrl_01';
     remoteControlConn.state = 'ready';
     ctx.connManager.add(remoteControlConn);
-    mockAuthManager.getDevice = (id: string) => ({ id, mode: 'control' } as any);
+    mockAuthManager.getDevice = (id: string) => ({ id, mode: 'control' });
 
     const ctrlOpenRes = await send(remoteControlConn, remoteCtrlWs, 'side.open', { sessionId: parentSession.id });
     assert.equal(ctrlOpenRes.result?.state, 'completed');
@@ -840,7 +866,13 @@ test('Dispatcher: commands targeting side stream rejected with SIDE_STREAM_READ_
     });
 
     // Helper to send command via dispatcher and return parsed result
-    const send = async (c: Connection, mockWs: MockWebSocket, type: string, payload: any, sId?: string) => {
+    const send = async (
+      c: Connection,
+      mockWs: MockWebSocket,
+      type: string,
+      payload: Record<string, unknown>,
+      sId?: string
+    ) => {
       const start = mockWs.sentMessages.length;
       await ctx.dispatcher.handle(c, {
         protocol: 1,
@@ -851,10 +883,10 @@ test('Dispatcher: commands targeting side stream rejected with SIDE_STREAM_READ_
         sessionId: sId,
         type,
         payload
-      } as any);
+      } as PcpCommand);
       const msgs = mockWs.sentMessages.slice(start).map((m: string) => JSON.parse(m));
-      const errorMsg = msgs.find((m: any) => m.kind === 'error');
-      const resultMsg = msgs.find((m: any) => m.kind === 'result');
+      const errorMsg = msgs.find((m: WireFrame) => m.kind === 'error');
+      const resultMsg = msgs.find((m: WireFrame) => m.kind === 'result');
       return {
         error: errorMsg?.payload,
         result: resultMsg?.payload,
@@ -901,7 +933,7 @@ test('Dispatcher: side.prompt, side.abort, side.close allowed when sessionId = s
       conn: ctx.conn
     });
 
-    const send = async (type: string, payload: any, sId?: string) => {
+    const send = async (type: string, payload: Record<string, unknown>, sId?: string) => {
       const start = ctx.ws.sentMessages.length;
       await ctx.dispatcher.handle(ctx.conn, {
         protocol: 1,
@@ -912,12 +944,12 @@ test('Dispatcher: side.prompt, side.abort, side.close allowed when sessionId = s
         sessionId: sId,
         type,
         payload
-      } as any);
+      } as PcpCommand);
       const msgs = ctx.ws.sentMessages.slice(start).map((m: string) => JSON.parse(m));
       return {
-        error: msgs.find((m: any) => m.kind === 'error')?.payload,
-        result: msgs.find((m: any) => m.kind === 'result')?.payload,
-        data: msgs.find((m: any) => m.kind === 'result')?.payload?.data
+        error: msgs.find((m: WireFrame) => m.kind === 'error')?.payload,
+        result: msgs.find((m: WireFrame) => m.kind === 'result')?.payload,
+        data: msgs.find((m: WireFrame) => m.kind === 'result')?.payload?.data
       };
     };
 
@@ -956,7 +988,7 @@ test('Dispatcher: side commands on side stream reject mismatched payload.sideId'
       conn: ctx.conn
     });
 
-    const send = async (type: string, payload: any, sId?: string) => {
+    const send = async (type: string, payload: Record<string, unknown>, sId?: string) => {
       const start = ctx.ws.sentMessages.length;
       await ctx.dispatcher.handle(ctx.conn, {
         protocol: 1,
@@ -967,11 +999,11 @@ test('Dispatcher: side commands on side stream reject mismatched payload.sideId'
         sessionId: sId,
         type,
         payload
-      } as any);
+      } as PcpCommand);
       const msgs = ctx.ws.sentMessages.slice(start).map((m: string) => JSON.parse(m));
       return {
-        error: msgs.find((m: any) => m.kind === 'error')?.payload,
-        result: msgs.find((m: any) => m.kind === 'result')?.payload
+        error: msgs.find((m: WireFrame) => m.kind === 'error')?.payload,
+        result: msgs.find((m: WireFrame) => m.kind === 'result')?.payload
       };
     };
 
@@ -1009,7 +1041,7 @@ test('Dispatcher: agent.prompt and workspace.saveFile on side stream are rejecte
       conn: ctx.conn
     });
 
-    const send = async (type: string, payload: any, sId?: string) => {
+    const send = async (type: string, payload: Record<string, unknown>, sId?: string) => {
       const start = ctx.ws.sentMessages.length;
       await ctx.dispatcher.handle(ctx.conn, {
         protocol: 1,
@@ -1020,11 +1052,11 @@ test('Dispatcher: agent.prompt and workspace.saveFile on side stream are rejecte
         sessionId: sId,
         type,
         payload
-      } as any);
+      } as PcpCommand);
       const msgs = ctx.ws.sentMessages.slice(start).map((m: string) => JSON.parse(m));
       return {
-        error: msgs.find((m: any) => m.kind === 'error')?.payload,
-        result: msgs.find((m: any) => m.kind === 'result')?.payload
+        error: msgs.find((m: WireFrame) => m.kind === 'error')?.payload,
+        result: msgs.find((m: WireFrame) => m.kind === 'result')?.payload
       };
     };
 
@@ -1118,13 +1150,13 @@ test('SideConversationManager: auto-prompt rejection in open() emits error and c
 
       const messages = ctx.ws.sentMessages.map((m) => JSON.parse(m));
       const diagMsg = messages.find(
-        (m: any) => m.type === 'worker.diagnostic' && m.sessionId === streamId && m.payload?.level === 'error'
+        (m: WireFrame) => m.type === 'worker.diagnostic' && m.sessionId === streamId && m.payload?.level === 'error'
       );
       assert.ok(diagMsg, 'Must emit worker.diagnostic error on side stream');
       assert.ok(diagMsg.payload.message.includes('Simulated prompt failure'));
 
       const closeMsg = messages.find(
-        (m: any) => m.type === 'side.closed' && m.sessionId === streamId && m.payload?.reason === 'error'
+        (m: WireFrame) => m.type === 'side.closed' && m.sessionId === streamId && m.payload?.reason === 'error'
       );
       assert.ok(closeMsg, 'Must emit side.closed with reason: error');
       assert.equal(ctx.sideManager.hasStream(streamId), false);
@@ -1186,7 +1218,7 @@ test('SideConversationManager: session.attach yields exactly one replay of buffe
     // Create a new connection wired as in main.ts
     const ws2 = new MockWebSocket();
     const conn2 = new Connection({
-      ws: ws2 as any,
+      ws: ws2,
       expectedToken: 'test-token',
       daemonVersion: '0.1.0',
       startedAt: Date.now(),
@@ -1214,7 +1246,7 @@ test('SideConversationManager: session.attach yields exactly one replay of buffe
 
     // 1. Simulate session.attach command with lastSeq = null (snapshot replay)
     const attachCommandId = `att_${ulid()}`;
-    await (conn2 as any).executeCommand({
+    await conn2['executeCommand']({
       protocol: 1,
       kind: 'command',
       id: `msg_${ulid()}`,
@@ -1229,26 +1261,26 @@ test('SideConversationManager: session.attach yields exactly one replay of buffe
 
     // Verify exactly one snapshot ack message from handleAttach (no duplicate acks)
     const snapshotAcks = messages.filter(
-      (m: any) => m.kind === 'ack' && m.commandId === attachCommandId && m.payload?.state === 'snapshot'
+      (m: WireFrame) => m.kind === 'ack' && m.commandId === attachCommandId && m.payload?.state === 'snapshot'
     );
     assert.equal(snapshotAcks.length, 1, 'Must receive exactly one snapshot ack for attach command');
 
     // Verify replayed events: exactly one replay, count matches thread.eventsBuffer, no duplicate seq
-    const replayedEvents = messages.filter((m: any) => m.kind === 'event' && m.sessionId === streamId);
+    const replayedEvents = messages.filter((m: WireFrame) => m.kind === 'event' && m.sessionId === streamId);
     assert.equal(
       replayedEvents.length,
       thread.eventsBuffer.length,
       'Replayed event count must match thread eventsBuffer length exactly once'
     );
 
-    const seqs = replayedEvents.map((m: any) => m.seq);
+    const seqs = replayedEvents.map((m: WireFrame) => m.seq ?? Number.NaN);
     assert.equal(new Set(seqs).size, seqs.length, 'Replayed event seqs must have NO duplicates');
     for (let i = 1; i < seqs.length; i++) {
-      assert.equal(seqs[i], seqs[i - 1] + 1, 'Replayed seq numbers must be strictly consecutive');
+      assert.equal(seqs[i]!, seqs[i - 1]! + 1, 'Replayed seq numbers must be strictly consecutive');
     }
 
     // Verify command result completed
-    const resultMsg = messages.find((m: any) => m.kind === 'result' && m.commandId === attachCommandId);
+    const resultMsg = messages.find((m: WireFrame) => m.kind === 'result' && m.commandId === attachCommandId);
     assert.ok(resultMsg, 'Must receive command result for attach');
     assert.equal(resultMsg.payload?.state, 'completed');
     assert.equal(resultMsg.payload?.data?.attached, true);
@@ -1256,12 +1288,16 @@ test('SideConversationManager: session.attach yields exactly one replay of buffe
     // Verify subsequent handleAttach with same commandId is deduped (no extra messages)
     const msgCountBefore = ws2.sentMessages.length;
     await ctx.dispatcher.getSideManager().handleAttach(streamId, conn2, null, attachCommandId);
-    assert.equal(ws2.sentMessages.length, msgCountBefore, 'Subsequent handleAttach with same commandId must be deduped');
+    assert.equal(
+      ws2.sentMessages.length,
+      msgCountBefore,
+      'Subsequent handleAttach with same commandId must be deduped'
+    );
 
     // 2. Also verify resume attach with lastSeq
     const ws3 = new MockWebSocket();
     const conn3 = new Connection({
-      ws: ws3 as any,
+      ws: ws3,
       expectedToken: 'test-token',
       daemonVersion: '0.1.0',
       startedAt: Date.now(),
@@ -1289,7 +1325,7 @@ test('SideConversationManager: session.attach yields exactly one replay of buffe
 
     const resumeSeq = seqs[Math.floor(seqs.length / 2)];
     const resumeCommandId = `att_resume_${ulid()}`;
-    await (conn3 as any).executeCommand({
+    await conn3['executeCommand']({
       protocol: 1,
       kind: 'command',
       id: `msg_${ulid()}`,
@@ -1302,15 +1338,15 @@ test('SideConversationManager: session.attach yields exactly one replay of buffe
 
     const resumeMessages = ws3.sentMessages.map((m: string) => JSON.parse(m));
     const resumeAcks = resumeMessages.filter(
-      (m: any) => m.kind === 'ack' && m.commandId === resumeCommandId && m.payload?.state === 'resume'
+      (m: WireFrame) => m.kind === 'ack' && m.commandId === resumeCommandId && m.payload?.state === 'resume'
     );
     assert.equal(resumeAcks.length, 1, 'Resume must receive exactly one resume ack frame');
 
-    const resumeEvents = resumeMessages.filter((m: any) => m.kind === 'event' && m.sessionId === streamId);
-    const resumeSeqs = resumeEvents.map((m: any) => m.seq);
+    const resumeEvents = resumeMessages.filter((m: WireFrame) => m.kind === 'event' && m.sessionId === streamId);
+    const resumeSeqs = resumeEvents.map((m: WireFrame) => m.seq ?? Number.NaN);
     assert.equal(new Set(resumeSeqs).size, resumeSeqs.length, 'Resume replayed seqs must have NO duplicates');
     for (const s of resumeSeqs) {
-      assert.ok(s > resumeSeq, `Replayed resume seq ${s} must be greater than lastSeq ${resumeSeq}`);
+      assert.ok(s > (resumeSeq ?? Number.NaN), `Replayed resume seq ${s} must be greater than lastSeq ${resumeSeq}`);
     }
 
     await ctx.sideManager.close(sideId, 'user');
@@ -1325,21 +1361,21 @@ test('SideConversationManager: bounds lastAttachWithoutCommandId to 1000 FIFO', 
     const parentSession = await ctx.sessionRegistry.createSession({ cwd: ctx.tmpBaseDir });
     const { sideId, streamId } = await ctx.sideManager.open({ parentSessionId: parentSession.id });
 
-    const managerAny = ctx.sideManager as any;
+    const managerAny = ctx.sideManager;
 
     // Simulate 1005 attaches without commandId across different connections
     for (let i = 0; i < 1005; i++) {
-      const fakeConn = { id: `conn_${i}`, attachedSessions: new Set<string>(), send: () => {} } as any;
+      const fakeConn = namedConnection(`conn_${i}`);
       await ctx.sideManager.handleAttach(streamId, fakeConn, null);
     }
 
-    assert.equal(managerAny.lastAttachWithoutCommandId.size, 1000, 'Cap must strictly be 1000');
+    assert.equal(managerAny['lastAttachWithoutCommandId'].size, 1000, 'Cap must strictly be 1000');
     // First 5 (conn_0 .. conn_4) must have been evicted FIFO
-    assert.equal(managerAny.lastAttachWithoutCommandId.has(`conn_0:${streamId}`), false);
-    assert.equal(managerAny.lastAttachWithoutCommandId.has(`conn_4:${streamId}`), false);
+    assert.equal(managerAny['lastAttachWithoutCommandId'].has(`conn_0:${streamId}`), false);
+    assert.equal(managerAny['lastAttachWithoutCommandId'].has(`conn_4:${streamId}`), false);
     // The later ones must still be present
-    assert.equal(managerAny.lastAttachWithoutCommandId.has(`conn_5:${streamId}`), true);
-    assert.equal(managerAny.lastAttachWithoutCommandId.has(`conn_1004:${streamId}`), true);
+    assert.equal(managerAny['lastAttachWithoutCommandId'].has(`conn_5:${streamId}`), true);
+    assert.equal(managerAny['lastAttachWithoutCommandId'].has(`conn_1004:${streamId}`), true);
 
     await ctx.sideManager.close(sideId, 'user');
   } finally {
@@ -1353,15 +1389,15 @@ test('SideConversationManager: purges lastAttachWithoutCommandId for connection 
     const parentSession = await ctx.sessionRegistry.createSession({ cwd: ctx.tmpBaseDir });
     const { sideId, streamId } = await ctx.sideManager.open({ parentSessionId: parentSession.id });
 
-    const managerAny = ctx.sideManager as any;
-    const testConn = { id: 'conn_detach_test', attachedSessions: new Set<string>(), send: () => {} } as any;
+    const managerAny = ctx.sideManager;
+    const testConn = namedConnection('conn_detach_test');
 
     await ctx.sideManager.handleAttach(streamId, testConn, null);
-    assert.equal(managerAny.lastAttachWithoutCommandId.has(`conn_detach_test:${streamId}`), true);
+    assert.equal(managerAny['lastAttachWithoutCommandId'].has(`conn_detach_test:${streamId}`), true);
 
     ctx.sideManager.handleDetach(streamId, testConn);
     assert.equal(
-      managerAny.lastAttachWithoutCommandId.has(`conn_detach_test:${streamId}`),
+      managerAny['lastAttachWithoutCommandId'].has(`conn_detach_test:${streamId}`),
       false,
       'Detach must purge lastAttachWithoutCommandId entry'
     );
@@ -1378,26 +1414,26 @@ test('SideConversationManager: purges lastAttachWithoutCommandId and processedAt
     const parentSession = await ctx.sessionRegistry.createSession({ cwd: ctx.tmpBaseDir });
     const { sideId, streamId } = await ctx.sideManager.open({ parentSessionId: parentSession.id });
 
-    const managerAny = ctx.sideManager as any;
-    const testConn = { id: 'conn_close_test', attachedSessions: new Set<string>(), send: () => {} } as any;
+    const managerAny = ctx.sideManager;
+    const testConn = namedConnection('conn_close_test');
 
     // Attach with and without commandId
     await ctx.sideManager.handleAttach(streamId, testConn, null);
     await ctx.sideManager.handleAttach(streamId, testConn, null, 'cmd_123');
 
-    assert.equal(managerAny.lastAttachWithoutCommandId.has(`conn_close_test:${streamId}`), true);
-    assert.equal(managerAny.processedAttachCommands.has(`conn_close_test:${streamId}:cmd_123`), true);
+    assert.equal(managerAny['lastAttachWithoutCommandId'].has(`conn_close_test:${streamId}`), true);
+    assert.equal(managerAny['processedAttachCommands'].has(`conn_close_test:${streamId}:cmd_123`), true);
 
     // Trigger connection close
     ctx.sideManager.handleConnectionClose(testConn);
 
     assert.equal(
-      managerAny.lastAttachWithoutCommandId.has(`conn_close_test:${streamId}`),
+      managerAny['lastAttachWithoutCommandId'].has(`conn_close_test:${streamId}`),
       false,
       'Connection close must purge lastAttachWithoutCommandId'
     );
     assert.equal(
-      managerAny.processedAttachCommands.has(`conn_close_test:${streamId}:cmd_123`),
+      managerAny['processedAttachCommands'].has(`conn_close_test:${streamId}:cmd_123`),
       false,
       'Connection close must purge processedAttachCommands'
     );
@@ -1414,15 +1450,15 @@ test('SideConversationManager: connectionManager onClose automatically triggers 
     const parentSession = await ctx.sessionRegistry.createSession({ cwd: ctx.tmpBaseDir });
     const { sideId, streamId } = await ctx.sideManager.open({ parentSessionId: parentSession.id });
 
-    const managerAny = ctx.sideManager as any;
+    const managerAny = ctx.sideManager;
     await ctx.sideManager.handleAttach(streamId, ctx.conn, null);
-    assert.equal(managerAny.lastAttachWithoutCommandId.has(`${ctx.conn.id}:${streamId}`), true);
+    assert.equal(managerAny['lastAttachWithoutCommandId'].has(`${ctx.conn.id}:${streamId}`), true);
 
     // Remove conn from ConnectionManager (which invokes closeListeners)
     ctx.connManager.remove(ctx.conn);
 
     assert.equal(
-      managerAny.lastAttachWithoutCommandId.has(`${ctx.conn.id}:${streamId}`),
+      managerAny['lastAttachWithoutCommandId'].has(`${ctx.conn.id}:${streamId}`),
       false,
       'ConnectionManager remove must automatically trigger purge'
     );
@@ -1432,4 +1468,3 @@ test('SideConversationManager: connectionManager onClose automatically triggers 
     ctx.cleanup();
   }
 });
-

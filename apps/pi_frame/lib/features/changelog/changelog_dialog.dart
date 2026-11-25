@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../data/language/language_settings.dart';
+import '../../data/platform/link_service.dart';
 import '../../domain/changelog/changelog_models.dart';
 import '../../ui/frame_dialog.dart';
 import '../../ui/precision.dart';
@@ -13,16 +13,14 @@ import '../../ui/precision.dart';
 class ChangelogDialog extends ConsumerWidget {
   final ChangelogRelease release;
 
-  const ChangelogDialog({
-    super.key,
-    required this.release,
-  });
+  const ChangelogDialog({super.key, required this.release});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tokens = context.tokens;
     final text = FrameText.of(context);
     final strings = ref.watch(appStringsProvider);
+    final links = ref.read(linkServiceProvider);
 
     return FrameDialog<void>(
       title: strings.changelogTitle(release.version),
@@ -32,19 +30,13 @@ class ChangelogDialog extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.only(right: FrameSpace.x2),
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: FrameSpace.x2,
-                vertical: 2,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2, vertical: 2),
               decoration: BoxDecoration(
                 color: tokens.surface,
                 borderRadius: BorderRadius.circular(tokens.radiusSm),
                 border: Border.all(color: tokens.border),
               ),
-              child: Text(
-                release.date!,
-                style: text.caption.copyWith(color: tokens.textMuted),
-              ),
+              child: Text(release.date!, style: text.caption.copyWith(color: tokens.textMuted)),
             ),
           ),
       ],
@@ -53,10 +45,7 @@ class ChangelogDialog extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              strings.changelogSubtitle,
-              style: text.label.copyWith(color: tokens.textSecondary),
-            ),
+            Text(strings.changelogSubtitle, style: text.label.copyWith(color: tokens.textSecondary)),
             const SizedBox(height: FrameSpace.x4),
 
             // Features section
@@ -73,6 +62,7 @@ class ChangelogDialog extends ConsumerWidget {
               ...release.features.map(
                 (item) => _buildItemRow(
                   context: context,
+                  links: links,
                   tokens: tokens,
                   item: item,
                   accentColor: tokens.accent,
@@ -95,6 +85,7 @@ class ChangelogDialog extends ConsumerWidget {
               ...release.fixes.map(
                 (item) => _buildItemRow(
                   context: context,
+                  links: links,
                   tokens: tokens,
                   item: item,
                   accentColor: tokens.textSecondary,
@@ -107,10 +98,7 @@ class ChangelogDialog extends ConsumerWidget {
             if (release.isEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: FrameSpace.x4),
-                child: Text(
-                  strings.changelogNoChanges,
-                  style: text.body.copyWith(color: tokens.textSecondary),
-                ),
+                child: Text(strings.changelogNoChanges, style: text.body.copyWith(color: tokens.textSecondary)),
               ),
           ],
         ),
@@ -141,27 +129,18 @@ class ChangelogDialog extends ConsumerWidget {
         const SizedBox(width: FrameSpace.x2),
         Text(
           title,
-          style: text.label.copyWith(
-            color: color,
-            fontWeight: FontWeight.bold,
-          ),
+          style: text.label.copyWith(color: color, fontWeight: FontWeight.bold),
         ),
         const SizedBox(width: FrameSpace.x2),
         Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: FrameSpace.x2,
-            vertical: 1,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2, vertical: 1),
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(tokens.radiusSm),
           ),
           child: Text(
             count.toString(),
-            style: text.caption.copyWith(
-              color: color,
-              fontWeight: FontWeight.bold,
-            ),
+            style: text.caption.copyWith(color: color, fontWeight: FontWeight.bold),
           ),
         ),
       ],
@@ -170,6 +149,7 @@ class ChangelogDialog extends ConsumerWidget {
 
   Widget _buildItemRow({
     required BuildContext context,
+    required LinkService links,
     required FrameTokens tokens,
     required ChangelogItem item,
     required Color accentColor,
@@ -196,15 +176,9 @@ class ChangelogDialog extends ConsumerWidget {
               margin: const EdgeInsets.only(right: FrameSpace.x2),
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
               decoration: BoxDecoration(
-                color: item.isFeature
-                    ? tokens.accent.withValues(alpha: 0.12)
-                    : tokens.surface,
+                color: item.isFeature ? tokens.accent.withValues(alpha: 0.12) : tokens.surface,
                 borderRadius: BorderRadius.circular(tokens.radiusSm),
-                border: Border.all(
-                  color: item.isFeature
-                      ? tokens.accent.withValues(alpha: 0.25)
-                      : tokens.border,
-                ),
+                border: Border.all(color: item.isFeature ? tokens.accent.withValues(alpha: 0.25) : tokens.border),
               ),
               child: Text(
                 item.scope!,
@@ -216,13 +190,7 @@ class ChangelogDialog extends ConsumerWidget {
             ),
           ],
           Expanded(
-            child: SelectableText(
-              item.message,
-              style: text.body.copyWith(
-                color: tokens.textPrimary,
-                height: 1.35,
-              ),
-            ),
+            child: SelectableText(item.message, style: text.body.copyWith(color: tokens.textPrimary, height: 1.35)),
           ),
           if (item.commitHash != null && item.commitUrl != null) ...[
             const SizedBox(width: FrameSpace.x2),
@@ -232,7 +200,7 @@ class ChangelogDialog extends ConsumerWidget {
                 onTap: () async {
                   final uri = Uri.tryParse(item.commitUrl!);
                   if (uri != null) {
-                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    await links.openExternal(uri);
                   }
                 },
                 child: Container(
@@ -244,10 +212,7 @@ class ChangelogDialog extends ConsumerWidget {
                   ),
                   child: Text(
                     item.commitHash!,
-                    style: text.caption.copyWith(
-                      color: tokens.textMuted,
-                      fontFamily: 'SourceCodePro',
-                    ),
+                    style: text.caption.copyWith(color: tokens.textMuted, fontFamily: 'SourceCodePro'),
                   ),
                 ),
               ),
@@ -260,10 +225,7 @@ class ChangelogDialog extends ConsumerWidget {
 }
 
 /// Helper function to display the changelog modal popup.
-Future<void> showChangelogDialog({
-  required BuildContext context,
-  required ChangelogRelease release,
-}) {
+Future<void> showChangelogDialog({required BuildContext context, required ChangelogRelease release}) {
   return showFrameDialogBuilder<void>(
     context: context,
     builder: (context) => ChangelogDialog(release: release),

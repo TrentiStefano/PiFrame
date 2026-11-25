@@ -37,46 +37,33 @@ AssistantTurnFrame _settledTurn() => AssistantTurnFrame(
 );
 
 void main() {
-  testWidgets(
-    'first text line sits at the same y while streaming and once settled',
-    (tester) async {
-      await tester.pumpWidget(_app(_streamingTurn()));
-      final streamingY = tester.getTopLeft(find.text(_bodyText)).dy;
+  testWidgets('first text line sits at the same y while streaming and once settled', (tester) async {
+    await tester.pumpWidget(_app(_streamingTurn()));
+    final streamingY = tester.getTopLeft(find.text(_bodyText)).dy;
 
-      await tester.pumpWidget(_app(_settledTurn()));
-      await tester.pumpAndSettle();
-      final settledY = tester.getTopLeft(find.text(_bodyText)).dy;
+    await tester.pumpWidget(_app(_settledTurn()));
+    await tester.pumpAndSettle();
+    final settledY = tester.getTopLeft(find.text(_bodyText)).dy;
 
-      expect(settledY, streamingY);
-    },
-  );
+    expect(settledY, streamingY);
+  });
 
   testWidgets('meta line is a fixed 24 px high in both states', (tester) async {
     await tester.pumpWidget(_app(_streamingTurn()));
     final streamingMeta = tester.getSize(
-      find
-          .byWidgetPredicate(
-            (w) => w is SizedBox && w.height == kAssistantMetaLineHeight,
-          )
-          .first,
+      find.byWidgetPredicate((w) => w is SizedBox && w.height == kAssistantMetaLineHeight).first,
     );
     expect(streamingMeta.height, kAssistantMetaLineHeight);
 
     await tester.pumpWidget(_app(_settledTurn()));
     await tester.pumpAndSettle();
     final settledMeta = tester.getSize(
-      find
-          .byWidgetPredicate(
-            (w) => w is SizedBox && w.height == kAssistantMetaLineHeight,
-          )
-          .first,
+      find.byWidgetPredicate((w) => w is SizedBox && w.height == kAssistantMetaLineHeight).first,
     );
     expect(settledMeta.height, kAssistantMetaLineHeight);
   });
 
-  testWidgets('reading measure is capped at 760 px in a wide pane', (
-    tester,
-  ) async {
+  testWidgets('reading measure is capped at 760 px in a wide pane', (tester) async {
     await tester.pumpWidget(_app(_settledTurn(), width: 1400));
     await tester.pumpAndSettle();
     final column = tester.getSize(find.text(_bodyText));
@@ -87,49 +74,37 @@ void main() {
     expect(frameLeft, lessThan(1400 - 100));
   });
 
-  testWidgets(
-    'copy action is hidden until hover or focus, but stays in the tree',
-    (tester) async {
-      await tester.pumpWidget(_app(_settledTurn()));
-      await tester.pumpAndSettle();
+  testWidgets('copy action is hidden until hover or focus, but stays in the tree', (tester) async {
+    await tester.pumpWidget(_app(_settledTurn()));
+    await tester.pumpAndSettle();
 
-      double copyOpacity() => tester
-          .widget<AnimatedOpacity>(
-            find
-                .ancestor(
-                  of: find.byKey(const ValueKey('copy')),
-                  matching: find.byType(AnimatedOpacity),
-                )
-                .first,
-          )
-          .opacity;
+    double copyOpacity() => tester
+        .widget<AnimatedOpacity>(
+          find.ancestor(of: find.byKey(const ValueKey('copy')), matching: find.byType(AnimatedOpacity)).first,
+        )
+        .opacity;
 
-      expect(find.byKey(const ValueKey('copy')), findsOneWidget);
-      expect(copyOpacity(), 0);
+    expect(find.byKey(const ValueKey('copy')), findsOneWidget);
+    expect(copyOpacity(), 0);
 
-      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
-      await gesture.addPointer(location: Offset.zero);
-      addTearDown(gesture.removePointer);
-      await gesture.moveTo(tester.getCenter(find.text(_bodyText)));
-      await tester.pumpAndSettle();
-      expect(copyOpacity(), 1);
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer(location: Offset.zero);
+    addTearDown(gesture.removePointer);
+    await gesture.moveTo(tester.getCenter(find.text(_bodyText)));
+    await tester.pumpAndSettle();
+    expect(copyOpacity(), 1);
 
-      await gesture.moveTo(const Offset(1, 1));
-      await tester.pumpAndSettle();
-      expect(copyOpacity(), 0);
+    await gesture.moveTo(const Offset(1, 1));
+    await tester.pumpAndSettle();
+    expect(copyOpacity(), 0);
 
-      // Keyboard path: the action is an enabled, focusable button even while
-      // it is faded out, so Tab still reaches it.
-      final button = tester.widget<IconButton>(
-        find.byKey(const ValueKey('copy')),
-      );
-      expect(button.onPressed, isNotNull);
-    },
-  );
+    // Keyboard path: the action is an enabled, focusable button even while
+    // it is faded out, so Tab still reaches it.
+    final button = tester.widget<IconButton>(find.byKey(const ValueKey('copy')));
+    expect(button.onPressed, isNotNull);
+  });
 
-  testWidgets('copy hit target is 28 px and the meta line stays 24 px', (
-    tester,
-  ) async {
+  testWidgets('copy hit target is 28 px and the meta line stays 24 px', (tester) async {
     var copied = 0;
     await tester.pumpWidget(
       _app(
@@ -149,11 +124,7 @@ void main() {
     expect(button.height >= 28, isTrue, reason: 'height ${button.height}');
 
     final metaLine = tester.getSize(
-      find
-          .byWidgetPredicate(
-            (w) => w is SizedBox && w.height == kAssistantMetaLineHeight,
-          )
-          .first,
+      find.byWidgetPredicate((w) => w is SizedBox && w.height == kAssistantMetaLineHeight).first,
     );
     expect(metaLine.height, kAssistantMetaLineHeight);
 

@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
+
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 
-import '../../app/app_version.dart';
+import '../runtime/app_version.dart';
 import '../../domain/update/semver.dart';
 import 'web_token_stub.dart' if (dart.library.html) 'web_token_html.dart';
 
@@ -13,12 +14,7 @@ class DaemonEndpoint {
   final String token;
   final bool isSecure;
 
-  const DaemonEndpoint({
-    this.host = '127.0.0.1',
-    required this.port,
-    required this.token,
-    this.isSecure = false,
-  });
+  const DaemonEndpoint({this.host = '127.0.0.1', required this.port, required this.token, this.isSecure = false});
 }
 
 // Non-visual daemon timings. They stay numeric and are listed on the allow-list
@@ -100,38 +96,24 @@ class DaemonLocator {
         if (webToken != null && webToken.isNotEmpty) {
           headers['Authorization'] = 'Bearer $webToken';
         }
-        final response = await http.get(base.resolve('/api/session-bootstrap'), headers: headers)
+        final response = await http
+            .get(base.resolve('/api/session-bootstrap'), headers: headers)
             .timeout(const Duration(seconds: 4));
         if (response.statusCode == 200) {
           final data = jsonDecode(response.body) as Map<String, dynamic>;
           final token = (data['token'] as String?) ?? webToken;
           if (token != null && token.isNotEmpty) {
-            return DaemonEndpoint(
-              host: base.host,
-              port: port,
-              token: token,
-              isSecure: isSecure,
-            );
+            return DaemonEndpoint(host: base.host, port: port, token: token, isSecure: isSecure);
           }
         } else if (response.statusCode != 401 &&
             response.statusCode != 403 &&
             webToken != null &&
             webToken.isNotEmpty) {
-          return DaemonEndpoint(
-            host: base.host,
-            port: port,
-            token: webToken,
-            isSecure: isSecure,
-          );
+          return DaemonEndpoint(host: base.host, port: port, token: webToken, isSecure: isSecure);
         }
       } catch (_) {
         if (webToken != null && webToken.isNotEmpty) {
-          return DaemonEndpoint(
-            host: base.host,
-            port: port,
-            token: webToken,
-            isSecure: isSecure,
-          );
+          return DaemonEndpoint(host: base.host, port: port, token: webToken, isSecure: isSecure);
         }
       }
 
@@ -267,27 +249,15 @@ class DaemonLocator {
       final bundledExeName = Platform.isWindows ? 'pi-agentd.exe' : 'pi-agentd';
       final bundledSidecar = File('$exeDir/$bundledExeName');
       if (await bundledSidecar.exists()) {
-        await Process.start(
-          bundledSidecar.path,
-          [],
-          mode: ProcessStartMode.detached,
-          environment: env,
-        );
+        await Process.start(bundledSidecar.path, [], mode: ProcessStartMode.detached, environment: env);
         return true;
       }
 
       // Release installers bundle Node beside the daemon so users need no Node install.
       final bundledDaemon = File('$exeDir/pi-agentd.cjs');
-      final bundledNode = File(
-        '$exeDir/${Platform.isWindows ? 'node.exe' : 'node'}',
-      );
+      final bundledNode = File('$exeDir/${Platform.isWindows ? 'node.exe' : 'node'}');
       if (await bundledDaemon.exists() && await bundledNode.exists()) {
-        await Process.start(
-          bundledNode.path,
-          [bundledDaemon.path],
-          mode: ProcessStartMode.detached,
-          environment: env,
-        );
+        await Process.start(bundledNode.path, [bundledDaemon.path], mode: ProcessStartMode.detached, environment: env);
         return true;
       }
 
@@ -308,12 +278,7 @@ class DaemonLocator {
       for (final p in devPaths) {
         final file = File(p);
         if (await file.exists()) {
-          await Process.start(
-            'node',
-            [file.absolute.path],
-            mode: ProcessStartMode.detached,
-            environment: env,
-          );
+          await Process.start('node', [file.absolute.path], mode: ProcessStartMode.detached, environment: env);
           return true;
         }
       }

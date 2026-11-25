@@ -5,12 +5,13 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { WorkspaceService } from '../WorkspaceService.js';
-import {
-  validateBranchName,
-  listGitBranches,
-  switchGitBranch,
-  getGitDirtyState,
-} from '../gitClient.js';
+import { validateBranchName, listGitBranches } from '../gitClient.js';
+import { errorCode, readProperty } from '../../errors/errors.js';
+
+/** A field of a rejected operation's `details`, read without asserting the shape. */
+function detailOf(err: unknown, key: string): unknown {
+  return readProperty(readProperty(err, 'details'), key);
+}
 
 function createTempRepo(opts: { initBranch?: string; commit?: boolean } = {}): {
   root: string;
@@ -18,8 +19,7 @@ function createTempRepo(opts: { initBranch?: string; commit?: boolean } = {}): {
   cleanup: () => void;
 } {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-branch-test-'));
-  const git = (args: string[]) =>
-    execFileSync('git', args, { cwd: root, encoding: 'utf8' });
+  const git = (args: string[]) => execFileSync('git', args, { cwd: root, encoding: 'utf8' });
 
   const initBranch = opts.initBranch || 'main';
   git(['init', '-q', '-b', initBranch]);
@@ -40,20 +40,14 @@ function createTempRepo(opts: { initBranch?: string; commit?: boolean } = {}): {
       try {
         fs.rmSync(root, { recursive: true, force: true });
       } catch {}
-    },
+    }
   };
 }
 
 test('validateBranchName: accepts weird valid names and rejects invalid names', async () => {
   const repo = createTempRepo();
   try {
-    const validNames = [
-      'feature/ä-ü',
-      'fix#12',
-      "it's",
-      'a.b-c_d',
-      'emoji-🚀',
-    ];
+    const validNames = ['feature/ä-ü', 'fix#12', "it's", 'a.b-c_d', 'emoji-🚀'];
 
     for (const name of validNames) {
       const validated = await validateBranchName(repo.root, name);
@@ -72,14 +66,14 @@ test('validateBranchName: accepts weird valid names and rejects invalid names', 
       'a'.repeat(256),
       null,
       undefined,
-      123,
+      123
     ];
 
     for (const name of invalidNames) {
       await assert.rejects(
         async () => validateBranchName(repo.root, name),
-        (err: any) => {
-          assert.equal(err.code, 'BRANCH_INVALID_NAME');
+        (err: unknown) => {
+          assert.equal(errorCode(err), 'BRANCH_INVALID_NAME');
           return true;
         },
         `Expected rejection for branch name: ${String(name)}`
@@ -124,8 +118,8 @@ test('listBranches: parses branches, sorting (current first, lastCommit desc), u
       env: {
         ...process.env,
         GIT_COMMITTER_DATE: '2035-01-01T00:00:00Z',
-        GIT_AUTHOR_DATE: '2035-01-01T00:00:00Z',
-      },
+        GIT_AUTHOR_DATE: '2035-01-01T00:00:00Z'
+      }
     });
 
     // Switch back to main
@@ -142,12 +136,12 @@ test('listBranches: parses branches, sorting (current first, lastCommit desc), u
     assert.ok(result.headShortSha);
 
     // Current branch (main) must be first
-    assert.equal(result.branches[0].name, 'main');
-    assert.equal(result.branches[0].isCurrent, true);
+    assert.equal(result.branches[0]!.name, 'main');
+    assert.equal(result.branches[0]!.isCurrent, true);
 
     // Second should be fix#12 because it has the newer commit
-    assert.equal(result.branches[1].name, 'fix#12');
-    assert.equal(result.branches[1].isCurrent, false);
+    assert.equal(result.branches[1]!.name, 'fix#12');
+    assert.equal(result.branches[1]!.isCurrent, false);
 
     // Check upstream tracking on emoji-🚀
     const emojiBranch = result.branches.find((b) => b.name === 'emoji-🚀');
@@ -183,24 +177,12 @@ test('switchBranch: invalid name and nonexistent branch rejections', async () =>
     const service = new WorkspaceService();
 
     // Invalid branch name rejected before switch
-    await assert.rejects(
-      async () => service.switchBranch(repo.root, '-rf'),
-      { code: 'BRANCH_INVALID_NAME' }
-    );
-    await assert.rejects(
-      async () => service.switchBranch(repo.root, 'HEAD'),
-      { code: 'BRANCH_INVALID_NAME' }
-    );
-    await assert.rejects(
-      async () => service.switchBranch(repo.root, '@{-1}'),
-      { code: 'BRANCH_INVALID_NAME' }
-    );
+    await assert.rejects(async () => service.switchBranch(repo.root, '-rf'), { code: 'BRANCH_INVALID_NAME' });
+    await assert.rejects(async () => service.switchBranch(repo.root, 'HEAD'), { code: 'BRANCH_INVALID_NAME' });
+    await assert.rejects(async () => service.switchBranch(repo.root, '@{-1}'), { code: 'BRANCH_INVALID_NAME' });
 
     // Nonexistent branch
-    await assert.rejects(
-      async () => service.switchBranch(repo.root, 'does-not-exist'),
-      { code: 'BRANCH_NOT_FOUND' }
-    );
+    await assert.rejects(async () => service.switchBranch(repo.root, 'does-not-exist'), { code: 'BRANCH_NOT_FOUND' });
   } finally {
     repo.cleanup();
   }
@@ -216,7 +198,7 @@ test('switchBranch: already on that branch is a success no-op', async () => {
     assert.deepEqual(res1, {
       currentBranch: 'main',
       stashed: false,
-      stashMessage: null,
+      stashMessage: null
     });
 
     // Dirty already-current: still a no-op, files untouched
@@ -225,7 +207,7 @@ test('switchBranch: already on that branch is a success no-op', async () => {
     assert.deepEqual(res2, {
       currentBranch: 'main',
       stashed: false,
-      stashMessage: null,
+      stashMessage: null
     });
     assert.ok(fs.existsSync(path.join(repo.root, 'dirty.txt')));
   } finally {
@@ -244,7 +226,7 @@ test('switchBranch: clean switch success including weird names and from detached
     assert.deepEqual(res, {
       currentBranch: 'feature/ä-ü',
       stashed: false,
-      stashMessage: null,
+      stashMessage: null
     });
     assert.equal(repo.git(['symbolic-ref', '--short', 'HEAD']).trim(), 'feature/ä-ü');
 
@@ -257,7 +239,7 @@ test('switchBranch: clean switch success including weird names and from detached
     assert.deepEqual(res2, {
       currentBranch: 'main',
       stashed: false,
-      stashMessage: null,
+      stashMessage: null
     });
     assert.equal(repo.git(['symbolic-ref', '--short', 'HEAD']).trim(), 'main');
   } finally {
@@ -283,10 +265,10 @@ test('switchBranch: dirty working directory with onDirty block leaves files unto
     // Default onDirty is 'block'
     await assert.rejects(
       async () => service.switchBranch(repo.root, 'feature'),
-      (err: any) => {
-        assert.equal(err.code, 'WORKSPACE_DIRTY');
-        assert.equal(err.details?.changedFiles, 2); // file.txt (mod) + staged.txt (staged)
-        assert.equal(err.details?.untrackedFiles, 1); // untracked.txt
+      (err: unknown) => {
+        assert.equal(errorCode(err), 'WORKSPACE_DIRTY');
+        assert.equal(detailOf(err, 'changedFiles'), 2); // file.txt (mod) + staged.txt (staged)
+        assert.equal(detailOf(err, 'untrackedFiles'), 1); // untracked.txt
         return true;
       }
     );
@@ -298,10 +280,7 @@ test('switchBranch: dirty working directory with onDirty block leaves files unto
     assert.equal(fs.readFileSync(path.join(repo.root, 'untracked.txt'), 'utf8'), 'untracked content\n');
 
     // Explicit onDirty: 'block'
-    await assert.rejects(
-      async () => service.switchBranch(repo.root, 'feature', 'block'),
-      { code: 'WORKSPACE_DIRTY' }
-    );
+    await assert.rejects(async () => service.switchBranch(repo.root, 'feature', 'block'), { code: 'WORKSPACE_DIRTY' });
   } finally {
     repo.cleanup();
   }
@@ -322,10 +301,7 @@ test('switchBranch: dirty working directory with onDirty stash creates stash and
     assert.equal(result.currentBranch, 'feature');
     assert.equal(result.stashed, true);
     assert.ok(result.stashMessage);
-    assert.match(
-      result.stashMessage,
-      /^piframe: before switching to feature \(\d{4}-\d{2}-\d{2}T/
-    );
+    assert.match(result.stashMessage, /^piframe: before switching to feature \(\d{4}-\d{2}-\d{2}T/);
 
     // Working directory on new branch is clean
     assert.equal(repo.git(['symbolic-ref', '--short', 'HEAD']).trim(), 'feature');
@@ -359,20 +335,21 @@ test('switchBranch: stash + switch failure path pops stash back with nothing los
     // Inject switch failure
     const hooks = {
       injectSwitchFailure: async () => {
-        const error: any = new Error('Simulated git switch checkout failure');
-        error.code = 'GIT_FAILED';
-        error.stderr = 'fatal: simulated collision in switch';
+        const error = Object.assign(new Error('Simulated git switch checkout failure'), {
+          code: 'GIT_FAILED',
+          stderr: 'fatal: simulated collision in switch'
+        });
         throw error;
-      },
+      }
     };
 
     await assert.rejects(
       async () => service.switchBranch(repo.root, 'feature', 'stash', undefined, hooks),
-      (err: any) => {
-        assert.equal(err.code, 'BRANCH_SWITCH_FAILED');
-        assert.ok(err.details?.stderr?.includes('simulated collision in switch'));
+      (err: unknown) => {
+        assert.equal(errorCode(err), 'BRANCH_SWITCH_FAILED');
+        assert.ok(String(detailOf(err, 'stderr')).includes('simulated collision in switch'));
         // stashRetained should not be true because pop succeeded
-        assert.equal(err.details?.stashRetained, undefined);
+        assert.equal(detailOf(err, 'stashRetained'), undefined);
         return true;
       }
     );
@@ -402,26 +379,28 @@ test('switchBranch: stash + switch failure + pop failure leaves stash and report
     // Inject switch failure AND pop failure
     const hooks = {
       injectSwitchFailure: async () => {
-        const error: any = new Error('Simulated switch failure');
-        error.code = 'GIT_FAILED';
-        error.stderr = 'fatal: switch exploded';
+        const error = Object.assign(new Error('Simulated switch failure'), {
+          code: 'GIT_FAILED',
+          stderr: 'fatal: switch exploded'
+        });
         throw error;
       },
       injectPopFailure: async () => {
-        const error: any = new Error('Simulated pop conflict failure');
-        error.code = 'GIT_FAILED';
-        error.stderr = 'fatal: stash pop collision';
+        const error = Object.assign(new Error('Simulated pop conflict failure'), {
+          code: 'GIT_FAILED',
+          stderr: 'fatal: stash pop collision'
+        });
         throw error;
-      },
+      }
     };
 
     await assert.rejects(
       async () => service.switchBranch(repo.root, 'feature', 'stash', undefined, hooks),
-      (err: any) => {
-        assert.equal(err.code, 'BRANCH_SWITCH_FAILED');
-        assert.equal(err.details?.stashRetained, true);
-        assert.ok(err.details?.stashMessage?.startsWith('piframe: before switching to feature'));
-        assert.ok(err.details?.stderr?.includes('switch exploded'));
+      (err: unknown) => {
+        assert.equal(errorCode(err), 'BRANCH_SWITCH_FAILED');
+        assert.equal(detailOf(err, 'stashRetained'), true);
+        assert.ok(String(detailOf(err, 'stashMessage')).startsWith('piframe: before switching to feature'));
+        assert.ok(String(detailOf(err, 'stderr')).includes('switch exploded'));
         return true;
       }
     );
@@ -449,19 +428,20 @@ test('switchBranch: rollback restores PiFrame stash and preserves interim foreig
       injectSwitchFailure: async () => {
         fs.writeFileSync(path.join(repo.root, 'foreign.txt'), 'foreign uncommitted\n');
         repo.git(['stash', 'push', '--include-untracked', '-m', 'foreign interim stash']);
-        const error: any = new Error('Simulated git switch checkout failure');
-        error.code = 'GIT_FAILED';
-        error.stderr = 'fatal: simulated collision in switch';
+        const error = Object.assign(new Error('Simulated git switch checkout failure'), {
+          code: 'GIT_FAILED',
+          stderr: 'fatal: simulated collision in switch'
+        });
         throw error;
-      },
+      }
     };
 
     await assert.rejects(
       async () => service.switchBranch(repo.root, 'feature', 'stash', undefined, hooks),
-      (err: any) => {
-        assert.equal(err.code, 'BRANCH_SWITCH_FAILED');
-        assert.equal(err.details?.stashRetained, undefined);
-        assert.ok(err.details?.stderr?.includes('simulated collision in switch'));
+      (err: unknown) => {
+        assert.equal(errorCode(err), 'BRANCH_SWITCH_FAILED');
+        assert.equal(detailOf(err, 'stashRetained'), undefined);
+        assert.ok(String(detailOf(err, 'stderr')).includes('simulated collision in switch'));
         return true;
       }
     );
@@ -500,19 +480,20 @@ test('switchBranch: rollback when PiFrame stash commit sha is missing reports st
       injectSwitchFailure: async () => {
         // Externally clear all stashes so the recorded SHA is not in the stash list
         repo.git(['stash', 'clear']);
-        const error: any = new Error('Simulated switch failure');
-        error.code = 'GIT_FAILED';
-        error.stderr = 'fatal: switch exploded';
+        const error = Object.assign(new Error('Simulated switch failure'), {
+          code: 'GIT_FAILED',
+          stderr: 'fatal: switch exploded'
+        });
         throw error;
-      },
+      }
     };
 
     await assert.rejects(
       async () => service.switchBranch(repo.root, 'feature', 'stash', undefined, hooks),
-      (err: any) => {
-        assert.equal(err.code, 'BRANCH_SWITCH_FAILED');
-        assert.equal(err.details?.stashRetained, true);
-        assert.match(err.details?.stashMessage, /^piframe: before switching to feature/);
+      (err: unknown) => {
+        assert.equal(errorCode(err), 'BRANCH_SWITCH_FAILED');
+        assert.equal(detailOf(err, 'stashRetained'), true);
+        assert.match(String(detailOf(err, 'stashMessage')), /^piframe: before switching to feature/);
         return true;
       }
     );
@@ -533,14 +514,14 @@ test('switchBranch: stash push exits 0 but nothing to stash proceeds with switch
     const hooks = {
       injectBeforeStashPush: async () => {
         fs.rmSync(path.join(repo.root, 'race.txt'));
-      },
+      }
     };
 
     const result = await service.switchBranch(repo.root, 'feature', 'stash', undefined, hooks);
     assert.deepEqual(result, {
       currentBranch: 'feature',
       stashed: false,
-      stashMessage: null,
+      stashMessage: null
     });
     assert.equal(repo.git(['symbolic-ref', '--short', 'HEAD']).trim(), 'feature');
   } finally {
@@ -595,4 +576,3 @@ test('switchBranch: switches correctly to a branch whose name equals an existing
     repo.cleanup();
   }
 });
-

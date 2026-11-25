@@ -6,6 +6,7 @@ import * as os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import WebSocket from 'ws';
+import { dataOf, listeningPort, parseFrame, type Frame } from './support.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,8 +20,7 @@ import { DEFAULT_CONFIG } from '../../../apps/agentd/dist/config/config.js';
 
 function createTempGitRepo(): { root: string; git: (args: string[]) => string; cleanup: () => void } {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-e2e-branch-repo-'));
-  const git = (args: string[]) =>
-    execFileSync('git', args, { cwd: root, encoding: 'utf8' });
+  const git = (args: string[]) => execFileSync('git', args, { cwd: root, encoding: 'utf8' });
   git(['init', '-q', '-b', 'main']);
   git(['config', 'user.email', 'test@example.com']);
   git(['config', 'user.name', 'PiFrame Test']);
@@ -36,7 +36,7 @@ function createTempGitRepo(): { root: string; git: (args: string[]) => string; c
       try {
         fs.rmSync(root, { recursive: true, force: true });
       } catch {}
-    },
+    }
   };
 }
 
@@ -52,7 +52,7 @@ test('E2E: Workspace Branch Operations - listBranches and switchBranch over WebS
     token,
     version,
     startedAt,
-    listener: 'local',
+    listener: 'local'
   });
 
   await new Promise<void>((resolve, reject) => {
@@ -60,7 +60,7 @@ test('E2E: Workspace Branch Operations - listBranches and switchBranch over WebS
     httpServer.on('error', reject);
   });
 
-  const port = (httpServer.address() as any).port;
+  const port = listeningPort(httpServer);
 
   let registry!: SessionRegistry;
   let dispatcher!: Dispatcher;
@@ -81,14 +81,14 @@ test('E2E: Workspace Branch Operations - listBranches and switchBranch over WebS
     },
     onDetach: async (conn, sid) => {
       await registry.detachClient(sid, conn);
-    },
+    }
   });
 
   registry = new SessionRegistry({
     piExecutablePath: fakePiPath,
     capabilities: { version: '0.85.1', supported: true, modes: ['rpc'], features: [] },
     workerIdleTimeoutMs: 60000,
-    connectionManager: manager,
+    connectionManager: manager
   });
 
   dispatcher = new Dispatcher(registry, manager);
@@ -99,15 +99,15 @@ test('E2E: Workspace Branch Operations - listBranches and switchBranch over WebS
     client.on('error', reject);
   });
 
-  const receivedMessages: any[] = [];
+  const receivedMessages: Frame[] = [];
   client.on('message', (data) => {
-    receivedMessages.push(JSON.parse(data.toString()));
+    receivedMessages.push(parseFrame(data));
   });
 
   // Each step runs real git commands: the stash-and-switch step alone takes
   // about 2.6 s on an idle Windows machine and went past 5 s while other
   // suites ran in parallel (`pnpm -r run test`), so allow 20 s per step.
-  const waitForMessage = async (predicate: (msg: any) => boolean, timeoutMs = 20000): Promise<any> => {
+  const waitForMessage = async (predicate: (msg: Frame) => boolean, timeoutMs = 20000): Promise<Frame> => {
     const start = Date.now();
     while (Date.now() - start < timeoutMs) {
       const found = receivedMessages.find(predicate);
@@ -130,8 +130,8 @@ test('E2E: Workspace Branch Operations - listBranches and switchBranch over WebS
           token,
           client: { name: 'e2e-test', version: '1.0.0', platform: 'test' },
           encoding: 'json',
-          capabilities: ['replay.v1'],
-        },
+          capabilities: ['replay.v1']
+        }
       })
     );
 
@@ -153,20 +153,18 @@ test('E2E: Workspace Branch Operations - listBranches and switchBranch over WebS
         commandId: listCmdId,
         sessionId,
         type: 'workspace.listBranches',
-        payload: {},
+        payload: {}
       })
     );
 
     const listAck = await waitForMessage((m) => m.kind === 'ack' && m.commandId === listCmdId);
     assert.ok(listAck);
 
-    const listResult = await waitForMessage(
-      (m) => m.kind === 'result' && m.commandId === listCmdId
-    );
+    const listResult = await waitForMessage((m) => m.kind === 'result' && m.commandId === listCmdId);
     assert.equal(listResult.payload.state, 'completed');
-    assert.equal(listResult.payload.data.currentBranch, 'main');
-    assert.equal(listResult.payload.data.detached, false);
-    const branchNames = listResult.payload.data.branches.map((b: any) => b.name);
+    assert.equal(dataOf<{ currentBranch: string }>(listResult).currentBranch, 'main');
+    assert.equal(dataOf<{ detached: boolean }>(listResult).detached, false);
+    const branchNames = dataOf<{ branches: Array<{ name: string }> }>(listResult).branches.map((b) => b.name);
     assert.ok(branchNames.includes('main'));
     assert.ok(branchNames.includes('feature/test-e2e'));
 
@@ -181,16 +179,14 @@ test('E2E: Workspace Branch Operations - listBranches and switchBranch over WebS
         commandId: switchCmdId,
         sessionId,
         type: 'workspace.switchBranch',
-        payload: { branch: 'feature/test-e2e' },
+        payload: { branch: 'feature/test-e2e' }
       })
     );
 
-    const switchResult = await waitForMessage(
-      (m) => m.kind === 'result' && m.commandId === switchCmdId
-    );
+    const switchResult = await waitForMessage((m) => m.kind === 'result' && m.commandId === switchCmdId);
     assert.equal(switchResult.payload.state, 'completed');
-    assert.equal(switchResult.payload.data.currentBranch, 'feature/test-e2e');
-    assert.equal(switchResult.payload.data.stashed, false);
+    assert.equal(dataOf<{ currentBranch: string }>(switchResult).currentBranch, 'feature/test-e2e');
+    assert.equal(dataOf<{ stashed: boolean }>(switchResult).stashed, false);
 
     // 5. switchBranch with dirty worktree and onDirty 'block'
     fs.writeFileSync(path.join(repo.root, 'dirty.txt'), 'dirty uncommitted\n');
@@ -204,19 +200,15 @@ test('E2E: Workspace Branch Operations - listBranches and switchBranch over WebS
         commandId: dirtyBlockCmdId,
         sessionId,
         type: 'workspace.switchBranch',
-        payload: { branch: 'main', onDirty: 'block' },
+        payload: { branch: 'main', onDirty: 'block' }
       })
     );
 
-    const dirtyError = await waitForMessage(
-      (m) => m.kind === 'error' && m.commandId === dirtyBlockCmdId
-    );
+    const dirtyError = await waitForMessage((m) => m.kind === 'error' && m.commandId === dirtyBlockCmdId);
     assert.equal(dirtyError.payload.code, 'WORKSPACE_DIRTY');
-    assert.equal(dirtyError.payload.details?.untrackedFiles, 1);
+    assert.equal((dirtyError.payload.details as { untrackedFiles?: number } | undefined)?.untrackedFiles, 1);
 
-    const dirtyResult = await waitForMessage(
-      (m) => m.kind === 'result' && m.commandId === dirtyBlockCmdId
-    );
+    const dirtyResult = await waitForMessage((m) => m.kind === 'result' && m.commandId === dirtyBlockCmdId);
     assert.equal(dirtyResult.payload.state, 'rejected');
     const dirtyErrorIdx = receivedMessages.indexOf(dirtyError);
     const dirtyResultIdx = receivedMessages.indexOf(dirtyResult);
@@ -233,17 +225,16 @@ test('E2E: Workspace Branch Operations - listBranches and switchBranch over WebS
         commandId: dirtyStashCmdId,
         sessionId,
         type: 'workspace.switchBranch',
-        payload: { branch: 'main', onDirty: 'stash' },
+        payload: { branch: 'main', onDirty: 'stash' }
       })
     );
 
-    const stashResult = await waitForMessage(
-      (m) => m.kind === 'result' && m.commandId === dirtyStashCmdId
-    );
+    const stashResult = await waitForMessage((m) => m.kind === 'result' && m.commandId === dirtyStashCmdId);
     assert.equal(stashResult.payload.state, 'completed');
-    assert.equal(stashResult.payload.data.currentBranch, 'main');
-    assert.equal(stashResult.payload.data.stashed, true);
-    assert.ok(stashResult.payload.data.stashMessage);
+    const stashData = dataOf<{ currentBranch: string; stashed: boolean; stashMessage?: string }>(stashResult);
+    assert.equal(stashData.currentBranch, 'main');
+    assert.equal(stashData.stashed, true);
+    assert.ok(stashData.stashMessage);
   } finally {
     client.close();
     httpServer.close();

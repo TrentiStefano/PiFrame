@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../ui/precision.dart';
@@ -6,13 +8,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
-import '../../../app/row_context_menu.dart';
+import '../../../ui/row_context_menu.dart';
 import '../../../data/daemon/daemon_providers.dart';
 import '../../../data/daemon/pcp_client.dart';
 import '../../../data/language/language_settings.dart';
 import '../../../data/language/strings_workspace.dart';
 import '../../../data/language/strings_errors.dart';
-import '../../../domain/errors/user_facing_error.dart';
+import '../../../data/errors/user_facing_error_mapping.dart';
 import '../../../domain/session/agent_status.dart';
 import '../../../domain/session/session_state.dart';
 import '../../../ui/frame_empty_state.dart';
@@ -70,13 +72,9 @@ class _GitEntry {
   final bool expanded;
 }
 
-final gitStagedExpandedProvider = StateProvider.family<bool?, String>(
-  (ref, sessionId) => null,
-);
+final gitStagedExpandedProvider = StateProvider.family<bool?, String>((ref, sessionId) => null);
 
-final gitUnstagedExpandedProvider = StateProvider.family<bool?, String>(
-  (ref, sessionId) => null,
-);
+final gitUnstagedExpandedProvider = StateProvider.family<bool?, String>((ref, sessionId) => null);
 
 Set<String> _piTouchedPaths(SessionState session) => piTouchedPaths(session);
 
@@ -144,7 +142,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
   @override
   void initState() {
     super.initState();
-    _refresh();
+    unawaited(_refresh());
   }
 
   @override
@@ -154,7 +152,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
       _status = null;
       _departing.clear();
       _arrivals = {};
-      _refresh();
+      unawaited(_refresh());
     }
   }
 
@@ -192,7 +190,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
   Future<void> _refreshOnce() async {
     final client = ref.read(pcpClientProvider);
     if (client == null) {
-      if (mounted) setState(() => _status = {'error': 'Daemon non connesso'});
+      if (mounted) setState(() => _status = {'error': 'Daemon not connected'});
       return;
     }
     if (!mounted) return;
@@ -215,16 +213,12 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
   }
 
   List<Map<String, dynamic>> get _files =>
-      ((_status?['files'] as List?) ?? const [])
-          .cast<Map<String, dynamic>>()
-          .toList();
+      ((_status?['files'] as List?) ?? const []).cast<Map<String, dynamic>>().toList();
 
   /// The rows shown in each group, keyed 'staged:path' or 'unstaged:path'.
   /// Mirrors the grouping in `build`: a file is Staged when `staged` is true,
   /// and Changes when it has unstaged edits or is not staged.
-  static Map<String, Map<String, dynamic>> _sectionRows(
-    List<Map<String, dynamic>> files,
-  ) {
+  static Map<String, Map<String, dynamic>> _sectionRows(List<Map<String, dynamic>> files) {
     final rows = <String, Map<String, dynamic>>{};
     for (final file in files) {
       final path = file['path'].toString();
@@ -267,11 +261,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
   }
 
   List<String> get _staged =>
-      _files
-          .where((f) => f['staged'] == true)
-          .map((f) => f['path'].toString())
-          .toList()
-        ..sort();
+      _files.where((f) => f['staged'] == true).map((f) => f['path'].toString()).toList()..sort();
 
   /// Runs one Git write and returns the daemon's reply, or null when it failed.
   /// A failure is a snackbar, or with [inlineErrors] the commit form's error.
@@ -287,25 +277,17 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     }
     setState(() => _working = true);
     try {
-      final reply = await ref.read(pcpClientProvider)!.workspaceGitAction(
-        widget.sessionId,
-        {
-          'action': action,
-          'paths': paths,
-          'expectedStagedPaths': ?expected,
-          'message': ?message,
-        },
-      );
+      final reply = await ref.read(pcpClientProvider)!.workspaceGitAction(widget.sessionId, {
+        'action': action,
+        'paths': paths,
+        'expectedStagedPaths': ?expected,
+        'message': ?message,
+      });
       if (_remoteActions.contains(action) && mounted) {
-        FrameSnackBar.show(
-          context,
-          message: ref.read(appStringsProvider).gitRemoteActionDone(action),
-        );
+        FrameSnackBar.show(context, message: ref.read(appStringsProvider).gitRemoteActionDone(action));
       }
       if (action == 'discard' || action == 'commit') {
-        ref
-            .read(repositoryStateProvider(widget.sessionId).notifier)
-            .clearManualSavedPaths(paths);
+        ref.read(repositoryStateProvider(widget.sessionId).notifier).clearManualSavedPaths(paths);
       }
       await _refresh();
       return reply;
@@ -315,11 +297,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
           setState(() => _commitError = error);
         } else {
           final strings = ref.read(appStringsProvider);
-          FrameSnackBar.show(
-            context,
-            message: strings.gitOperationFailed(error),
-            isError: true,
-          );
+          FrameSnackBar.show(context, message: strings.gitOperationFailed(error), isError: true);
         }
       }
       return null;
@@ -352,9 +330,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
               visualDensity: VisualDensity.compact,
               foregroundColor: tokens.textPrimary,
               side: BorderSide(color: tokens.border),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(tokens.radiusSm),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm)),
             ),
             onPressed: enabled ? () => _action(action, const []) : null,
             child: Icon(icon, size: FrameSize.icon),
@@ -402,23 +378,16 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     final strings = ref.read(appStringsProvider);
     setState(() => _loading = true);
     try {
-      final result = await client.switchBranch(
-        widget.sessionId,
-        branch,
-        onDirty: stash ? 'stash' : 'block',
-      );
+      final result = await client.switchBranch(widget.sessionId, branch, onDirty: stash ? 'stash' : 'block');
       await _refresh();
       try {
-        await ref
-            .read(sessionChangesProvider(widget.sessionId).notifier)
-            .refresh();
+        await ref.read(sessionChangesProvider(widget.sessionId).notifier).refresh();
       } catch (_) {}
       if (!mounted) return;
       if (result.stashed) {
         FrameSnackBar.show(
           context,
-          message:
-              '${strings.branchSwitched(branch)}. ${strings.branchSwitchedStashNotice(result.stashMessage ?? '')}',
+          message: '${strings.branchSwitched(branch)}. ${strings.branchSwitchedStashNotice(result.stashMessage ?? '')}',
         );
       } else {
         FrameSnackBar.show(context, message: strings.branchSwitched(branch));
@@ -446,25 +415,14 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
             error.message.toLowerCase().contains('read-only') ||
             error.message.toLowerCase().contains('busy') ||
             error.message.toLowerCase().contains('working')) {
-          FrameSnackBar.show(
-            context,
-            message: strings.branchSwitchAgentWorking,
-          );
+          FrameSnackBar.show(context, message: strings.branchSwitchAgentWorking);
           return;
         } else if (error.code == 'BRANCH_NOT_FOUND') {
-          FrameSnackBar.show(
-            context,
-            message: strings.branchNotFound,
-            isError: true,
-          );
+          FrameSnackBar.show(context, message: strings.branchNotFound, isError: true);
           await _refresh();
           return;
         } else if (error.code == 'BRANCH_INVALID_NAME') {
-          FrameSnackBar.show(
-            context,
-            message: strings.branchInvalidName,
-            isError: true,
-          );
+          FrameSnackBar.show(context, message: strings.branchInvalidName, isError: true);
           await _refresh();
           return;
         }
@@ -476,11 +434,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
           msg.toLowerCase().contains('active')) {
         FrameSnackBar.show(context, message: strings.branchSwitchAgentWorking);
       } else if (msg.contains('BRANCH_NOT_FOUND')) {
-        FrameSnackBar.show(
-          context,
-          message: strings.branchNotFound,
-          isError: true,
-        );
+        FrameSnackBar.show(context, message: strings.branchNotFound, isError: true);
         await _refresh();
       } else {
         FrameSnackBar.show(
@@ -494,10 +448,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     }
   }
 
-  Future<bool?> _showDirtyWorkspaceDialog({
-    required int changedFiles,
-    required int untrackedFiles,
-  }) {
+  Future<bool?> _showDirtyWorkspaceDialog({required int changedFiles, required int untrackedFiles}) {
     final strings = ref.read(appStringsProvider);
     final tokens = context.tokens;
     final text = FrameText.of(context);
@@ -518,10 +469,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
             borderRadius: BorderRadius.circular(tokens.radiusLg),
             side: BorderSide(color: tokens.border),
           ),
-          title: Text(
-            strings.workspaceDirtyDialogTitle,
-            style: text.title.copyWith(color: tokens.textPrimary),
-          ),
+          title: Text(strings.workspaceDirtyDialogTitle, style: text.title.copyWith(color: tokens.textPrimary)),
           content: Text(
             strings.workspaceDirtyDialogMessage(changedFiles, untrackedFiles),
             style: text.bodyLarge.copyWith(color: tokens.textMuted),
@@ -535,9 +483,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                 style: OutlinedButton.styleFrom(
                   foregroundColor: tokens.textPrimary,
                   side: BorderSide(color: tokens.border),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(tokens.radiusSm),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm)),
                 ),
                 onPressed: () => popOnce(dialogContext, false),
                 child: Text(strings.cancel),
@@ -550,9 +496,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                 style: FilledButton.styleFrom(
                   backgroundColor: tokens.accent,
                   foregroundColor: tokens.surface,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(tokens.radiusSm),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm)),
                 ),
                 onPressed: () => popOnce(dialogContext, true),
                 child: Text(strings.stashAndSwitchBtn),
@@ -572,9 +516,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     final strings = ref.read(appStringsProvider);
     final tokens = context.tokens;
     final text = FrameText.of(context);
-    final truncatedStderr = stderr.length > 2048
-        ? '${stderr.substring(0, 2048)}\n…'
-        : stderr;
+    final truncatedStderr = stderr.length > 2048 ? '${stderr.substring(0, 2048)}\n…' : stderr;
     var popped = false;
     void popOnce(BuildContext dialogContext) {
       if (popped) return;
@@ -594,17 +536,10 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
           ),
           title: Row(
             children: [
-              Icon(
-                Icons.error_outline,
-                color: tokens.danger,
-                size: FrameSize.iconLg,
-              ),
+              Icon(Icons.error_outline, color: tokens.danger, size: FrameSize.iconLg),
               const SizedBox(width: FrameSpace.x2),
               Expanded(
-                child: Text(
-                  strings.branchSwitchFailedTitle,
-                  style: text.title.copyWith(color: tokens.textPrimary),
-                ),
+                child: Text(strings.branchSwitchFailedTitle, style: text.title.copyWith(color: tokens.textPrimary)),
               ),
             ],
           ),
@@ -622,28 +557,17 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                       decoration: BoxDecoration(
                         color: tokens.warning.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(tokens.radiusSm),
-                        border: Border.all(
-                          color: tokens.warning.withValues(alpha: 0.4),
-                        ),
+                        border: Border.all(color: tokens.warning.withValues(alpha: 0.4)),
                       ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(
-                            Icons.info_outline,
-                            color: tokens.warning,
-                            size: FrameSize.iconLg,
-                          ),
+                          Icon(Icons.info_outline, color: tokens.warning, size: FrameSize.iconLg),
                           const SizedBox(width: FrameSpace.x2),
                           Expanded(
                             child: Text(
-                              strings.stashRetainedSafeNotice(
-                                stashMessage ?? '',
-                              ),
-                              style: text.body.copyWith(
-                                color: tokens.textPrimary,
-                                fontWeight: FontWeight.w500,
-                              ),
+                              strings.stashRetainedSafeNotice(stashMessage ?? ''),
+                              style: text.body.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.w500),
                             ),
                           ),
                         ],
@@ -658,10 +582,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                       borderRadius: BorderRadius.circular(tokens.radiusSm),
                       border: Border.all(color: tokens.border),
                     ),
-                    child: SelectableText(
-                      truncatedStderr,
-                      style: text.mono.copyWith(color: tokens.textPrimary),
-                    ),
+                    child: SelectableText(truncatedStderr, style: text.mono.copyWith(color: tokens.textPrimary)),
                   ),
                 ],
               ),
@@ -674,9 +595,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                 style: FilledButton.styleFrom(
                   backgroundColor: tokens.accent,
                   foregroundColor: tokens.surface,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(tokens.radiusSm),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tokens.radiusSm)),
                 ),
                 onPressed: () => popOnce(dialogContext),
                 child: Text(strings.close),
@@ -693,11 +612,8 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     if (client == null) return;
     var diff = '';
     try {
-      final result = await client.getWorkspaceDiff(
-        widget.sessionId,
-        filePath: path,
-      );
-      diff = (result['data']?['diff'] ?? result['diff'])?.toString() ?? '';
+      final result = await client.getWorkspaceDiff(widget.sessionId, filePath: path);
+      diff = ((result['data'] as Map<String, dynamic>?)?['diff'] ?? result['diff'])?.toString() ?? '';
     } catch (_) {}
     if (!mounted) return;
     final strings = ref.read(appStringsProvider);
@@ -726,13 +642,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     final body = _body.text.trim();
     final message = body.isEmpty ? subject : '$subject\n\n$body';
     setState(() => _commitError = null);
-    final reply = await _action(
-      'commit',
-      staged,
-      message: message,
-      expected: staged,
-      inlineErrors: true,
-    );
+    final reply = await _action('commit', staged, message: message, expected: staged, inlineErrors: true);
     if (reply == null || !mounted) return;
     _subject.clear();
     _body.clear();
@@ -774,12 +684,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     _rowMenus.register('r:$section:$path', () {
       final rowContext = rowKey.currentContext;
       if (rowContext == null) return;
-      _showRowMenu(
-        rowAnchorRect(rowContext),
-        path: path,
-        isStaged: isStaged,
-        blocked: blocked,
-      );
+      unawaited(_showRowMenu(rowAnchorRect(rowContext), path: path, isStaged: isStaged, blocked: blocked));
     });
     final row = KeyedSubtree(
       key: rowKey,
@@ -797,12 +702,8 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
           _selectRow('r:$section:$path');
           _openDiff(path);
         },
-        onContextMenu: (position) => _showRowMenu(
-          pointerAnchorRect(position),
-          path: path,
-          isStaged: isStaged,
-          blocked: blocked,
-        ),
+        onContextMenu: (position) =>
+            _showRowMenu(pointerAnchorRect(position), path: path, isStaged: isStaged, blocked: blocked),
         onStage: (path) => _action('stage', [path]),
         onUnstage: (path) => _action('unstage', [path]),
         onDiscard: (path) => _discardFile(path),
@@ -811,17 +712,13 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     if (leaving) {
       return ExcludeSemantics(
         child: IgnorePointer(
-          child: KeyedSubtree(
-            key: ValueKey('git-row-leaving-$section-$path'),
-            child: row,
-          ),
+          child: KeyedSubtree(key: ValueKey('git-row-leaving-$section-$path'), child: row),
         ),
       );
     }
     return _RowTravelEnter(
       key: ValueKey('git-row-$section-$path'),
-      animate:
-          !FrameMotion.reduced(context) && _arrivals.contains('$section:$path'),
+      animate: !FrameMotion.reduced(context) && _arrivals.contains('$section:$path'),
       child: row,
     );
   }
@@ -838,10 +735,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
   /// Moves the open diff to [path] (Alt+arrow or the pane's next and previous
   /// buttons). The list cursor follows, so Escape lands on the same row.
   void _showDiffPath(String path) {
-    final unstaged = _files.any(
-      (f) =>
-          f['path'] == path && (f['unstaged'] == true || f['staged'] != true),
-    );
+    final unstaged = _files.any((f) => f['path'] == path && (f['unstaged'] == true || f['staged'] != true));
     setState(() {
       _diffPath = path;
       _cursorKey = 'r:${unstaged ? 'unstaged' : 'staged'}:$path';
@@ -866,9 +760,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
   }
 
   void _toggleSection(String section, bool expanded) {
-    final provider = section == 'staged'
-        ? gitStagedExpandedProvider
-        : gitUnstagedExpandedProvider;
+    final provider = section == 'staged' ? gitStagedExpandedProvider : gitUnstagedExpandedProvider;
     ref.read(provider(widget.sessionId).notifier).state = !expanded;
   }
 
@@ -877,8 +769,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     return index < 0 ? 0 : index;
   }
 
-  String _activeKey(List<_GitEntry> entries) =>
-      entries[_cursorIndex(entries)].key;
+  String _activeKey(List<_GitEntry> entries) => entries[_cursorIndex(entries)].key;
 
   void _moveCursor(int index, List<_GitEntry> entries) {
     final target = index < 0
@@ -906,21 +797,13 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
       target = bottom - position.viewportDimension;
     }
     if (target == null) return;
-    _listScroll.jumpTo(
-      target
-          .clamp(position.minScrollExtent, position.maxScrollExtent)
-          .toDouble(),
-    );
+    _listScroll.jumpTo(target.clamp(position.minScrollExtent, position.maxScrollExtent).toDouble());
   }
 
   /// Keys on the focused Git list: arrows move, Enter opens the diff (or
   /// toggles a section), Space stages or unstages (or toggles a section),
   /// Delete opens the discard confirmation.
-  KeyEventResult _onListKey(
-    KeyEvent event,
-    List<_GitEntry> entries,
-    bool blocked,
-  ) {
+  KeyEventResult _onListKey(KeyEvent event, List<_GitEntry> entries, bool blocked) {
     if (event is KeyUpEvent || entries.isEmpty) return KeyEventResult.ignored;
     final index = _cursorIndex(entries);
     final entry = entries[index];
@@ -932,8 +815,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
       _moveCursor(index + 1, entries);
     } else if (key == LogicalKeyboardKey.arrowUp) {
       _moveCursor(index - 1, entries);
-    } else if (key == LogicalKeyboardKey.enter ||
-        key == LogicalKeyboardKey.numpadEnter) {
+    } else if (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.numpadEnter) {
       if (entry.isHeader) {
         _toggleSection(entry.section, entry.expanded);
       } else if (entry.path != null) {
@@ -943,10 +825,10 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
       if (entry.isHeader) {
         _toggleSection(entry.section, entry.expanded);
       } else if (entry.path != null && !writesOff) {
-        _action(entry.section == 'staged' ? 'unstage' : 'stage', [entry.path!]);
+        unawaited(_action(entry.section == 'staged' ? 'unstage' : 'stage', [entry.path!]));
       }
     } else if (key == LogicalKeyboardKey.delete) {
-      if (entry.path != null && !writesOff) _discardFile(entry.path!);
+      if (entry.path != null && !writesOff) unawaited(_discardFile(entry.path!));
     } else {
       return KeyEventResult.ignored;
     }
@@ -956,12 +838,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
   /// Right-click menu of a Git row. The actions are the existing ones: diff,
   /// stage or unstage, discard, copy path, and add to the chat (the same path
   /// the editor uses).
-  Future<void> _showRowMenu(
-    Rect anchor, {
-    required String path,
-    required bool isStaged,
-    required bool blocked,
-  }) async {
+  Future<void> _showRowMenu(Rect anchor, {required String path, required bool isStaged, required bool blocked}) async {
     final tokens = context.tokens;
     final text = FrameText.of(context);
     final strings = ref.read(appStringsProvider);
@@ -988,11 +865,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
         PopupMenuItem<String>(
           key: const ValueKey('git-menu-open-diff'),
           value: 'diff',
-          child: item(
-            Icons.article_outlined,
-            strings.gitMenuOpenDiff,
-            tokens.textMuted,
-          ),
+          child: item(Icons.article_outlined, strings.gitMenuOpenDiff, tokens.textMuted),
         ),
         PopupMenuItem<String>(
           key: const ValueKey('git-menu-toggle-stage'),
@@ -1008,11 +881,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
           key: const ValueKey('git-menu-discard'),
           value: 'discard',
           enabled: !writesOff,
-          child: item(
-            Icons.undo_outlined,
-            strings.gitMenuDiscard,
-            tokens.danger,
-          ),
+          child: item(Icons.undo_outlined, strings.gitMenuDiscard, tokens.danger),
         ),
         PopupMenuItem<String>(
           key: const ValueKey('git-menu-copy-path'),
@@ -1022,11 +891,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
         PopupMenuItem<String>(
           key: const ValueKey('git-menu-add-chat'),
           value: 'chat',
-          child: item(
-            Icons.add_comment_outlined,
-            strings.addPathToChat,
-            tokens.accent,
-          ),
+          child: item(Icons.add_comment_outlined, strings.addPathToChat, tokens.accent),
         ),
       ],
     );
@@ -1035,11 +900,11 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
       case 'diff':
         _openDiff(path);
       case 'toggle':
-        _action(isStaged ? 'unstage' : 'stage', [path]);
+        unawaited(_action(isStaged ? 'unstage' : 'stage', [path]));
       case 'discard':
-        _discardFile(path);
+        unawaited(_discardFile(path));
       case 'copy':
-        Clipboard.setData(ClipboardData(text: path));
+        unawaited(Clipboard.setData(ClipboardData(text: path)));
         FrameSnackBar.show(context, message: strings.pathCopied(path));
       case 'chat':
         appendFileMentionToComposer(ref, widget.sessionId, path);
@@ -1053,50 +918,33 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     final text = FrameText.of(context);
     final strings = ref.watch(appStringsProvider);
     final (readOnly, readOnlyReason, agentStatus, cwd, touchedKey) = ref.watch(
-      sessionStateFamily(widget.sessionId).select(
-        (s) => (
-          s.readOnly,
-          s.readOnlyReason,
-          s.agentStatus,
-          s.cwd,
-          _piTouchedPaths(s).join('\x00'),
-        ),
-      ),
+      sessionStateFamily(widget.sessionId)
+          .select((s) => (s.readOnly, s.readOnlyReason, s.agentStatus, s.cwd, _piTouchedPaths(s).join('\x00'))),
     );
     final repository = ref.watch(repositoryStateProvider(widget.sessionId));
 
-    ref.listen<String>(
-      sessionStateFamily(widget.sessionId).select((s) => s.cwd),
-      (prev, next) {
-        if (next.isNotEmpty &&
-            (prev == null || prev.isEmpty || _status?['error'] != null)) {
-          _refresh();
-        }
-      },
-    );
+    ref.listen<String>(sessionStateFamily(widget.sessionId).select((s) => s.cwd), (prev, next) {
+      if (next.isNotEmpty && (prev == null || prev.isEmpty || _status?['error'] != null)) {
+        unawaited(_refresh());
+      }
+    });
 
-    ref.listen<String>(
-      sessionStateFamily(widget.sessionId)
-          .select((s) => _piTouchedPaths(s).join('\x00')),
-      (prev, next) {
-        if (prev != null && prev != next) {
-          _refresh();
-        }
-      },
-    );
+    ref.listen<String>(sessionStateFamily(widget.sessionId).select((s) => _piTouchedPaths(s).join('\x00')), (
+      prev,
+      next,
+    ) {
+      if (prev != null && prev != next) {
+        unawaited(_refresh());
+      }
+    });
 
-    ref.listen<AgentStatus>(
-      sessionStateFamily(widget.sessionId).select((s) => s.agentStatus),
-      (prev, next) {
-        if (prev != null && prev != next && next == AgentStatus.idle) {
-          _refresh();
-        }
-      },
-    );
+    ref.listen<AgentStatus>(sessionStateFamily(widget.sessionId).select((s) => s.agentStatus), (prev, next) {
+      if (prev != null && prev != next && next == AgentStatus.idle) {
+        unawaited(_refresh());
+      }
+    });
 
-    final piTouchedPaths = touchedKey.isEmpty
-        ? const <String>{}
-        : touchedKey.split('\x00').toSet();
+    final piTouchedPaths = touchedKey.isEmpty ? const <String>{} : touchedKey.split('\x00').toSet();
     final blocked =
         readOnly ||
         const {
@@ -1107,39 +955,23 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
         }.contains(agentStatus);
     final files = _files;
     final staged = _staged.toSet();
-    final stagedFiles = files
-        .where((f) => staged.contains(f['path'].toString()))
-        .toList();
-    final unstagedFiles = files
-        .where(
-          (f) =>
-              f['unstaged'] == true || !staged.contains(f['path'].toString()),
-        )
-        .toList();
+    final stagedFiles = files.where((f) => staged.contains(f['path'].toString())).toList();
+    final unstagedFiles = files.where((f) => f['unstaged'] == true || !staged.contains(f['path'].toString())).toList();
     // A row still fading out of a group keeps that group open until it is gone.
     final reduced = FrameMotion.reduced(context);
-    final leavingStaged = reduced
-        ? const <_DepartingRow>[]
-        : _departing.where((d) => d.isStaged).toList();
-    final leavingUnstaged = reduced
-        ? const <_DepartingRow>[]
-        : _departing.where((d) => !d.isStaged).toList();
+    final leavingStaged = reduced ? const <_DepartingRow>[] : _departing.where((d) => d.isStaged).toList();
+    final leavingUnstaged = reduced ? const <_DepartingRow>[] : _departing.where((d) => !d.isStaged).toList();
     // Default rule: CHANGES opens when it has files; STAGED opens when it has
     // files and CHANGES is empty. A toggle by the user overrides the default.
     final isStagedExpanded =
         ref.watch(gitStagedExpandedProvider(widget.sessionId)) ??
-        (leavingStaged.isNotEmpty ||
-            (stagedFiles.isNotEmpty && unstagedFiles.isEmpty));
+        (leavingStaged.isNotEmpty || (stagedFiles.isNotEmpty && unstagedFiles.isEmpty));
     final isUnstagedExpanded =
         ref.watch(gitUnstagedExpandedProvider(widget.sessionId)) ??
         (unstagedFiles.isNotEmpty || leavingUnstaged.isNotEmpty);
     final repo = _status?['isRepository'] == true;
     final root = _status?['rootPath']?.toString() ?? cwd;
-    _GitEntry fileEntry(
-      Map<String, dynamic> file, {
-      required bool isStaged,
-      required bool hasUnstagedEdit,
-    }) {
+    _GitEntry fileEntry(Map<String, dynamic> file, {required bool isStaged, required bool hasUnstagedEdit}) {
       final path = file['path'].toString();
       final section = isStaged ? 'staged' : 'unstaged';
       return _GitEntry(
@@ -1205,10 +1037,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                     key: const ValueKey('git-unstage-all-btn'),
                     tooltip: strings.unstageAllTooltip,
                     icon: Icons.remove_circle_outline,
-                    onPressed: () => _action(
-                      'unstage',
-                      stagedFiles.map((f) => f['path'].toString()).toList(),
-                    ),
+                    onPressed: () => _action('unstage', stagedFiles.map((f) => f['path'].toString()).toList()),
                   ),
                 ),
         ),
@@ -1218,11 +1047,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
             ? [_GitEntry.note('staged', strings.noStagedFiles)]
             : [
                 for (final file in stagedFiles)
-                  fileEntry(
-                    file,
-                    isStaged: true,
-                    hasUnstagedEdit: file['unstaged'] == true,
-                  ),
+                  fileEntry(file, isStaged: true, hasUnstagedEdit: file['unstaged'] == true),
                 for (final row in leavingStaged) departingEntry(row),
               ]),
       _GitEntry(
@@ -1243,10 +1068,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                     key: const ValueKey('git-stage-all-btn'),
                     tooltip: strings.stageAllTooltip,
                     icon: Icons.add_outlined,
-                    onPressed: () => _action(
-                      'stage',
-                      unstagedFiles.map((f) => f['path'].toString()).toList(),
-                    ),
+                    onPressed: () => _action('stage', unstagedFiles.map((f) => f['path'].toString()).toList()),
                   ),
                 ),
         ),
@@ -1255,8 +1077,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
         ...(unstagedFiles.isEmpty && leavingUnstaged.isEmpty
             ? [_GitEntry.note('unstaged', strings.noUnstagedChanges)]
             : [
-                for (final file in unstagedFiles)
-                  fileEntry(file, isStaged: false, hasUnstagedEdit: true),
+                for (final file in unstagedFiles) fileEntry(file, isStaged: false, hasUnstagedEdit: true),
                 for (final row in leavingUnstaged) departingEntry(row),
               ]),
     ];
@@ -1267,19 +1088,14 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
     for (final f in [...stagedFiles, ...unstagedFiles]) {
       final path = f['path'].toString();
       if (diffTargets.any((t) => t.path == path)) continue;
-      diffTargets.add(
-        GitDiffTarget(path: path, stagedOnly: !unstagedPaths.contains(path)),
-      );
+      diffTargets.add(GitDiffTarget(path: path, stagedOnly: !unstagedPaths.contains(path)));
     }
-    final diffOpen =
-        _diffPath != null && diffTargets.any((t) => t.path == _diffPath);
+    final diffOpen = _diffPath != null && diffTargets.any((t) => t.path == _diffPath);
     if (_diffPath != null && !diffOpen) {
       // The file left the list (committed or changed elsewhere): show the list again.
       final stalePath = _diffPath;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted &&
-            _diffPath == stalePath &&
-            !_files.any((f) => f['path'] == stalePath)) {
+        if (mounted && _diffPath == stalePath && !_files.any((f) => f['path'] == stalePath)) {
           setState(() => _diffPath = null);
         }
       });
@@ -1324,16 +1140,13 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                           ),
                           Flexible(
                             child: _buildSegmentButton(
-                              key: const ValueKey(
-                                'right-pane-switch-browser-chip',
-                              ),
+                              key: const ValueKey('right-pane-switch-browser-chip'),
                               label: strings.browserWebBrowserLabel,
                               icon: Icons.language_outlined,
                               isSelected: false,
                               tokens: tokens,
                               onTap: () {
-                                ref.read(rightPaneModeProvider.notifier).state =
-                                    RightPaneMode.browser;
+                                ref.read(rightPaneModeProvider.notifier).state = RightPaneMode.browser;
                               },
                             ),
                           ),
@@ -1342,11 +1155,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                     ),
                   )
                 else ...[
-                  Icon(
-                    Icons.source_outlined,
-                    size: FrameSize.icon,
-                    color: tokens.accent,
-                  ),
+                  Icon(Icons.source_outlined, size: FrameSize.icon, color: tokens.accent),
                   const SizedBox(width: FrameSpace.x2),
                   Flexible(
                     child: Text(
@@ -1354,10 +1163,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                       key: const ValueKey('git-pane-title'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: text.label.copyWith(
-                        color: tokens.textPrimary,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: text.label.copyWith(color: tokens.textPrimary, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ],
@@ -1370,15 +1176,9 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                   tooltip: strings.refreshGitStatusTooltip,
                   visualDensity: VisualDensity.compact,
                   padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(
-                    minWidth: 26,
-                    minHeight: 26,
-                  ),
+                  constraints: const BoxConstraints(minWidth: 26, minHeight: 26),
                   onPressed: _loading ? null : _refresh,
-                  icon: const Icon(
-                    Icons.refresh_outlined,
-                    size: FrameSize.icon,
-                  ),
+                  icon: const Icon(Icons.refresh_outlined, size: FrameSize.icon),
                 ),
                 if (widget.onCollapse != null) ...[
                   const SizedBox(width: FrameSpace.x1),
@@ -1388,10 +1188,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                     constraints: const BoxConstraints(),
                     tooltip: strings.collapseGitPanelTooltip,
                     onPressed: widget.onCollapse,
-                    icon: const Icon(
-                      Icons.chevron_right_outlined,
-                      size: FrameSize.iconLg,
-                    ),
+                    icon: const Icon(Icons.chevron_right_outlined, size: FrameSize.iconLg),
                   ),
                 ],
               ],
@@ -1410,10 +1207,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                       writesOff: blocked || _working,
                       onBack: _closeDiff,
                       onOpenPath: _showDiffPath,
-                      onStageToggle: (target) => _action(
-                        target.stagedOnly ? 'unstage' : 'stage',
-                        [target.path],
-                      ),
+                      onStageToggle: (target) => _action(target.stagedOnly ? 'unstage' : 'stage', [target.path]),
                       onDiscard: _discardFile,
                     )
                   : Column(
@@ -1429,48 +1223,32 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                           ),
                           child: LayoutBuilder(
                             builder: (context, constraints) {
-                              final hasBranch = repo ||
-                                  _status?['branch'] != null ||
-                                  _status?['detached'] == true;
+                              final hasBranch = repo || _status?['branch'] != null || _status?['detached'] == true;
                               final branchName = _status?['detached'] == true
-                                  ? (_status?['headShortSha']?.toString() ??
-                                      'detached')
+                                  ? (_status?['headShortSha']?.toString() ?? 'detached')
                                   : (_status?['branch']?.toString() ?? '—');
                               final isNarrow = constraints.maxWidth < 360;
 
                               Widget buildBranchChip({double? maxWidth}) {
                                 if (!hasBranch) return const SizedBox.shrink();
-                                final branchDisabled =
-                                    blocked || _working || _loading;
+                                final branchDisabled = blocked || _working || _loading;
                                 final chipTooltip = (blocked && !readOnly)
                                     ? strings.branchSwitchAgentWorking
-                                    : (branchName.isNotEmpty &&
-                                            branchName != '—'
-                                        ? '$branchName · ${strings.branchChipTooltip}'
-                                        : strings.branchChipTooltip);
+                                    : (branchName.isNotEmpty && branchName != '—'
+                                          ? '$branchName · ${strings.branchChipTooltip}'
+                                          : strings.branchChipTooltip);
                                 return Tooltip(
                                   message: chipTooltip,
                                   child: InkWell(
                                     key: const ValueKey('git-branch-chip'),
-                                    onTap: branchDisabled
-                                        ? null
-                                        : _openBranchPicker,
-                                    borderRadius: BorderRadius.circular(
-                                      tokens.radiusSm,
-                                    ),
+                                    onTap: branchDisabled ? null : _openBranchPicker,
+                                    borderRadius: BorderRadius.circular(tokens.radiusSm),
                                     child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: FrameSpace.x2,
-                                        vertical: 3,
-                                      ),
+                                      padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2, vertical: 3),
                                       decoration: BoxDecoration(
                                         color: tokens.surface,
-                                        borderRadius: BorderRadius.circular(
-                                          tokens.radiusSm,
-                                        ),
-                                        border: Border.all(
-                                          color: tokens.border,
-                                        ),
+                                        borderRadius: BorderRadius.circular(tokens.radiusSm),
+                                        border: Border.all(color: tokens.border),
                                       ),
                                       child: Row(
                                         mainAxisSize: MainAxisSize.min,
@@ -1478,27 +1256,18 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                                           Icon(
                                             Icons.fork_right_outlined,
                                             size: 13,
-                                            color: branchDisabled
-                                                ? tokens.textMuted
-                                                : tokens.accent,
+                                            color: branchDisabled ? tokens.textMuted : tokens.accent,
                                           ),
-                                          const SizedBox(
-                                            width: FrameSpace.x1,
-                                          ),
+                                          const SizedBox(width: FrameSpace.x1),
                                           ConstrainedBox(
-                                            constraints: BoxConstraints(
-                                              maxWidth: maxWidth ?? 340.0,
-                                            ),
+                                            constraints: BoxConstraints(maxWidth: maxWidth ?? 340.0),
                                             child: Text(
                                               branchName,
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                               style: text.caption.copyWith(
-                                                color: branchDisabled
-                                                    ? tokens.textMuted
-                                                    : tokens.textPrimary,
-                                                fontFamily:
-                                                    tokens.monoFontFamily,
+                                                color: branchDisabled ? tokens.textMuted : tokens.textPrimary,
+                                                fontFamily: tokens.monoFontFamily,
                                                 fontWeight: FontWeight.w500,
                                               ),
                                             ),
@@ -1525,10 +1294,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                                       ),
                                     ),
                                     const SizedBox(height: FrameSpace.x1),
-                                    buildBranchChip(
-                                      maxWidth: constraints.maxWidth -
-                                          FrameSpace.x2,
-                                    ),
+                                    buildBranchChip(maxWidth: constraints.maxWidth - FrameSpace.x2),
                                   ],
                                 );
                               }
@@ -1548,10 +1314,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                                   ),
                                   if (hasBranch) ...[
                                     const SizedBox(width: FrameSpace.x2),
-                                    buildBranchChip(
-                                      maxWidth: (constraints.maxWidth * 0.65)
-                                          .clamp(200.0, 450.0),
-                                    ),
+                                    buildBranchChip(maxWidth: (constraints.maxWidth * 0.65).clamp(200.0, 450.0)),
                                   ],
                                 ],
                               );
@@ -1564,10 +1327,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                               final rawError = _status?['error']?.toString();
                               final isAttaching =
                                   (rawError != null &&
-                                      (rawError.contains('not found') ||
-                                          rawError.contains(
-                                            'Session not found',
-                                          ))) ||
+                                      (rawError.contains('not found') || rawError.contains('Session not found'))) ||
                                   (_status == null && cwd.isEmpty);
 
                               if (_loading || isAttaching) {
@@ -1586,9 +1346,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                                   child: Center(
                                     child: Text(
                                       strings.noGitRepository,
-                                      style: text.body.copyWith(
-                                        color: tokens.textMuted,
-                                      ),
+                                      style: text.body.copyWith(color: tokens.textMuted),
                                     ),
                                   ),
                                 );
@@ -1596,9 +1354,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                               return Expanded(
                                 child: Center(
                                   child: SingleChildScrollView(
-                                    padding: const EdgeInsets.all(
-                                      FrameSpace.x3,
-                                    ),
+                                    padding: const EdgeInsets.all(FrameSpace.x3),
                                     child: FrameErrorCallout(
                                       keyPrefix: 'git-status-error',
                                       title: strings.gitStatusLoadFailed,
@@ -1613,29 +1369,21 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                           )
                         else ...[
                           Padding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: FrameSpace.x3,
-                            ),
+                            padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x3),
                             child: Wrap(
                               spacing: 4,
                               children: [
                                 Text(
                                   strings.gitFilesCount(files.length),
-                                  style: text.caption.copyWith(
-                                    color: tokens.textSecondary,
-                                  ),
+                                  style: text.caption.copyWith(color: tokens.textSecondary),
                                 ),
                                 Text(
                                   '+${_status?['totalAdditions'] ?? 0}',
-                                  style: text.caption.copyWith(
-                                    color: tokens.diffAddedFg,
-                                  ),
+                                  style: text.caption.copyWith(color: tokens.diffAddedFg),
                                 ),
                                 Text(
                                   '-${_status?['totalDeletions'] ?? 0}',
-                                  style: text.caption.copyWith(
-                                    color: tokens.diffRemovedFg,
-                                  ),
+                                  style: text.caption.copyWith(color: tokens.diffRemovedFg),
                                 ),
                               ],
                             ),
@@ -1649,23 +1397,15 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                                       keyPrefix: 'git-empty',
                                       icon: Icons.check_circle_outline,
                                       title: strings.gitCleanTitle,
-                                      message: strings.gitCleanMessage(
-                                        _status?['branch']?.toString() ?? '—',
-                                      ),
+                                      message: strings.gitCleanMessage(_status?['branch']?.toString() ?? '—'),
                                       actionLabel: strings.gitRefreshAction,
                                       actionIcon: Icons.refresh_outlined,
-                                      onAction: _loading
-                                          ? null
-                                          : () => _refresh(),
+                                      onAction: _loading ? null : () => _refresh(),
                                     )
                                   : Focus(
                                       focusNode: _listFocus,
                                       onFocusChange: (_) => setState(() {}),
-                                      onKeyEvent: (node, event) => _onListKey(
-                                        event,
-                                        listEntries,
-                                        blocked,
-                                      ),
+                                      onKeyEvent: (node, event) => _onListKey(event, listEntries, blocked),
                                       child: ListView.builder(
                                         key: const ValueKey('git-list'),
                                         controller: _listScroll,
@@ -1674,9 +1414,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                                         itemBuilder: (context, index) {
                                           final entry = listEntries[index];
                                           return entry.render(
-                                            _listFocus.hasFocus &&
-                                                entry.key ==
-                                                    _activeKey(listEntries),
+                                            _listFocus.hasFocus && entry.key == _activeKey(listEntries),
                                           );
                                         },
                                       ),
@@ -1693,12 +1431,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                               backgroundColor: tokens.surface,
                             ),
                           Padding(
-                            padding: const EdgeInsets.fromLTRB(
-                              FrameSpace.x2,
-                              FrameSpace.x1,
-                              FrameSpace.x2,
-                              0,
-                            ),
+                            padding: const EdgeInsets.fromLTRB(FrameSpace.x2, FrameSpace.x1, FrameSpace.x2, 0),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
@@ -1708,32 +1441,22 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                                   height: FrameSize.icon,
                                   child: blocked
                                       ? Row(
-                                          key: const ValueKey(
-                                            'git-writes-disabled',
-                                          ),
+                                          key: const ValueKey('git-writes-disabled'),
                                           children: [
                                             Icon(
                                               Icons.pause_circle_outline,
                                               size: FrameSize.icon,
                                               color: tokens.warning,
                                             ),
-                                            const SizedBox(
-                                              width: FrameSpace.x2,
-                                            ),
+                                            const SizedBox(width: FrameSpace.x2),
                                             Expanded(
                                               child: Text(
                                                 readOnly
-                                                    ? strings
-                                                          .writesDisabledReadOnly(
-                                                            readOnlyReason,
-                                                          )
-                                                    : strings
-                                                          .writesDisabledPiWorking,
+                                                    ? strings.writesDisabledReadOnly(readOnlyReason)
+                                                    : strings.writesDisabledPiWorking,
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
-                                                style: text.caption.copyWith(
-                                                  color: tokens.textPrimary,
-                                                ),
+                                                style: text.caption.copyWith(color: tokens.textPrimary),
                                               ),
                                             ),
                                           ],
@@ -1747,8 +1470,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                                   canWrite: !blocked && !_working,
                                   strings: strings,
                                   error: _commitError,
-                                  onToggleBody: () =>
-                                      setState(() => _bodyOpen = !_bodyOpen),
+                                  onToggleBody: () => setState(() => _bodyOpen = !_bodyOpen),
                                   onCommit: _commit,
                                 ),
                               ],
@@ -1764,26 +1486,10 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                             child: Row(
                               children: [
                                 for (final spec in [
-                                  (
-                                    'fetch',
-                                    Icons.cloud_download_outlined,
-                                    strings.gitFetchTooltip,
-                                  ),
-                                  (
-                                    'pull',
-                                    Icons.arrow_downward_outlined,
-                                    strings.gitPullTooltip,
-                                  ),
-                                  (
-                                    'push',
-                                    Icons.arrow_upward_outlined,
-                                    strings.gitPushTooltip,
-                                  ),
-                                  (
-                                    'sync',
-                                    Icons.sync_outlined,
-                                    strings.gitSyncTooltip,
-                                  ),
+                                  ('fetch', Icons.cloud_download_outlined, strings.gitFetchTooltip),
+                                  ('pull', Icons.arrow_downward_outlined, strings.gitPullTooltip),
+                                  ('push', Icons.arrow_upward_outlined, strings.gitPushTooltip),
+                                  ('sync', Icons.sync_outlined, strings.gitSyncTooltip),
                                 ]) ...[
                                   _remoteButton(
                                     action: spec.$1,
@@ -1798,15 +1504,10 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
                                   child: ListenableBuilder(
                                     listenable: _subject,
                                     builder: (context, _) => GitCommitButton(
-                                      label: strings.commitButtonLabel(
-                                        staged.length,
-                                      ),
+                                      label: strings.commitButtonLabel(staged.length),
                                       tooltip: strings.commitShortcutTooltip,
                                       enabled:
-                                          !blocked &&
-                                          !_working &&
-                                          staged.isNotEmpty &&
-                                          _subject.text.trim().isNotEmpty,
+                                          !blocked && !_working && staged.isNotEmpty && _subject.text.trim().isNotEmpty,
                                       fullWidth: gitCompactLayout(context),
                                       onPressed: _commit,
                                     ),
@@ -1839,27 +1540,16 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
       borderRadius: BorderRadius.circular(tokens.radiusSm),
       child: AnimatedContainer(
         duration: FrameMotion.fade(context, FrameMotion.micro),
-        padding: const EdgeInsets.symmetric(
-          horizontal: FrameSpace.x2,
-          vertical: 3,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: FrameSpace.x2, vertical: 3),
         decoration: BoxDecoration(
-          color: isSelected
-              ? tokens.surfaceElevated
-              : tokens.surface.withValues(alpha: 0),
+          color: isSelected ? tokens.surfaceElevated : tokens.surface.withValues(alpha: 0),
           borderRadius: BorderRadius.circular(tokens.radiusSm),
-          border: isSelected
-              ? Border.all(color: tokens.borderStrong, width: 0.8)
-              : null,
+          border: isSelected ? Border.all(color: tokens.borderStrong, width: 0.8) : null,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: FrameSize.iconSm,
-              color: isSelected ? tokens.accent : tokens.textMuted,
-            ),
+            Icon(icon, size: FrameSize.iconSm, color: isSelected ? tokens.accent : tokens.textMuted),
             const SizedBox(width: 5),
             Flexible(
               child: Text(
@@ -1881,12 +1571,7 @@ class _GitChangesPaneState extends ConsumerState<GitChangesPane> {
 
 /// A row that left one group for the other in the last status refresh.
 class _DepartingRow {
-  const _DepartingRow({
-    required this.id,
-    required this.isStaged,
-    required this.file,
-    required this.hasUnstagedEdit,
-  });
+  const _DepartingRow({required this.id, required this.isStaged, required this.file, required this.hasUnstagedEdit});
 
   final int id;
   final bool isStaged;
@@ -1898,11 +1583,7 @@ class _DepartingRow {
 /// to 0 over `FrameMotion.small` (Spec F). Only rows that just arrived pass
 /// [animate]; every other row mounts at rest.
 class _RowTravelEnter extends StatefulWidget {
-  const _RowTravelEnter({
-    super.key,
-    required this.animate,
-    required this.child,
-  });
+  const _RowTravelEnter({super.key, required this.animate, required this.child});
 
   final bool animate;
   final Widget child;
@@ -1911,23 +1592,15 @@ class _RowTravelEnter extends StatefulWidget {
   State<_RowTravelEnter> createState() => _RowTravelEnterState();
 }
 
-class _RowTravelEnterState extends State<_RowTravelEnter>
-    with SingleTickerProviderStateMixin {
+class _RowTravelEnterState extends State<_RowTravelEnter> with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final CurvedAnimation _curve;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: FrameMotion.small,
-      value: widget.animate ? 0 : 1,
-    );
-    _curve = CurvedAnimation(
-      parent: _controller,
-      curve: FrameMotion.enterCurve,
-    );
+    _controller = AnimationController(vsync: this, duration: FrameMotion.small, value: widget.animate ? 0 : 1);
+    _curve = CurvedAnimation(parent: _controller, curve: FrameMotion.enterCurve);
     if (widget.animate) _controller.forward();
   }
 
@@ -1945,10 +1618,7 @@ class _RowTravelEnterState extends State<_RowTravelEnter>
       child: widget.child,
       builder: (context, child) => Opacity(
         opacity: _curve.value,
-        child: Transform.translate(
-          offset: Offset(0, (1 - _curve.value) * FrameSpace.x1),
-          child: child,
-        ),
+        child: Transform.translate(offset: Offset(0, (1 - _curve.value) * FrameSpace.x1), child: child),
       ),
     );
   }
@@ -1967,23 +1637,18 @@ class _RowTravelLeave extends StatefulWidget {
   State<_RowTravelLeave> createState() => _RowTravelLeaveState();
 }
 
-class _RowTravelLeaveState extends State<_RowTravelLeave>
-    with SingleTickerProviderStateMixin {
+class _RowTravelLeaveState extends State<_RowTravelLeave> with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final CurvedAnimation _curve;
 
   @override
   void initState() {
     super.initState();
-    _controller =
-        AnimationController(vsync: this, duration: FrameMotion.smallExit)
-          ..addStatusListener((status) {
-            if (status == AnimationStatus.completed) widget.onDone();
-          });
-    _curve = CurvedAnimation(
-      parent: _controller,
-      curve: FrameMotion.enterCurve,
-    );
+    _controller = AnimationController(vsync: this, duration: FrameMotion.smallExit)
+      ..addStatusListener((status) {
+        if (status == AnimationStatus.completed) widget.onDone();
+      });
+    _curve = CurvedAnimation(parent: _controller, curve: FrameMotion.enterCurve);
     _controller.forward();
   }
 
@@ -2001,10 +1666,7 @@ class _RowTravelLeaveState extends State<_RowTravelLeave>
       child: widget.child,
       builder: (context, child) => Opacity(
         opacity: 1 - _curve.value,
-        child: Transform.translate(
-          offset: Offset(0, -FrameSpace.x1 * _curve.value),
-          child: child,
-        ),
+        child: Transform.translate(offset: Offset(0, -FrameSpace.x1 * _curve.value), child: child),
       ),
     );
   }

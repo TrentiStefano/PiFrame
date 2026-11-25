@@ -10,6 +10,16 @@ const __dirname = path.dirname(__filename);
 const fakePiBin = path.resolve(__dirname, '../../dist/index.js');
 const fakeNpmBin = path.resolve(__dirname, '../../dist/fake-npm.js');
 
+/** One JSON line fake-pi wrote to stdout. The fields the tests read are typed; anything else stays unknown. */
+interface RpcMessage {
+  type?: string;
+  command?: string;
+  message?: { role?: string; content?: unknown; timestamp?: number; stopReason?: string; [key: string]: unknown };
+  assistantMessageEvent?: { delta?: unknown; [key: string]: unknown };
+  data?: { tree: Array<{ isLeaf?: unknown }>; leafId?: unknown };
+  [key: string]: unknown;
+}
+
 function tempDir(): string {
   return fs.mkdtempSync(path.join(process.env.TEMP || process.env.TMP || process.cwd(), 'fake-pi-test-'));
 }
@@ -17,8 +27,8 @@ function tempDir(): string {
 function observeJsonLines(child: ReturnType<typeof spawn>) {
   if (!child.stdout) throw new Error('Child process stdout is unavailable');
   let buffer = '';
-  const messages: any[] = [];
-  const waiters: Array<{ predicate: (message: any) => boolean; resolve: (message: any) => void }> = [];
+  const messages: RpcMessage[] = [];
+  const waiters: Array<{ predicate: (message: RpcMessage) => boolean; resolve: (message: RpcMessage) => void }> = [];
   child.stdout.on('data', (data) => {
     buffer += data.toString();
     const lines = buffer.split('\n');
@@ -28,20 +38,27 @@ function observeJsonLines(child: ReturnType<typeof spawn>) {
       const message = JSON.parse(line);
       messages.push(message);
       for (let i = waiters.length - 1; i >= 0; i--) {
-        if (waiters[i].predicate(message)) waiters.splice(i, 1)[0].resolve(message);
+        const waiter = waiters[i];
+        if (waiter?.predicate(message)) {
+          waiters.splice(i, 1);
+          waiter.resolve(message);
+        }
       }
     }
   });
   return {
     messages,
-    waitFor(predicate: (message: any) => boolean, timeoutMs = 5000): Promise<any> {
+    waitFor(predicate: (message: RpcMessage) => boolean, timeoutMs = 5000): Promise<RpcMessage> {
       const existing = messages.find(predicate);
       if (existing) return Promise.resolve(existing);
       return new Promise((resolve, reject) => {
         const timer = setTimeout(() => reject(new Error('Timed out waiting for fake-pi RPC message')), timeoutMs);
         waiters.push({
           predicate,
-          resolve: (message) => { clearTimeout(timer); resolve(message); }
+          resolve: (message) => {
+            clearTimeout(timer);
+            resolve(message);
+          }
         });
       });
     }
@@ -56,8 +73,8 @@ describe('fake-pi simulator', () => {
   it('reports correct version 0.85.1', async () => {
     const p = spawn(process.execPath, [fakePiBin, '--version']);
     let out = '';
-    p.stdout.on('data', d => out += d.toString());
-    const code = await new Promise(r => p.on('close', r));
+    p.stdout.on('data', (d) => (out += d.toString()));
+    const code = await new Promise((r) => p.on('close', r));
     assert.strictEqual(code, 0);
     assert.strictEqual(out.trim(), '0.85.1');
   });
@@ -68,8 +85,8 @@ describe('fake-pi simulator', () => {
 
     const p = spawn(process.execPath, [fakePiBin, '--replay', fixturePath]);
     let out = '';
-    p.stdout.on('data', d => out += d.toString());
-    const code = await new Promise(r => p.on('close', r));
+    p.stdout.on('data', (d) => (out += d.toString()));
+    const code = await new Promise((r) => p.on('close', r));
     assert.strictEqual(code, 0);
     assert.strictEqual(out, originalContent);
   });
@@ -79,10 +96,10 @@ describe('fake-pi simulator', () => {
       stdio: ['pipe', 'pipe', 'pipe']
     });
     let output = '';
-    p.stdout.on('data', d => output += d.toString());
+    p.stdout.on('data', (d) => (output += d.toString()));
     p.stdin.write(JSON.stringify({ command: 'get_state', arguments: {}, id: 'legacy' }) + '\n');
     p.stdin.end();
-    const code = await new Promise<number | null>(resolve => p.on('close', resolve));
+    const code = await new Promise<number | null>((resolve) => p.on('close', resolve));
     assert.strictEqual(code, 0);
     const response = JSON.parse(output.trim());
     assert.strictEqual(response.type, 'response');
@@ -93,12 +110,15 @@ describe('fake-pi simulator', () => {
   it('accepts canonical bash command field and rejects unknown types', async () => {
     const p = spawn(process.execPath, [fakePiBin, '--mode', 'rpc', '--no-session']);
     let output = '';
-    p.stdout.on('data', d => output += d.toString());
+    p.stdout.on('data', (d) => (output += d.toString()));
     p.stdin.write(JSON.stringify({ type: 'bash', command: 'echo test', id: 'bash' }) + '\n');
     p.stdin.write(JSON.stringify({ type: 'does-not-exist', id: 'unknown' }) + '\n');
     p.stdin.end();
-    await new Promise(resolve => p.on('close', resolve));
-    const responses = output.trim().split('\n').map(line => JSON.parse(line));
+    await new Promise((resolve) => p.on('close', resolve));
+    const responses = output
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line));
     assert.strictEqual(responses[0].success, true);
     assert.strictEqual(responses[0].data.output, 'Fake command: echo test');
     assert.strictEqual(responses[1].success, false);
@@ -118,16 +138,30 @@ describe('fake-pi simulator', () => {
     await observed.waitFor((message) => message.type === 'agent_settled');
     fs.writeFileSync(controlFile, 'provider-error');
     p.stdin.write(JSON.stringify({ type: 'prompt', id: 'second', message: 'Second prompt' }) + '\n');
-    await observed.waitFor((message) => message.type === 'agent_settled' &&
-      observed.messages.filter((entry) => entry.type === 'agent_settled').length === 2);
+    await observed.waitFor(
+      (message) =>
+        message.type === 'agent_settled' &&
+        observed.messages.filter((entry) => entry.type === 'agent_settled').length === 2
+    );
     p.stdin.end();
-    assert.ok(observed.messages.some((message) => message.type === 'message_update' && message.assistantMessageEvent?.delta === 'Hello from fake-pi!'));
-    assert.ok(observed.messages.some((message) => message.type === 'message_end' && message.message?.stopReason === 'error'));
+    assert.ok(
+      observed.messages.some(
+        (message) => message.type === 'message_update' && message.assistantMessageEvent?.delta === 'Hello from fake-pi!'
+      )
+    );
+    assert.ok(
+      observed.messages.some((message) => message.type === 'message_end' && message.message?.stopReason === 'error')
+    );
     // Scenarios echo the prompt the user actually sent, like real Pi.
-    const echoed = observed.messages.find((message) => message.type === 'message_end' &&
-      message.message?.role === 'user' && message.message?.content === 'Second prompt');
+    const echoed = observed.messages.find(
+      (message) =>
+        message.type === 'message_end' &&
+        message.message?.role === 'user' &&
+        message.message?.content === 'Second prompt'
+    );
     assert.ok(echoed);
-    assert.ok(typeof echoed.message.timestamp === 'number' && Date.now() - echoed.message.timestamp < 60_000);
+    const echoedAt = echoed.message?.timestamp;
+    assert.ok(typeof echoedAt === 'number' && Date.now() - echoedAt < 60_000);
     assert.strictEqual(await closed(p), 0);
     fs.rmSync(cwd, { recursive: true, force: true });
   });
@@ -143,9 +177,9 @@ describe('fake-pi simulator', () => {
     p.stdin.write(JSON.stringify({ type: 'get_tree', id: 'tree' }) + '\n');
     const response = await observed.waitFor((message) => message.command === 'get_tree');
     p.stdin.end();
-    assert.strictEqual(response.data.tree.length, 3);
-    assert.strictEqual(response.data.leafId, 'main_answer');
-    assert.strictEqual(response.data.tree[2].isLeaf, true);
+    assert.strictEqual(response.data?.tree.length, 3);
+    assert.strictEqual(response.data?.leafId, 'main_answer');
+    assert.strictEqual(response.data?.tree[2]?.isLeaf, true);
     assert.strictEqual(await closed(p), 0);
     fs.rmSync(cwd, { recursive: true, force: true });
   });
@@ -161,7 +195,7 @@ describe('fake-pi simulator', () => {
       });
       const observed = observeJsonLines(p);
       let stderr = '';
-      p.stderr.on('data', (data) => stderr += data.toString());
+      p.stderr.on('data', (data) => (stderr += data.toString()));
       p.stdin.write(JSON.stringify({ type: 'prompt', id: 'edit', message: 'Edit the files' }) + '\n');
       await observed.waitFor((message) => message.type === 'agent_settled');
       p.stdin.end();
@@ -185,7 +219,7 @@ describe('fake-pi simulator', () => {
       stdio: ['ignore', 'pipe', 'pipe']
     });
     let output = '';
-    p.stdout.on('data', (data) => output += data.toString());
+    p.stdout.on('data', (data) => (output += data.toString()));
     assert.strictEqual(await closed(p), 0);
     const parsed: Array<{ source: string; installPath?: string }> = [];
     let scope: 'user' | 'project' = 'user';
@@ -196,8 +230,16 @@ describe('fake-pi simulator', () => {
     };
     for (const line of output.split(/\r?\n/)) {
       const heading = line.trim();
-      if (heading === 'User packages:') { flush(); scope = 'user'; continue; }
-      if (heading === 'Project packages:') { flush(); scope = 'project'; continue; }
+      if (heading === 'User packages:') {
+        flush();
+        scope = 'user';
+        continue;
+      }
+      if (heading === 'Project packages:') {
+        flush();
+        scope = 'project';
+        continue;
+      }
       if (/^  \S/.test(line) && !/^    /.test(line)) {
         flush();
         pending = { source: line.trim() };
@@ -209,10 +251,10 @@ describe('fake-pi simulator', () => {
     flush();
     const subagents = parsed.find((item) => item.source === 'npm:pi-subagents');
     assert.ok(subagents?.installPath);
-    const manifest = JSON.parse(fs.readFileSync(path.join(subagents.installPath!, 'package.json'), 'utf8'));
+    const manifest = JSON.parse(fs.readFileSync(path.join(subagents.installPath, 'package.json'), 'utf8'));
     assert.strictEqual(manifest.name, 'pi-subagents');
     assert.strictEqual(manifest.version, '0.9.0');
-    assert.ok(fs.existsSync(path.join(subagents.installPath!, 'agents', 'reviewer.md')));
+    assert.ok(fs.existsSync(path.join(subagents.installPath, 'agents', 'reviewer.md')));
     assert.ok(output.startsWith('User packages:\n  npm:pi-subagents\n    '));
     assert.ok(output.includes('\nProject packages:\n'));
     fs.rmSync(agentDir, { recursive: true, force: true });
@@ -230,7 +272,7 @@ describe('fake-pi simulator', () => {
       stdio: ['ignore', 'pipe', 'pipe']
     });
     let output = '';
-    p.stdout.on('data', (data) => output += data.toString());
+    p.stdout.on('data', (data) => (output += data.toString()));
     assert.strictEqual(await closed(p), 0);
     assert.strictEqual(JSON.parse(output.trim()), '0.10.0');
     fs.rmSync(agentDir, { recursive: true, force: true });
@@ -242,11 +284,11 @@ describe('fake-pi simulator', () => {
     });
 
     let buffer = '';
-    const received: any[] = [];
+    const received: RpcMessage[] = [];
 
     const waitForSettled = new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error('Timed out waiting for agent_settled')), 3000);
-      p.stdout.on('data', d => {
+      p.stdout.on('data', (d) => {
         buffer += d.toString();
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
@@ -269,19 +311,19 @@ describe('fake-pi simulator', () => {
     p.kill();
 
     // Check that we received response to get_state and prompt
-    const stateResp = received.find(m => m.command === 'get_state');
+    const stateResp = received.find((m) => m.command === 'get_state');
     assert.ok(stateResp, 'Expected get_state response');
     assert.strictEqual(stateResp.id, 'test_state');
     assert.strictEqual(stateResp.success, true);
 
-    const promptResp = received.find(m => m.command === 'prompt');
+    const promptResp = received.find((m) => m.command === 'prompt');
     assert.ok(promptResp, 'Expected prompt response');
     assert.strictEqual(promptResp.id, 'test_prompt');
 
     // Check that streaming events were emitted
-    const startEvent = received.find(m => m.type === 'agent_start');
+    const startEvent = received.find((m) => m.type === 'agent_start');
     assert.ok(startEvent, 'Expected agent_start event');
-    const settledEvent = received.find(m => m.type === 'agent_settled');
+    const settledEvent = received.find((m) => m.type === 'agent_settled');
     assert.ok(settledEvent, 'Expected agent_settled event');
   });
 });

@@ -5,11 +5,14 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_frame/data/daemon/pcp_client.dart';
 
+/// The payload of a recorded PCP command, typed once at this boundary.
+Map<String, dynamic> payloadOf(Map<String, dynamic> command) => command['payload'] as Map<String, dynamic>;
+
 void main() {
   late HttpServer server;
   late PcpClient client;
   late WebSocket socket;
-  late StreamSubscription subscription;
+  late StreamSubscription<HttpRequest> subscription;
   final commands = <Map<String, dynamic>>[];
 
   setUp(() async {
@@ -58,71 +61,65 @@ void main() {
     await assertion;
   });
 
-  test(
-    'rapid same-type commands have distinct IDs and both complete',
-    () async {
-      final first = client.listSessions();
-      final second = client.listSessions();
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-      expect(commands.length, 2);
-      expect(commands[0]['commandId'], isNot(commands[1]['commandId']));
-      for (final command in commands) {
-        socket.add(
-          jsonEncode({
-            'kind': 'result',
-            'commandId': command['commandId'],
-            'payload': {
-              'state': 'completed',
-              'data': {'sessions': []},
-            },
-          }),
-        );
-      }
-      await Future.wait([first, second]);
-    },
-  );
+  test('rapid same-type commands have distinct IDs and both complete', () async {
+    final first = client.listSessions();
+    final second = client.listSessions();
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(commands.length, 2);
+    expect(commands[0]['commandId'], isNot(commands[1]['commandId']));
+    for (final command in commands) {
+      socket.add(
+        jsonEncode({
+          'kind': 'result',
+          'commandId': command['commandId'],
+          'payload': {
+            'state': 'completed',
+            'data': {'sessions': <dynamic>[]},
+          },
+        }),
+      );
+    }
+    await Future.wait([first, second]);
+  });
 
-  test(
-    'workspace commands use the active session and preserve validated payloads',
-    () async {
-      final requests = <Future<Map<String, dynamic>>>[
-        client.listWorkspaceFiles('session-a'),
-        client.readWorkspaceFile('session-a', 'lib/main.dart'),
-        client.saveWorkspaceFile('session-a', {
-          'path': 'lib/main.dart',
-          'content': 'updated',
-          'revision': List.filled(64, 'a').join(),
+  test('workspace commands use the active session and preserve validated payloads', () async {
+    final requests = <Future<Map<String, dynamic>>>[
+      client.listWorkspaceFiles('session-a'),
+      client.readWorkspaceFile('session-a', 'lib/main.dart'),
+      client.saveWorkspaceFile('session-a', {
+        'path': 'lib/main.dart',
+        'content': 'updated',
+        'revision': List.filled(64, 'a').join(),
+      }),
+      client.workspaceGitAction('session-a', {
+        'action': 'commit',
+        'paths': ['lib/main.dart'],
+        'expectedStagedPaths': ['lib/main.dart'],
+        'message': 'Update main',
+      }),
+    ];
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(commands.map((command) => command['type']).toList(), [
+      'workspace.listFiles',
+      'workspace.readFile',
+      'workspace.saveFile',
+      'workspace.gitAction',
+    ]);
+    for (var index = 0; index < commands.length; index++) {
+      expect(commands[index]['sessionId'], 'session-a');
+      socket.add(
+        jsonEncode({
+          'kind': 'result',
+          'commandId': commands[index]['commandId'],
+          'payload': {'state': 'completed', 'data': <String, dynamic>{}},
         }),
-        client.workspaceGitAction('session-a', {
-          'action': 'commit',
-          'paths': ['lib/main.dart'],
-          'expectedStagedPaths': ['lib/main.dart'],
-          'message': 'Update main',
-        }),
-      ];
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-      expect(commands.map((command) => command['type']).toList(), [
-        'workspace.listFiles',
-        'workspace.readFile',
-        'workspace.saveFile',
-        'workspace.gitAction',
-      ]);
-      for (var index = 0; index < commands.length; index++) {
-        expect(commands[index]['sessionId'], 'session-a');
-        socket.add(
-          jsonEncode({
-            'kind': 'result',
-            'commandId': commands[index]['commandId'],
-            'payload': {'state': 'completed', 'data': {}},
-          }),
-        );
-      }
-      await Future.wait(requests);
-      expect(commands[1]['payload']['path'], 'lib/main.dart');
-      expect(commands[2]['payload']['revision'], List.filled(64, 'a').join());
-      expect(commands[3]['payload']['expectedStagedPaths'], ['lib/main.dart']);
-    },
-  );
+      );
+    }
+    await Future.wait(requests);
+    expect(payloadOf(commands[1])['path'], 'lib/main.dart');
+    expect(payloadOf(commands[2])['revision'], List.filled(64, 'a').join());
+    expect(payloadOf(commands[3])['expectedStagedPaths'], ['lib/main.dart']);
+  });
 
   test('context settings serialize backend command payloads', () async {
     final limitFuture = client.setContextWindowOverride('session-a', 195000);
@@ -134,7 +131,7 @@ void main() {
       'agent.setCompactionReservePercent',
     ]);
     expect(commands[0]['payload'], {'limit': 195000});
-    expect(commands[1]['payload'], {'percent': 5.0});
+    expect(payloadOf(commands[1]), {'percent': 5.0});
     for (final command in commands) {
       socket.add(
         jsonEncode({
@@ -142,10 +139,7 @@ void main() {
           'commandId': command['commandId'],
           'payload': {
             'state': 'completed',
-            'data': {
-              'contextWindowOverride': 195000,
-              'compactionReservePercent': 5.0,
-            },
+            'data': {'contextWindowOverride': 195000, 'compactionReservePercent': 5.0},
           },
         }),
       );
@@ -158,15 +152,9 @@ void main() {
     final logout = client.piAuthLogout('session-a');
     await Future<void>.delayed(const Duration(milliseconds: 20));
 
-    expect(commands.map((command) => command['type']).toList(), [
-      'agent.authLogin',
-      'agent.authLogout',
-    ]);
-    expect(commands.every((command) => command['payload'].isEmpty), isTrue);
-    expect(
-      commands.every((command) => command['sessionId'] == 'session-a'),
-      isTrue,
-    );
+    expect(commands.map((command) => command['type']).toList(), ['agent.authLogin', 'agent.authLogout']);
+    expect(commands.every((command) => payloadOf(command).isEmpty), isTrue);
+    expect(commands.every((command) => command['sessionId'] == 'session-a'), isTrue);
     for (final command in commands) {
       socket.add(
         jsonEncode({
@@ -186,18 +174,20 @@ void main() {
     final result = client.getSubagents('parent');
     await Future<void>.delayed(const Duration(milliseconds: 20));
     expect(commands.single['type'], 'session.subagents');
-    socket.add(jsonEncode({
-      'kind': 'result',
-      'commandId': commands.single['commandId'],
-      'payload': {
-        'state': 'completed',
-        'data': {
-          'subagents': [
-            {'id': 'child', 'model': 'actual-model', 'cost': 0.0175},
-          ],
+    socket.add(
+      jsonEncode({
+        'kind': 'result',
+        'commandId': commands.single['commandId'],
+        'payload': {
+          'state': 'completed',
+          'data': {
+            'subagents': [
+              {'id': 'child', 'model': 'actual-model', 'cost': 0.0175},
+            ],
+          },
         },
-      },
-    }));
+      }),
+    );
     expect(await result, [
       {'id': 'child', 'model': 'actual-model', 'cost': 0.0175},
     ]);
@@ -209,31 +199,35 @@ void main() {
     expect(commands.single['type'], 'session.stopSubagent');
     expect(commands.single['sessionId'], 'parent');
     expect(commands.single['payload'], {'agentId': 'agent-1'});
-    socket.add(jsonEncode({
-      'kind': 'result',
-      'commandId': commands.single['commandId'],
-      'payload': {
-        'state': 'completed',
-        'data': {'stopped': false, 'reason': 'Agent is not running'},
-      },
-    }));
+    socket.add(
+      jsonEncode({
+        'kind': 'result',
+        'commandId': commands.single['commandId'],
+        'payload': {
+          'state': 'completed',
+          'data': {'stopped': false, 'reason': 'Agent is not running'},
+        },
+      }),
+    );
     expect(await result, {'stopped': false, 'reason': 'Agent is not running'});
   });
 
   test('subagents come with the live state of the worker', () async {
     final result = client.getSubagentsWithLive('parent');
     await Future<void>.delayed(const Duration(milliseconds: 20));
-    socket.add(jsonEncode({
-      'kind': 'result',
-      'commandId': commands.single['commandId'],
-      'payload': {
-        'state': 'completed',
-        'data': {
-          'subagents': const [],
-          'live': {'anyRunning': false, 'idleSince': 5, 'workerAlive': true},
+    socket.add(
+      jsonEncode({
+        'kind': 'result',
+        'commandId': commands.single['commandId'],
+        'payload': {
+          'state': 'completed',
+          'data': {
+            'subagents': const <dynamic>[],
+            'live': {'anyRunning': false, 'idleSince': 5, 'workerAlive': true},
+          },
         },
-      },
-    }));
+      }),
+    );
     final response = await result;
     expect(response.subagents, isEmpty);
     expect(response.live['anyRunning'], false);
@@ -243,11 +237,13 @@ void main() {
     final result = client.getSubagents('parent');
     final assertion = expectLater(result, throwsA(isA<StateError>()));
     await Future<void>.delayed(const Duration(milliseconds: 20));
-    socket.add(jsonEncode({
-      'kind': 'result',
-      'commandId': commands.single['commandId'],
-      'payload': {'state': 'failed', 'error': 'Unavailable'},
-    }));
+    socket.add(
+      jsonEncode({
+        'kind': 'result',
+        'commandId': commands.single['commandId'],
+        'payload': {'state': 'failed', 'error': 'Unavailable'},
+      }),
+    );
     await assertion;
   });
 
@@ -255,11 +251,13 @@ void main() {
     final result = client.getSubagents('parent');
     final assertion = expectLater(result, throwsA(isA<FormatException>()));
     await Future<void>.delayed(const Duration(milliseconds: 20));
-    socket.add(jsonEncode({
-      'kind': 'result',
-      'commandId': commands.single['commandId'],
-      'payload': {'state': 'completed', 'data': {}},
-    }));
+    socket.add(
+      jsonEncode({
+        'kind': 'result',
+        'commandId': commands.single['commandId'],
+        'payload': {'state': 'completed', 'data': <String, dynamic>{}},
+      }),
+    );
     await assertion;
   });
 
@@ -270,141 +268,129 @@ void main() {
     await assertion;
   });
 
-  test(
-    'remote connection commands format correct payloads and complete',
-    () async {
-      final statusFuture = client.getRemoteStatus();
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-      expect(commands.last['type'], 'remote.getStatus');
-      socket.add(
-        jsonEncode({
-          'kind': 'result',
-          'commandId': commands.last['commandId'],
-          'payload': {
-            'state': 'completed',
-            'data': {'enabled': false, 'state': 'stopped'},
-          },
-        }),
-      );
-      final status = await statusFuture;
-      final statusData = status['data'] as Map<String, dynamic>;
-      expect(statusData['enabled'], false);
+  test('remote connection commands format correct payloads and complete', () async {
+    final statusFuture = client.getRemoteStatus();
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(commands.last['type'], 'remote.getStatus');
+    socket.add(
+      jsonEncode({
+        'kind': 'result',
+        'commandId': commands.last['commandId'],
+        'payload': {
+          'state': 'completed',
+          'data': {'enabled': false, 'state': 'stopped'},
+        },
+      }),
+    );
+    final status = await statusFuture;
+    final statusData = status['data'] as Map<String, dynamic>;
+    expect(statusData['enabled'], false);
 
-      final startFuture = client.startRemoteTunnel(
-        tunnelProvider: 'cloudflared',
-        customUrl: null,
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-      expect(commands.last['type'], 'remote.start');
-      expect(commands.last['payload']['tunnelProvider'], 'cloudflared');
-      socket.add(
-        jsonEncode({
-          'kind': 'result',
-          'commandId': commands.last['commandId'],
-          'payload': {
-            'state': 'completed',
-            'data': {'enabled': true, 'state': 'running'},
-          },
-        }),
-      );
-      await startFuture;
+    final startFuture = client.startRemoteTunnel(tunnelProvider: 'cloudflared', customUrl: null);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(commands.last['type'], 'remote.start');
+    expect(payloadOf(commands.last)['tunnelProvider'], 'cloudflared');
+    socket.add(
+      jsonEncode({
+        'kind': 'result',
+        'commandId': commands.last['commandId'],
+        'payload': {
+          'state': 'completed',
+          'data': {'enabled': true, 'state': 'running'},
+        },
+      }),
+    );
+    await startFuture;
 
-      final pairFuture = client.generateRemotePairing(ttlMs: 300000);
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-      expect(commands.last['type'], 'remote.generatePairing');
-      expect(commands.last['payload']['ttlMs'], 300000);
-      socket.add(
-        jsonEncode({
-          'kind': 'result',
-          'commandId': commands.last['commandId'],
-          'payload': {
-            'state': 'completed',
-            'data': {'secret': 'pair_tok_test'},
-          },
-        }),
-      );
-      final pair = await pairFuture;
-      final pairData = pair['data'] as Map<String, dynamic>;
-      expect(pairData['secret'], 'pair_tok_test');
+    final pairFuture = client.generateRemotePairing(ttlMs: 300000);
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(commands.last['type'], 'remote.generatePairing');
+    expect(payloadOf(commands.last)['ttlMs'], 300000);
+    socket.add(
+      jsonEncode({
+        'kind': 'result',
+        'commandId': commands.last['commandId'],
+        'payload': {
+          'state': 'completed',
+          'data': {'secret': 'pair_tok_test'},
+        },
+      }),
+    );
+    final pair = await pairFuture;
+    final pairData = pair['data'] as Map<String, dynamic>;
+    expect(pairData['secret'], 'pair_tok_test');
 
-      final optFuture = client.setRemoteOptions(defaultMode: 'control');
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-      expect(commands.last['type'], 'remote.setOptions');
-      expect(commands.last['payload']['defaultMode'], 'control');
-      socket.add(
-        jsonEncode({
-          'kind': 'result',
-          'commandId': commands.last['commandId'],
-          'payload': {'state': 'completed', 'data': {}},
-        }),
-      );
-      await optFuture;
+    final optFuture = client.setRemoteOptions(defaultMode: 'control');
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(commands.last['type'], 'remote.setOptions');
+    expect(payloadOf(commands.last)['defaultMode'], 'control');
+    socket.add(
+      jsonEncode({
+        'kind': 'result',
+        'commandId': commands.last['commandId'],
+        'payload': {'state': 'completed', 'data': <String, dynamic>{}},
+      }),
+    );
+    await optFuture;
 
-      final modeFuture = client.setRemoteDeviceMode(
-        deviceId: 'dev_test_123',
-        mode: 'control',
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-      expect(commands.last['type'], 'remote.setDeviceMode');
-      expect(commands.last['payload']['deviceId'], 'dev_test_123');
-      expect(commands.last['payload']['mode'], 'control');
-      socket.add(
-        jsonEncode({
-          'kind': 'result',
-          'commandId': commands.last['commandId'],
-          'payload': {
-            'state': 'completed',
-            'data': {'ok': true},
-          },
-        }),
-      );
-      await modeFuture;
+    final modeFuture = client.setRemoteDeviceMode(deviceId: 'dev_test_123', mode: 'control');
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(commands.last['type'], 'remote.setDeviceMode');
+    expect(payloadOf(commands.last)['deviceId'], 'dev_test_123');
+    expect(payloadOf(commands.last)['mode'], 'control');
+    socket.add(
+      jsonEncode({
+        'kind': 'result',
+        'commandId': commands.last['commandId'],
+        'payload': {
+          'state': 'completed',
+          'data': {'ok': true},
+        },
+      }),
+    );
+    await modeFuture;
 
-      final revFuture = client.revokeRemoteDevice('dev_test_123');
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-      expect(commands.last['type'], 'remote.revokeDevice');
-      expect(commands.last['payload']['deviceId'], 'dev_test_123');
-      socket.add(
-        jsonEncode({
-          'kind': 'result',
-          'commandId': commands.last['commandId'],
-          'payload': {
-            'state': 'completed',
-            'data': {'ok': true},
-          },
-        }),
-      );
-      await revFuture;
+    final revFuture = client.revokeRemoteDevice('dev_test_123');
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(commands.last['type'], 'remote.revokeDevice');
+    expect(payloadOf(commands.last)['deviceId'], 'dev_test_123');
+    socket.add(
+      jsonEncode({
+        'kind': 'result',
+        'commandId': commands.last['commandId'],
+        'payload': {
+          'state': 'completed',
+          'data': {'ok': true},
+        },
+      }),
+    );
+    await revFuture;
 
-      final stopFuture = client.stopRemoteTunnel();
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-      expect(commands.last['type'], 'remote.stop');
-      socket.add(
-        jsonEncode({
-          'kind': 'result',
-          'commandId': commands.last['commandId'],
-          'payload': {
-            'state': 'completed',
-            'data': {'enabled': false, 'state': 'stopped'},
-          },
-        }),
-      );
-      await stopFuture;
-    },
-  );
+    final stopFuture = client.stopRemoteTunnel();
+    await Future<void>.delayed(const Duration(milliseconds: 20));
+    expect(commands.last['type'], 'remote.stop');
+    socket.add(
+      jsonEncode({
+        'kind': 'result',
+        'commandId': commands.last['commandId'],
+        'payload': {
+          'state': 'completed',
+          'data': {'enabled': false, 'state': 'stopped'},
+        },
+      }),
+    );
+    await stopFuture;
+  });
 
   test('listBranches and switchBranch format payloads and parse typed results', () async {
     final listFuture = client.listBranches('session-b');
     final switchFuture = client.switchBranch('session-b', 'feature/test', onDirty: 'stash');
     await Future<void>.delayed(const Duration(milliseconds: 20));
 
-    expect(commands.map((c) => c['type']).toList(), [
-      'workspace.listBranches',
-      'workspace.switchBranch',
-    ]);
+    expect(commands.map((c) => c['type']).toList(), ['workspace.listBranches', 'workspace.switchBranch']);
     expect(commands[0]['sessionId'], 'session-b');
     expect(commands[1]['sessionId'], 'session-b');
-    expect(commands[1]['payload'], {'branch': 'feature/test', 'onDirty': 'stash'});
+    expect(payloadOf(commands[1]), {'branch': 'feature/test', 'onDirty': 'stash'});
 
     // Reply to listBranches
     socket.add(
@@ -439,11 +425,7 @@ void main() {
         'commandId': commands[1]['commandId'],
         'payload': {
           'state': 'completed',
-          'data': {
-            'currentBranch': 'feature/test',
-            'stashed': true,
-            'stashMessage': 'piframe: before switching',
-          },
+          'data': {'currentBranch': 'feature/test', 'stashed': true, 'stashMessage': 'piframe: before switching'},
         },
       }),
     );
@@ -464,57 +446,48 @@ void main() {
     expect(switchRes.stashMessage, 'piframe: before switching');
   });
 
-  test(
-    'error-then-result ordering yields PcpException with code/details (WORKSPACE_DIRTY details)',
-    () async {
-      final switchFuture = client.switchBranch('session-b', 'dirty-branch');
-      await Future<void>.delayed(const Duration(milliseconds: 20));
+  test('error-then-result ordering yields PcpException with code/details (WORKSPACE_DIRTY details)', () async {
+    final switchFuture = client.switchBranch('session-b', 'dirty-branch');
+    await Future<void>.delayed(const Duration(milliseconds: 20));
 
-      expect(commands.single['type'], 'workspace.switchBranch');
+    expect(commands.single['type'], 'workspace.switchBranch');
 
-      // Daemon sends detailed kind:'error' envelope FIRST
-      socket.add(
-        jsonEncode({
-          'kind': 'error',
-          'commandId': commands.single['commandId'],
-          'payload': {
-            'code': 'WORKSPACE_DIRTY',
-            'message': 'Working directory has uncommitted changes',
-            'details': {
-              'changedFiles': 3,
-              'untrackedFiles': 1,
-            },
-          },
-        }),
-      );
+    // Daemon sends detailed kind:'error' envelope FIRST
+    socket.add(
+      jsonEncode({
+        'kind': 'error',
+        'commandId': commands.single['commandId'],
+        'payload': {
+          'code': 'WORKSPACE_DIRTY',
+          'message': 'Working directory has uncommitted changes',
+          'details': {'changedFiles': 3, 'untrackedFiles': 1},
+        },
+      }),
+    );
 
-      // Followed by terminal kind:'result' envelope SECOND
-      socket.add(
-        jsonEncode({
-          'kind': 'result',
-          'commandId': commands.single['commandId'],
-          'payload': {
-            'state': 'rejected',
-            'error': 'Working directory has uncommitted changes',
-          },
-        }),
-      );
+    // Followed by terminal kind:'result' envelope SECOND
+    socket.add(
+      jsonEncode({
+        'kind': 'result',
+        'commandId': commands.single['commandId'],
+        'payload': {'state': 'rejected', 'error': 'Working directory has uncommitted changes'},
+      }),
+    );
 
-      try {
-        await switchFuture;
-        fail('Expected PcpException');
-      } catch (e) {
-        expect(e, isA<PcpException>());
-        expect(e, isA<StateError>());
-        expect(e, isA<Exception>());
-        final pcpErr = e as PcpException;
-        expect(pcpErr.code, 'WORKSPACE_DIRTY');
-        expect(pcpErr.changedFiles, 3);
-        expect(pcpErr.untrackedFiles, 1);
-        expect(pcpErr.message, 'Working directory has uncommitted changes');
-      }
-    },
-  );
+    try {
+      await switchFuture;
+      fail('Expected PcpException');
+    } catch (e) {
+      expect(e, isA<PcpException>());
+      expect(e, isA<StateError>());
+      expect(e, isA<Exception>());
+      final pcpErr = e as PcpException;
+      expect(pcpErr.code, 'WORKSPACE_DIRTY');
+      expect(pcpErr.changedFiles, 3);
+      expect(pcpErr.untrackedFiles, 1);
+      expect(pcpErr.message, 'Working directory has uncommitted changes');
+    }
+  });
 
   test('result-only failure yields PcpException with message', () async {
     final switchFuture = client.switchBranch('session-c', 'some-branch');
@@ -525,10 +498,7 @@ void main() {
       jsonEncode({
         'kind': 'result',
         'commandId': commands.single['commandId'],
-        'payload': {
-          'state': 'failed',
-          'error': 'Daemon failed to switch branch',
-        },
+        'payload': {'state': 'failed', 'error': 'Daemon failed to switch branch'},
       }),
     );
 
@@ -555,11 +525,24 @@ void main() {
     expect(err.toString(), 'Bad state: Working directory has uncommitted changes');
 
     // Existing caller regex stripping ^(Bad state|Exception):\s*
-    final stripped = err.toString().replaceFirst(
-      RegExp(r'^(Bad state|Exception):\s*'),
-      '',
-    );
+    final stripped = err.toString().replaceFirst(RegExp(r'^(Bad state|Exception):\s*'), '');
     expect(stripped, 'Working directory has uncommitted changes');
+  });
+
+  test('validationErrors keeps map entries with non-string keys, converting the keys', () {
+    final err = PcpException(
+      'Validation failed',
+      code: 'VALIDATION',
+      details: <Object?>[
+        <Object?, Object?>{'path': 'name', 1: 'numeric key'},
+        'not a map',
+        <String, dynamic>{'path': 'other'},
+      ],
+    );
+    expect(err.validationErrors, [
+      {'path': 'name', '1': 'numeric key'},
+      {'path': 'other'},
+    ]);
   });
 
   test('openSide sends side.open command with question and returns result', () async {
@@ -568,17 +551,14 @@ void main() {
 
     expect(commands.last['type'], 'side.open');
     expect(commands.last['sessionId'], 'session-1');
-    expect(commands.last['payload']['sessionId'], 'session-1');
-    expect(commands.last['payload']['question'], 'explain this');
+    expect(payloadOf(commands.last)['sessionId'], 'session-1');
+    expect(payloadOf(commands.last)['question'], 'explain this');
 
     socket.add(
       jsonEncode({
         'kind': 'result',
         'commandId': commands.last['commandId'],
-        'payload': {
-          'sideId': 'side-123',
-          'streamId': 'stream-456',
-        },
+        'payload': {'sideId': 'side-123', 'streamId': 'stream-456'},
       }),
     );
 
@@ -594,8 +574,8 @@ void main() {
 
     expect(commands.last['type'], 'side.prompt');
     expect(commands.last['sessionId'], 'side-123');
-    expect(commands.last['payload']['sideId'], 'side-123');
-    expect(commands.last['payload']['text'], 'follow up question');
+    expect(payloadOf(commands.last)['sideId'], 'side-123');
+    expect(payloadOf(commands.last)['text'], 'follow up question');
 
     socket.add(
       jsonEncode({
@@ -616,7 +596,7 @@ void main() {
 
     expect(commands.last['type'], 'side.abort');
     expect(commands.last['sessionId'], 'side-123');
-    expect(commands.last['payload']['sideId'], 'side-123');
+    expect(payloadOf(commands.last)['sideId'], 'side-123');
 
     socket.add(
       jsonEncode({
@@ -637,7 +617,7 @@ void main() {
 
     expect(commands.last['type'], 'side.close');
     expect(commands.last['sessionId'], 'side-123');
-    expect(commands.last['payload']['sideId'], 'side-123');
+    expect(payloadOf(commands.last)['sideId'], 'side-123');
 
     socket.add(
       jsonEncode({

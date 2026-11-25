@@ -26,25 +26,19 @@ ToolExecutionState _tool(Map<String, dynamic> tool) => ToolExecutionState(
   startedAt: (tool['startedAt'] as num?)?.toInt(),
 );
 
-List<SessionEntry> parseSessionEntries(Iterable<Map> rawList) {
+List<SessionEntry> parseSessionEntries(Iterable<Map<String, dynamic>> rawList) {
   final entries = <SessionEntry>[];
 
   // Pre-collect outputs from toolResult messages keyed by toolCallId
   final toolResults = <String, String>{};
   final toolErrors = <String, bool>{};
   for (final raw in rawList) {
-    final message = raw['message'] is Map ? raw['message'] as Map : raw;
+    final message = raw['message'] is Map ? raw['message'] as Map<String, dynamic> : raw;
     final role = message['role']?.toString() ?? '';
     if (role == 'toolResult' || role == 'tool') {
-      final callId =
-          (message['toolCallId'] ??
-                  message['tool_call_id'] ??
-                  raw['toolCallId'])
-              ?.toString();
+      final callId = (message['toolCallId'] ?? message['tool_call_id'] ?? raw['toolCallId'])?.toString();
       final out =
-          message['result']?.toString() ??
-          message['output']?.toString() ??
-          _contentText(message['content'], 'text');
+          message['result']?.toString() ?? message['output']?.toString() ?? _contentText(message['content'], 'text');
       if (callId != null) {
         toolResults[callId] = out;
         toolErrors[callId] = message['isError'] == true;
@@ -53,28 +47,20 @@ List<SessionEntry> parseSessionEntries(Iterable<Map> rawList) {
   }
 
   for (final raw in rawList) {
-    final message = raw['message'] is Map ? raw['message'] as Map : raw;
+    final message = raw['message'] is Map ? raw['message'] as Map<String, dynamic> : raw;
     final role = message['role']?.toString() ?? 'assistant';
     if (role == 'system' || role == 'toolResult' || role == 'tool') continue;
 
     final timestampRaw = message['timestamp'] ?? raw['timestamp'];
     final timestamp = timestampRaw is num
         ? timestampRaw.toInt()
-        : DateTime.tryParse(timestampRaw?.toString() ?? '')
-                  ?.millisecondsSinceEpoch ??
-              0;
-    final entryId =
-        (raw['id'] ?? message['id'])?.toString() ??
-        'snapshot_${entries.length}';
+        : DateTime.tryParse(timestampRaw?.toString() ?? '')?.millisecondsSinceEpoch ?? 0;
+    final entryId = (raw['id'] ?? message['id'])?.toString() ?? 'snapshot_${entries.length}';
 
     if (role == 'bashExecution') {
-      final command =
-          (message['command'] ?? message['cmd'])?.toString() ?? '!bash';
-      final output =
-          (message['output'] ?? message['result'] ?? '')?.toString() ?? '';
-      final exitCode = message['exitCode'] is num
-          ? (message['exitCode'] as num).toInt()
-          : null;
+      final command = (message['command'] ?? message['cmd'])?.toString() ?? '!bash';
+      final output = (message['output'] ?? message['result'] ?? '')?.toString() ?? '';
+      final exitCode = message['exitCode'] is num ? (message['exitCode'] as num).toInt() : null;
       final cancelled = message['cancelled'] == true;
       final truncated = message['truncated'] == true;
       entries.add(
@@ -83,12 +69,7 @@ List<SessionEntry> parseSessionEntries(Iterable<Map> rawList) {
           role: 'bashExecution',
           text: output,
           timestamp: timestamp,
-          metadata: {
-            'command': command,
-            'exitCode': exitCode,
-            'cancelled': cancelled,
-            'truncated': truncated,
-          },
+          metadata: {'command': command, 'exitCode': exitCode, 'cancelled': cancelled, 'truncated': truncated},
         ),
       );
       continue;
@@ -96,8 +77,7 @@ List<SessionEntry> parseSessionEntries(Iterable<Map> rawList) {
 
     if (role == 'branchSummary') {
       final summary = (message['summary'] ?? message['text'])?.toString() ?? '';
-      final fromId =
-          (message['fromId'] ?? message['from_id'])?.toString() ?? '';
+      final fromId = (message['fromId'] ?? message['from_id'])?.toString() ?? '';
       entries.add(
         SessionEntry(
           id: entryId,
@@ -112,9 +92,7 @@ List<SessionEntry> parseSessionEntries(Iterable<Map> rawList) {
 
     if (role == 'compactionSummary') {
       final summary = (message['summary'] ?? message['text'])?.toString() ?? '';
-      final tokensBefore =
-          (message['tokensBefore'] ?? message['tokens_before'] as num?)
-              ?.toInt();
+      final tokensBefore = ((message['tokensBefore'] ?? message['tokens_before']) as num?)?.toInt();
       entries.add(
         SessionEntry(
           id: entryId,
@@ -128,17 +106,14 @@ List<SessionEntry> parseSessionEntries(Iterable<Map> rawList) {
     }
 
     if (role == 'custom') {
-      final customType =
-          (message['customType'] ?? message['custom_type'] ?? 'custom')
-              ?.toString() ??
-          'custom';
+      final customType = (message['customType'] ?? message['custom_type'] ?? 'custom')?.toString() ?? 'custom';
       final display = message['display'] != false;
       String customText = '';
       if (message['content'] is String) {
         customText = message['content'] as String;
       } else if (message['content'] is List) {
         customText = (message['content'] as List)
-            .whereType<Map>()
+            .whereType<Map<String, dynamic>>()
             .where((b) => b['type'] == 'text')
             .map((b) => b['text']?.toString() ?? '')
             .join();
@@ -149,11 +124,7 @@ List<SessionEntry> parseSessionEntries(Iterable<Map> rawList) {
           role: 'custom',
           text: customText,
           timestamp: timestamp,
-          metadata: {
-            'customType': customType,
-            'display': display,
-            'details': message['details'],
-          },
+          metadata: {'customType': customType, 'display': display, 'details': message['details']},
         ),
       );
       continue;
@@ -165,7 +136,7 @@ List<SessionEntry> parseSessionEntries(Iterable<Map> rawList) {
     // Extract image blocks into ChatAttachment tags if present
     if (message['content'] is List) {
       final attachments = <ChatAttachment>[];
-      for (final block in (message['content'] as List).whereType<Map>()) {
+      for (final block in (message['content'] as List).whereType<Map<String, dynamic>>()) {
         if (block['type'] == 'image') {
           final data = block['data']?.toString() ?? '';
           final mimeType = block['mimeType']?.toString() ?? 'image/png';
@@ -173,8 +144,7 @@ List<SessionEntry> parseSessionEntries(Iterable<Map> rawList) {
             attachments.add(
               ChatAttachment(
                 id: 'att_${attachments.length}',
-                name:
-                    'image_${attachments.length + 1}.${mimeType.split('/').last}',
+                name: 'image_${attachments.length + 1}.${mimeType.split('/').last}',
                 type: AttachmentType.image,
                 pathOrUrl: 'data:$mimeType;base64,$data',
               ),
@@ -190,23 +160,18 @@ List<SessionEntry> parseSessionEntries(Iterable<Map> rawList) {
     // Extract tool calls from message
     final entryToolCalls = <ToolExecutionState>[];
     if (message['toolCalls'] is List) {
-      for (final t in (message['toolCalls'] as List).whereType<Map>()) {
+      for (final t in (message['toolCalls'] as List).whereType<Map<String, dynamic>>()) {
         entryToolCalls.add(_tool(Map<String, dynamic>.from(t)));
       }
     }
     if (message['content'] is List) {
-      for (final b in (message['content'] as List).whereType<Map>()) {
-        if (b['type'] == 'toolCall' ||
-            b['type'] == 'tool_call' ||
-            b['type'] == 'tool_use') {
+      for (final b in (message['content'] as List).whereType<Map<String, dynamic>>()) {
+        if (b['type'] == 'toolCall' || b['type'] == 'tool_call' || b['type'] == 'tool_use') {
           final callId = (b['id'] ?? b['toolCallId'])?.toString() ?? '';
           final name = (b['name'] ?? b['toolName'])?.toString() ?? '';
-          final args = Map<String, dynamic>.from(
-            (b['arguments'] ?? b['args'] ?? b['input']) as Map? ?? {},
-          );
+          final args = Map<String, dynamic>.from((b['arguments'] ?? b['args'] ?? b['input']) as Map? ?? {});
           final out = toolResults[callId] ?? b['output']?.toString() ?? '';
-          final hasError =
-              (toolErrors[callId] == true) || (b['isError'] == true);
+          final hasError = (toolErrors[callId] == true) || (b['isError'] == true);
           entryToolCalls.add(
             ToolExecutionState(
               toolCallId: callId,
@@ -224,15 +189,12 @@ List<SessionEntry> parseSessionEntries(Iterable<Map> rawList) {
     }
 
     if (isInternalOrJunkMessageText(text)) continue;
-    if (text.trim().isEmpty &&
-        thinking.trim().isEmpty &&
-        entryToolCalls.isEmpty) {
+    if (text.trim().isEmpty && thinking.trim().isEmpty && entryToolCalls.isEmpty) {
       // An empty assistant message can still carry how the turn ended
       // (e.g. a provider error). Keep that on the previous assistant entry.
       if (role == 'assistant') {
         final terminal = terminalStopMetadata(message);
-        final stopped =
-            terminal == null ? null : applyTerminalStop(entries, terminal);
+        final stopped = terminal == null ? null : applyTerminalStop(entries, terminal);
         if (stopped != null) {
           entries
             ..clear()
@@ -252,11 +214,7 @@ List<SessionEntry> parseSessionEntries(Iterable<Map> rawList) {
       thinking: thinking.isNotEmpty ? thinking : null,
       toolCalls: entryToolCalls,
       timestamp: timestamp,
-      metadata: {
-        'model': ?entryModel,
-        'usage': ?entryUsage,
-        'stopReason': ?entryStopReason,
-      },
+      metadata: {'model': ?entryModel, 'usage': ?entryUsage, 'stopReason': ?entryStopReason},
     );
 
     // If previous entry was an assistant entry with empty text and this is an assistant entry with text,
@@ -275,21 +233,15 @@ List<SessionEntry> parseSessionEntries(Iterable<Map> rawList) {
   return entries;
 }
 
-SessionState applySessionSnapshot(
-  String sessionId,
-  int seq,
-  Map<String, dynamic> payload,
-) {
+SessionState applySessionSnapshot(String sessionId, int seq, Map<String, dynamic> payload) {
   final meta = payload['session'] as Map? ?? {};
   final runtime = payload['runtime'] as Map? ?? {};
   final transcript = payload['transcript'] as Map? ?? {};
   final live = payload['liveMessage'] as Map? ?? {};
   final queue = runtime['queue'] as Map? ?? {};
-  final entries = parseSessionEntries(
-    (transcript['entries'] as List? ?? []).whereType<Map>(),
-  );
+  final entries = parseSessionEntries((transcript['entries'] as List? ?? []).whereType<Map<String, dynamic>>());
   final tools = <String, ToolExecutionState>{};
-  for (final raw in (payload['activeTools'] as List? ?? []).whereType<Map>()) {
+  for (final raw in (payload['activeTools'] as List? ?? []).whereType<Map<String, dynamic>>()) {
     final tool = _tool(Map<String, dynamic>.from(raw));
     tools[tool.toolCallId] = tool;
   }
@@ -314,11 +266,9 @@ SessionState applySessionSnapshot(
   int aggregatedOutputTokens = 0;
   bool foundEntryTokens = false;
 
-  for (final raw in (transcript['entries'] as List? ?? []).whereType<Map>()) {
-    final message = raw['message'] is Map ? raw['message'] as Map : raw;
-    final u = message['usage'] is Map
-        ? message['usage'] as Map
-        : (raw['usage'] is Map ? raw['usage'] as Map : null);
+  for (final raw in (transcript['entries'] as List? ?? []).whereType<Map<String, dynamic>>()) {
+    final message = raw['message'] is Map ? raw['message'] as Map<String, dynamic> : raw;
+    final u = message['usage'] is Map ? message['usage'] as Map : (raw['usage'] is Map ? raw['usage'] as Map : null);
     if (u != null) {
       if (u['cost'] != null) {
         final c = u['cost'];
@@ -359,10 +309,7 @@ SessionState applySessionSnapshot(
   Map<String, dynamic>? initialStats;
   if (rawUsage.isNotEmpty) {
     initialStats = {
-      if (rawUsage['cost'] != null)
-        'cost': rawUsage['cost'] is Map
-            ? (rawUsage['cost']['total'] ?? rawUsage['cost']['amount'])
-            : rawUsage['cost'],
+      if (rawUsage['cost'] != null) 'cost': _costValue(rawUsage['cost']),
       if (rawUsage['totalTokens'] != null)
         'tokens': {
           'total': rawUsage['totalTokens'],
@@ -384,14 +331,10 @@ SessionState applySessionSnapshot(
     streamingTextBlocks: text.isEmpty ? {} : {0: text},
     streamingThinkingBlocks: thinking.isEmpty ? {} : {0: thinking},
     activeToolCalls: tools,
-    steeringQueue: (queue['steering'] as List? ?? [])
-        .map((e) => e.toString())
-        .toList(),
-    followUpQueue: (queue['followUp'] as List? ?? [])
-        .map((e) => e.toString())
-        .toList(),
+    steeringQueue: (queue['steering'] as List? ?? []).map((e) => e.toString()).toList(),
+    followUpQueue: (queue['followUp'] as List? ?? []).map((e) => e.toString()).toList(),
     pendingUiRequests: (payload['pendingUiRequests'] as List? ?? [])
-        .whereType<Map>()
+        .whereType<Map<String, dynamic>>()
         .map((e) => Map<String, dynamic>.from(e))
         .toList(),
     currentModel: model is Map
@@ -403,8 +346,7 @@ SessionState applySessionSnapshot(
     contextWindowOverride: runtime.containsKey('contextWindowOverride')
         ? (runtime['contextWindowOverride'] as num?)?.toInt()
         : (meta['contextWindowOverride'] as num?)?.toInt(),
-    compactionReservePercent:
-        (runtime['compactionReservePercent'] as num?)?.toDouble() ?? 2.5,
+    compactionReservePercent: (runtime['compactionReservePercent'] as num?)?.toDouble() ?? 2.5,
     autoCompaction: runtime['autoCompaction'] != false,
     usage: rawUsage,
     sessionStats: initialStats,
@@ -413,3 +355,6 @@ SessionState applySessionSnapshot(
     totalTranscriptEntries: (transcript['totalEntries'] as num?)?.toInt(),
   );
 }
+
+/// The cost of a usage entry: its `total` or `amount` when `cost` is a map, otherwise the value itself.
+Object? _costValue(Object? cost) => cost is Map ? (cost['total'] ?? cost['amount']) : cost;

@@ -17,11 +17,8 @@ class _FakeComposerSession extends SessionStateNotifier {
   final List<String> sentPrompts = [];
   final List<String?> sentStreamingBehaviors = [];
 
-  _FakeComposerSession({
-    String sessionId = 'test-session',
-    bool isStreaming = false,
-    AgentStatus? agentStatus,
-  }) : super(sessionId, null) {
+  _FakeComposerSession({String sessionId = 'test-session', bool isStreaming = false, AgentStatus? agentStatus})
+    : super(sessionId, null) {
     state = SessionState(
       sessionId: sessionId,
       sessionName: 'Test Session',
@@ -60,16 +57,11 @@ Widget _wrapComposer({
       activeSessionIdProvider.overrideWith((ref) => session.sessionId),
       sessionStateFamily(session.sessionId).overrideWith((ref) => session),
       composerSettingsProvider.overrideWith((ref) => settingsNotifier),
-      if (repoController != null)
-        repositoryStateProvider(session.sessionId).overrideWith((ref) => repoController),
+      if (repoController != null) repositoryStateProvider(session.sessionId).overrideWith((ref) => repoController),
     ],
     child: MaterialApp(
-      theme: ThemeData.dark().copyWith(
-        extensions: const [FrameTokens.dark],
-      ),
-      home: Scaffold(
-        body: Composer(sessionId: session.sessionId),
-      ),
+      theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+      home: Scaffold(body: Composer(sessionId: session.sessionId)),
     ),
   );
 }
@@ -95,9 +87,7 @@ void main() {
       final settingsNotifier = ComposerSettingsNotifier();
       settingsNotifier.setSendWithEnter(false);
 
-      await tester.pumpWidget(
-        _wrapComposer(session: session, settingsNotifier: settingsNotifier),
-      );
+      await tester.pumpWidget(_wrapComposer(session: session, settingsNotifier: settingsNotifier));
       await tester.pumpAndSettle();
 
       final textFieldFinder = find.byType(TextField);
@@ -128,9 +118,7 @@ void main() {
       final settingsNotifier = ComposerSettingsNotifier();
       settingsNotifier.setSendWithEnter(true);
 
-      await tester.pumpWidget(
-        _wrapComposer(session: session, settingsNotifier: settingsNotifier),
-      );
+      await tester.pumpWidget(_wrapComposer(session: session, settingsNotifier: settingsNotifier));
       await tester.pumpAndSettle();
 
       final textFieldFinder = find.byType(TextField);
@@ -172,9 +160,7 @@ void main() {
 
       // Mode OFF
       settingsNotifier.setSendWithEnter(false);
-      await tester.pumpWidget(
-        _wrapComposer(session: session, settingsNotifier: settingsNotifier),
-      );
+      await tester.pumpWidget(_wrapComposer(session: session, settingsNotifier: settingsNotifier));
       await tester.pumpAndSettle();
 
       final textFieldFinder = find.byType(TextField);
@@ -182,10 +168,7 @@ void main() {
       final controller = tester.widget<TextField>(textFieldFinder).controller!;
 
       // Active IME composition
-      controller.value = const TextEditingValue(
-        text: 'nih',
-        composing: TextRange(start: 0, end: 3),
-      );
+      controller.value = const TextEditingValue(text: 'nih', composing: TextRange(start: 0, end: 3));
       await tester.pump();
 
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
@@ -196,10 +179,7 @@ void main() {
       settingsNotifier.setSendWithEnter(true);
       await tester.pumpAndSettle();
 
-      controller.value = const TextEditingValue(
-        text: 'nihao',
-        composing: TextRange(start: 0, end: 5),
-      );
+      controller.value = const TextEditingValue(text: 'nihao', composing: TextRange(start: 0, end: 5));
       await tester.pump();
 
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
@@ -212,10 +192,7 @@ void main() {
       expect(session.sentPrompts, isEmpty);
 
       // Clear composition range -> now Enter sends
-      controller.value = const TextEditingValue(
-        text: 'nihao',
-        selection: TextSelection.collapsed(offset: 5),
-      );
+      controller.value = const TextEditingValue(text: 'nihao', selection: TextSelection.collapsed(offset: 5));
       await tester.pump();
 
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
@@ -231,11 +208,7 @@ void main() {
       final repo = _FakeRepoController();
 
       await tester.pumpWidget(
-        _wrapComposer(
-          session: session,
-          settingsNotifier: settingsNotifier,
-          repoController: repo,
-        ),
+        _wrapComposer(session: session, settingsNotifier: settingsNotifier, repoController: repo),
       );
       await tester.pumpAndSettle();
 
@@ -262,18 +235,16 @@ void main() {
       final settingsNotifier = ComposerSettingsNotifier();
       settingsNotifier.setSendWithEnter(false);
 
-      await tester.pumpWidget(
-        _wrapComposer(session: session, settingsNotifier: settingsNotifier),
-      );
+      await tester.pumpWidget(_wrapComposer(session: session, settingsNotifier: settingsNotifier));
       await tester.pumpAndSettle();
 
       // Mode OFF tooltip
-      expect(find.byTooltip('Invia prompt (Ctrl+Invio)'), findsOneWidget);
+      expect(find.byTooltip('Send prompt (Ctrl+Enter)'), findsOneWidget);
 
       // Mode ON tooltip
       settingsNotifier.setSendWithEnter(true);
       await tester.pumpAndSettle();
-      expect(find.byTooltip('Invia prompt (Invio)'), findsOneWidget);
+      expect(find.byTooltip('Send prompt (Enter)'), findsOneWidget);
     });
 
     testWidgets('streaming steer behavior: mode ON Enter steers, mode OFF Ctrl+Enter steers', (tester) async {
@@ -282,9 +253,7 @@ void main() {
 
       // Mode OFF: Ctrl+Enter steers
       settingsNotifier.setSendWithEnter(false);
-      await tester.pumpWidget(
-        _wrapComposer(session: streamingSession, settingsNotifier: settingsNotifier),
-      );
+      await tester.pumpWidget(_wrapComposer(session: streamingSession, settingsNotifier: settingsNotifier));
       await tester.pumpAndSettle();
 
       // Tap minimized bar to expand while streaming
@@ -321,45 +290,46 @@ void main() {
       expect(streamingSession.sentStreamingBehaviors[1], 'steer');
     });
 
-    testWidgets('mode ON: holding Enter (KeyDown + KeyRepeat(s) + KeyUp) sends exactly once and composer text is empty afterwards', (tester) async {
+    testWidgets(
+      'mode ON: holding Enter (KeyDown + KeyRepeat(s) + KeyUp) sends exactly once and composer text is empty afterwards',
+      (tester) async {
+        final session = _FakeComposerSession();
+        final settingsNotifier = ComposerSettingsNotifier();
+        settingsNotifier.setSendWithEnter(true);
+
+        await tester.pumpWidget(_wrapComposer(session: session, settingsNotifier: settingsNotifier));
+        await tester.pumpAndSettle();
+
+        final textFieldFinder = find.byType(TextField);
+        await tester.tap(textFieldFinder);
+        await tester.enterText(textFieldFinder, 'Held message');
+        await tester.pumpAndSettle();
+
+        // Simulate holding Enter: KeyDown + multiple KeyRepeat + KeyUp
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.enter);
+        await tester.pump();
+        await tester.sendKeyRepeatEvent(LogicalKeyboardKey.enter);
+        await tester.pump();
+        await tester.sendKeyRepeatEvent(LogicalKeyboardKey.enter);
+        await tester.pump();
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.enter);
+        await tester.pumpAndSettle();
+
+        expect(session.sentPrompts.length, 1);
+        expect(session.sentPrompts.first, 'Held message');
+        final controller = tester.widget<TextField>(textFieldFinder).controller!;
+        expect(controller.text, isEmpty);
+      },
+    );
+
+    testWidgets('mode ON: holding NumpadEnter sends exactly once and composer text is empty afterwards', (
+      tester,
+    ) async {
       final session = _FakeComposerSession();
       final settingsNotifier = ComposerSettingsNotifier();
       settingsNotifier.setSendWithEnter(true);
 
-      await tester.pumpWidget(
-        _wrapComposer(session: session, settingsNotifier: settingsNotifier),
-      );
-      await tester.pumpAndSettle();
-
-      final textFieldFinder = find.byType(TextField);
-      await tester.tap(textFieldFinder);
-      await tester.enterText(textFieldFinder, 'Held message');
-      await tester.pumpAndSettle();
-
-      // Simulate holding Enter: KeyDown + multiple KeyRepeat + KeyUp
-      await tester.sendKeyDownEvent(LogicalKeyboardKey.enter);
-      await tester.pump();
-      await tester.sendKeyRepeatEvent(LogicalKeyboardKey.enter);
-      await tester.pump();
-      await tester.sendKeyRepeatEvent(LogicalKeyboardKey.enter);
-      await tester.pump();
-      await tester.sendKeyUpEvent(LogicalKeyboardKey.enter);
-      await tester.pumpAndSettle();
-
-      expect(session.sentPrompts.length, 1);
-      expect(session.sentPrompts.first, 'Held message');
-      final controller = tester.widget<TextField>(textFieldFinder).controller!;
-      expect(controller.text, isEmpty);
-    });
-
-    testWidgets('mode ON: holding NumpadEnter sends exactly once and composer text is empty afterwards', (tester) async {
-      final session = _FakeComposerSession();
-      final settingsNotifier = ComposerSettingsNotifier();
-      settingsNotifier.setSendWithEnter(true);
-
-      await tester.pumpWidget(
-        _wrapComposer(session: session, settingsNotifier: settingsNotifier),
-      );
+      await tester.pumpWidget(_wrapComposer(session: session, settingsNotifier: settingsNotifier));
       await tester.pumpAndSettle();
 
       final textFieldFinder = find.byType(TextField);
@@ -385,9 +355,7 @@ void main() {
       final settingsNotifier = ComposerSettingsNotifier();
       settingsNotifier.setSendWithEnter(false);
 
-      await tester.pumpWidget(
-        _wrapComposer(session: session, settingsNotifier: settingsNotifier),
-      );
+      await tester.pumpWidget(_wrapComposer(session: session, settingsNotifier: settingsNotifier));
       await tester.pumpAndSettle();
 
       final textFieldFinder = find.byType(TextField);
@@ -416,9 +384,7 @@ void main() {
       final settingsNotifier = ComposerSettingsNotifier();
       settingsNotifier.setSendWithEnter(false);
 
-      await tester.pumpWidget(
-        _wrapComposer(session: session, settingsNotifier: settingsNotifier),
-      );
+      await tester.pumpWidget(_wrapComposer(session: session, settingsNotifier: settingsNotifier));
       await tester.pumpAndSettle();
 
       final textFieldFinder = find.byType(TextField);
@@ -445,12 +411,7 @@ void main() {
       final controller = TextEditingController(text: 'Initial text');
       await tester.pumpWidget(
         MaterialApp(
-          home: Scaffold(
-            body: TextField(
-              controller: controller,
-              maxLines: 5,
-            ),
-          ),
+          home: Scaffold(body: TextField(controller: controller, maxLines: 5)),
         ),
       );
       await tester.pumpAndSettle();
@@ -503,14 +464,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      final switchFinder = find.byKey(
-        const ValueKey('settings-composer-send-with-enter-switch'),
-      );
-      await tester.scrollUntilVisible(
-        switchFinder,
-        200,
-        scrollable: find.byType(Scrollable).last,
-      );
+      final switchFinder = find.byKey(const ValueKey('settings-composer-send-with-enter-switch'));
+      await tester.scrollUntilVisible(switchFinder, 200, scrollable: find.byType(Scrollable).last);
       await tester.pumpAndSettle();
       expect(switchFinder, findsOneWidget);
 

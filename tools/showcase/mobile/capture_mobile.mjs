@@ -24,7 +24,7 @@ async function loadPlaywright() {
   const candidates = [
     'playwright',
     'C:/demo/tools/mobile/node_modules/playwright',
-    path.resolve(__dirname, '../../../node_modules/playwright'),
+    path.resolve(__dirname, '../../../node_modules/playwright')
   ];
   for (const candidate of candidates) {
     try {
@@ -50,8 +50,8 @@ async function launchBrowser(chromium) {
       '--disable-extensions',
       '--disable-component-extensions-with-background-pages',
       '--disable-background-networking',
-      '--no-default-browser-check',
-    ],
+      '--no-default-browser-check'
+    ]
   };
 
   try {
@@ -75,7 +75,7 @@ function resolveDaemonPort(cliPort) {
 
   const candidates = [
     'C:/demo/home/.piframe/runtime/daemon.json',
-    path.join(process.env.USERPROFILE || '', '.piframe/runtime/daemon.json'),
+    path.join(process.env.USERPROFILE || '', '.piframe/runtime/daemon.json')
   ];
 
   for (const file of candidates) {
@@ -329,7 +329,7 @@ async function frameScreenshot(browser, srcImagePath, outIphonePath) {
 
   const page = await browser.newPage({
     viewport: { width: 1540, height: 3040 },
-    deviceScaleFactor: 1,
+    deviceScaleFactor: 1
   });
 
   await page.setContent(html);
@@ -337,7 +337,7 @@ async function frameScreenshot(browser, srcImagePath, outIphonePath) {
 
   await page.screenshot({
     path: outIphonePath,
-    omitBackground: true,
+    omitBackground: true
   });
 
   await page.close();
@@ -377,11 +377,11 @@ async function main() {
       hasTouch: true,
       bypassCSP: true,
       userAgent:
-        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1',
+        'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1'
     });
 
     // Abort third-party network proxy / userscript injections (e.g. AdGuard Assistant)
-    await context.route(/adguard/i, route => route.abort());
+    await context.route(/adguard/i, (route) => route.abort());
 
     const page = await context.newPage();
 
@@ -439,7 +439,7 @@ async function main() {
   }
 }
 
-main().catch(err => {
+main().catch((err) => {
   console.error('[PiFrame Mobile] Execution error:', err);
   process.exit(1);
 });
