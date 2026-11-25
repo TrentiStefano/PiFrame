@@ -75,8 +75,8 @@ const DESIGN_TOKENS = {
  * The one documented verify-only step: the Windows golden screens (apps/pi_frame/test/golden_screens_test.dart).
  * `verify` runs it after the Flutter tests; `ci` and `check` never do. The CI parity test asserts that verify is the ci
  * tier plus exactly these steps.
+ * @type {Step[]}
  */
-/** @type {Step[]} */
 export const VERIFY_ONLY_STEPS = [
   {
     job: 'flutter',

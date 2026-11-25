@@ -318,6 +318,25 @@ test('golden reference images are guarded, so a visual change needs approval', (
   }
 });
 
+test('the golden screens test and its runner are guarded: changing what the gate compares needs approval', () => {
+  const expected = {
+    'apps/pi_frame/test/golden_screens_test.dart': /golden screens check changed/,
+    // The runner is also a gate script (the golden step), so it is named as one.
+    'tools/scripts/goldens.mjs': /gate script changed/
+  };
+  for (const [path, reason] of Object.entries(expected)) {
+    const result = approvalStatus({
+      baseBaseline: baseline(40),
+      headBaseline: baseline(40),
+      changedPaths: [path],
+      labelEvents: [],
+      ciRunTimes: ['2026-11-20T10:00:00Z']
+    });
+    assert.equal(result.status, 'needed', path);
+    assert.match(result.reasons.join('\n'), reason, path);
+  }
+});
+
 const GOLDEN_LINK = (path) => `https://github.com/acme/app/pull/7/files#diff-${path}`;
 
 test('the comment lists each changed golden image by file name, linked to its Files changed anchor', () => {

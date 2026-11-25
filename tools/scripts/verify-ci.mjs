@@ -16,12 +16,21 @@
  *   pnpm run verify -- --verbose    stream every step's output instead of only showing failures
  *
  * Exit code 0 only when every step passed. See docs/pr-verification.md.
+ *
+ * Folder decisions are pure (tools/guardrails/src/verify-worktrees.mjs); reading and deleting folders is
+ * tools/scripts/verify-folders.mjs. This file only sequences the run.
  */
-import { spawnSync, execFileSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { leftoverVerifyFailure, selectStaleVerifyWorktrees } from '../guardrails/src/index.mjs';
+import {
+  dirtyVerifyTreeFailure,
+  leftoverVerifyFailure,
+  selectLeftoverVerifyFolders,
+  selectStaleVerifyWorktrees
+} from '../guardrails/src/index.mjs';
+import { folderExists, git, normalizePath, removeFolder, verifyFolderGroups } from './verify-folders.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const IS_WIN = process.platform === 'win32';
@@ -36,137 +45,35 @@ const opt = {
 };
 const BASE_REF = process.env.VERIFY_BASE || 'origin/main';
 
+// NOT under os.tmpdir(): some agentd tests use process.cwd() as a session cwd and the session index
+// ignores sessions located in the OS temp dir, so they fail when the repo itself lives there.
+const work = `${REPO}-verify-${process.pid}`;
+
 const c = (code, s) => (process.stdout.isTTY ? `\x1b[${code}m${s}\x1b[0m` : s);
 const green = (s) => c(32, s);
 const red = (s) => c(31, s);
 const yellow = (s) => c(33, s);
 const dim = (s) => c(2, s);
 
-function git(cwd, ...gitArgs) {
-  return execFileSync('git', gitArgs, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+function fail(message) {
+  console.error(red(`\n✖ ${message}`));
+  process.exit(1);
 }
 
-// Windows only sees paths over 260 characters with the \\?\ prefix, and Node's fs refuses to delete them without it.
-const LONG_PATH_PREFIX = '\\\\?\\';
+// ---------------------------------------------------------------------------
+// Verify folders: stale ones from earlier runs, and the leftovers this run must not leave
+// ---------------------------------------------------------------------------
 
-function longPath(dir) {
-  const abs = path.resolve(dir);
-  return IS_WIN && !abs.startsWith(LONG_PATH_PREFIX) ? `${LONG_PATH_PREFIX}${abs}` : abs;
-}
-
-function normalizePath(p) {
-  const abs = path.resolve(p);
-  return IS_WIN ? abs.toLowerCase() : abs;
-}
-
-function folderExists(dir) {
-  return fs.existsSync(longPath(dir));
-}
-
-/** Deletes a folder tree, long paths and read-only files included. Returns true when the folder is gone. */
-function removeFolder(dir) {
-  if (!folderExists(dir)) return true;
-  try {
-    fs.rmSync(longPath(dir), { recursive: true, force: true, maxRetries: 3, retryDelay: 200 });
-  } catch {
-    // Fall through to PowerShell below.
-  }
-  if (folderExists(dir) && IS_WIN) {
-    const target = longPath(dir).replace(/'/g, "''");
-    spawnSync(
-      'powershell.exe',
-      ['-NoProfile', '-NonInteractive', '-Command', `Remove-Item -LiteralPath '${target}' -Recurse -Force`],
-      { stdio: 'ignore' }
-    );
-  }
-  return !folderExists(dir);
-}
-
-function worktreePaths() {
-  return git(REPO, 'worktree', 'list', '--porcelain')
-    .split(/\r?\n/)
-    .filter((line) => line.startsWith('worktree '))
-    .map((line) => line.slice('worktree '.length));
-}
-
-/** Verify worktrees are made next to this checkout and next to the main worktree (where a plain `verify` runs). */
-function verifyLocations() {
-  const [main] = worktreePaths();
-  const byPath = new Map();
-  for (const repoPath of [REPO, main ?? REPO]) {
-    const abs = path.resolve(repoPath);
-    byPath.set(normalizePath(abs), { parent: path.dirname(abs), repoName: path.basename(abs) });
-  }
-  return [...byPath.values()];
-}
-
-/** Every `<repo>-verify-*` folder next to a verify location, with the metadata the decision needs. */
-function verifyFolders() {
-  return verifyLocations().flatMap(({ parent, repoName }) =>
-    fs
-      .readdirSync(parent)
-      .filter((name) => name.startsWith(`${repoName}-verify-`))
-      .map((name) => ({ parent, repoName, name, dir: path.join(parent, name) }))
-  );
-}
-
-/** True when the folder's `.git` file points into this repository's worktrees, also after git has forgotten it. */
-function linkedToRepository(dir) {
-  try {
-    const target = fs
-      .readFileSync(path.join(longPath(dir), '.git'), 'utf8')
-      .match(/^gitdir:\s*(.+)$/m)?.[1]
-      ?.trim();
-    if (target === undefined) return false;
-    return normalizePath(target).startsWith(normalizePath(path.join(gitDir, 'worktrees')) + path.sep);
-  } catch {
-    return false;
-  }
-}
-
-function isProcessAlive(pid) {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (err) {
-    return err.code === 'EPERM';
-  }
-}
-
-/** Verify worktree folders earlier runs left behind. The decision is selectStaleVerifyWorktrees (tools/guardrails). */
-function staleVerifyFolders() {
-  const registered = new Set(worktreePaths().map(normalizePath));
-  return verifyLocations().flatMap(({ parent, repoName }) => {
-    const prefix = `${repoName}-verify-`;
-    const folders = fs
-      .readdirSync(parent)
-      .filter((name) => name.startsWith(prefix))
-      .map((name) => {
-        const dir = path.join(parent, name);
-        const pid = Number(name.slice(prefix.length));
-        return {
-          name,
-          isDirectory: fs.statSync(longPath(dir), { throwIfNoEntry: false })?.isDirectory() ?? false,
-          registered: registered.has(normalizePath(dir)),
-          linkedToRepo: linkedToRepository(dir),
-          gitEntry: fs.existsSync(longPath(path.join(dir, '.git'))),
-          pidAlive: Number.isInteger(pid) && isProcessAlive(pid)
-        };
-      });
-    return selectStaleVerifyWorktrees({ repoName, currentPid: process.pid, folders }).map((name) =>
-      path.join(parent, name)
-    );
-  });
-}
-
-function removeStaleVerifyWorktrees() {
-  for (const dir of staleVerifyFolders()) {
-    const name = path.basename(dir);
-    console.log(
-      removeFolder(dir)
-        ? dim(`Removed stale verify worktree ${name}.`)
-        : yellow(`! Could not delete stale verify worktree ${name}; verify fails at the end until it is removed.`)
-    );
+function removeStaleVerifyWorktrees(gitDir) {
+  for (const { parent, repoName, folders } of verifyFolderGroups({ repo: REPO, gitDir })) {
+    for (const name of selectStaleVerifyWorktrees({ repoName, currentPid: process.pid, folders })) {
+      const dir = path.join(parent, name);
+      console.log(
+        removeFolder(dir)
+          ? dim(`Removed stale verify worktree ${name}.`)
+          : yellow(`! Could not delete stale verify worktree ${name}; verify fails at the end until it is removed.`)
+      );
+    }
   }
   try {
     git(REPO, 'worktree', 'prune');
@@ -175,16 +82,16 @@ function removeStaleVerifyWorktrees() {
   }
 }
 
-/** Verify folders still on disk after cleanup (this run's folder is excused only under --keep). */
-function leftoverFolders() {
-  return verifyFolders()
-    .map((folder) => folder.dir)
+/**
+ * Folders this run must leave gone: its own, and stale ones. Another live run's folder is not counted.
+ * With --keep, this run's own folder is kept on purpose.
+ */
+function leftoverFolders(gitDir) {
+  return verifyFolderGroups({ repo: REPO, gitDir })
+    .flatMap(({ parent, repoName, folders }) =>
+      selectLeftoverVerifyFolders({ repoName, currentPid: process.pid, folders }).map((name) => path.join(parent, name))
+    )
     .filter((dir) => folderExists(dir) && !(opt.keep && normalizePath(dir) === normalizePath(work)));
-}
-
-function fail(message) {
-  console.error(red(`\n✖ ${message}`));
-  process.exit(1);
 }
 
 // ---------------------------------------------------------------------------
@@ -217,7 +124,7 @@ const treeSha = git(REPO, 'rev-parse', 'HEAD^{tree}');
 const gitDir = path.resolve(REPO, git(REPO, 'rev-parse', '--git-common-dir'));
 const stateDir = path.join(gitDir, 'verify-ci');
 fs.mkdirSync(stateDir, { recursive: true });
-removeStaleVerifyWorktrees();
+removeStaleVerifyWorktrees(gitDir);
 
 // A result is valid for the same content (tree), the same base and the same level of checking.
 const level = [opt.release ? 'release' : 'ci', opt.e2e ? 'e2e' : '', opt.noMerge ? 'nomerge' : '']
@@ -270,9 +177,6 @@ for (const w of warnings) console.warn(yellow(`! ${w}`));
 // Temporary worktree = HEAD + origin/main
 // ---------------------------------------------------------------------------
 
-// NOT under os.tmpdir(): some agentd tests use process.cwd() as a session cwd and the session index
-// ignores sessions located in the OS temp dir, so they fail when the repo itself lives there.
-const work = `${REPO}-verify-${process.pid}`;
 let worktreeCreated = false;
 let worktreeCleaned = false;
 function cleanup() {
@@ -292,7 +196,7 @@ function cleanup() {
 }
 process.on('exit', () => {
   cleanup();
-  const left = leftoverFolders();
+  const left = leftoverFolders(gitDir);
   if (left.length > 0) console.error(red(leftoverVerifyFailure({ leftovers: left })));
 });
 process.on('SIGINT', () => process.exit(130));
@@ -392,25 +296,18 @@ for (const step of steps) {
   fail(`Step failed: ${step.name}. Fix it, commit, and run verify again (nothing was pushed or opened).`);
 }
 
-// Some tests regenerate tracked screenshots. Not a CI failure, but they must never be committed by accident.
-const dirty = git(work, 'status', '--porcelain');
-if (dirty.length > 0) {
-  const files = dirty.split(/\r?\n/).map((l) => l.trim());
-  const header =
-    `\n! The test run rewrote ${files.length} tracked file(s) in the verification worktree (discarded with it). ` +
-    'If the same files show up as modified in your working tree after running the tests yourself, do not commit them:';
-  console.warn(yellow(header));
-  console.warn(
-    files
-      .slice(0, 10)
-      .map((l) => `    ${l}`)
-      .join('\n')
-  );
-}
+// The tests run in the verification worktree, so the clean-tree check is made there: a test that writes a tracked file
+// is a failure that names the file, not a warning.
+const dirtyFailure = dirtyVerifyTreeFailure({
+  dirtyFiles: git(work, 'status', '--porcelain')
+    .split(/\r?\n/)
+    .filter((line) => line.length > 0)
+});
+if (dirtyFailure) fail(dirtyFailure);
 
 // The verification worktree must be gone, and the repository's own working tree must be untouched.
 cleanup();
-const left = leftoverFolders();
+const left = leftoverFolders(gitDir);
 if (left.length > 0) fail(leftoverVerifyFailure({ leftovers: left }));
 const tree = git(REPO, 'status', '--porcelain');
 if (tree.length > 0) {

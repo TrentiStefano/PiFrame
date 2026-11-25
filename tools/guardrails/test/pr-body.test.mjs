@@ -157,3 +157,49 @@ test('every missing part is named, not just the first', () => {
   const problems = problemsOf('## Summary\n\n## Evidence\n\n');
   assert.ok(problems.length >= 4, problems.join('\n'));
 });
+
+test('a Summary or Evidence of a few words is too short to review', () => {
+  const summary = replaceSection(COMPLETE, 'Summary', 'Fix it.');
+  assert.match(problemsOf(summary).join('\n'), /Summary is too short/);
+  const evidence = replaceSection(COMPLETE, 'Evidence', 'See above.');
+  assert.match(problemsOf(evidence).join('\n'), /Evidence is too short/);
+});
+
+test('Door is exactly one-way or two-way, and may be followed by an explanation', () => {
+  const wrong = COMPLETE.replace('**Door:** two-way', '**Door:** one-wayish');
+  assert.match(problemsOf(wrong).join('\n'), /Door/);
+  const explained = COMPLETE.replace('**Door:** two-way', '**Door:** two-way (a revert restores the old behaviour)');
+  assert.equal(checkPrBody(explained).ok, true);
+  const dashed = COMPLETE.replace('**Door:** two-way', '**Door:** one-way — cannot be undone by a revert');
+  assert.equal(checkPrBody(dashed).ok, true);
+});
+
+test('Blast Radius is a real word or phrase, not a single character', () => {
+  const letter = COMPLETE.replace('**Blast Radius:** workflow', '**Blast Radius:** a');
+  assert.match(problemsOf(letter).join('\n'), /Blast Radius/);
+  const short = COMPLETE.replace('**Blast Radius:** workflow', '**Blast Radius:** ui');
+  assert.equal(checkPrBody(short).ok, true);
+});
+
+test('Guardrail changes must be none or a short sentence, not a fragment', () => {
+  const fragment = replaceSection(COMPLETE, 'Guardrail changes', 'Yes.');
+  assert.match(problemsOf(fragment).join('\n'), /Guardrail changes is too short/);
+});
+
+test('a mention of TODO in the text is not a placeholder', () => {
+  const mention = COMPLETE.replace(
+    'Adds the PR template and the body check.',
+    'Removes the TODO list from the sidebar.'
+  );
+  assert.equal(checkPrBody(mention).ok, true);
+});
+
+test('the template placeholder hints left in the body are refused', () => {
+  const hint = COMPLETE.replace('**Door:** two-way', '**Door:** <one-way or two-way>');
+  assert.match(problemsOf(hint).join('\n'), /placeholder/);
+});
+
+test('a line that starts with a leftover TODO marker is refused', () => {
+  const marker = COMPLETE.replace('Adds the PR template and the body check.', 'TODO: describe the change');
+  assert.match(problemsOf(marker).join('\n'), /placeholder/);
+});

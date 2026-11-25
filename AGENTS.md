@@ -6,8 +6,8 @@ fails when it names a path or `pnpm run` script that does not exist (`tools/guar
 ## Rules
 
 1. **Real captures only.** Show the PiFrame interface with real screenshots or recordings of the running Flutter app,
-   never an HTML/CSS/canvas mockup. The curated captures that `DESIGN.md` references live in `docs/design/screens/`;
-   take new ones with the UI harness (`.agents/skills/piframe-ui-harness/SKILL.md`), never from a test run.
+   never an HTML/CSS/canvas mockup. The curated `DESIGN.md` captures (`docs/design/screens/`) come only from the UI harness
+   (`.agents/skills/piframe-ui-harness/SKILL.md`); `pnpm run capture:evidence` may refresh design-evidence and website images.
 2. **Real numbers only.** Quote actual repository links, release targets and verified capabilities; no invented
    metrics such as star or user counts.
 3. **MCP tools.** The Flutter and Dart MCP tools are available in this environment; use them.

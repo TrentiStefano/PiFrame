@@ -16,6 +16,7 @@
 import { spawnSync } from 'node:child_process';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { withChangelog } from './with-changelog.js';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const FLUTTER_APP = path.join(REPO, 'apps', 'pi_frame');
@@ -45,24 +46,20 @@ const RUNS = [
   }
 ];
 
-// The in-app changelog is generated before any Flutter test, as tools/scripts/test-flutter.js does.
-const sync = spawnSync(process.execPath, [path.join(REPO, 'tools/scripts/sync-changelog.mjs')], { stdio: 'inherit' });
-if (sync.status !== 0) {
-  console.error('Failed to generate apps/pi_frame/assets/CHANGELOG.md');
-  process.exit(sync.status || 1);
-}
-
-for (const run of RUNS) {
-  console.log(`\nRunning ${run.label} ...`);
-  const result = spawnSync('flutter', ['test', ...run.tests], {
-    cwd: FLUTTER_APP,
-    stdio: 'inherit',
-    shell: IS_WIN,
-    env: { ...process.env, ...run.env }
-  });
-  if (result.status !== 0) {
-    console.error(`\nCapture failed: ${run.label}. The tracked captures may be partly refreshed; check git status.`);
-    process.exit(result.status || 1);
+// The in-app changelog is generated before any Flutter test (tools/scripts/with-changelog.js).
+withChangelog(() => {
+  for (const run of RUNS) {
+    console.log(`\nRunning ${run.label} ...`);
+    const result = spawnSync('flutter', ['test', ...run.tests], {
+      cwd: FLUTTER_APP,
+      stdio: 'inherit',
+      shell: IS_WIN,
+      env: { ...process.env, ...run.env }
+    });
+    if (result.status !== 0) {
+      console.error(`\nCapture failed: ${run.label}. The tracked captures may be partly refreshed; check git status.`);
+      process.exit(result.status || 1);
+    }
   }
-}
+});
 console.log('\nTracked captures refreshed. Review them with git status before committing.');

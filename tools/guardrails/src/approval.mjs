@@ -52,6 +52,8 @@ const TOOLING_DIRS = ['tools/guardrails/', 'tools/codegen/'];
 const AGENT_GUARD_FILES = new Set(['.claude/settings.json']);
 /** Where the golden screens' reference images are committed (apps/pi_frame/test/goldens/). */
 export const GOLDEN_REFERENCE_DIR = 'apps/pi_frame/test/goldens/';
+/** The golden screens' Flutter test and the script that runs it (both guarded). */
+const GOLDEN_CHECK_FILES = new Set(['apps/pi_frame/test/golden_screens_test.dart', 'tools/scripts/goldens.mjs']);
 const AGENT_GUARD_DIRS = ['.claude/hooks/', '.pi/extensions/', '.codex/rules/'];
 
 /** Why a path is guarded, or undefined when changing it needs no approval. */
@@ -69,6 +71,8 @@ function guardedKind(path) {
   // The design system the DESIGN.md lint and token match check; its linter wrapper is a gate script (below).
   if (path === 'DESIGN.md') return 'design system';
   if (GATE_SCRIPTS.has(path)) return 'gate script';
+  // The golden screens' test and its runner: what the gate compares and how it decides (tools/scripts/goldens.mjs).
+  if (GOLDEN_CHECK_FILES.has(path)) return 'golden screens check';
   if (TOOLING_FILES.has(path) || TOOLING_DIRS.some((dir) => path.startsWith(dir))) return 'guardrail tooling';
   // The `build`, `lint` and `test` scripts the gate runs, and the pinned Prettier version, live in package.json.
   if (name === 'package.json' && !path.split('/').includes('node_modules')) return 'package manifest';
