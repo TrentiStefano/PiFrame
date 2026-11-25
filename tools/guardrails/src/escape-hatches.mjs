@@ -67,6 +67,8 @@ const EXCLUDED_DIRS = new Set(['node_modules', 'dist', 'build', 'out', 'coverage
 const TEST_DIRS = new Set(['test', 'tests', '__tests__']);
 /** This module and its tests spell out every pattern, so they are not counted. */
 const SELF = new Set(['tools/guardrails/src/escape-hatches.mjs', 'tools/guardrails/test/escape-hatches.test.mjs']);
+/** Vendored upstream files, kept as published (their declarations use `any` as upstream wrote them), so not ours to audit. */
+const VENDORED_PREFIXES = ['tools/recon/reference/'];
 
 /**
  * @typedef {Record<string, Record<'lib' | 'test', Record<string, number>>>} EscapeHatchCounts package → kind → pattern → count
@@ -103,7 +105,7 @@ export function auditEscapeHatches({ files, baseline, changedPaths = [] }) {
   for (const { path: rawPath, contents } of files) {
     const path = toPosix(rawPath);
     const entry = PACKAGES.find(([, dir]) => path.startsWith(dir));
-    if (!entry || SELF.has(path)) continue;
+    if (!entry || SELF.has(path) || VENDORED_PREFIXES.some((prefix) => path.startsWith(prefix))) continue;
     const [pkg, dir] = entry;
     const segments = path.slice(dir.length).split('/');
     const name = segments.pop();

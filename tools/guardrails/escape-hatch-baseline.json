@@ -164,7 +164,7 @@
       "@ts-nocheck": 0,
       "eslint-disable": 0,
       "as any": 0,
-      ": any": 4,
+      ": any": 0,
       "as unknown as": 0,
       "// coverage:ignore": 0
     },
