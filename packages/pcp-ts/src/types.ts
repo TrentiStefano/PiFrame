@@ -394,7 +394,7 @@ export interface SideClosePayload {
 export interface SideOpenedPayload {
   sideId: string;
   parentSessionId: string;
-  model: any;
+  model: unknown;
 }
 
 export interface SideClosedPayload {

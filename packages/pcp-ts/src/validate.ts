@@ -1,9 +1,12 @@
-import Ajv2020 from 'ajv/dist/2020.js';
-import addFormats from 'ajv-formats';
+import { Ajv2020 } from 'ajv/dist/2020.js';
+import * as ajvFormats from 'ajv-formats';
+import type { FormatsPlugin } from 'ajv-formats';
 import type { ClientMessage, PcpEnvelope, PcpError } from './types.js';
 
-const ajv = new (Ajv2020 as any)({ strict: false, allErrors: true });
-(addFormats as any)(ajv);
+// ajv-formats is CommonJS: under NodeNext its default import is typed as the module namespace, so the plugin is `.default`.
+const addFormats: FormatsPlugin = ajvFormats.default.default;
+const ajv = new Ajv2020({ strict: false, allErrors: true });
+addFormats(ajv);
 
 export type Result<T, E> = { ok: true; value: T } | { ok: false; error: E };
 

@@ -35,7 +35,7 @@ describe('@piframe/pcp-ts', () => {
     const res = parseIncoming(json);
     assert.strictEqual(res.ok, true);
     if (res.ok) {
-      assert.strictEqual((res.value as any).futureField, 'compatible');
+      assert.strictEqual(Reflect.get(res.value, 'futureField'), 'compatible');
     }
   });
 

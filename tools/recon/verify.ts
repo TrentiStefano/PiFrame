@@ -65,8 +65,9 @@ async function main() {
         if (!obj.type && !obj.id) {
           throw new Error(`Line ${i + 1} in ${f} missing type/id field`);
         }
-      } catch (err: any) {
-        throw new Error(`Invalid JSONL in ${f}:${i + 1} - ${err.message}`);
+      } catch (err: unknown) {
+        const reason = err instanceof Error ? err.message : String(err);
+        throw new Error(`Invalid JSONL in ${f}:${i + 1} - ${reason}`);
       }
     }
     console.log(`  [OK] ${f} (${lines.length} valid records)`);
@@ -79,6 +80,12 @@ async function main() {
   console.log('=== Step 0.1 Verification Passed! ===');
 }
 
+/** The fields of Pi's get_state response that the probe reads. */
+interface PiState {
+  sessionId: string;
+  model?: { name?: string; id?: string };
+}
+
 function runRpcProbe(piBundle: string): Promise<{ sessionId: string; model?: string }> {
   return new Promise((resolve, reject) => {
     const proc = spawn(process.execPath, [piBundle, '--mode', 'rpc', '--no-session', '--no-extensions'], {
@@ -86,7 +93,7 @@ function runRpcProbe(piBundle: string): Promise<{ sessionId: string; model?: str
     });
 
     let buffer = '';
-    let capturedState: any = null;
+    let capturedState: PiState | null = null;
 
     proc.stdout.on('data', (d) => {
       buffer += d.toString();
@@ -96,11 +103,12 @@ function runRpcProbe(piBundle: string): Promise<{ sessionId: string; model?: str
         if (!line.trim()) continue;
         const msg = JSON.parse(line);
         if (msg.type === 'response' && msg.command === 'get_state' && msg.success) {
-          capturedState = msg.data;
+          const state: PiState = msg.data;
+          capturedState = state;
           proc.kill();
           resolve({
-            sessionId: capturedState.sessionId,
-            model: capturedState.model?.name || capturedState.model?.id
+            sessionId: state.sessionId,
+            model: state.model?.name || state.model?.id
           });
           return;
         }

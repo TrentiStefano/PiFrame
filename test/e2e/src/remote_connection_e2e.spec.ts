@@ -6,6 +6,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import WebSocket from 'ws';
+import { listeningPort } from './support.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -46,7 +47,7 @@ test('E2E: Safe Remote Connection - Dedicated Listener, Pairing, Modes & Revocat
     httpServer.listen(0, '127.0.0.1', () => resolve());
     httpServer.on('error', reject);
   });
-  localPort = (httpServer.address() as any).port;
+  localPort = listeningPort(httpServer);
 
   // Dedicated remote listener
   const remoteHttpServer = createHttpServer({
@@ -62,7 +63,7 @@ test('E2E: Safe Remote Connection - Dedicated Listener, Pairing, Modes & Revocat
     remoteHttpServer.listen(0, '127.0.0.1', () => resolve());
     remoteHttpServer.on('error', reject);
   });
-  remotePort = (remoteHttpServer.address() as any).port;
+  remotePort = listeningPort(remoteHttpServer);
   remoteManager.setListenerPort(remotePort);
 
   let registry!: SessionRegistry;

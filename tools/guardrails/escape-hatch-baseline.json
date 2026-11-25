@@ -33,8 +33,8 @@
       "@ts-expect-error": 0,
       "@ts-nocheck": 0,
       "eslint-disable": 0,
-      "as any": 2,
-      ": any": 1,
+      "as any": 0,
+      ": any": 0,
       "as unknown as": 0,
       "// coverage:ignore": 0
     },
@@ -45,7 +45,7 @@
       "@ts-expect-error": 0,
       "@ts-nocheck": 0,
       "eslint-disable": 0,
-      "as any": 1,
+      "as any": 0,
       ": any": 0,
       "as unknown as": 0,
       "// coverage:ignore": 0
@@ -163,8 +163,8 @@
       "@ts-expect-error": 0,
       "@ts-nocheck": 0,
       "eslint-disable": 0,
-      "as any": 1,
-      ": any": 16,
+      "as any": 0,
+      ": any": 4,
       "as unknown as": 0,
       "// coverage:ignore": 0
     },
@@ -176,7 +176,7 @@
       "@ts-nocheck": 0,
       "eslint-disable": 0,
       "as any": 0,
-      ": any": 5,
+      ": any": 0,
       "as unknown as": 0,
       "// coverage:ignore": 0
     }
@@ -201,8 +201,8 @@
       "@ts-expect-error": 0,
       "@ts-nocheck": 0,
       "eslint-disable": 0,
-      "as any": 9,
-      ": any": 21,
+      "as any": 0,
+      ": any": 0,
       "as unknown as": 0,
       "// coverage:ignore": 0
     }

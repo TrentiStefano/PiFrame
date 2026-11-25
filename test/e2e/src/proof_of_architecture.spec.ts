@@ -2,7 +2,8 @@ import test from 'node:test';
 import * as assert from 'node:assert/strict';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import WebSocket from 'ws';
+import WebSocket, { type RawData } from 'ws';
+import { listeningPort, parseFrame, type Frame } from './support.js';
 
 const makeId = (prefix: string) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2)}`;
 
@@ -37,8 +38,7 @@ test('M1 Proof of Architecture: GUI disconnect does not abort agent execution; c
     httpServer.on('error', reject);
   });
 
-  const boundAddr = httpServer.address() as any;
-  const port = boundAddr.port;
+  const port = listeningPort(httpServer);
 
   let registry!: SessionRegistry;
   let dispatcher!: Dispatcher;
@@ -82,7 +82,7 @@ test('M1 Proof of Architecture: GUI disconnect does not abort agent execution; c
   const ws1 = new WebSocket(`ws://127.0.0.1:${port}`);
   await new Promise((resolve) => ws1.on('open', resolve));
 
-  const send1 = (msg: any) => ws1.send(JSON.stringify(msg));
+  const send1 = (msg: unknown) => ws1.send(JSON.stringify(msg));
 
   // Handshake
   send1({
@@ -101,8 +101,8 @@ test('M1 Proof of Architecture: GUI disconnect does not abort agent execution; c
 
   // Wait for welcome
   await new Promise<void>((resolve) => {
-    const handler = (data: any) => {
-      const parsed = JSON.parse(data.toString());
+    const handler = (data: RawData) => {
+      const parsed = parseFrame(data);
       if (parsed.kind === 'welcome') {
         ws1.off('message', handler);
         resolve();
@@ -139,19 +139,19 @@ test('M1 Proof of Architecture: GUI disconnect does not abort agent execution; c
     payload: { text: 'Stream me a slow message' }
   });
 
-  const client1Events: any[] = [];
+  const client1Events: Frame[] = [];
   let disconnectSeq = 0;
 
   // Listen for events until 3 text.delta events arrive
   await new Promise<void>((resolve) => {
-    ws1.on('message', (data: any) => {
-      const msg = JSON.parse(data.toString());
+    ws1.on('message', (data: RawData) => {
+      const msg = parseFrame(data);
       if (msg.kind === 'event') {
         client1Events.push(msg);
         if (msg.type === 'text.delta') {
           const textDeltas = client1Events.filter((e) => e.type === 'text.delta');
           if (textDeltas.length === 3) {
-            disconnectSeq = msg.seq;
+            disconnectSeq = msg.seq ?? Number.NaN;
             resolve();
           }
         }
@@ -192,7 +192,7 @@ test('M1 Proof of Architecture: GUI disconnect does not abort agent execution; c
   const ws2 = new WebSocket(`ws://127.0.0.1:${port}`);
   await new Promise((resolve) => ws2.on('open', resolve));
 
-  const send2 = (msg: any) => ws2.send(JSON.stringify(msg));
+  const send2 = (msg: unknown) => ws2.send(JSON.stringify(msg));
 
   // Client 2 handshake
   send2({
@@ -210,8 +210,8 @@ test('M1 Proof of Architecture: GUI disconnect does not abort agent execution; c
   });
 
   await new Promise<void>((resolve) => {
-    const handler = (data: any) => {
-      const parsed = JSON.parse(data.toString());
+    const handler = (data: RawData) => {
+      const parsed = parseFrame(data);
       if (parsed.kind === 'welcome') {
         ws2.off('message', handler);
         resolve();
@@ -232,12 +232,12 @@ test('M1 Proof of Architecture: GUI disconnect does not abort agent execution; c
     payload: { lastSeq: disconnectSeq }
   });
 
-  const client2Events: any[] = [];
+  const client2Events: Frame[] = [];
 
   // Collect until run.settled
   await new Promise<void>((resolve) => {
-    ws2.on('message', (data: any) => {
-      const msg = JSON.parse(data.toString());
+    ws2.on('message', (data: RawData) => {
+      const msg = parseFrame(data);
       if (msg.kind === 'event') {
         client2Events.push(msg);
         if (msg.type === 'run.settled') {
@@ -254,17 +254,18 @@ test('M1 Proof of Architecture: GUI disconnect does not abort agent execution; c
   // Verify continuity
   assert.ok(client2Events.length > 0);
   assert.equal(
-    client2Events[0].seq,
+    client2Events[0]?.seq,
     disconnectSeq + 1,
     'First event replayed to Client 2 must immediately follow disconnectSeq'
   );
 
   // Verify all seqs are strictly sequential
   for (let i = 1; i < client2Events.length; i++) {
+    const prevSeq = client2Events[i - 1]?.seq ?? Number.NaN;
     assert.equal(
-      client2Events[i].seq,
-      client2Events[i - 1].seq + 1,
-      `Events must be strictly sequential (expected ${client2Events[i - 1].seq + 1}, got ${client2Events[i].seq})`
+      client2Events[i]?.seq,
+      prevSeq + 1,
+      `Events must be strictly sequential (expected ${prevSeq + 1}, got ${client2Events[i]?.seq})`
     );
   }
 

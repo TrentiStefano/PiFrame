@@ -6,6 +6,7 @@ import * as os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import WebSocket from 'ws';
+import { dataOf, listeningPort, parseFrame, type Frame } from './support.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -59,7 +60,7 @@ test('E2E: Workspace Branch Operations - listBranches and switchBranch over WebS
     httpServer.on('error', reject);
   });
 
-  const port = (httpServer.address() as any).port;
+  const port = listeningPort(httpServer);
 
   let registry!: SessionRegistry;
   let dispatcher!: Dispatcher;
@@ -98,15 +99,15 @@ test('E2E: Workspace Branch Operations - listBranches and switchBranch over WebS
     client.on('error', reject);
   });
 
-  const receivedMessages: any[] = [];
+  const receivedMessages: Frame[] = [];
   client.on('message', (data) => {
-    receivedMessages.push(JSON.parse(data.toString()));
+    receivedMessages.push(parseFrame(data));
   });
 
   // Each step runs real git commands: the stash-and-switch step alone takes
   // about 2.6 s on an idle Windows machine and went past 5 s while other
   // suites ran in parallel (`pnpm -r run test`), so allow 20 s per step.
-  const waitForMessage = async (predicate: (msg: any) => boolean, timeoutMs = 20000): Promise<any> => {
+  const waitForMessage = async (predicate: (msg: Frame) => boolean, timeoutMs = 20000): Promise<Frame> => {
     const start = Date.now();
     while (Date.now() - start < timeoutMs) {
       const found = receivedMessages.find(predicate);
@@ -161,9 +162,9 @@ test('E2E: Workspace Branch Operations - listBranches and switchBranch over WebS
 
     const listResult = await waitForMessage((m) => m.kind === 'result' && m.commandId === listCmdId);
     assert.equal(listResult.payload.state, 'completed');
-    assert.equal(listResult.payload.data.currentBranch, 'main');
-    assert.equal(listResult.payload.data.detached, false);
-    const branchNames = listResult.payload.data.branches.map((b: any) => b.name);
+    assert.equal(dataOf<{ currentBranch: string }>(listResult).currentBranch, 'main');
+    assert.equal(dataOf<{ detached: boolean }>(listResult).detached, false);
+    const branchNames = dataOf<{ branches: Array<{ name: string }> }>(listResult).branches.map((b) => b.name);
     assert.ok(branchNames.includes('main'));
     assert.ok(branchNames.includes('feature/test-e2e'));
 
@@ -184,8 +185,8 @@ test('E2E: Workspace Branch Operations - listBranches and switchBranch over WebS
 
     const switchResult = await waitForMessage((m) => m.kind === 'result' && m.commandId === switchCmdId);
     assert.equal(switchResult.payload.state, 'completed');
-    assert.equal(switchResult.payload.data.currentBranch, 'feature/test-e2e');
-    assert.equal(switchResult.payload.data.stashed, false);
+    assert.equal(dataOf<{ currentBranch: string }>(switchResult).currentBranch, 'feature/test-e2e');
+    assert.equal(dataOf<{ stashed: boolean }>(switchResult).stashed, false);
 
     // 5. switchBranch with dirty worktree and onDirty 'block'
     fs.writeFileSync(path.join(repo.root, 'dirty.txt'), 'dirty uncommitted\n');
@@ -205,7 +206,7 @@ test('E2E: Workspace Branch Operations - listBranches and switchBranch over WebS
 
     const dirtyError = await waitForMessage((m) => m.kind === 'error' && m.commandId === dirtyBlockCmdId);
     assert.equal(dirtyError.payload.code, 'WORKSPACE_DIRTY');
-    assert.equal(dirtyError.payload.details?.untrackedFiles, 1);
+    assert.equal((dirtyError.payload.details as { untrackedFiles?: number } | undefined)?.untrackedFiles, 1);
 
     const dirtyResult = await waitForMessage((m) => m.kind === 'result' && m.commandId === dirtyBlockCmdId);
     assert.equal(dirtyResult.payload.state, 'rejected');
@@ -230,9 +231,10 @@ test('E2E: Workspace Branch Operations - listBranches and switchBranch over WebS
 
     const stashResult = await waitForMessage((m) => m.kind === 'result' && m.commandId === dirtyStashCmdId);
     assert.equal(stashResult.payload.state, 'completed');
-    assert.equal(stashResult.payload.data.currentBranch, 'main');
-    assert.equal(stashResult.payload.data.stashed, true);
-    assert.ok(stashResult.payload.data.stashMessage);
+    const stashData = dataOf<{ currentBranch: string; stashed: boolean; stashMessage?: string }>(stashResult);
+    assert.equal(stashData.currentBranch, 'main');
+    assert.equal(stashData.stashed, true);
+    assert.ok(stashData.stashMessage);
   } finally {
     client.close();
     httpServer.close();
