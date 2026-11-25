@@ -21,6 +21,7 @@ import { spawnSync, execFileSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { leftoverVerifyFailure, selectStaleVerifyWorktrees } from '../guardrails/src/index.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const IS_WIN = process.platform === 'win32';
@@ -43,6 +44,141 @@ const dim = (s) => c(2, s);
 
 function git(cwd, ...gitArgs) {
   return execFileSync('git', gitArgs, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
+}
+
+// Windows only sees paths over 260 characters with the \\?\ prefix, and Node's fs refuses to delete them without it.
+const LONG_PATH_PREFIX = '\\\\?\\';
+
+function longPath(dir) {
+  const abs = path.resolve(dir);
+  return IS_WIN && !abs.startsWith(LONG_PATH_PREFIX) ? `${LONG_PATH_PREFIX}${abs}` : abs;
+}
+
+function normalizePath(p) {
+  const abs = path.resolve(p);
+  return IS_WIN ? abs.toLowerCase() : abs;
+}
+
+function folderExists(dir) {
+  return fs.existsSync(longPath(dir));
+}
+
+/** Deletes a folder tree, long paths and read-only files included. Returns true when the folder is gone. */
+function removeFolder(dir) {
+  if (!folderExists(dir)) return true;
+  try {
+    fs.rmSync(longPath(dir), { recursive: true, force: true, maxRetries: 3, retryDelay: 200 });
+  } catch {
+    // Fall through to PowerShell below.
+  }
+  if (folderExists(dir) && IS_WIN) {
+    const target = longPath(dir).replace(/'/g, "''");
+    spawnSync(
+      'powershell.exe',
+      ['-NoProfile', '-NonInteractive', '-Command', `Remove-Item -LiteralPath '${target}' -Recurse -Force`],
+      { stdio: 'ignore' }
+    );
+  }
+  return !folderExists(dir);
+}
+
+function worktreePaths() {
+  return git(REPO, 'worktree', 'list', '--porcelain')
+    .split(/\r?\n/)
+    .filter((line) => line.startsWith('worktree '))
+    .map((line) => line.slice('worktree '.length));
+}
+
+/** Verify worktrees are made next to this checkout and next to the main worktree (where a plain `verify` runs). */
+function verifyLocations() {
+  const [main] = worktreePaths();
+  const byPath = new Map();
+  for (const repoPath of [REPO, main ?? REPO]) {
+    const abs = path.resolve(repoPath);
+    byPath.set(normalizePath(abs), { parent: path.dirname(abs), repoName: path.basename(abs) });
+  }
+  return [...byPath.values()];
+}
+
+/** Every `<repo>-verify-*` folder next to a verify location, with the metadata the decision needs. */
+function verifyFolders() {
+  return verifyLocations().flatMap(({ parent, repoName }) =>
+    fs
+      .readdirSync(parent)
+      .filter((name) => name.startsWith(`${repoName}-verify-`))
+      .map((name) => ({ parent, repoName, name, dir: path.join(parent, name) }))
+  );
+}
+
+/** True when the folder's `.git` file points into this repository's worktrees, also after git has forgotten it. */
+function linkedToRepository(dir) {
+  try {
+    const target = fs
+      .readFileSync(path.join(longPath(dir), '.git'), 'utf8')
+      .match(/^gitdir:\s*(.+)$/m)?.[1]
+      ?.trim();
+    if (target === undefined) return false;
+    return normalizePath(target).startsWith(normalizePath(path.join(gitDir, 'worktrees')) + path.sep);
+  } catch {
+    return false;
+  }
+}
+
+function isProcessAlive(pid) {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    return err.code === 'EPERM';
+  }
+}
+
+/** Verify worktree folders earlier runs left behind. The decision is selectStaleVerifyWorktrees (tools/guardrails). */
+function staleVerifyFolders() {
+  const registered = new Set(worktreePaths().map(normalizePath));
+  return verifyLocations().flatMap(({ parent, repoName }) => {
+    const prefix = `${repoName}-verify-`;
+    const folders = fs
+      .readdirSync(parent)
+      .filter((name) => name.startsWith(prefix))
+      .map((name) => {
+        const dir = path.join(parent, name);
+        const pid = Number(name.slice(prefix.length));
+        return {
+          name,
+          isDirectory: fs.statSync(longPath(dir), { throwIfNoEntry: false })?.isDirectory() ?? false,
+          registered: registered.has(normalizePath(dir)),
+          linkedToRepo: linkedToRepository(dir),
+          pidAlive: Number.isInteger(pid) && isProcessAlive(pid)
+        };
+      });
+    return selectStaleVerifyWorktrees({ repoName, currentPid: process.pid, folders }).map((name) =>
+      path.join(parent, name)
+    );
+  });
+}
+
+function removeStaleVerifyWorktrees() {
+  for (const dir of staleVerifyFolders()) {
+    const name = path.basename(dir);
+    console.log(
+      removeFolder(dir)
+        ? dim(`Removed stale verify worktree ${name}.`)
+        : yellow(`! Could not delete stale verify worktree ${name}; verify fails at the end until it is removed.`)
+    );
+  }
+  try {
+    git(REPO, 'worktree', 'prune');
+  } catch {
+    // nothing to prune
+  }
+}
+
+/** Verify folders still on disk after cleanup (this run's folder is excused only under --keep). */
+function leftoverFolders() {
+  return verifyFolders()
+    .map((folder) => folder.dir)
+    .filter((dir) => folderExists(dir) && !(opt.keep && normalizePath(dir) === normalizePath(work)));
 }
 
 function fail(message) {
@@ -80,6 +216,7 @@ const treeSha = git(REPO, 'rev-parse', 'HEAD^{tree}');
 const gitDir = path.resolve(REPO, git(REPO, 'rev-parse', '--git-common-dir'));
 const stateDir = path.join(gitDir, 'verify-ci');
 fs.mkdirSync(stateDir, { recursive: true });
+removeStaleVerifyWorktrees();
 
 // A result is valid for the same content (tree), the same base and the same level of checking.
 const level = [opt.release ? 'release' : 'ci', opt.e2e ? 'e2e' : '', opt.noMerge ? 'nomerge' : '']
@@ -136,20 +273,27 @@ for (const w of warnings) console.warn(yellow(`! ${w}`));
 // ignores sessions located in the OS temp dir, so they fail when the repo itself lives there.
 const work = `${REPO}-verify-${process.pid}`;
 let worktreeCreated = false;
+let worktreeCleaned = false;
 function cleanup() {
-  if (!worktreeCreated || opt.keep) return;
+  if (!worktreeCreated || worktreeCleaned || opt.keep) return;
+  worktreeCleaned = true;
   try {
     git(REPO, 'worktree', 'remove', '--force', work);
   } catch {
-    fs.rmSync(work, { recursive: true, force: true });
-    try {
-      git(REPO, 'worktree', 'prune');
-    } catch {
-      // ignore
-    }
+    // git cannot remove it (long paths): removed below
+  }
+  removeFolder(work);
+  try {
+    git(REPO, 'worktree', 'prune');
+  } catch {
+    // ignore
   }
 }
-process.on('exit', cleanup);
+process.on('exit', () => {
+  cleanup();
+  const left = leftoverFolders();
+  if (left.length > 0) console.error(red(leftoverVerifyFailure({ leftovers: left })));
+});
 process.on('SIGINT', () => process.exit(130));
 
 console.log(dim(`Preparing worktree ${work} ...`));
@@ -261,6 +405,15 @@ if (dirty.length > 0) {
       .map((l) => `    ${l}`)
       .join('\n')
   );
+}
+
+// The verification worktree must be gone, and the repository's own working tree must be untouched.
+cleanup();
+const left = leftoverFolders();
+if (left.length > 0) fail(leftoverVerifyFailure({ leftovers: left }));
+const tree = git(REPO, 'status', '--porcelain');
+if (tree.length > 0) {
+  fail(`The working tree is not clean after verify (verify never edits it):\n${tree}`);
 }
 
 fs.writeFileSync(
