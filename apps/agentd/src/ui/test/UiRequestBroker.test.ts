@@ -81,3 +81,38 @@ test('UiRequestBroker: lease expiration returns request to unclaimed', async () 
 
   broker.dispose();
 });
+
+test('UiRequestBroker: numeric request ids and non-string title/message pass through as Pi sent them', () => {
+  const events: BrokerEvent[] = [];
+  const broker = new UiRequestBroker({
+    sessionId: 's_test',
+    onEmitEvent: (evt) => events.push(evt)
+  });
+
+  const title = 42;
+  const message = { text: 'Proceed?' };
+  broker.addRequest({ id: 7, method: 'select', title, message, dialog: true });
+
+  const pending = broker.getPending();
+  assert.strictEqual(pending.length, 1);
+  assert.strictEqual(pending[0]!.requestId, 7);
+  assert.strictEqual(pending[0]!.title, title);
+  assert.strictEqual(pending[0]!.message, message);
+
+  assert.deepStrictEqual(broker.claimRequest(7, 'client_1', 1000), { success: true });
+  assert.strictEqual(broker.isLocalOnly(7), false);
+  assert.deepStrictEqual(broker.resolveRequest(7, 'client_1'), { success: true });
+  assert.strictEqual(broker.getPending().length, 0);
+  assert.strictEqual(events.at(-1)?.type, 'ui.resolved');
+  assert.strictEqual(events.at(-1)?.payload.requestId, 7);
+  broker.dispose();
+});
+
+test('UiRequestBroker: requests without a usable id are ignored', () => {
+  const broker = new UiRequestBroker({ sessionId: 's_test', onEmitEvent: () => {} });
+  broker.addRequest({ method: 'confirm' });
+  broker.addRequest({ requestId: 0, method: 'confirm' });
+  broker.addRequest({ requestId: { id: 'x' }, method: 'confirm' });
+  assert.strictEqual(broker.getPending().length, 0);
+  broker.dispose();
+});

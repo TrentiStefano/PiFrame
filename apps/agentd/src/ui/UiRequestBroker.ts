@@ -1,10 +1,14 @@
 import type { PcpEventType } from '@piframe/pcp-ts';
 
+/** Pi reports request ids as strings or numbers; both key the same map. */
+export type UiRequestId = string | number;
+
 export interface PendingUiRequest {
-  requestId: string;
+  requestId: UiRequestId;
   method: string;
-  title?: string;
-  message?: string;
+  /** Passed through as Pi sent it; the UI decides how to show a non-string value. */
+  title?: unknown;
+  message?: unknown;
   dialog: boolean;
   claimedBy: string | null;
   claimedAt: number | null;
@@ -20,7 +24,7 @@ export interface UiRequestBrokerOptions {
 
 export class UiRequestBroker {
   private onEmitEvent: (event: { type: PcpEventType; payload: Record<string, unknown> }) => void;
-  private requests = new Map<string, PendingUiRequest>();
+  private requests = new Map<UiRequestId, PendingUiRequest>();
 
   constructor(opts: UiRequestBrokerOptions) {
     this.onEmitEvent = opts.onEmitEvent;
@@ -28,14 +32,14 @@ export class UiRequestBroker {
 
   public addRequest(raw: Record<string, unknown>): void {
     const rawId = raw.requestId || raw.id;
-    if (typeof rawId !== 'string' || !rawId) return;
-    const requestId: string = rawId;
+    if (!(typeof rawId === 'string' || typeof rawId === 'number') || !rawId) return;
+    const requestId: UiRequestId = rawId;
 
     const req: PendingUiRequest = {
       requestId,
       method: String(raw.method || 'confirm'),
-      title: typeof raw.title === 'string' ? raw.title : undefined,
-      message: typeof raw.message === 'string' ? raw.message : undefined,
+      title: raw.title,
+      message: raw.message,
       dialog: Boolean(raw.dialog ?? true),
       claimedBy: null,
       claimedAt: null,
@@ -47,12 +51,12 @@ export class UiRequestBroker {
     this.requests.set(requestId, req);
   }
 
-  public isLocalOnly(requestId: string): boolean {
+  public isLocalOnly(requestId: UiRequestId): boolean {
     return this.requests.get(requestId)?.raw.localOnly === true;
   }
 
   public claimRequest(
-    requestId: string,
+    requestId: UiRequestId,
     clientId: string,
     leaseDurationMs = 30000
   ): { success: boolean; reason?: string } {
@@ -89,7 +93,7 @@ export class UiRequestBroker {
     return { success: true };
   }
 
-  public releaseClaim(requestId: string, clientId: string): void {
+  public releaseClaim(requestId: UiRequestId, clientId: string): void {
     const req = this.requests.get(requestId);
     if (!req || req.claimedBy !== clientId) return;
 
@@ -118,7 +122,7 @@ export class UiRequestBroker {
   }
 
   public resolveRequest(
-    requestId: string,
+    requestId: UiRequestId,
     clientId?: string,
     resolution: 'value' | 'confirmed' | 'cancelled' | 'timeout' = 'confirmed'
   ): { success: boolean; reason?: string } {
@@ -171,7 +175,7 @@ export class UiRequestBroker {
     this.requests.clear();
   }
 
-  public getPending(): Array<Record<string, any>> {
+  public getPending(): Array<Record<string, unknown>> {
     return Array.from(this.requests.values()).map((r) => ({
       ...r.raw,
       requestId: r.requestId,
