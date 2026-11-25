@@ -27,6 +27,7 @@
     "run:app:dev": "node tools/scripts/run-dev-app.mjs",
     "harness": "node tools/harness/pf-harness.mjs",
     "goldens:update": "node tools/scripts/goldens.mjs --update",
+    "capture:evidence": "node tools/scripts/capture-evidence.mjs",
     "build:all": "pnpm -r run build && pnpm run build:agentd",
     "package:windows": "powershell -ExecutionPolicy Bypass -File tools/scripts/package-windows-installer.ps1",
     "package:macos": "bash tools/scripts/package-macos-dmg.sh"

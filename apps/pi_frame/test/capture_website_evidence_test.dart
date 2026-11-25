@@ -30,15 +30,26 @@ Directory _resolveRepoRoot() {
   return Directory.current;
 }
 
-void _saveScreenshot(Uint8List bytes, String fileName) {
+/// Tracked captures are written only when PI_FRAME_CAPTURE_EVIDENCE=1 (`pnpm run capture:evidence`). Otherwise the
+/// captures go to a temporary folder that tearDownAll deletes, so a plain `flutter test` leaves nothing behind.
+bool get _writesTrackedCaptures => Platform.environment['PI_FRAME_CAPTURE_EVIDENCE'] == '1';
+
+Directory? _temporaryCaptures;
+
+List<Directory> _captureTargets() {
+  if (!_writesTrackedCaptures) {
+    return [_temporaryCaptures ??= Directory.systemTemp.createTempSync('pi_frame_website_captures_')];
+  }
   final root = _resolveRepoRoot();
-  final targetDirs = [
+  return [
     Directory('${root.path}/docs/design-evidence/recordly-projects'),
     Directory('${root.path}/website/assets/img/ui'),
     Directory('${root.path}/scratch/release_ui_screenshots'),
   ];
+}
 
-  for (final dir in targetDirs) {
+void _saveScreenshot(Uint8List bytes, String fileName) {
+  for (final dir in _captureTargets()) {
     try {
       if (!dir.existsSync()) {
         dir.createSync(recursive: true);
@@ -191,6 +202,11 @@ class ThemeTokensController {
 }
 
 void main() {
+  tearDownAll(() {
+    _temporaryCaptures?.deleteSync(recursive: true);
+    _temporaryCaptures = null;
+  });
+
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
     final uiFont = FontLoader('SchibstedGrotesk')..addFont(rootBundle.load('assets/fonts/SchibstedGrotesk.ttf'));

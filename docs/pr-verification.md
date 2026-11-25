@@ -64,7 +64,7 @@ The `check` tier is local only: `ci.yml` follows the `ci` tier, so adding a step
 
 ## What it checks
 
-`verify` checks the current **commit** (`HEAD`) merged with `origin/main`, in a temporary worktree next to the repository (`<repo>-verify-<pid>`, not in the system temp folder: some tests fail when the repository is there). It checks what `main` will be after the merge, not only your branch. If the merge with `origin/main` has conflicts, it stops and tells you.
+`verify` checks the current **commit** (`HEAD`) merged with `origin/main`, in a temporary worktree next to the repository (`<repo>-verify-<pid>`, not in the system temp folder: some tests fail when the repository is there). It checks what `main` will be after the merge, not only your branch. If the merge with `origin/main` has conflicts, it stops and tells you. Before it starts, it deletes the `<repo>-verify-<pid>` folders that earlier runs left next to this checkout or the main worktree. It deletes only folders that are verify worktrees of this repository and whose run is no longer alive; the decision is `selectStaleVerifyWorktrees` in `tools/guardrails/src/verify-worktrees.mjs`. On Windows the deletion handles paths longer than 260 characters. At the end it fails, naming every verify folder still on disk, and it checks that the working tree is clean.
 
 The steps come from one shared step list, `tools/guardrails/src/steps.mjs`. `verify` runs its `verify` tier, and `.github/workflows/ci.yml` (which runs on every pull request and on pushes to `main`) runs its `ci` tier: the same steps, split into a Node and a Flutter job. A parity test in `tools/guardrails` fails when `ci.yml` drifts from the list, so to add or change a check, edit the step list first and then copy the YAML the test prints.
 
@@ -124,7 +124,7 @@ A passing result is valid for the same content (tree hash), the same base (`orig
 ## Limits
 
 - It runs on one operating system only: the Linux (`.deb`, screenshots with `xvfb`) and macOS (`.dmg`) jobs of the workflows are not reproduced, and path or letter-case differences on Linux can slip through.
-- Some tests regenerate tracked screenshots (`docs/design-evidence`, `website/assets`). This is not an error, but if you see them changed in your tree after running tests by hand, **do not commit them** (`git checkout -- docs/design-evidence website/assets`). `verify` works in a throw-away worktree, so it does not leave them behind.
+- Plain test runs never write tracked captures: the capture tests write to a temporary folder that they delete when the test file finishes. To refresh the tracked design evidence and website captures on purpose, run `pnpm run capture:evidence`, which sets the capture flags for all four capture tests; review the result with `git status` before committing.
 - It is a local check and can be bypassed. It does not replace the GitHub workflows; it protects them from avoidable failures.
 
 ## Build and release problems
