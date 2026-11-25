@@ -284,7 +284,10 @@ test('a baseline entry the audit does not know fails instead of being ignored', 
 test('vendored upstream files under tools/recon/reference are not audited', () => {
   const declaration = 'export declare function parse(input: string): any;';
   const { counts } = auditEscapeHatches({
-    files: [file('tools/recon/reference/agent-core-types.d.ts', declaration), file('tools/recon/parse.ts', declaration)],
+    files: [
+      file('tools/recon/reference/agent-core-types.d.ts', declaration),
+      file('tools/recon/parse.ts', declaration)
+    ],
     baseline: baseline()
   });
   assert.equal(counts.tools.lib[': any'], 1);

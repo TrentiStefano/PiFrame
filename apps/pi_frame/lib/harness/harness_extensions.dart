@@ -679,7 +679,12 @@ bool _isTrue(String? value) => value == 'true' || value == '1';
 
 /// Delivers one synthetic key event through the platform key-data handler. Fails loudly when none is installed.
 @visibleForTesting
-void sendSyntheticKeyData(PhysicalKeyboardKey physical, LogicalKeyboardKey logical, ui.KeyEventType type, {String? character}) {
+void sendSyntheticKeyData(
+  PhysicalKeyboardKey physical,
+  LogicalKeyboardKey logical,
+  ui.KeyEventType type, {
+  String? character,
+}) {
   // The platform key-data callback is the handler the framework installs for native key events
   // (the key event manager's handleKeyData), so the synthesized event takes the same path.
   final onKeyData = ServicesBinding.instance.platformDispatcher.onKeyData;

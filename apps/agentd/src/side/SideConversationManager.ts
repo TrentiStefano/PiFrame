@@ -161,7 +161,10 @@ export class SideConversationManager {
 
     // 2. Max 4 total side threads limit
     if (this.threads.size >= this.maxConversations) {
-      const err = createCodedError(`Maximum concurrent side conversations (${this.maxConversations}) reached`, 'SIDE_LIMIT_REACHED');
+      const err = createCodedError(
+        `Maximum concurrent side conversations (${this.maxConversations}) reached`,
+        'SIDE_LIMIT_REACHED'
+      );
       throw err;
     }
 

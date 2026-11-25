@@ -38,13 +38,7 @@ import type {
   PiAvailableModel,
   PcpEvent
 } from '@piframe/pcp-ts';
-import {
-  createCodedError,
-  errorCode,
-  errorMessage,
-  isRecord,
-  readProperty
-} from '../errors/errors.js';
+import { createCodedError, errorCode, errorMessage, isRecord, readProperty } from '../errors/errors.js';
 
 /** The display name: Pi's name, else its id. Empty when neither is set (never the string "undefined"). */
 export function modelName(model: PiModelInfo): string {
@@ -1018,13 +1012,21 @@ export class Dispatcher {
           if (builtin.name === 'reload' && !builtin.args && !payload.images?.length) {
             return this.reloadWorkerSession(sessionId);
           }
-          const err = createCodedError(`/${builtin.name} is a Pi built-in command and cannot be sent as model text.`, 'COMMAND_REJECTED', 'Use the PiFrame slash-command action.');
+          const err = createCodedError(
+            `/${builtin.name} is a Pi built-in command and cannot be sent as model text.`,
+            'COMMAND_REJECTED',
+            'Use the PiFrame slash-command action.'
+          );
           throw err;
         }
 
         // §2.8 Rule: If streaming is active, require explicit streamingBehavior
         if (session.isStreaming && !payload.streamingBehavior) {
-          const err = createCodedError('Agent is streaming. Specify streamingBehavior ("steer" or "followUp").', 'COMMAND_REJECTED', 'Use Steer or Follow-up while the agent is streaming.');
+          const err = createCodedError(
+            'Agent is streaming. Specify streamingBehavior ("steer" or "followUp").',
+            'COMMAND_REJECTED',
+            'Use Steer or Follow-up while the agent is streaming.'
+          );
           throw err;
         }
 

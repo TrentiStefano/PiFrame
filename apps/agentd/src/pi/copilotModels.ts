@@ -165,7 +165,11 @@ export function createCopilotEntitlementService(options: ServiceOptions = {}) {
           });
           if (!response.ok) throw new Error('TOKEN_REFRESH_FAILED');
           const refreshed = await readJsonBounded(response);
-          if (!isPlainRecord(refreshed) || typeof refreshed.token !== 'string' || typeof refreshed.expires_at !== 'number') {
+          if (
+            !isPlainRecord(refreshed) ||
+            typeof refreshed.token !== 'string' ||
+            typeof refreshed.expires_at !== 'number'
+          ) {
             throw new Error('TOKEN_REFRESH_FAILED');
           }
           token = refreshed.token;
