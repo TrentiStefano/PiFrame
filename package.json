@@ -26,6 +26,7 @@
     "run:app": "pnpm run build:agentd && pnpm run sync:changelog && cd apps/pi_frame && flutter run",
     "run:app:dev": "node tools/scripts/run-dev-app.mjs",
     "harness": "node tools/harness/pf-harness.mjs",
+    "capture:evidence": "node tools/scripts/capture-evidence.mjs",
     "build:all": "pnpm -r run build && pnpm run build:agentd",
     "package:windows": "powershell -ExecutionPolicy Bypass -File tools/scripts/package-windows-installer.ps1",
     "package:macos": "bash tools/scripts/package-macos-dmg.sh"

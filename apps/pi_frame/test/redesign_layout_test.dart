@@ -58,6 +58,17 @@ const sampleSession = SessionState(
   ],
 );
 
+/// Tracked design evidence is written only when PI_FRAME_CAPTURE_EVIDENCE=1 (`pnpm run capture:evidence`). Otherwise
+/// the captures go to a temporary folder that tearDownAll deletes, so a plain `flutter test` leaves nothing behind.
+bool get _writesTrackedCaptures => Platform.environment['PI_FRAME_CAPTURE_EVIDENCE'] == '1';
+
+Directory? _temporaryCaptures;
+
+String _captureDirectory() {
+  if (_writesTrackedCaptures) return '../../docs/design-evidence';
+  return (_temporaryCaptures ??= Directory.systemTemp.createTempSync('pi_frame_redesign_captures_')).path;
+}
+
 Future<void> capture(WidgetTester tester, GlobalKey boundaryKey, String name, {String? outputDirectory}) async {
   final output = outputDirectory ?? Platform.environment['PI_FRAME_CAPTURE'];
   if (output == null) return;
@@ -156,6 +167,11 @@ final Finder _gitPaneHeader = find.byWidgetPredicate(
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  tearDownAll(() {
+    _temporaryCaptures?.deleteSync(recursive: true);
+    _temporaryCaptures = null;
+  });
+
   setUpAll(() async {
     for (final font in ['SchibstedGrotesk', 'SourceCodePro']) {
       final loader = FontLoader(font)..addFont(rootBundle.load('assets/fonts/$font.ttf'));
@@ -426,7 +442,7 @@ void main() {
     expect(find.text('REPOSITORY'), findsOneWidget);
     expect(_gitPaneHeader, findsOneWidget);
     expect(tester.takeException(), isNull);
-    await capture(tester, boundaryKey, '$capturePrefix-wide', outputDirectory: '../../docs/design-evidence');
+    await capture(tester, boundaryKey, '$capturePrefix-wide', outputDirectory: _captureDirectory());
     await tester.tap(find.byTooltip('Open sessions'));
     await tester.pumpAndSettle();
     expect(find.text('Sessions'), findsOneWidget);
@@ -445,15 +461,15 @@ void main() {
     await tester.tap(find.byTooltip('Back to files'));
     await tester.pumpAndSettle();
     expect(find.text('app_shell.dart'), findsOneWidget);
-    await capture(tester, boundaryKey, '$capturePrefix-compact-files', outputDirectory: '../../docs/design-evidence');
+    await capture(tester, boundaryKey, '$capturePrefix-compact-files', outputDirectory: _captureDirectory());
     await tester.tap(find.text('app_shell.dart').first);
     await tester.pumpAndSettle();
     expect(find.byTooltip('Back to files'), findsOneWidget);
-    await capture(tester, boundaryKey, '$capturePrefix-compact-file', outputDirectory: '../../docs/design-evidence');
+    await capture(tester, boundaryKey, '$capturePrefix-compact-file', outputDirectory: _captureDirectory());
     await tester.tap(find.text('Git Changes').first);
     await tester.pumpAndSettle();
     expect(_gitPaneHeader, findsOneWidget);
-    await capture(tester, boundaryKey, '$capturePrefix-compact-git', outputDirectory: '../../docs/design-evidence');
+    await capture(tester, boundaryKey, '$capturePrefix-compact-git', outputDirectory: _captureDirectory());
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
