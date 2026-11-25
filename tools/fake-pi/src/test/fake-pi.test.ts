@@ -10,6 +10,16 @@ const __dirname = path.dirname(__filename);
 const fakePiBin = path.resolve(__dirname, '../../dist/index.js');
 const fakeNpmBin = path.resolve(__dirname, '../../dist/fake-npm.js');
 
+/** One JSON line fake-pi wrote to stdout. The fields the tests read are typed; anything else stays unknown. */
+interface RpcMessage {
+  type?: string;
+  command?: string;
+  message?: { role?: string; content?: unknown; timestamp?: number; stopReason?: string; [key: string]: unknown };
+  assistantMessageEvent?: { delta?: unknown; [key: string]: unknown };
+  data?: { tree: Array<{ isLeaf?: unknown }>; leafId?: unknown };
+  [key: string]: unknown;
+}
+
 function tempDir(): string {
   return fs.mkdtempSync(path.join(process.env.TEMP || process.env.TMP || process.cwd(), 'fake-pi-test-'));
 }
@@ -17,8 +27,8 @@ function tempDir(): string {
 function observeJsonLines(child: ReturnType<typeof spawn>) {
   if (!child.stdout) throw new Error('Child process stdout is unavailable');
   let buffer = '';
-  const messages: any[] = [];
-  const waiters: Array<{ predicate: (message: any) => boolean; resolve: (message: any) => void }> = [];
+  const messages: RpcMessage[] = [];
+  const waiters: Array<{ predicate: (message: RpcMessage) => boolean; resolve: (message: RpcMessage) => void }> = [];
   child.stdout.on('data', (data) => {
     buffer += data.toString();
     const lines = buffer.split('\n');
@@ -38,7 +48,7 @@ function observeJsonLines(child: ReturnType<typeof spawn>) {
   });
   return {
     messages,
-    waitFor(predicate: (message: any) => boolean, timeoutMs = 5000): Promise<any> {
+    waitFor(predicate: (message: RpcMessage) => boolean, timeoutMs = 5000): Promise<RpcMessage> {
       const existing = messages.find(predicate);
       if (existing) return Promise.resolve(existing);
       return new Promise((resolve, reject) => {
@@ -150,7 +160,8 @@ describe('fake-pi simulator', () => {
         message.message?.content === 'Second prompt'
     );
     assert.ok(echoed);
-    assert.ok(typeof echoed.message.timestamp === 'number' && Date.now() - echoed.message.timestamp < 60_000);
+    const echoedAt = echoed.message?.timestamp;
+    assert.ok(typeof echoedAt === 'number' && Date.now() - echoedAt < 60_000);
     assert.strictEqual(await closed(p), 0);
     fs.rmSync(cwd, { recursive: true, force: true });
   });
@@ -166,9 +177,9 @@ describe('fake-pi simulator', () => {
     p.stdin.write(JSON.stringify({ type: 'get_tree', id: 'tree' }) + '\n');
     const response = await observed.waitFor((message) => message.command === 'get_tree');
     p.stdin.end();
-    assert.strictEqual(response.data.tree.length, 3);
-    assert.strictEqual(response.data.leafId, 'main_answer');
-    assert.strictEqual(response.data.tree[2].isLeaf, true);
+    assert.strictEqual(response.data?.tree.length, 3);
+    assert.strictEqual(response.data?.leafId, 'main_answer');
+    assert.strictEqual(response.data?.tree[2]?.isLeaf, true);
     assert.strictEqual(await closed(p), 0);
     fs.rmSync(cwd, { recursive: true, force: true });
   });
@@ -273,7 +284,7 @@ describe('fake-pi simulator', () => {
     });
 
     let buffer = '';
-    const received: any[] = [];
+    const received: RpcMessage[] = [];
 
     const waitForSettled = new Promise<void>((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error('Timed out waiting for agent_settled')), 3000);

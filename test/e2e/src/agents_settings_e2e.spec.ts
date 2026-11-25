@@ -5,6 +5,18 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import { fileURLToPath } from 'node:url';
 import WebSocket from 'ws';
+import { dataOf, listeningPort, parseFrame, type Frame } from './support.js';
+
+/** The data of a pi.agents.get or pi.agents.update result that the test reads. */
+interface AgentsView {
+  packages: Array<{ id: string; installed: boolean }>;
+  agents: Array<{
+    name: string;
+    model: { effective: string };
+    thinking: { effective: string };
+    context: { limit: number };
+  }>;
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -69,7 +81,7 @@ Worker prompt.
     httpServer.on('error', reject);
   });
 
-  const port = (httpServer.address() as any).port;
+  const port = listeningPort(httpServer);
 
   let registry!: SessionRegistry;
   let dispatcher!: Dispatcher;
@@ -124,12 +136,12 @@ Worker prompt.
     client.on('error', reject);
   });
 
-  const receivedMessages: any[] = [];
+  const receivedMessages: Frame[] = [];
   client.on('message', (data) => {
-    receivedMessages.push(JSON.parse(data.toString()));
+    receivedMessages.push(parseFrame(data));
   });
 
-  const waitForMessage = async (predicate: (msg: any) => boolean, timeoutMs = 5000): Promise<any> => {
+  const waitForMessage = async (predicate: (msg: Frame) => boolean, timeoutMs = 5000): Promise<Frame> => {
     const start = Date.now();
     while (Date.now() - start < timeoutMs) {
       const found = receivedMessages.find(predicate);
@@ -159,7 +171,7 @@ Worker prompt.
 
     const welcome = await waitForMessage((m) => m.kind === 'welcome');
     assert.equal(welcome.kind, 'welcome');
-    assert.ok(welcome.payload.capabilities.includes('pi.agents.v1'));
+    assert.ok((welcome.payload.capabilities as string[]).includes('pi.agents.v1'));
 
     // 2. pi.agents.get
     const getCmdId = `cmd_get_${Date.now()}`;
@@ -181,9 +193,9 @@ Worker prompt.
 
     const getResult = await waitForMessage((m) => m.kind === 'result' && m.commandId === getCmdId);
     assert.equal(getResult.payload.state, 'completed');
-    const getData = getResult.payload.data;
-    assert.equal(getData.packages.find((p: any) => p.id === 'pi-subagents')?.installed, true);
-    assert.ok(getData.agents.some((a: any) => a.name === 'worker'));
+    const getData = dataOf<AgentsView>(getResult);
+    assert.equal(getData.packages.find((p) => p.id === 'pi-subagents')?.installed, true);
+    assert.ok(getData.agents.some((a) => a.name === 'worker'));
 
     // 3. pi.agents.update
     const updCmdId = `cmd_upd_${Date.now()}`;
@@ -220,8 +232,8 @@ Worker prompt.
 
     const updResult = await waitForMessage((m) => m.kind === 'result' && m.commandId === updCmdId);
     assert.equal(updResult.payload.state, 'completed');
-    const updData = updResult.payload.data;
-    const updatedWorker = updData.agents.find((a: any) => a.name === 'worker');
+    const updData = dataOf<AgentsView>(updResult);
+    const updatedWorker = updData.agents.find((a) => a.name === 'worker');
     assert.ok(updatedWorker);
     assert.equal(updatedWorker.model.effective, 'fake/fake-model');
     assert.equal(updatedWorker.thinking.effective, 'low');
@@ -260,7 +272,7 @@ Worker prompt.
 
     const badResult = await waitForMessage((m) => m.kind === 'result' && m.commandId === badCmdId);
     assert.equal(badResult.payload.state, 'failed');
-    assert.ok(badResult.payload.error.includes('validation failed'));
+    assert.ok(String(badResult.payload.error).includes('validation failed'));
   } finally {
     client.close();
     httpServer.close();

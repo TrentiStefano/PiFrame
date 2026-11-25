@@ -5,6 +5,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import WebSocket from 'ws';
+import { dataOf, listeningPort, parseFrame, type Frame } from './support.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,7 +36,7 @@ test('E2E: Side Conversation - Open, stream reply, isolate main, close with fake
     httpServer.on('error', reject);
   });
 
-  const port = (httpServer.address() as any).port;
+  const port = listeningPort(httpServer);
 
   let registry!: SessionRegistry;
   let dispatcher!: Dispatcher;
@@ -83,14 +84,14 @@ test('E2E: Side Conversation - Open, stream reply, isolate main, close with fake
     client.on('error', reject);
   });
 
-  const receivedMessages: any[] = [];
+  const receivedMessages: Frame[] = [];
   client.on('message', (data) => {
     try {
-      receivedMessages.push(JSON.parse(data.toString()));
+      receivedMessages.push(parseFrame(data));
     } catch {}
   });
 
-  const waitFor = async (predicate: (msg: any) => boolean, timeoutMs = 8000, desc = 'message') => {
+  const waitFor = async (predicate: (msg: Frame) => boolean, timeoutMs = 8000, desc = 'message'): Promise<Frame> => {
     const start = Date.now();
     while (Date.now() - start < timeoutMs) {
       const match = receivedMessages.find(predicate);
@@ -140,7 +141,7 @@ test('E2E: Side Conversation - Open, stream reply, isolate main, close with fake
       'session.create result'
     );
     assert.equal(createRes.payload.state, 'completed');
-    const mainSessionId = createRes.payload.data.session.id;
+    const mainSessionId = dataOf<{ session: { id: string } }>(createRes).session.id;
     assert.ok(mainSessionId);
 
     // 3. Attach to main session
@@ -209,7 +210,7 @@ test('E2E: Side Conversation - Open, stream reply, isolate main, close with fake
       'side.open result'
     );
     assert.equal(openResult.payload.state, 'completed');
-    const { sideId, streamId } = openResult.payload.data;
+    const { sideId, streamId } = dataOf<{ sideId: string; streamId: string }>(openResult);
     assert.ok(sideId.startsWith('side_'));
     assert.equal(streamId, sideId);
 
@@ -259,7 +260,7 @@ test('E2E: Side Conversation - Open, stream reply, isolate main, close with fake
       'side.prompt result'
     );
     assert.equal(promptResult.payload.state, 'completed');
-    assert.equal(promptResult.payload.data.prompted, true);
+    assert.equal(dataOf<{ prompted: boolean }>(promptResult).prompted, true);
 
     await waitFor(
       (m) => m.kind === 'event' && m.sessionId === streamId && m.type === 'run.settled',
@@ -289,7 +290,7 @@ test('E2E: Side Conversation - Open, stream reply, isolate main, close with fake
       'side.abort result'
     );
     assert.equal(abortResult.payload.state, 'completed');
-    assert.equal(abortResult.payload.data.aborted, true);
+    assert.equal(dataOf<{ aborted: boolean }>(abortResult).aborted, true);
 
     // 10. Verify main session events were completely unaffected
     const mainSessionEventsAfterSide = receivedMessages.filter(
@@ -308,14 +309,18 @@ test('E2E: Side Conversation - Open, stream reply, isolate main, close with fake
       client2!.on('error', reject);
     });
 
-    const client2Messages: any[] = [];
+    const client2Messages: Frame[] = [];
     client2.on('message', (data) => {
       try {
-        client2Messages.push(JSON.parse(data.toString()));
+        client2Messages.push(parseFrame(data));
       } catch {}
     });
 
-    const waitForClient2 = async (predicate: (msg: any) => boolean, timeoutMs = 5000, desc = 'client2 message') => {
+    const waitForClient2 = async (
+      predicate: (msg: Frame) => boolean,
+      timeoutMs = 5000,
+      desc = 'client2 message'
+    ): Promise<Frame> => {
       const start = Date.now();
       while (Date.now() - start < timeoutMs) {
         const match = client2Messages.find(predicate);
@@ -361,7 +366,7 @@ test('E2E: Side Conversation - Open, stream reply, isolate main, close with fake
       'side session.attach result'
     );
     assert.equal(sideAttResult.payload.state, 'completed');
-    assert.equal(sideAttResult.payload.data.attached, true);
+    assert.equal(dataOf<{ attached: boolean }>(sideAttResult).attached, true);
 
     const sideAcks = client2Messages.filter(
       (m) => m.kind === 'ack' && m.sessionId === streamId && m.payload?.state === 'snapshot'
@@ -379,7 +384,7 @@ test('E2E: Side Conversation - Open, stream reply, isolate main, close with fake
     for (let i = 1; i < sideSeqs.length; i++) {
       assert.equal(
         sideSeqs[i],
-        sideSeqs[i - 1] + 1,
+        (sideSeqs[i - 1] ?? Number.NaN) + 1,
         `Side attach replayed seqs must be strictly consecutive (${sideSeqs[i]} vs ${sideSeqs[i - 1]})`
       );
     }
@@ -407,7 +412,7 @@ test('E2E: Side Conversation - Open, stream reply, isolate main, close with fake
       'side.close result'
     );
     assert.equal(closeResult.payload.state, 'completed');
-    assert.equal(closeResult.payload.data.closed, true);
+    assert.equal(dataOf<{ closed: boolean }>(closeResult).closed, true);
 
     // 12. Verify side.closed event
     const sideClosedEvt = await waitFor(
@@ -422,7 +427,7 @@ test('E2E: Side Conversation - Open, stream reply, isolate main, close with fake
       client.close();
       if (client2) {
         try {
-          (client2 as any).close();
+          client2.close();
         } catch {}
       }
       manager.closeAll(1000, 'Test finished');

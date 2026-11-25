@@ -29,7 +29,7 @@ export class FaultProxy {
       const upstreamWs = new WebSocket(targetUrl);
       this.activeSockets.add(upstreamWs);
 
-      const clientQueue: { data: any; isBinary: boolean }[] = [];
+      const clientQueue: { data: RawData; isBinary: boolean }[] = [];
       let upstreamOpen = false;
 
       upstreamWs.on('open', () => {
@@ -128,7 +128,11 @@ export class FaultProxy {
   public async start(): Promise<number> {
     return new Promise((resolve, reject) => {
       this.server.listen(0, '127.0.0.1', () => {
-        const addr = this.server.address() as any;
+        const addr = this.server.address();
+        if (addr === null || typeof addr === 'string') {
+          reject(new Error('fault proxy is not listening on a TCP port'));
+          return;
+        }
         resolve(addr.port);
       });
       this.server.on('error', reject);

@@ -7,13 +7,69 @@ import { StringDecoder } from 'node:string_decoder';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+/** A command line from the client: a JSON object whose fields are read defensively. */
+interface Command {
+  id?: unknown;
+  type?: unknown;
+  message?: unknown;
+  command?: unknown;
+  streamingBehavior?: unknown;
+  [key: string]: unknown;
+}
+
+/** The file a scenario step asks fake-pi to write or append (relative to the session cwd). */
+interface FileSpec {
+  path?: unknown;
+  content?: unknown;
+}
+
+/** One scripted step of a scenario; every field is optional. */
+interface ScenarioStep {
+  delayMs?: number;
+  crash?: boolean;
+  exitCode?: number;
+  malformed?: boolean;
+  writeFile?: FileSpec;
+  appendFile?: FileSpec;
+  event?: unknown;
+}
+
+/** A scenario file (scenarios/*.json). Each section is optional and falls back to a built-in default. */
+interface Scenario {
+  events?: ScenarioStep[];
+  messages?: unknown;
+  models?: unknown;
+  commands?: unknown;
+  entries?: unknown;
+  leafId?: unknown;
+  tree?: unknown;
+  stats?: unknown;
+}
+
+/** An installed package entry in fake-packages.json. */
+interface PackageEntry {
+  source: string;
+  version: string | null;
+  latest: string | null;
+}
+
 // Framing: LF-only strict JSONL
-function send(obj: any): void {
+function send(obj: unknown): void {
   process.stdout.write(JSON.stringify(obj) + '\n');
 }
 
 function sendRaw(str: string): void {
   process.stdout.write(str + '\n');
+}
+
+/** The `code` of a Node system error (for example 'ENOENT'), or undefined for anything else. */
+function errorCode(error: unknown): unknown {
+  return typeof error === 'object' && error !== null && 'code' in error ? error.code : undefined;
+}
+
+/** A text field of a command: the string value, or '' when it is absent or not a string. */
+function textOf(value: unknown): string {
+  return typeof value === 'string' ? value : '';
 }
 
 /** The value after `flag` in argv, or undefined when the flag is absent or has no (non-empty) value. */
@@ -83,7 +139,7 @@ async function main() {
     }
     return process.env.FAKE_PI_SCENARIO || cliScenario || 'hello-world';
   };
-  const readScenario = (): any => {
+  const readScenario = (): Scenario => {
     let name = selectedScenarioName();
     const scenariosDir = path.resolve(__dirname, '../scenarios');
     let scenarioPath = path.resolve(scenariosDir, `${name}.json`);
@@ -108,7 +164,7 @@ async function main() {
     }
   };
 
-  const writeScenarioFile = (operation: 'writeFile' | 'appendFile', spec: any): void => {
+  const writeScenarioFile = (operation: 'writeFile' | 'appendFile', spec: FileSpec | undefined): void => {
     try {
       const cwd = path.resolve(process.cwd());
       if (!fs.existsSync(path.join(cwd, '.fake-pi-writable'))) {
@@ -135,8 +191,8 @@ async function main() {
             console.error(`fake-pi refused ${operation}: parent path is not a real directory`);
             return;
           }
-        } catch (error: any) {
-          if (error?.code !== 'ENOENT') throw error;
+        } catch (error: unknown) {
+          if (errorCode(error) !== 'ENOENT') throw error;
           fs.mkdirSync(parent);
         }
       }
@@ -159,8 +215,8 @@ async function main() {
           console.error(`fake-pi refused ${operation}: resolved path escapes session cwd`);
           return;
         }
-      } catch (error: any) {
-        if (error?.code !== 'ENOENT') throw error;
+      } catch (error: unknown) {
+        if (errorCode(error) !== 'ENOENT') throw error;
       }
       const content = typeof spec.content === 'string' ? spec.content : '';
       if (operation === 'writeFile') fs.writeFileSync(target, content, 'utf8');
@@ -194,7 +250,7 @@ async function main() {
     const at = spec.lastIndexOf('@');
     return at > slash ? spec.slice(at + 1) : fallback;
   };
-  const loadPackages = (): any[] => {
+  const loadPackages = (): PackageEntry[] => {
     fs.mkdirSync(agentDir, { recursive: true });
     if (!fs.existsSync(packagesFile)) fs.writeFileSync(packagesFile, JSON.stringify(defaultPackages, null, 2));
     try {
@@ -204,7 +260,7 @@ async function main() {
       return [...defaultPackages];
     }
   };
-  const savePackages = (packages: any[]): void => {
+  const savePackages = (packages: PackageEntry[]): void => {
     fs.mkdirSync(agentDir, { recursive: true });
     fs.writeFileSync(packagesFile, JSON.stringify(packages, null, 2));
     for (const item of packages) {
@@ -332,10 +388,10 @@ async function main() {
 
   const processLine = async (line: string) => {
     if (!line.trim()) return;
-    let cmd: any;
+    let cmd: Command;
     try {
       cmd = JSON.parse(line.trim());
-    } catch (err: any) {
+    } catch {
       send({ id: undefined, type: 'response', command: 'parse', success: false, error: 'Failed to parse JSON' });
       return;
     }
@@ -579,14 +635,14 @@ async function main() {
     }
 
     if (type === 'steer') {
-      queue.steering.push(cmd.message || '');
+      queue.steering.push(textOf(cmd.message));
       send({ id, type: 'response', command: 'steer', success: true });
       send({ type: 'queue_update', steering: queue.steering, followUp: queue.followUp });
       return;
     }
 
     if (type === 'follow_up') {
-      queue.followUp.push(cmd.message || '');
+      queue.followUp.push(textOf(cmd.message));
       send({ id, type: 'response', command: 'follow_up', success: true });
       send({ type: 'queue_update', steering: queue.steering, followUp: queue.followUp });
       return;
@@ -636,7 +692,7 @@ async function main() {
       abortRequested = false;
 
       const scenarioConfig = readScenario();
-      const events = scenarioConfig.events || [
+      const events: ScenarioStep[] = scenarioConfig.events || [
         { delayMs: 10, event: { type: 'agent_start' } },
         { delayMs: 10, event: { type: 'turn_start' } },
         { event: { type: 'message_start', message: { role: 'user', content: cmd.message, timestamp: Date.now() } } },

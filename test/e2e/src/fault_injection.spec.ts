@@ -3,6 +3,7 @@ import * as assert from 'node:assert/strict';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import WebSocket from 'ws';
+import { listeningPort } from './support.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -36,7 +37,7 @@ test('Fault Injection Suite: proxy drops, duplicate frames, and corrupted frames
     httpServer.on('error', reject);
   });
 
-  const daemonPort = (httpServer.address() as any).port;
+  const daemonPort = listeningPort(httpServer);
   let registry!: SessionRegistry;
   let dispatcher!: Dispatcher;
 
