@@ -17,12 +17,25 @@ export function splitArgs(argv) {
   };
 }
 
-/** Full argument list for `gh pr create`. Without --title/--body/--fill/--body-file, the commits fill the PR. */
+/**
+ * Full argument list for `gh pr create`. The body is always given (see prBodyText), so gh never fills it from the
+ * commits: the PR template is the only source of the review shape.
+ */
 export function buildPrCreateArgs(ghArgs) {
-  const hasContent =
-    ghArgs.includes('--title') ||
-    ghArgs.includes('--body') ||
-    ghArgs.includes('--fill') ||
-    ghArgs.includes('--body-file');
-  return ['pr', 'create', '--base', 'main', ...(hasContent ? [] : ['--fill']), ...ghArgs];
+  return ['pr', 'create', '--base', 'main', ...ghArgs];
+}
+
+/**
+ * The pull request body the arguments give: the text of `--body`, or of the `--body-file` (read with `readFile`,
+ * which gets the path as written, `-` included). Undefined when neither flag is given.
+ */
+export function prBodyText(ghArgs, readFile) {
+  for (let i = 0; i < ghArgs.length; i += 1) {
+    const arg = ghArgs[i];
+    if (arg === '--body') return ghArgs[i + 1] ?? '';
+    if (arg.startsWith('--body=')) return arg.slice('--body='.length);
+    if (arg === '--body-file') return readFile(ghArgs[i + 1] ?? '');
+    if (arg.startsWith('--body-file=')) return readFile(arg.slice('--body-file='.length));
+  }
+  return undefined;
 }

@@ -48,7 +48,7 @@ apps/agentd  --one `pi --mode rpc` worker per session-->  Pi  --history-->  ~/.p
 | inner loop, after every small change | `pnpm run check`, plus test files: `pnpm run check -- tools/guardrails/test/steps.test.mjs` |
 | full gate, before a PR (commit first) | `pnpm run verify`; add `-- --release` before a release, `-- --e2e` for the remote web test |
 | golden screens (Windows; `verify` compares them) | `pnpm run goldens:update` regenerates the references in `apps/pi_frame/test/goldens/` |
-| open a PR (verify, push, `gh pr create`) | `pnpm run pr` |
+| open a PR (body check, verify, push, `gh pr create`) | `pnpm run pr` |
 | format / check formatting | `pnpm run format` / `pnpm run format:check` |
 | regenerate PCP types after a schema change | `pnpm run codegen` |
 | drive the app off-screen, real screenshots | `pnpm run harness` (`tools/harness/README.md`) |
@@ -96,5 +96,4 @@ skill) → PR with `pnpm run pr` (`pr` skill for the body). Decisions go to `doc
   `docs/agents/triage-labels.md`.
 - **Domain docs**: single context, one root `GLOSSARY.md` plus the ADRs in `docs/adr/`; see `docs/agents/domain.md`.
 - **Glossary**: `GLOSSARY.md` gives each core concept one name; use it, not the aliases it lists to avoid.
-- **UI**: `.agents/skills/piframe-ui-harness/SKILL.md` (drive and capture the app) and
-  `.agents/skills/piframe-ui-preview/SKILL.md`.
+- **UI**: `.agents/skills/piframe-ui-harness/SKILL.md` (drive and capture the app) and `.agents/skills/piframe-ui-preview/SKILL.md`.

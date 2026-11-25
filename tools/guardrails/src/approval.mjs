@@ -40,6 +40,8 @@ const TOOLING_FILES = new Set([
   'tools/scripts/flutter-projects.json',
   'tools/scripts/typescript-projects.json',
   'tools/scripts/guardrails-approval.mjs',
+  // The PR-body check's adapter (tools/guardrails/src/pr-body.mjs is guarded by its folder).
+  'tools/scripts/check-pr-body.mjs',
   'tools/scripts/verify-ci.mjs',
   'tools/scripts/check.mjs',
   // Not run by a step itself, but the gate adapters list the repository's files through it.
@@ -62,6 +64,8 @@ function guardedKind(path) {
   if (name === '.prettierrc.json' || name === '.prettierignore') return 'formatter config';
   if (/^(\.eslintrc(\..+)?|\.eslintignore|eslint\.config\.[cm]?[jt]s)$/.test(name)) return 'linter config';
   if (path.startsWith('.github/workflows/')) return 'CI workflow';
+  // The shape every pull request body must have (the PR-body check reads it, tools/guardrails/src/pr-body.mjs).
+  if (path === '.github/pull_request_template.md') return 'PR template';
   // The design system the DESIGN.md lint and token match check; its linter wrapper is a gate script (below).
   if (path === 'DESIGN.md') return 'design system';
   if (GATE_SCRIPTS.has(path)) return 'gate script';

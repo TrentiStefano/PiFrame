@@ -21,7 +21,7 @@ Options (they work for both commands; with `pnpm` they go after `--`):
 | `--keep` | keeps the temporary worktree (for debugging) |
 | `--verbose` | prints the output of every step instead of saving it and printing only errors |
 
-`pnpm run pr` also takes `gh pr create` arguments, for example `pnpm run pr -- --title "fix: ..." --body "..."`. Without a title and body it uses `--fill` (from the commits).
+`pnpm run pr` also takes `gh pr create` arguments, for example `pnpm run pr -- --title "fix: ..." --body-file body.md`. A body is required: `--body` or `--body-file`, filled in from `.github/pull_request_template.md`. Without one, `pnpm run pr` refuses (the commits are no longer used to fill it). The body is checked before anything is pushed (see [PR body check](#pr-body-check)).
 
 ## The inner loop: `check`
 
@@ -288,3 +288,19 @@ node tools/scripts/guardrails-approval.mjs --base origin/main --head HEAD
 ```
 
 The logic is `approvalStatus` in `tools/guardrails/src/approval.mjs` (pure, tested in `tools/guardrails/test/approval.test.mjs`); the script only reads git and GitHub and writes the comment. To make the check blocking, mark `Guardrail approval` as a required status check in the branch protection settings (a manual repository setting).
+
+## PR body check
+
+Every pull request body has the review shape of `.github/pull_request_template.md`: a `## Closes` section that links the issue or spec (`#81`, or an issue URL); non-empty `## Summary` and `## Evidence`; `## Merge Danger` with `**Door:** one-way` or `**Door:** two-way` and `**Blast Radius:** <one word>`; and `## Guardrail changes` that says `none` or describes the change. A body is refused when it has leftover placeholder text (`TODO`, `TBD`, `FIXME`, `{{...}}`, or the template's `<one word>`-style prompts). HTML comments (the template's hints) are not content. Screenshots are not required.
+
+The logic is `checkPrBody` in `tools/guardrails/src/pr-body.mjs` (pure, tested in `tools/guardrails/test/pr-body.test.mjs`, one case per rule). Two callers use it:
+
+- **`pnpm run pr`** checks the body given with `--body` or `--body-file` before it pushes or calls `gh`, and names each missing part. It fails without a body at all. Try it without creating anything (it stops at the body check):
+
+  ```bash
+  node tools/scripts/open-pr.mjs --title "fix: x" --body "## Summary"
+  ```
+
+- **`.github/workflows/pr-body.yml`** runs `node tools/scripts/check-pr-body.mjs --pr <number>` on `opened`, `edited`, `synchronize` and `reopened`. It reads the body with the default token (`gh pr view`, `pull-requests: read`) and fails while the body is incomplete. It is a separate workflow, not a `ci.yml` job, for the same reason as the approval workflow. To check a body on disk: `node tools/scripts/check-pr-body.mjs --file body.md`.
+
+The template, the check, the adapter (`tools/scripts/check-pr-body.mjs`) and the workflow are guarded paths: changing them needs the approval label described in [Guardrail approval](#guardrail-approval).
