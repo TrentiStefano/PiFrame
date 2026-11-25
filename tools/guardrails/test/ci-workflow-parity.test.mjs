@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { stepList } from '../src/index.mjs';
+import { stepList, VERIFY_ONLY_STEPS } from '../src/index.mjs';
 
 const WORKFLOW = '.github/workflows/ci.yml';
 // Normalized to LF: Windows checkouts (core.autocrlf) give the workflow CRLF line endings.
@@ -92,5 +92,18 @@ test(`${WORKFLOW} runs on pull requests and on pushes to main`, () => {
     on,
     /^ {2}push:\s*\n\s+branches:\s*\[\s*main\s*\]/m,
     `${WORKFLOW} must keep triggering on pushes to main.`
+  );
+});
+
+// The one documented verify-only step: `verify` runs the golden screens (Windows only) and CI does not, so the ci
+// tier is verify minus exactly that step. Any other difference between verify and ci is drift.
+test('verify is the ci tier plus exactly the one documented verify-only golden step', () => {
+  const line = (s) => `${s.job} ${s.command.join(' ')}`;
+  const verify = stepList('verify').map(line);
+  const verifyOnly = VERIFY_ONLY_STEPS.map(line);
+  assert.deepEqual(verifyOnly, ['flutter node tools/scripts/goldens.mjs']);
+  assert.deepEqual(
+    verify.filter((l) => !verifyOnly.includes(l)),
+    stepList('ci').map(line)
   );
 });

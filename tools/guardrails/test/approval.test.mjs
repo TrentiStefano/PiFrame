@@ -299,3 +299,17 @@ test('a raised diagnostics count needs approval; a lowered one, or the baseline 
   assert.equal(lowered.status, 'not-needed');
   assert.deepEqual(lowered.reasons, []);
 });
+
+test('golden reference images are guarded, so a visual change needs approval', () => {
+  for (const path of ['apps/pi_frame/test/goldens/welcome_light.png', 'apps/pi_frame/test/goldens/settings_dark.png']) {
+    const result = approvalStatus({
+      baseBaseline: baseline(40),
+      headBaseline: baseline(40),
+      changedPaths: [path],
+      labelEvents: [],
+      ciRunTimes: ['2026-11-20T10:00:00Z']
+    });
+    assert.equal(result.status, 'needed', path);
+    assert.match(result.reasons.join('\n'), /golden reference image changed/, path);
+  }
+});

@@ -1,4 +1,4 @@
-export { stepList } from './steps.mjs';
+export { stepList, VERIFY_ONLY_STEPS } from './steps.mjs';
 export { auditEscapeHatches, BASELINE_PATH } from './escape-hatches.mjs';
 export { DART_FILE, SCRIPT_FILE, SOURCE_FILE, toPosix } from './paths.mjs';
 export { syncChangelog, CHANGELOG_ASSET, CHANGELOG_FIX_COMMAND } from './changelog.mjs';

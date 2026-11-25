@@ -71,6 +71,20 @@ const DESIGN_TOKENS = {
   command: ['node', 'tools/scripts/check-design-tokens.mjs']
 };
 
+/**
+ * The one documented verify-only step: the Windows golden screens (apps/pi_frame/test/golden_screens_test.dart).
+ * `verify` runs it after the Flutter tests; `ci` and `check` never do. The CI parity test asserts that verify is the ci
+ * tier plus exactly these steps.
+ */
+/** @type {Step[]} */
+export const VERIFY_ONLY_STEPS = [
+  {
+    job: 'flutter',
+    name: 'Golden screens (Windows only, verify only)',
+    command: ['node', 'tools/scripts/goldens.mjs']
+  }
+];
+
 /** @type {Step[]} */
 const GATE = [
   { job: 'node', name: 'Install dependencies (frozen lockfile)', command: ['pnpm', 'install', '--frozen-lockfile'] },
@@ -150,6 +164,7 @@ export function stepList(tier, options = {}) {
   if (!TIERS.includes(tier)) throw new Error(`stepList: unknown tier "${tier}". Known tiers: ${TIERS.join(', ')}.`);
   if (tier === 'check') return checkSteps(options);
   const steps = GATE.map(copy);
+  if (tier === 'verify') steps.push(...VERIFY_ONLY_STEPS.map(copy));
   const { release = false, e2e = false, platform, appVersion } = tier === 'verify' ? options : {};
   if (!release && !e2e) return steps;
 

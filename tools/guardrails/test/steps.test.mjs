@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { stepList } from '../src/index.mjs';
+import { stepList, VERIFY_ONLY_STEPS } from '../src/index.mjs';
 
 const commandLines = (steps) => steps.map((s) => s.command.join(' '));
 
@@ -29,8 +29,17 @@ test('verify runs the full gate in order, including codegen parity and an explic
     'node tools/scripts/check-version-sync.mjs',
     'node tools/scripts/format.mjs --check dart',
     'node tools/scripts/lint-flutter.mjs',
-    'node tools/scripts/test-flutter.js'
+    'node tools/scripts/test-flutter.js',
+    'node tools/scripts/goldens.mjs'
   ]);
+});
+
+test('verify has exactly one verify-only step beyond ci: the golden screens, which ci and check never run', () => {
+  assert.deepEqual(commandLines(VERIFY_ONLY_STEPS), ['node tools/scripts/goldens.mjs']);
+  const ciLines = commandLines(stepList('ci'));
+  const verifyOnly = commandLines(stepList('verify')).filter((line) => !ciLines.includes(line));
+  assert.deepEqual(verifyOnly, ['node tools/scripts/goldens.mjs']);
+  assert.ok(!commandLines(stepList('check')).includes('node tools/scripts/goldens.mjs'));
 });
 
 const WEB_BUILD =
@@ -67,9 +76,9 @@ test('verify --release --e2e builds the web app once, then desktop, then the e2e
   );
 });
 
-test('ci runs exactly the verify gate, split into the node and flutter jobs', () => {
+test('ci runs exactly the verify gate minus the verify-only golden step, split into the node and flutter jobs', () => {
   const ci = stepList('ci');
-  assert.deepEqual(commandLines(ci), commandLines(stepList('verify')));
+  assert.deepEqual(commandLines(ci), commandLines(stepList('verify')).slice(0, -VERIFY_ONLY_STEPS.length));
   const byJob = (job) => commandLines(ci.filter((s) => s.job === job));
   assert.deepEqual(byJob('flutter'), [
     'node tools/scripts/setup-flutter.js',

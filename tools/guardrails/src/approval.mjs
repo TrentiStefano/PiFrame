@@ -48,6 +48,8 @@ const TOOLING_FILES = new Set([
 ]);
 const TOOLING_DIRS = ['tools/guardrails/', 'tools/codegen/'];
 const AGENT_GUARD_FILES = new Set(['.claude/settings.json']);
+/** Where the golden screens' reference images are committed (apps/pi_frame/test/goldens/). */
+export const GOLDEN_REFERENCE_DIR = 'apps/pi_frame/test/goldens/';
 const AGENT_GUARD_DIRS = ['.claude/hooks/', '.pi/extensions/', '.codex/rules/'];
 
 /** Why a path is guarded, or undefined when changing it needs no approval. */
@@ -67,6 +69,8 @@ function guardedKind(path) {
   // The `build`, `lint` and `test` scripts the gate runs, and the pinned Prettier version, live in package.json.
   if (name === 'package.json' && !path.split('/').includes('node_modules')) return 'package manifest';
   if (AGENT_GUARD_FILES.has(path) || AGENT_GUARD_DIRS.some((dir) => path.startsWith(dir))) return 'agent guard';
+  // The golden screens' reference images: a visual change to the app needs a human to look at the new picture.
+  if (path.startsWith(GOLDEN_REFERENCE_DIR) && path.endsWith('.png')) return 'golden reference image';
   // The agents' rules and map (the agent map check keeps it short and correct, tools/guardrails/src/agent-map.mjs).
   if (path === AGENT_MAP_PATH) return 'agent instructions';
   return undefined;
