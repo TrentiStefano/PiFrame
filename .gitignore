@@ -59,6 +59,7 @@ blob-report/
 .agents/skills/*
 !.agents/skills/piframe-ui-harness/
 !.agents/skills/piframe-ui-preview/
+!.agents/skills/bugfix/
 
 # ==============================================================================
 # Flutter & Dart
@@ -112,6 +113,7 @@ crash-*.log
 # pi: only the shared project extensions (the agent guard) are committed.
 .pi/*
 !.pi/extensions/
+!.pi/prompts/
 
 # ==============================================================================
 # Environment & Secrets

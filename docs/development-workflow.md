@@ -110,6 +110,10 @@ as its own PR with `pnpm run pr`. When the last ticket merges, the architecture 
 
 ## Route 2: bug
 
+`/bugfix <description>` (the `bugfix` skill, `.agents/skills/bugfix/SKILL.md`) runs this whole route from a bug report:
+it opens the issue and the branch, diagnoses, writes the failing test, fixes, and opens the PR with `pnpm run pr`. It
+stops only for a decision that is the maintainer's, and never merges.
+
 1. **Diagnose.** Use the `diagnosing-bugs` skill. It builds a feedback loop first, then narrows the cause to one
    function or one data path. Write down what you observed.
 2. **Failing regression test.** Write the test that fails for the bug, at the lowest level that reproduces it. Run it and

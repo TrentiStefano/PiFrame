@@ -109,7 +109,7 @@ Each agent enforces it with its own mechanism, all committed:
 - **pi**: `.pi/extensions/guard-command.ts` blocks `bash` and `powershell` tool calls the guard rejects. pi loads project extensions only after you trust the project.
 - **Codex**: `.codex/rules/guard.rules` forbids `gh label` and asks before `gh pr edit`, `gh issue edit` and `gh api` (Codex rules match exact prefixes only, so they cannot call the guard). Codex loads them only after you trust the project; check with `codex execpolicy check --pretty --rules .codex/rules/guard.rules -- gh label delete wip`.
 
-Git tracks `.claude/` except `skills/` (installer symlinks), `worktrees/` and `settings.local.json`, and `.pi/` only for `extensions/`. The guard is a speed bump, not a security boundary: an agent determined to call the GitHub API another way still can, which is why approval also expires on the next push and the human reviews the PR.
+Git tracks `.claude/` except `skills/` (installer symlinks), `worktrees/` and `settings.local.json`, and `.pi/` only for `extensions/` and `prompts/` (the `/bugfix` prompt). The guard is a speed bump, not a security boundary: an agent determined to call the GitHub API another way still can, which is why approval also expires on the next push and the human reviews the PR.
 
 ## Cache
 
