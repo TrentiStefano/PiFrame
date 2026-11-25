@@ -171,3 +171,6 @@ brag-output/
 # Generated in-app changelog (copy of the root CHANGELOG.md, written by tools/scripts/sync-changelog.mjs)
 # ==============================================================================
 apps/pi_frame/assets/CHANGELOG.md
+
+# Golden screens: the mismatch images of the last run (apps/pi_frame/test/golden_screens_test.dart)
+apps/pi_frame/test/failures/

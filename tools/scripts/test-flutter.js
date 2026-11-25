@@ -15,7 +15,7 @@ if (sync.status !== 0) {
 for (const dir of dirs) {
   const cwd = path.resolve(process.cwd(), dir);
   console.log(`Running 'flutter test' in ${dir}...`);
-  const res = spawnSync('flutter', ['test'], { cwd, stdio: 'inherit', shell: true });
+  const res = spawnSync('flutter', ['test', '--exclude-tags', 'golden'], { cwd, stdio: 'inherit', shell: true });
   if (res.status !== 0) {
     console.error(`Flutter test failed in ${dir}`);
     process.exit(res.status || 1);

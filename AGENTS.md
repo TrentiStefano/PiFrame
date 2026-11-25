@@ -47,6 +47,7 @@ apps/agentd  --one `pi --mode rpc` worker per session-->  Pi  --history-->  ~/.p
 | run the daemon only | `pnpm run run:daemon` |
 | inner loop, after every small change | `pnpm run check`, plus test files: `pnpm run check -- tools/guardrails/test/steps.test.mjs` |
 | full gate, before a PR (commit first) | `pnpm run verify`; add `-- --release` before a release, `-- --e2e` for the remote web test |
+| golden screens (Windows; `verify` compares them) | `pnpm run goldens:update` regenerates the references in `apps/pi_frame/test/goldens/` |
 | open a PR (verify, push, `gh pr create`) | `pnpm run pr` |
 | format / check formatting | `pnpm run format` / `pnpm run format:check` |
 | regenerate PCP types after a schema change | `pnpm run codegen` |
@@ -58,8 +59,7 @@ token match, the TypeScript build, the TypeScript (`tsc`) and ESLint analysis, a
 ratchet. It never installs: run `pnpm install` after a dependency change (yours or pulled). `*_test.dart` files run with
 `flutter test`, `*.test.mjs` with `node --test`, and `apps/agentd/src/**/*.test.ts` from its compiled copy under dist. `verify`
 runs the CI steps on the committed HEAD merged with origin/main. Tests regenerate screenshots under `docs/design-evidence/` and
-`website/assets/`: restore them with `git checkout -- docs/design-evidence website/assets` instead of committing.
-Details: `docs/pr-verification.md`.
+`website/assets/`: restore them with `git checkout -- docs/design-evidence website/assets` instead of committing. Details: `docs/pr-verification.md`.
 
 ## Conventions
 
