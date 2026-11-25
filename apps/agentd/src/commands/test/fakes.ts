@@ -1,6 +1,5 @@
 import { EventEmitter } from 'node:events';
 import type { PcpCommand, PcpCommandType, PcpEnvelope } from '@piframe/pcp-ts';
-import type { WebSocket } from 'ws';
 import type { PiPackageOperations } from '../../pi/PiPackageService.js';
 import type { RemoteManager } from '../../remote/RemoteManager.js';
 import type { StdioPiTransport } from '../../pi/StdioPiTransport.js';
@@ -33,12 +32,6 @@ export class MockWebSocket extends EventEmitter {
     this.closedReason = reason;
     this.emit('close');
   }
-}
-
-/** The socket a Connection expects: the mock implements the members the daemon reads. */
-export function asSocket(mock: MockWebSocket): WebSocket {
-  const socket: Partial<Pick<WebSocket, 'readyState' | 'send' | 'close'>> = mock;
-  return socket as WebSocket;
 }
 
 export function fakeWorker(members: Partial<StdioPiTransport>): StdioPiTransport {

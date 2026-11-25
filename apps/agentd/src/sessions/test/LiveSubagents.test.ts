@@ -9,10 +9,10 @@ import {
 } from '../liveSubagents.js';
 import { Session } from '../Session.js';
 
-const report = (agents: any[], anyRunning: boolean) =>
+const report = (agents: unknown[], anyRunning: boolean) =>
   JSON.stringify({ v: 1, available: true, anyRunning, idleSince: anyRunning ? null : 5, bridgeStartedAt: 1, agents });
 
-const runtime = (live: any, extra: Partial<SubagentRuntime> = {}): SubagentRuntime => ({
+const runtime = (live: string | null, extra: Partial<SubagentRuntime> = {}): SubagentRuntime => ({
   live: live ? parseLiveSubagents(live, 10) : null,
   workerAlive: true,
   workerGone: false,

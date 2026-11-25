@@ -4,7 +4,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { execFileSync } from 'node:child_process';
-import { asSocket, at, MockWebSocket, parseSent, type SentMessage } from './fakes.js';
+import { at, MockWebSocket, parseSent, type SentMessage } from './fakes.js';
 import { Dispatcher } from '../Dispatcher.js';
 import { SessionRegistry } from '../../sessions/SessionRegistry.js';
 import { ConnectionManager } from '../../server/wsServer.js';
@@ -63,7 +63,7 @@ test('Dispatcher: branch commands remote permissions (view allowed for list, for
     // Create remote connection in 'view' mode
     const viewWs = new MockWebSocket();
     const viewConn = new Connection({
-      ws: asSocket(viewWs),
+      ws: viewWs,
       expectedToken: 'tok',
       daemonVersion: '0.1.0',
       startedAt: Date.now(),
@@ -119,7 +119,7 @@ test('Dispatcher: branch commands remote permissions (view allowed for list, for
     // Create remote connection in 'control' mode
     const ctrlWs = new MockWebSocket();
     const ctrlConn = new Connection({
-      ws: asSocket(ctrlWs),
+      ws: ctrlWs,
       expectedToken: 'tok',
       daemonVersion: '0.1.0',
       startedAt: Date.now(),
@@ -168,7 +168,7 @@ test('Dispatcher: switchBranch is rejected while session is read-only or busy', 
 
     const ws = new MockWebSocket();
     const conn = new Connection({
-      ws: asSocket(ws),
+      ws: ws,
       expectedToken: 'tok',
       daemonVersion: '0.1.0',
       startedAt: Date.now(),

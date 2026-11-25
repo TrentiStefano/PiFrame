@@ -20,7 +20,7 @@ import { ConnectionManager } from '../../server/wsServer.js';
 import { Connection } from '../../server/connection.js';
 import type { PiPackageOperations } from '../../pi/PiPackageService.js';
 import type { PcpCommandType } from '@piframe/pcp-ts';
-import { asSocket, at, commandEnvelope, fakeWorker, MockWebSocket, parseSent, type SentMessage } from './fakes.js';
+import { at, commandEnvelope, fakeWorker, MockWebSocket, parseSent, type SentMessage } from './fakes.js';
 
 function createTestSetup(piPackages?: PiPackageOperations, sessionIndex?: SessionIndex) {
   const manager = new ConnectionManager();
@@ -35,7 +35,7 @@ function createTestSetup(piPackages?: PiPackageOperations, sessionIndex?: Sessio
 
   const ws = new MockWebSocket();
   const conn = new Connection({
-    ws: asSocket(ws),
+    ws: ws,
     expectedToken: 'tok',
     daemonVersion: '0.1.0',
     startedAt: Date.now(),
@@ -442,7 +442,7 @@ test('Dispatcher: executes remote.* commands and enforces remote allowlist', asy
 
   const ws = new MockWebSocket();
   const conn = new Connection({
-    ws: asSocket(ws),
+    ws: ws,
     expectedToken: 'tok',
     daemonVersion: '0.1.0',
     startedAt: Date.now(),
@@ -495,7 +495,7 @@ test('Dispatcher: executes remote.* commands and enforces remote allowlist', asy
   // 3. Remote connection in 'view' mode:
   const remoteWs = new MockWebSocket();
   const remoteConn = new Connection({
-    ws: asSocket(remoteWs),
+    ws: remoteWs,
     expectedToken: 'tok',
     daemonVersion: '0.1.0',
     startedAt: Date.now(),

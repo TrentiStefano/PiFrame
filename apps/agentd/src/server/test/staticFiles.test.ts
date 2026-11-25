@@ -6,6 +6,12 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import * as zlib from 'node:zlib';
 import { DEFAULT_CONFIG } from '../../config/config.js';
+
+function listeningPort(server: { address(): { port: number } | string | null }): number {
+  const address = server.address();
+  if (address === null || typeof address === 'string') throw new Error('server is not listening on a TCP port');
+  return address.port;
+}
 import { createHttpServer } from '../httpServer.js';
 import { stripServiceWorkerSettings } from '../staticFiles.js';
 import { newestWebDir } from '../static.js';
@@ -63,7 +69,7 @@ test('static files: revalidation, compression and service worker neutralisation'
     staticDir: dir
   });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const port = (server.address() as any).port;
+  const port = listeningPort(server);
   t.after(async () => {
     server.closeAllConnections?.();
     await new Promise<void>((resolve) => server.close(() => resolve()));

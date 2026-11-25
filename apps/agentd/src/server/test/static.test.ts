@@ -5,6 +5,12 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { DEFAULT_CONFIG } from '../../config/config.js';
+
+function listeningPort(server: { address(): { port: number } | string | null }): number {
+  const address = server.address();
+  if (address === null || typeof address === 'string') throw new Error('server is not listening on a TCP port');
+  return address.port;
+}
 import { createHttpServer } from '../httpServer.js';
 
 test('staticServer: serves static assets with security headers and cookie bootstrap', async (t) => {
@@ -28,8 +34,7 @@ test('staticServer: serves static assets with security headers and cookie bootst
   });
 
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const address = server.address() as any;
-  const port = address.port;
+  const port = listeningPort(server);
 
   t.after(async () => {
     server.closeAllConnections?.();

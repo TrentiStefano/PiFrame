@@ -11,6 +11,12 @@ import { RemoteManager } from '../RemoteManager.js';
 import { RemoteAuthManager } from '../RemoteAuthManager.js';
 import { DEFAULT_CONFIG } from '../../config/config.js';
 
+function listeningPort(server: { address(): { port: number } | string | null }): number {
+  const address = server.address();
+  if (address === null || typeof address === 'string') throw new Error('server is not listening on a TCP port');
+  return address.port;
+}
+
 test('RemoteServer: two-listener architecture (local loopback vs dedicated remote listener)', async () => {
   const testHome = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-server-test-home-'));
   const origHome = process.env.PI_FRAME_HOME;
@@ -36,7 +42,7 @@ test('RemoteServer: two-listener architecture (local loopback vs dedicated remot
 
   await new Promise<void>((resolve) => {
     localServer.listen(0, '127.0.0.1', () => {
-      localPort = (localServer.address() as any).port;
+      localPort = listeningPort(localServer);
       resolve();
     });
   });
@@ -53,7 +59,7 @@ test('RemoteServer: two-listener architecture (local loopback vs dedicated remot
 
   await new Promise<void>((resolve) => {
     remoteServer.listen(0, '127.0.0.1', () => {
-      remotePort = (remoteServer.address() as any).port;
+      remotePort = listeningPort(remoteServer);
       remoteManager.setListenerPort(remotePort);
       resolve();
     });

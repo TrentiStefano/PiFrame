@@ -12,7 +12,7 @@ import { RemoteManager } from '../../remote/RemoteManager.js';
 import { DEFAULT_CONFIG } from '../../config/config.js';
 import { SystemMetricsService } from '../SystemMetricsService.js';
 import { NullGpuProvider } from '../gpu/NullGpuProvider.js';
-import { asSocket, MockWebSocket, timerHandle } from './fakes.js';
+import { MockWebSocket, timerHandle } from './fakes.js';
 
 function createSetup() {
   const manager = new ConnectionManager();
@@ -43,7 +43,7 @@ function createSetup() {
   // Local connection
   const localWs = new MockWebSocket();
   const localConn = new Connection({
-    ws: asSocket(localWs),
+    ws: localWs,
     expectedToken: 'tok',
     daemonVersion: '0.1.0',
     startedAt: Date.now(),
@@ -62,7 +62,7 @@ function createSetup() {
   // Remote connection (view mode)
   const remoteViewWs = new MockWebSocket();
   const remoteViewConn = new Connection({
-    ws: asSocket(remoteViewWs),
+    ws: remoteViewWs,
     expectedToken: 'tok',
     daemonVersion: '0.1.0',
     startedAt: Date.now(),
@@ -79,7 +79,7 @@ function createSetup() {
   // Remote connection (control mode)
   const remoteControlWs = new MockWebSocket();
   const remoteControlConn = new Connection({
-    ws: asSocket(remoteControlWs),
+    ws: remoteControlWs,
     expectedToken: 'tok',
     daemonVersion: '0.1.0',
     startedAt: Date.now(),

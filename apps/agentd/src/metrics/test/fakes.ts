@@ -1,6 +1,5 @@
 import { EventEmitter } from 'node:events';
 import type { ChildProcess, ExecFileOptions } from 'node:child_process';
-import type { WebSocket } from 'ws';
 import type { ExecFileFn } from '../gpu/MacIoregGpuProvider.js';
 import type { SpawnChildProcessFn } from '../gpu/NvidiaGpuProvider.js';
 import type { GpuProviderFactory } from '../gpu/GpuProviderFactory.js';
@@ -24,12 +23,6 @@ export class MockWebSocket extends EventEmitter {
     this.readyState = 3;
     this.emit('close');
   }
-}
-
-/** The socket a Connection expects: the mock implements the members the daemon reads. */
-export function asSocket(mock: MockWebSocket): WebSocket {
-  const socket: Partial<Pick<WebSocket, 'readyState' | 'send' | 'close'>> = mock;
-  return socket as WebSocket;
 }
 
 export function fakeConnection(members: Partial<Connection>): Connection {

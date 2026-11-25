@@ -1,9 +1,9 @@
 import test from 'node:test';
 import * as assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { Connection } from '../connection.js';
+import { Connection, type ConnectionSocket } from '../connection.js';
 
-class MockWebSocket extends EventEmitter {
+class MockWebSocket extends EventEmitter implements ConnectionSocket {
   public readyState = 1; // WebSocket.OPEN
   public sentMessages: string[] = [];
   public closedCode?: number;
@@ -27,7 +27,7 @@ test('Connection: closes with 4003 if token is invalid', () => {
   let closed = false;
 
   new Connection({
-    ws: ws as any,
+    ws,
     expectedToken: 'secret_valid_token',
     daemonVersion: '0.1.0',
     startedAt: Date.now(),
@@ -71,7 +71,7 @@ test('Connection: authenticates successfully and sends welcome frame', () => {
   const token = 'correct_token_12345';
 
   const conn = new Connection({
-    ws: ws as any,
+    ws,
     expectedToken: token,
     daemonVersion: '0.1.0',
     startedAt: Date.now(),
@@ -120,7 +120,7 @@ function frame(value: Record<string, unknown>): Buffer {
 function readyConnection() {
   const ws = new MockWebSocket();
   const conn = new Connection({
-    ws: ws as any,
+    ws,
     expectedToken: 'tok',
     daemonVersion: '0.1.0',
     startedAt: Date.now(),

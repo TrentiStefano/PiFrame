@@ -1,4 +1,3 @@
-import type { WebSocket } from 'ws';
 import { ulid } from 'ulid';
 import type {
   ServerMessage,
@@ -16,8 +15,17 @@ import type { RemoteDeviceMode } from '../remote/types.js';
 
 export type ConnectionState = 'authenticating' | 'ready' | 'attached' | 'closed';
 
+/** The socket operations a connection uses. A `ws` WebSocket satisfies it; tests supply a typed fake. */
+export interface ConnectionSocket {
+  readonly readyState: number;
+  on(event: 'message', listener: (data: Buffer | string) => void): unknown;
+  on(event: 'close' | 'error', listener: () => void): unknown;
+  send(data: string, cb: () => void): void;
+  close(code: number, reason: string): void;
+}
+
 export interface ConnectionOptions {
-  ws: WebSocket;
+  ws: ConnectionSocket;
   expectedToken: string;
   daemonVersion: string;
   startedAt: number;
@@ -54,7 +62,7 @@ export class Connection {
   private cleanedUp = false;
   public attachedSessions = new Set<string>();
 
-  private ws: WebSocket;
+  private ws: ConnectionSocket;
   private expectedToken: string;
   private daemonVersion: string;
   private startedAt: number;

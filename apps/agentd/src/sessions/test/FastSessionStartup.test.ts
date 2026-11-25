@@ -5,6 +5,10 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { SessionIndex, type SessionSummary } from '../SessionIndex.js';
 import { SessionRegistry } from '../SessionRegistry.js';
+import { ConnectionManager } from '../../server/wsServer.js';
+import type { PcpEnvelope } from '@piframe/pcp-ts';
+
+type IndexEvent = PcpEnvelope<{ updated: SessionSummary[]; refreshing?: boolean }>;
 
 const journalRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'piframe-fast-journal-'));
 const previousHome = process.env.PI_FRAME_HOME;
@@ -15,20 +19,20 @@ test.after(() => {
   fs.rmSync(journalRoot, { recursive: true, force: true });
 });
 
-function makeRegistry(index: SessionIndex, broadcast: (sessionId: string, event: any) => void) {
+function makeRegistry(index: SessionIndex, broadcast: (sessionId: string, event: IndexEvent) => void) {
   return new SessionRegistry({
     piExecutablePath: process.execPath,
     capabilities: { version: '0.99.2', supported: true, modes: ['rpc'], features: [] },
     workerIdleTimeoutMs: 0,
-    connectionManager: { broadcast } as any,
+    connectionManager: Object.assign(new ConnectionManager(), { broadcast }),
     sessionIndex: index,
     checkTerminalOwner: async () => false
   });
 }
 
 function waitForEvent() {
-  let resolve!: (event: any) => void;
-  const promise = new Promise<any>((done) => {
+  let resolve!: (event: IndexEvent) => void;
+  const promise = new Promise<IndexEvent>((done) => {
     resolve = done;
   });
   return { promise, resolve };
@@ -97,12 +101,12 @@ test('session.list returns cached rows while filesystem revalidation continues',
   try {
     await new SessionIndex({ sessionsDir: dir, cachePath: cache }).scan();
     const index = new SessionIndex({ sessionsDir: dir, cachePath: cache });
-    const enumerate = (index as any).enumerateSessionFiles.bind(index);
+    const enumerate = index['enumerateSessionFiles'].bind(index);
     let release!: () => void;
     const blocked = new Promise<void>((resolve) => {
       release = resolve;
     });
-    (index as any).enumerateSessionFiles = async () => {
+    index['enumerateSessionFiles'] = async () => {
       await blocked;
       return enumerate();
     };
@@ -143,7 +147,7 @@ test('fast refresh publishes changed visible rows', { timeout: 10_000 }, async (
   const registry = makeRegistry(index, (_sessionId, message) => event.resolve(message));
   try {
     assert.equal((await registry.listSessions())[0]!.name, 'Old name');
-    assert.equal((await event.promise).payload.updated[0].name, 'New name');
+    assert.equal((await event.promise).payload.updated[0]!.name, 'New name');
   } finally {
     await registry.closeAll();
   }
@@ -194,12 +198,12 @@ test('cold session.list bounds its filesystem wait and continues discovery', { t
     }) + '\n'
   );
   const index = new SessionIndex({ sessionsDir: dir, cachePath: path.join(root, 'index.json') });
-  const enumerate = (index as any).enumerateSessionFiles.bind(index);
+  const enumerate = index['enumerateSessionFiles'].bind(index);
   let release!: () => void;
   const blocked = new Promise<void>((resolve) => {
     release = resolve;
   });
-  (index as any).enumerateSessionFiles = async () => {
+  index['enumerateSessionFiles'] = async () => {
     await blocked;
     return enumerate();
   };
@@ -300,8 +304,8 @@ test('legacy cache titles remain visible while their metadata is revalidated', {
     assert.equal(first.sessions[0]!.name, 'Indexed title');
     assert.equal(first.needsRefresh, true);
     let parses = 0;
-    const parse = (index as any).parseSessionFileAsync.bind(index);
-    (index as any).parseSessionFileAsync = (...args: unknown[]) => {
+    const parse = index['parseSessionFileAsync'].bind(index);
+    index['parseSessionFileAsync'] = (...args: Parameters<typeof parse>) => {
       parses++;
       return parse(...args);
     };
@@ -379,13 +383,15 @@ test('a cached file changed during fast discovery is marked for refresh', { time
   const file = path.join(dir, 'session.jsonl');
   fs.writeFileSync(file, JSON.stringify({ type: 'session', id: 'one', cwd: process.cwd() }) + '\n');
   const index = new SessionIndex({ sessionsDir: dir, cachePath: path.join(root, 'index.json') });
-  const original = fs.promises.stat;
+  // The one-argument stat signature the index uses; fs.promises.stat is overloaded and widens to it.
+  const promises: { stat: (path: fs.PathLike) => Promise<fs.Stats> } = fs.promises;
+  const original = promises.stat;
   try {
     await index.scan();
     let changed = false;
-    (fs.promises as any).stat = async (...args: Parameters<typeof fs.promises.stat>) => {
-      const stat = await original(...args);
-      if (!changed && args[0] === file) {
+    promises.stat = async (path: fs.PathLike) => {
+      const stat = await original(path);
+      if (!changed && path === file) {
         changed = true;
         fs.appendFileSync(file, JSON.stringify({ type: 'session_info', name: 'New name' }) + '\n');
       }
@@ -395,7 +401,7 @@ test('a cached file changed during fast discovery is marked for refresh', { time
     assert.equal(changed, true);
     assert.equal(result.needsRefresh, true);
   } finally {
-    (fs.promises as any).stat = original;
+    promises.stat = original;
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
@@ -407,9 +413,9 @@ test('a session changed during indexing is refreshed after the write settles', {
   const file = path.join(dir, 'changing.jsonl');
   fs.writeFileSync(file, JSON.stringify({ type: 'session', id: 'changing', cwd: process.cwd() }) + '\n');
   const index = new SessionIndex({ sessionsDir: dir, cachePath: path.join(root, 'index.json') });
-  const parse = (index as any).parseSessionFileAsync.bind(index);
+  const parse = index['parseSessionFileAsync'].bind(index);
   let changed = false;
-  (index as any).parseSessionFileAsync = async (...args: unknown[]) => {
+  index['parseSessionFileAsync'] = async (...args: Parameters<typeof parse>) => {
     const summary = await parse(...args);
     if (!changed) {
       changed = true;
@@ -551,9 +557,9 @@ test(
     );
     try {
       const index = new SessionIndex({ sessionsDir: dir, cachePath: path.join(root, 'index.json') });
-      const enumerate = (index as any).enumerateSessionFiles.bind(index);
+      const enumerate = index['enumerateSessionFiles'].bind(index);
       let calls = 0;
-      (index as any).enumerateSessionFiles = () => {
+      index['enumerateSessionFiles'] = () => {
         calls++;
         return enumerate();
       };
@@ -583,7 +589,7 @@ test('fast discovery cannot erase a row added by an overlapping authoritative sc
   try {
     const index = new SessionIndex({ sessionsDir: dir, cachePath: cache });
     await index.scan();
-    const enumerate = (index as any).enumerateSessionFiles.bind(index);
+    const enumerate = index['enumerateSessionFiles'].bind(index);
     const fastFiles = await enumerate();
     fs.writeFileSync(
       path.join(dir, 'second.jsonl'),
@@ -602,7 +608,7 @@ test('fast discovery cannot erase a row added by an overlapping authoritative sc
       started = resolve;
     });
     let calls = 0;
-    (index as any).enumerateSessionFiles = async () => {
+    index['enumerateSessionFiles'] = async () => {
       if (++calls === 1) {
         started();
         await blocked;
@@ -653,7 +659,7 @@ test('fast enumeration preserves a snapshot row resolved concurrently', { timeou
     const fastStarted = new Promise<void>((resolve) => {
       started = resolve;
     });
-    (index as any).enumerateSessionFiles = async () => {
+    index['enumerateSessionFiles'] = async () => {
       started();
       await blocked;
       return [];
@@ -688,7 +694,7 @@ test('fast ENOENT does not clear cache rows added by an overlapping full scan', 
     const index = new SessionIndex({ sessionsDir: dir, cachePath: cache });
     await index.scan();
     await index.scanFast();
-    const enumerate = (index as any).enumerateSessionFiles.bind(index);
+    const enumerate = index['enumerateSessionFiles'].bind(index);
     fs.writeFileSync(
       path.join(dir, 'second.jsonl'),
       JSON.stringify({
@@ -705,7 +711,7 @@ test('fast ENOENT does not clear cache rows added by an overlapping full scan', 
       started = resolve;
     });
     let calls = 0;
-    (index as any).enumerateSessionFiles = async () => {
+    index['enumerateSessionFiles'] = async () => {
       if (++calls === 1) {
         started();
         await blocked;
@@ -1008,7 +1014,7 @@ test('background indexing publishes progress before the full scan finishes', { t
     report(revision);
     assert.equal((await progress.promise).payload.refreshing, true);
     finish([{ ...row, name: 'exact' }]);
-    assert.equal((await completed.promise).payload.updated[0].name, 'exact');
+    assert.equal((await completed.promise).payload.updated[0]!.name, 'exact');
   } finally {
     await registry.closeAll();
   }
@@ -1116,7 +1122,7 @@ test('concurrent list calls share one refresh and replay a queued follow-up', { 
         : Promise.resolve([final]);
     }
   } as unknown as SessionIndex;
-  const events: any[] = [];
+  const events: IndexEvent[] = [];
   const registry = makeRegistry(index, (_sessionId, message) => {
     events.push(message);
     event.resolve(message);
@@ -1133,7 +1139,7 @@ test('concurrent list calls share one refresh and replay a queued follow-up', { 
     assert.equal((await registry.listSessions())[0]!.name, 'exact');
     assert.equal(scans, 2);
     assert.equal(events.length, 1);
-    assert.equal(events[0].payload.updated[0].name, 'exact');
+    assert.equal(events[0]!.payload.updated[0]!.name, 'exact');
   } finally {
     await registry.closeAll();
   }
