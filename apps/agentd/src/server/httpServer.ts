@@ -10,6 +10,7 @@ import type { DaemonConfig } from '../config/config.js';
 import type { RemoteManager } from '../remote/RemoteManager.js';
 import type { RemoteDeviceMode } from '../remote/types.js';
 import { DEVICE_TTL_MS } from '../remote/RemoteAuthManager.js';
+import { errorCode, errorMessage, readProperty } from '../errors/errors.js';
 
 /** Persistent cookie (a session cookie is dropped by iOS when the web app is closed). */
 const DEVICE_COOKIE_MAX_AGE_S = Math.floor(DEVICE_TTL_MS / 1000);
@@ -240,10 +241,16 @@ export function createHttpServer(opts: HttpServerOptions): http.Server {
               })
             );
           })
-          .catch((err: any) => {
-            const status = err.status || (err.code === 'RATE_LIMITED' ? 429 : 401);
+          .catch((err: unknown) => {
+            const declaredStatus = readProperty(err, 'status');
+            const status =
+              typeof declaredStatus === 'number' && declaredStatus
+                ? declaredStatus
+                : errorCode(err) === 'RATE_LIMITED'
+                  ? 429
+                  : 401;
             res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
-            res.end(JSON.stringify({ ok: false, error: err.message, code: err.code }));
+            res.end(JSON.stringify({ ok: false, error: errorMessage(err), code: errorCode(err) }));
           });
         return;
       }
@@ -404,7 +411,7 @@ export function createHttpServer(opts: HttpServerOptions): http.Server {
       }
 
       const themesDir = path.join(os.homedir(), '.piframe', 'themes');
-      const themes: any[] = [];
+      const themes: unknown[] = [];
       if (fs.existsSync(themesDir)) {
         try {
           const files = fs.readdirSync(themesDir);

@@ -176,7 +176,7 @@ function readAgentsFromDir(
 
         // Extract aliases
         const aliasSet = new Set<string>();
-        const addAlias = (val: any) => {
+        const addAlias = (val: unknown) => {
           if (typeof val === 'string' && val.trim()) {
             aliasSet.add(val.trim());
           } else if (Array.isArray(val)) {

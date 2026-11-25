@@ -66,7 +66,7 @@ export class Spill {
     return events;
   }
 
-  public saveSnapshot(seq: number, snapshot: any): void {
+  public saveSnapshot(seq: number, snapshot: unknown): void {
     try {
       const snapFile = path.join(this.journalDir, `snapshot.${seq}.json`);
       const tempFile = `${snapFile}.tmp.${Date.now()}`;
@@ -101,7 +101,7 @@ export class Spill {
     }
   }
 
-  public loadLatestSnapshot(): { seq: number; snapshot: any } | null {
+  public loadLatestSnapshot(): { seq: number; snapshot: unknown } | null {
     if (!fs.existsSync(this.journalDir)) return null;
     try {
       const files = fs.readdirSync(this.journalDir);

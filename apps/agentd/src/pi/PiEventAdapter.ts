@@ -7,7 +7,11 @@ export interface SessionContext {
   lastUsage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number };
 }
 
-function checkUsage(rawEvent: PiEvent, ctx: SessionContext, results: Array<{ type: PcpEventType; payload: any }>) {
+function checkUsage(
+  rawEvent: PiEvent,
+  ctx: SessionContext,
+  results: Array<{ type: PcpEventType; payload: Record<string, unknown> }>
+) {
   const usage = rawEvent.usage || rawEvent.message?.usage;
   if (usage) {
     const inTokens = usage.input ?? usage.inputTokens;
@@ -22,8 +26,11 @@ function checkUsage(rawEvent: PiEvent, ctx: SessionContext, results: Array<{ typ
   }
 }
 
-export function adaptPiEvent(rawEvent: PiEvent, ctx: SessionContext): Array<{ type: PcpEventType; payload: any }> {
-  const results: Array<{ type: PcpEventType; payload: any }> = [];
+export function adaptPiEvent(
+  rawEvent: PiEvent,
+  ctx: SessionContext
+): Array<{ type: PcpEventType; payload: Record<string, unknown> }> {
+  const results: Array<{ type: PcpEventType; payload: Record<string, unknown> }> = [];
 
   const type = rawEvent.type;
 

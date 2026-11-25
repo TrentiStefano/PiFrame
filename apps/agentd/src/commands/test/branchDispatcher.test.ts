@@ -258,7 +258,7 @@ test('Dispatcher: switchBranch is rejected while session is read-only or busy', 
     session.isStreaming = false;
 
     // 3. Active tools running
-    session.activeTools.set('tool_1', { isRunning: true } as any);
+    session.activeTools.set('tool_1', { isRunning: true });
     await dispatcher.handle(conn, {
       protocol: 1,
       kind: 'command',

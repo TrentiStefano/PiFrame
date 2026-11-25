@@ -1,3 +1,4 @@
+import { readProperty } from '../../errors/errors.js';
 import test from 'node:test';
 import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
@@ -98,7 +99,7 @@ test('Dispatcher context policy: acknowledges applied settings and restores them
     response = await s.execute('agent.setCompactionReservePercent', { percent: 5 });
     assert.equal(response.payload.data.compactionReservePercent, 5);
     assert.equal(s.session.getSnapshot().runtime.compactionReservePercent, 5);
-    assert.equal(s.session.model.contextWindow, 1000000);
+    assert.equal(readProperty(s.session.model, 'contextWindow'), 1000000);
     const reopened = new Session({ id: s.session.id, cwd: home });
     assert.equal(reopened.contextWindowOverride, 200000);
     assert.equal(reopened.compactionReservePercent, 5);

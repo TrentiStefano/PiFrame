@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { getRuntimeDir } from './runtime.js';
+import { errorCode } from '../errors/errors.js';
 
 export interface LockHandle {
   release: () => void;
@@ -11,8 +12,8 @@ export function isPidAlive(pid: number): boolean {
   try {
     process.kill(pid, 0);
     return true;
-  } catch (err: any) {
-    return err.code === 'EPERM'; // Process exists but lacks permission to signal
+  } catch (err: unknown) {
+    return errorCode(err) === 'EPERM'; // Process exists but lacks permission to signal
   }
 }
 
@@ -43,8 +44,8 @@ export function acquireSingleInstanceLock(): LockHandle | null {
   // Attempt to write our PID exclusively
   try {
     fs.writeFileSync(lockFile, String(process.pid), { flag: 'wx', encoding: 'utf8' });
-  } catch (err: any) {
-    if (err.code === 'EEXIST') {
+  } catch (err: unknown) {
+    if (errorCode(err) === 'EEXIST') {
       // Race condition: another process just created it
       return null;
     }

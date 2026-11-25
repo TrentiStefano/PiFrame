@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { getPiFrameBaseDir } from '../config/config.js';
+import type { PiModelInfo } from './piCommands.js';
 import type { StdioPiTransport } from './StdioPiTransport.js';
 import type { ContextPolicy } from './contextPolicy.js';
 import { subagentBridgeExtension } from './subagentBridgeExtension.js';
@@ -290,7 +291,7 @@ export async function applyContextPolicy(worker: StdioPiTransport, policy: Conte
   return physicalModel(state.model);
 }
 
-export function physicalModel(model: any): any {
+export function physicalModel(model: PiModelInfo | null | undefined): PiModelInfo | null | undefined {
   if (!model || model.piframeOriginalContextWindow === undefined) return model;
   const { piframeOriginalContextWindow, piframeContextPolicy, piframeContextUsage, ...rest } = model;
   return { ...rest, contextWindow: piframeOriginalContextWindow };

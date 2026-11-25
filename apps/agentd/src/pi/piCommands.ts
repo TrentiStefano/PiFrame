@@ -42,3 +42,18 @@ export interface ExitInfo {
   signal: NodeJS.Signals | null;
   lastStderr: string[];
 }
+
+/** A model as Pi reports it. The fields the daemon reads are typed; the rest pass through unchanged. */
+export interface PiModelInfo {
+  provider?: string;
+  id?: string;
+  name?: string;
+  contextWindow?: number;
+  piframeOriginalContextWindow?: number;
+  [key: string]: unknown;
+}
+
+/** The model's fields when Pi reported it as an object; a bare model id has none. */
+export function modelInfoOf(model: PiModelInfo | string | null | undefined): PiModelInfo | undefined {
+  return typeof model === 'string' ? undefined : (model ?? undefined);
+}

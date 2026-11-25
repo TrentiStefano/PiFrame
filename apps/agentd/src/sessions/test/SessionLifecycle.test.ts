@@ -336,8 +336,8 @@ test('crash and recovery snapshots cannot revive running timers', async (t) => {
   t.mock.timers.setTime(13000);
   session.emitCustomEvent('worker.crashed', {});
   assert.equal(session.runStartedAt, null);
-  assert.equal(session.activeTools.get('cmd').isRunning, false);
-  assert.equal(session.activeTools.get('cmd').durationMs, 3000);
+  assert.equal(session.activeTools.get('cmd')?.isRunning, false);
+  assert.equal(session.activeTools.get('cmd')?.durationMs, 3000);
   t.mock.timers.setTime(20000);
   session.emitCustomEvent('session.status', { status: 'settled', reason: 'recovered_from_crash' });
   const snapshot = session.getSnapshot();

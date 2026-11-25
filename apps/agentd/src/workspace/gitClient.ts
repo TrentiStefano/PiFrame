@@ -1,8 +1,9 @@
-import { execFile } from 'node:child_process';
+import { execFile, type ExecFileOptionsWithStringEncoding } from 'node:child_process';
 import { promisify } from 'node:util';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { WorkspaceBranchInfo, WorkspaceListBranchesResult, WorkspaceSwitchBranchResult } from '@piframe/pcp-ts';
+import { createCodedError, errorCode, errorMessage, readProperty, type CodedError } from '../errors/errors.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -66,11 +67,19 @@ async function executeGit(
 ): Promise<string> {
   const wslInfo = parseWslPath(cwd);
   const gitArgs = ['-c', 'safe.directory=*', ...args];
-  const run = async (command: string, commandArgs: string[], options: any) => {
+  const run = async (
+    command: string,
+    commandArgs: string[],
+    options: ExecFileOptionsWithStringEncoding
+  ): Promise<string> => {
     try {
       return (await execFileAsync(command, commandArgs, options)).stdout;
-    } catch (error: any) {
-      if (acceptedExitCodes.includes(error?.code)) return error.stdout ?? '';
+    } catch (error: unknown) {
+      const code = errorCode(error);
+      if (typeof code === 'number' && acceptedExitCodes.includes(code)) {
+        const stdout = readProperty(error, 'stdout');
+        return typeof stdout === 'string' ? stdout : '';
+      }
       throw error;
     }
   };
@@ -83,8 +92,8 @@ async function executeGit(
         maxBuffer: 10 * 1024 * 1024,
         encoding: 'utf8'
       });
-    } catch (wslError: any) {
-      if (wslError?.code === 'ENOENT') {
+    } catch (wslError: unknown) {
+      if (errorCode(wslError) === 'ENOENT') {
         return await run('git', gitArgs, {
           cwd,
           timeout: timeoutMs,
@@ -120,12 +129,12 @@ async function runGit(args: string[], cwd: string, trim = true, timeoutMs = EXEC
 export async function runGitStrict(args: string[], cwd: string, timeoutMs = EXEC_TIMEOUT_MS): Promise<string> {
   try {
     return await executeGit(args, cwd, [], timeoutMs);
-  } catch (cause: any) {
-    const rawStderr = (cause?.stderr || cause?.message || 'Git command failed').trim();
-    const error: any = new Error(rawStderr);
-    error.code = 'GIT_FAILED';
-    error.stderr = rawStderr;
-    error.details = { args, exitCode: cause?.code, signal: cause?.signal };
+  } catch (cause: unknown) {
+    const rawStderr = String(readProperty(cause, 'stderr') || errorMessage(cause) || 'Git command failed').trim();
+    const error = Object.assign(createCodedError(rawStderr, 'GIT_FAILED'), {
+      stderr: rawStderr,
+      details: { args, exitCode: errorCode(cause), signal: readProperty(cause, 'signal') }
+    });
     throw error;
   }
 }
@@ -415,7 +424,7 @@ export async function isDetachedHead(cwd: string): Promise<boolean> {
 
 export async function validateBranchName(cwd: string, name: unknown): Promise<string> {
   if (typeof name !== 'string') {
-    const err: any = new Error('Branch name must be a string.');
+    const err: CodedError = new Error('Branch name must be a string.');
     err.code = 'BRANCH_INVALID_NAME';
     throw err;
   }
@@ -427,7 +436,7 @@ export async function validateBranchName(cwd: string, name: unknown): Promise<st
     name === 'HEAD' ||
     name.includes('@{')
   ) {
-    const err: any = new Error(`Invalid branch name: '${name}'.`);
+    const err: CodedError = new Error(`Invalid branch name: '${name}'.`);
     err.code = 'BRANCH_INVALID_NAME';
     throw err;
   }
@@ -435,12 +444,12 @@ export async function validateBranchName(cwd: string, name: unknown): Promise<st
   try {
     const output = await executeGit(['check-ref-format', '--branch', name], cwd);
     if (output.trim() !== name) {
-      const err: any = new Error(`Invalid branch name: '${name}'.`);
+      const err: CodedError = new Error(`Invalid branch name: '${name}'.`);
       err.code = 'BRANCH_INVALID_NAME';
       throw err;
     }
   } catch {
-    const err: any = new Error(`Invalid branch name: '${name}'.`);
+    const err: CodedError = new Error(`Invalid branch name: '${name}'.`);
     err.code = 'BRANCH_INVALID_NAME';
     throw err;
   }
@@ -606,7 +615,7 @@ export async function switchGitBranch(
   const dirtyState = await getGitDirtyState(cwd);
   if (dirtyState.isDirty) {
     if (onDirty === 'block') {
-      const err: any = new Error(
+      const err: CodedError = new Error(
         `Working directory has uncommitted changes (${dirtyState.changedFiles} changed, ${dirtyState.untrackedFiles} untracked).`
       );
       err.code = 'WORKSPACE_DIRTY';
@@ -652,12 +661,12 @@ export async function switchGitBranch(
       } else {
         await runGitStrict(['switch', '--no-guess', '--', branch], cwd, 30000);
       }
-    } catch (switchError: any) {
-      const rawStderr = (switchError.stderr || switchError.message || '').trim();
+    } catch (switchError: unknown) {
+      const rawStderr = String(readProperty(switchError, 'stderr') || errorMessage(switchError) || '').trim();
       const stderrTrimmed = rawStderr.slice(0, 2048);
 
       if (!createdStashSha) {
-        const err: any = new Error(`Failed to switch to branch '${branch}': ${stderrTrimmed}`);
+        const err: CodedError = new Error(`Failed to switch to branch '${branch}': ${stderrTrimmed}`);
         err.code = 'BRANCH_SWITCH_FAILED';
         err.details = { stderr: stderrTrimmed };
         throw err;
@@ -665,7 +674,7 @@ export async function switchGitBranch(
 
       const targetRef = await resolveStashRefBySha(cwd, createdStashSha);
       if (!targetRef) {
-        const err: any = new Error(
+        const err: CodedError = new Error(
           `Failed to switch to branch '${branch}', and stash could not be restored: ${stderrTrimmed}`
         );
         err.code = 'BRANCH_SWITCH_FAILED';
@@ -683,8 +692,8 @@ export async function switchGitBranch(
         } else {
           await runGitStrict(['stash', 'pop', targetRef], cwd, 30000);
         }
-      } catch (popError: any) {
-        const err: any = new Error(
+      } catch (popError: unknown) {
+        const err: CodedError = new Error(
           `Failed to switch to branch '${branch}', and stash could not be restored: ${stderrTrimmed}`
         );
         err.code = 'BRANCH_SWITCH_FAILED';
@@ -696,7 +705,7 @@ export async function switchGitBranch(
         throw err;
       }
 
-      const err: any = new Error(`Failed to switch to branch '${branch}': ${stderrTrimmed}`);
+      const err: CodedError = new Error(`Failed to switch to branch '${branch}': ${stderrTrimmed}`);
       err.code = 'BRANCH_SWITCH_FAILED';
       err.details = { stderr: stderrTrimmed };
       throw err;
@@ -716,10 +725,10 @@ export async function switchGitBranch(
     } else {
       await runGitStrict(['switch', '--no-guess', '--', branch], cwd, 30000);
     }
-  } catch (switchError: any) {
-    const rawStderr = (switchError.stderr || switchError.message || '').trim();
+  } catch (switchError: unknown) {
+    const rawStderr = String(readProperty(switchError, 'stderr') || errorMessage(switchError) || '').trim();
     const stderrTrimmed = rawStderr.slice(0, 2048);
-    const err: any = new Error(`Failed to switch to branch '${branch}': ${stderrTrimmed}`);
+    const err: CodedError = new Error(`Failed to switch to branch '${branch}': ${stderrTrimmed}`);
     err.code = 'BRANCH_SWITCH_FAILED';
     err.details = { stderr: stderrTrimmed };
     throw err;

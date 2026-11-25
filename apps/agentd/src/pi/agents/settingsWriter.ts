@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { withFileLock, type LockOptions, type LockHandle } from './lockfile.js';
 import { ensureSubagentContextLimitExtension } from './subagentContextLimitExtension.js';
 import type { PiAgentChange } from '@piframe/pcp-ts';
+import { errorCode, errorMessage } from '../../errors/errors.js';
 
 export interface SettingsWriterLockOptions extends LockOptions {
   hookAfterRead?: (filePath: string) => Promise<void> | void;
@@ -23,8 +24,8 @@ export function readSettingsFile(filePath: string): Record<string, any> {
   let content: string;
   try {
     content = fs.readFileSync(filePath, 'utf8');
-  } catch (err: any) {
-    const error = new Error(`Cannot read ${path.basename(filePath)}: ${err?.message}`);
+  } catch (err: unknown) {
+    const error = new Error(`Cannot read ${path.basename(filePath)}: ${errorMessage(err)}`);
     throw Object.assign(error, { code: 'AGENTS_CONFIG_UNREADABLE' });
   }
 
@@ -39,7 +40,7 @@ export function readSettingsFile(filePath: string): Record<string, any> {
       throw new Error('Not a valid JSON object');
     }
     return parsed;
-  } catch (parseErr: any) {
+  } catch (parseErr: unknown) {
     const error = new Error(`Syntax error reading ${path.basename(filePath)}: not valid JSON`);
     throw Object.assign(error, { code: 'AGENTS_CONFIG_UNREADABLE' });
   }
@@ -67,9 +68,9 @@ export async function renameWithRetry(
     try {
       doRename(tempFile, targetFile);
       return;
-    } catch (err: any) {
+    } catch (err: unknown) {
       attempt++;
-      const isRetryable = err?.code === 'EPERM' || err?.code === 'EBUSY' || err?.code === 'EACCES';
+      const isRetryable = errorCode(err) === 'EPERM' || errorCode(err) === 'EBUSY' || errorCode(err) === 'EACCES';
       if (!isRetryable || attempt >= maxRetries) {
         throw err;
       }
@@ -84,7 +85,7 @@ export async function renameWithRetry(
  */
 export async function writeJsonAtomicallyWithBackup(
   filePath: string,
-  content: any,
+  content: unknown,
   options?: SettingsWriterLockOptions
 ): Promise<void> {
   await writeTextAtomicallyWithBackup(filePath, JSON.stringify(content, null, 2) + '\n', options);

@@ -3,7 +3,10 @@ export interface ParsedFrontmatter {
   body: string;
 }
 
-function parseScalar(raw: string): any {
+/** A YAML scalar or flow sequence as the frontmatter reader returns it. */
+type FrontmatterValue = string | number | boolean | null | FrontmatterValue[];
+
+function parseScalar(raw: string): FrontmatterValue {
   const trimmed = raw.trim();
   if (trimmed === 'true' || trimmed === 'yes') return true;
   if (trimmed === 'false' || trimmed === 'no') return false;

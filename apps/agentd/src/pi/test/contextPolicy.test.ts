@@ -91,8 +91,8 @@ test('runtime extension: native compaction fires at selected tier, not full mode
   const shouldCompact = (tokens: number) => tokens > r.ctx.model.contextWindow - 16384;
   assert.equal(shouldCompact(194999), false);
   assert.equal(shouldCompact(195000), true);
-  assert.equal(physicalModel(r.ctx.model).contextWindow, 1000000);
-  assert.equal(physicalModel(r.ctx.model).piframeContextPolicy, undefined);
+  assert.equal(physicalModel(r.ctx.model)?.contextWindow, 1000000);
+  assert.equal(physicalModel(r.ctx.model)?.piframeContextPolicy, undefined);
   await r.setPolicy(1000000, 5);
   assert.equal(shouldCompact(949999), false);
   assert.equal(shouldCompact(950000), true);

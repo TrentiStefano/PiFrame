@@ -1,6 +1,14 @@
 import type { WebSocket } from 'ws';
 import { ulid } from 'ulid';
-import type { ServerMessage, PcpEnvelope, PcpWelcomePayload, PcpError } from '@piframe/pcp-ts';
+import type {
+  ServerMessage,
+  PcpEnvelope,
+  PcpWelcomePayload,
+  PcpError,
+  PcpCommand,
+  PcpMessage,
+  ClientMessage
+} from '@piframe/pcp-ts';
 import { parseIncoming, encode } from '@piframe/pcp-ts';
 import { timingSafeEqualStrings } from '../auth/auth.js';
 import type { RemoteManager } from '../remote/RemoteManager.js';
@@ -17,7 +25,7 @@ export interface ConnectionOptions {
   remoteManager?: RemoteManager;
   viaRemoteListener?: boolean;
   clientIp?: string;
-  onCommand: (conn: Connection, cmd: any) => Promise<void>;
+  onCommand: (conn: Connection, cmd: PcpCommand) => Promise<void>;
   onAttach?: (conn: Connection, sessionId: string, lastSeq: number | null, commandId?: string) => Promise<void>;
   onDetach?: (conn: Connection, sessionId: string) => Promise<void>;
   onClose: (conn: Connection) => void;
@@ -52,7 +60,7 @@ export class Connection {
   private startedAt: number;
   private piInfo: { path: string; version: string; supported: boolean };
   private remoteManager?: RemoteManager;
-  private onCommandCallback: (conn: Connection, cmd: any) => Promise<void>;
+  private onCommandCallback: (conn: Connection, cmd: PcpCommand) => Promise<void>;
   private onAttachCallback?: (
     conn: Connection,
     sessionId: string,
@@ -136,17 +144,6 @@ export class Connection {
       return;
     }
 
-    if ((msg as any).kind === 'ping') {
-      this.send({
-        protocol: 1,
-        kind: 'pong',
-        id: `pong_${Date.now()}`,
-        ts: Date.now(),
-        payload: {}
-      } as any);
-      return;
-    }
-
     if (msg.kind === 'pong') {
       if (this.pongTimeout) {
         clearTimeout(this.pongTimeout);
@@ -190,10 +187,11 @@ export class Connection {
     }
   }
 
-  private async executeCommand(msg: any): Promise<void> {
+  private async executeCommand(msg: PcpCommand): Promise<void> {
     if (msg.type === 'session.attach') {
       if (!msg.sessionId) throw new Error('sessionId required');
-      await this.onAttachCallback?.(this, msg.sessionId, msg.payload?.lastSeq ?? null, msg.commandId);
+      const lastSeq = typeof msg.payload?.lastSeq === 'number' ? msg.payload.lastSeq : null;
+      await this.onAttachCallback?.(this, msg.sessionId, lastSeq, msg.commandId);
       this.attachedSessions.add(msg.sessionId);
     } else if (msg.type === 'session.detach' && msg.sessionId) {
       await this.onDetachCallback?.(this, msg.sessionId);
@@ -202,7 +200,7 @@ export class Connection {
     await this.onCommandCallback(this, msg);
   }
 
-  private handleHello(msg: any): void {
+  private handleHello(msg: Extract<ClientMessage, { kind: 'hello' }>): void {
     if (this.handshakeTimer) {
       clearTimeout(this.handshakeTimer);
       this.handshakeTimer = undefined;
@@ -235,10 +233,8 @@ export class Connection {
     } else {
       // LOCAL LISTENER: accepts master token (desktop app) or device token
       const isMaster = timingSafeEqualStrings(token, this.expectedToken);
-      let matchedDevice: any = null;
-      if (!isMaster && this.remoteManager) {
-        matchedDevice = this.remoteManager.getAuthManager().verifyDeviceToken(token);
-      }
+      const matchedDevice =
+        !isMaster && this.remoteManager ? this.remoteManager.getAuthManager().verifyDeviceToken(token) : null;
 
       if (!isMaster && !matchedDevice) {
         this.authFailed = true;
@@ -316,7 +312,7 @@ export class Connection {
       return false;
     }
 
-    const serialized = encode(msg as any);
+    const serialized = encode(msg as PcpMessage);
     const byteLength = Buffer.byteLength(serialized);
 
     // Check backpressure buffer
@@ -335,8 +331,8 @@ export class Connection {
           kind: 'event',
           id: `gap_${ulid()}`,
           ts: Date.now(),
-          sessionId: (msg as any).sessionId || '@daemon',
-          seq: (msg as any).seq || 0,
+          sessionId: msg.sessionId || '@daemon',
+          seq: msg.seq || 0,
           type: 'journal.gap',
           payload: { reason: 'Client buffer overrun: re-attach required' }
         });

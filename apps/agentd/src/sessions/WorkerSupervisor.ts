@@ -1,3 +1,4 @@
+import { modelInfoOf } from '../pi/piCommands.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { getPiFrameBaseDir } from '../config/config.js';
@@ -7,6 +8,7 @@ import type { PiCapabilities } from '../pi/piCommands.js';
 import { SessionIndex } from './SessionIndex.js';
 import { ensureContextLimitExtension, applyContextPolicy, physicalModel } from '../pi/contextLimitExtension.js';
 import { DEFAULT_COMPACTION_RESERVE_PERCENT, writeContextPolicy } from '../pi/contextPolicy.js';
+import { errorMessage } from '../errors/errors.js';
 
 export interface WorkerSupervisorOptions {
   piExecutablePath: string;
@@ -135,7 +137,7 @@ export class WorkerSupervisor {
         session.contextWindowOverride !== null ||
         session.compactionReservePercent !== DEFAULT_COMPACTION_RESERVE_PERCENT
       ) {
-        const maximum = session.model?.contextWindow;
+        const maximum = modelInfoOf(session.model)?.contextWindow;
         if (
           typeof maximum === 'number' &&
           session.contextWindowOverride !== null &&
@@ -190,10 +192,10 @@ export class WorkerSupervisor {
         this.touch(session.id);
         session.dispatchPiEvent(event);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       session.emitCustomEvent('worker.diagnostic', {
         level: 'warn',
-        message: `Event pump error: ${err.message}`,
+        message: `Event pump error: ${errorMessage(err)}`,
         source: 'supervisor'
       });
     } finally {

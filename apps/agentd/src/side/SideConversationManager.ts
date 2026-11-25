@@ -8,15 +8,17 @@ import { adaptPiEvent } from '../pi/PiEventAdapter.js';
 import type { ConnectionManager } from '../server/wsServer.js';
 import type { Connection } from '../server/connection.js';
 import type { SessionRegistry } from '../sessions/SessionRegistry.js';
-import type { PcpEvent } from '@piframe/pcp-ts';
+import type { PcpAck, PcpEnvelope, PcpEvent } from '@piframe/pcp-ts';
 import { SideTransport } from './SideTransport.js';
 import {
   renderConversationSnapshot,
   writeSideContextFile,
   cleanupSideContextDir,
   cleanStaleSideDirs,
-  DEFAULT_MAX_SNAPSHOT_CHARS
+  DEFAULT_MAX_SNAPSHOT_CHARS,
+  type SnapshotEntry
 } from './SideSnapshotRenderer.js';
+import { errorCode, errorMessage, readProperty, type CodedError } from '../errors/errors.js';
 
 export const ALLOWED_SIDE_TOOLS = new Set(['read', 'grep', 'find', 'ls']);
 export const DEFAULT_SIDE_IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
@@ -52,7 +54,7 @@ export interface SideThread {
   idleTimeoutMs: number;
   attachedClientIds: Set<string>;
   closed: boolean;
-  model: any;
+  model: unknown;
   pumpPromise?: Promise<void>;
 }
 
@@ -132,8 +134,8 @@ export class SideConversationManager {
 
     const parentSession = this.sessionRegistry.getSession(opts.parentSessionId);
     if (!parentSession) {
-      const err = new Error(`Parent session ${opts.parentSessionId} not found`);
-      (err as any).code = 'SESSION_NOT_FOUND';
+      const err: CodedError = new Error(`Parent session ${opts.parentSessionId} not found`);
+      err.code = 'SESSION_NOT_FOUND';
       throw err;
     }
 
@@ -150,7 +152,7 @@ export class SideConversationManager {
           console.error(`[SideConversationManager] Auto-prompt failed for ${existing.sideId}:`, err);
           const t = this.threads.get(existing.sideId);
           if (t && !t.closed) {
-            this.emitDiagnostic(t, err?.message || String(err), 'error');
+            this.emitDiagnostic(t, errorMessage(err) || String(err), 'error');
             await this.close(existing.sideId, 'error').catch(() => {});
           }
         });
@@ -160,8 +162,8 @@ export class SideConversationManager {
 
     // 2. Max 4 total side threads limit
     if (this.threads.size >= this.maxConversations) {
-      const err = new Error(`Maximum concurrent side conversations (${this.maxConversations}) reached`);
-      (err as any).code = 'SIDE_LIMIT_REACHED';
+      const err: CodedError = new Error(`Maximum concurrent side conversations (${this.maxConversations}) reached`);
+      err.code = 'SIDE_LIMIT_REACHED';
       throw err;
     }
 
@@ -169,7 +171,7 @@ export class SideConversationManager {
     const streamId = sideId;
 
     // 3. Obtain conversation messages for snapshot
-    let messages: any[] = [];
+    let messages: SnapshotEntry[] = [];
     if (parentSession.worker && parentSession.worker.health().alive) {
       try {
         const res = await parentSession.worker.send({ command: 'get_messages' });
@@ -236,25 +238,25 @@ export class SideConversationManager {
     const worker = new SideTransport(rawWorker);
 
     // 7. Verify active tools if exposed via get_state
-    let stateData: any;
+    let stateData: { tools?: unknown; activeTools?: unknown; model?: unknown } | undefined;
     try {
       const stateRes = await worker.send({ command: 'get_state' });
       stateData = stateRes?.data;
       const exposedTools = stateData?.tools || stateData?.activeTools;
       if (Array.isArray(exposedTools)) {
         for (const t of exposedTools) {
-          const name = typeof t === 'string' ? t : t?.name;
-          if (name && !ALLOWED_SIDE_TOOLS.has(name)) {
+          const name = typeof t === 'string' ? t : readProperty(t, 'name');
+          if (name && (typeof name !== 'string' || !ALLOWED_SIDE_TOOLS.has(name))) {
             await rawWorker.stop({ graceMs: 500 });
             cleanupSideContextDir(this.baseDir, sideId);
-            const err = new Error(`Unsafe tool "${name}" exposed to side conversation`);
-            (err as any).code = 'SIDE_UNSAFE_TOOLS';
+            const err: CodedError = new Error(`Unsafe tool "${name}" exposed to side conversation`);
+            err.code = 'SIDE_UNSAFE_TOOLS';
             throw err;
           }
         }
       }
-    } catch (checkErr: any) {
-      if (checkErr?.code === 'SIDE_UNSAFE_TOOLS') {
+    } catch (checkErr: unknown) {
+      if (errorCode(checkErr) === 'SIDE_UNSAFE_TOOLS') {
         throw checkErr;
       }
       // If get_state failed for other reasons, abort
@@ -323,7 +325,7 @@ export class SideConversationManager {
         console.error(`[SideConversationManager] Auto-prompt failed for ${sideId}:`, err);
         const t = this.threads.get(sideId);
         if (t && !t.closed) {
-          this.emitDiagnostic(t, err?.message || String(err), 'error');
+          this.emitDiagnostic(t, errorMessage(err) || String(err), 'error');
           await this.close(sideId, 'error').catch(() => {});
         }
       });
@@ -335,8 +337,8 @@ export class SideConversationManager {
   public async prompt(sideId: string, text: string): Promise<{ prompted: true }> {
     const thread = this.threads.get(sideId);
     if (!thread || thread.closed) {
-      const err = new Error(`Side conversation ${sideId} not found`);
-      (err as any).code = 'SIDE_NOT_FOUND';
+      const err: CodedError = new Error(`Side conversation ${sideId} not found`);
+      err.code = 'SIDE_NOT_FOUND';
       throw err;
     }
 
@@ -348,8 +350,8 @@ export class SideConversationManager {
   public async abort(sideId: string): Promise<{ aborted: true }> {
     const thread = this.threads.get(sideId);
     if (!thread || thread.closed) {
-      const err = new Error(`Side conversation ${sideId} not found`);
-      (err as any).code = 'SIDE_NOT_FOUND';
+      const err: CodedError = new Error(`Side conversation ${sideId} not found`);
+      err.code = 'SIDE_NOT_FOUND';
       throw err;
     }
 
@@ -361,8 +363,8 @@ export class SideConversationManager {
   public async close(sideId: string, reason: SideCloseReason = 'user'): Promise<{ closed: true }> {
     const thread = this.threads.get(sideId);
     if (!thread || thread.closed) {
-      const err = new Error(`Side conversation ${sideId} not found`);
-      (err as any).code = 'SIDE_NOT_FOUND';
+      const err: CodedError = new Error(`Side conversation ${sideId} not found`);
+      err.code = 'SIDE_NOT_FOUND';
       throw err;
     }
 
@@ -425,8 +427,8 @@ export class SideConversationManager {
   ): Promise<void> {
     const thread = this.getSideByStreamId(streamId);
     if (!thread) {
-      const err = new Error(`Side conversation stream ${streamId} not found`);
-      (err as any).code = 'SIDE_NOT_FOUND';
+      const err: CodedError = new Error(`Side conversation stream ${streamId} not found`);
+      err.code = 'SIDE_NOT_FOUND';
       throw err;
     }
 
@@ -472,7 +474,7 @@ export class SideConversationManager {
         type: 'command.ack',
         sessionId: streamId,
         payload: { state: 'snapshot' }
-      } as any);
+      } as PcpEnvelope);
 
       for (const evt of thread.eventsBuffer) {
         conn.send(evt);
@@ -488,7 +490,7 @@ export class SideConversationManager {
         type: 'command.ack',
         sessionId: streamId,
         payload: { state: 'resume' }
-      } as any);
+      } as PcpAck);
 
       for (const evt of thread.eventsBuffer) {
         if (evt.seq > lastSeq) {

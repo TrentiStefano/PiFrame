@@ -8,6 +8,7 @@ import { JsonlFramer } from './jsonlFramer.js';
 import { resolvePiLaunch } from './executable.js';
 import { getAugmentedEnv } from './env.js';
 import { parseWslPath } from '../workspace/gitClient.js';
+import { errorMessage } from '../errors/errors.js';
 
 /**
  * A \\wsl.localhost cwd is served by the WSL VM. When the VM has stopped (idle timeout, e.g. after sleep)
@@ -166,7 +167,7 @@ export class StdioPiTransport implements PiTransport {
     await spawned;
   }
 
-  private handleIncomingObject(obj: any): void {
+  private handleIncomingObject(obj: PiResponse | PiEvent): void {
     if (obj.type === 'response') {
       const resp = obj as PiResponse;
       if (resp.id) {
@@ -255,7 +256,7 @@ export class StdioPiTransport implements PiTransport {
                 this.enqueueEvent({
                   type: 'worker.diagnostic',
                   level: 'error',
-                  message: `Pi rejected the prompt after a slow acknowledgement: ${err.message}`,
+                  message: `Pi rejected the prompt after a slow acknowledgement: ${errorMessage(err)}`,
                   source: 'pi'
                 });
             }

@@ -12,18 +12,31 @@ export function isTemporarySessionCwd(cwd: string, tempDir = os.tmpdir()): boole
   );
 }
 
-function messageText(message: any): string {
+/** A transcript entry or message as read from JSON. Fields are narrowed where they are read. */
+type JsonRecord = Record<string, unknown>;
+
+function isJsonRecord(value: unknown): value is JsonRecord {
+  return typeof value === 'object' && value !== null;
+}
+
+function messageText(message: unknown): string {
+  if (!isJsonRecord(message)) return '';
+  const content = message.content;
   let text =
-    typeof message.content === 'string'
-      ? message.content
-      : Array.isArray(message.content)
-        ? message.content
-            .filter((block: any) => block.type === 'text')
-            .map((block: any) => block.text || '')
+    typeof content === 'string'
+      ? content
+      : Array.isArray(content)
+        ? content
+            .filter((block): block is JsonRecord => isJsonRecord(block) && block.type === 'text')
+            .map((block) => String(block.text || ''))
             .join('')
         : '';
-  if (!text && message.role === 'bashExecution') text = message.command ? `!${message.command}` : message.output || '';
-  if (!text && (message.role === 'branchSummary' || message.role === 'compactionSummary')) text = message.summary || '';
+  if (!text && message.role === 'bashExecution') {
+    text = message.command ? `!${String(message.command)}` : String(message.output || '');
+  }
+  if (!text && (message.role === 'branchSummary' || message.role === 'compactionSummary')) {
+    text = String(message.summary || '');
+  }
   return text;
 }
 
@@ -31,13 +44,13 @@ function messageText(message: any): string {
 export const FIRST_PROMPT_MAX_LENGTH = 120;
 
 /** The prompt text when [message] is a user message, else an empty string. */
-function firstPromptOf(message: any): string {
-  if (message?.role !== 'user') return '';
+function firstPromptOf(message: unknown): string {
+  if (!isJsonRecord(message) || message.role !== 'user') return '';
   return messageText(message).replace(/\s+/g, ' ').trim().slice(0, FIRST_PROMPT_MAX_LENGTH);
 }
 
 function parseCost(value: unknown): number | undefined {
-  const raw = typeof value === 'object' && value !== null ? ((value as any).total ?? (value as any).amount) : value;
+  const raw = isJsonRecord(value) ? (value.total ?? value.amount) : value;
   return typeof raw === 'number' && Number.isFinite(raw) && raw >= 0 ? raw : undefined;
 }
 
@@ -669,11 +682,11 @@ export class SessionIndex {
   }
 
   public readTranscript(filePath: string, content?: string): Array<Record<string, unknown>> {
-    const entries: any[] = [];
+    const entries: JsonRecord[] = [];
     for (const line of (content ?? fs.readFileSync(filePath, 'utf8')).split('\n')) {
       try {
-        const entry = JSON.parse(line);
-        if (entry.type !== 'session') entries.push(entry);
+        const entry: unknown = JSON.parse(line);
+        if (isJsonRecord(entry) && entry.type !== 'session') entries.push(entry);
       } catch {
         /* An active terminal may have an unfinished final line. */
       }
@@ -681,19 +694,20 @@ export class SessionIndex {
     return SessionIndex.projectTranscript(entries);
   }
 
-  public static projectTranscript(entries: any[]): Array<Record<string, unknown>> {
-    const byId = new Map(entries.filter((e) => e.id).map((e) => [e.id, e]));
-    const branch: any[] = [];
-    const visited = new Set<string>();
-    let cursor = entries.at(-1);
+  public static projectTranscript(entries: JsonRecord[]): Array<Record<string, unknown>> {
+    const byId = new Map<unknown, JsonRecord>(entries.filter((e) => e.id).map((e) => [e.id, e]));
+    const branch: JsonRecord[] = [];
+    const visited = new Set<unknown>();
+    let cursor: JsonRecord | undefined = entries.at(-1);
     while (cursor && cursor.id && !visited.has(cursor.id)) {
       visited.add(cursor.id);
       branch.unshift(cursor);
       cursor = byId.get(cursor.parentId);
     }
+    const messageOf = (entry: JsonRecord): JsonRecord => (isJsonRecord(entry.message) ? entry.message : entry);
     return (branch.length ? branch : entries)
-      .filter((entry) => (entry.type === 'message' || entry.role) && (entry.message || entry).role !== 'system')
-      .map((entry) => ({ ...(entry.message || entry), id: entry.id }));
+      .filter((entry) => (entry.type === 'message' || entry.role) && messageOf(entry).role !== 'system')
+      .map((entry) => ({ ...messageOf(entry), id: entry.id }));
   }
 
   private makeSummary(
@@ -1392,14 +1406,15 @@ function oneLine(text: string, max: number): string {
 }
 
 /** Folds one session-file entry into the child's live state. */
-export function trackChildLiveState(live: ChildLiveState, entry: any): void {
-  if (entry?.type === 'session' && typeof entry.timestamp === 'string') {
+export function trackChildLiveState(live: ChildLiveState, entry: unknown): void {
+  if (!isJsonRecord(entry)) return;
+  if (entry.type === 'session' && typeof entry.timestamp === 'string') {
     const startedAt = Date.parse(entry.timestamp);
     if (Number.isFinite(startedAt)) live.startedAt = startedAt;
     return;
   }
-  const message = entry?.type === 'message' ? entry.message : undefined;
-  if (!message) return;
+  const message = entry.type === 'message' ? entry.message : undefined;
+  if (!isJsonRecord(message)) return;
   if (message.role === 'user') {
     if (live.prompt === undefined) {
       const lines = messageText(message)
@@ -1419,18 +1434,21 @@ export function trackChildLiveState(live: ChildLiveState, entry: any): void {
     return;
   }
   if (message.role !== 'assistant') return;
-  const blocks = Array.isArray(message.content) ? message.content : [];
-  const calls = blocks.filter((block: any) => block?.type === 'toolCall');
+  const blocks: unknown[] = Array.isArray(message.content) ? message.content : [];
+  const calls = blocks.filter((block): block is JsonRecord => isJsonRecord(block) && block.type === 'toolCall');
   const lastCall = calls[calls.length - 1];
   if (lastCall) {
-    const args = lastCall.arguments ?? {};
-    const key = ACTIVITY_ARG_KEYS.find((name) => typeof args[name] === 'string' && args[name].trim());
+    const args: JsonRecord = isJsonRecord(lastCall.arguments) ? lastCall.arguments : {};
+    const key = ACTIVITY_ARG_KEYS.find((name) => {
+      const value = args[name];
+      return typeof value === 'string' && value.trim() !== '';
+    });
     live.activity = oneLine(key ? `${lastCall.name}: ${args[key]}` : String(lastCall.name ?? 'tool'), 140);
   } else {
     const text =
       blocks
-        .filter((block: any) => block?.type === 'text')
-        .map((block: any) => block.text)
+        .filter((block): block is JsonRecord => isJsonRecord(block) && block.type === 'text')
+        .map((block) => block.text)
         .join('\n') || (typeof message.content === 'string' ? message.content : '');
     const lastLine = text
       .split('\n')

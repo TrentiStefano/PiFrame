@@ -17,6 +17,7 @@ import {
   type GitStatusResult,
   type GitSwitchHooks
 } from './gitClient.js';
+import { errorCode } from '../errors/errors.js';
 
 type FileInfo = { path: string; sizeBytes: number };
 
@@ -192,8 +193,8 @@ export class WorkspaceService {
             }
             if (!inside(root, await canonicalParent)) return null;
             return { path: relativePath, sizeBytes: entry.size };
-          } catch (error: any) {
-            if (error?.code !== 'ENOENT') throw error;
+          } catch (error: unknown) {
+            if (errorCode(error) !== 'ENOENT') throw error;
             return null;
           }
         })
@@ -334,8 +335,8 @@ export class WorkspaceService {
           );
           if (change.stagedStatus === 'A' && !existsInHead) {
             await runGitStrict(['rm', '--cached', '--force', '--', item], root);
-            await fs.promises.unlink(target).catch((error: any) => {
-              if (error?.code !== 'ENOENT') throw error;
+            await fs.promises.unlink(target).catch((error: unknown) => {
+              if (errorCode(error) !== 'ENOENT') throw error;
             });
           } else {
             await runGitStrict(['restore', '--source=HEAD', '--staged', '--worktree', '--', item], root);
@@ -411,8 +412,8 @@ export class WorkspaceService {
       if (!entry.isSymbolicLink() && !inside(root, realTarget))
         throw workspaceError('Path escapes repository root.', 'WORKSPACE_PATH_INVALID');
       return forWrite ? target : realTarget;
-    } catch (error: any) {
-      if (error?.code !== 'ENOENT') throw error;
+    } catch (error: unknown) {
+      if (errorCode(error) !== 'ENOENT') throw error;
       if (!allowMissing) throw workspaceError('File does not exist.', 'WORKSPACE_FILE_NOT_FOUND');
       return target;
     }
@@ -426,8 +427,8 @@ export class WorkspaceService {
       if (stat.size > MAX_FILE_BYTES)
         throw workspaceError(`File exceeds ${MAX_FILE_BYTES} byte limit.`, 'WORKSPACE_FILE_TOO_LARGE');
       bytes = await fs.promises.readFile(target);
-    } catch (error: any) {
-      if (error?.code === 'ENOENT')
+    } catch (error: unknown) {
+      if (errorCode(error) === 'ENOENT')
         throw workspaceError('File changed or was removed; reload before saving.', 'WORKSPACE_REVISION_CONFLICT');
       throw error;
     }

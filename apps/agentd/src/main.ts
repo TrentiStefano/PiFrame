@@ -85,7 +85,8 @@ async function main() {
     httpServer.on('error', reject);
   });
 
-  const boundAddr = httpServer.address() as any;
+  const boundAddr = httpServer.address();
+  if (!boundAddr || typeof boundAddr === 'string') throw new Error('Local HTTP server has no TCP address');
   const actualPort = boundAddr.port;
   console.log(`[agentd] Local HTTP/WS server bound strictly to 127.0.0.1:${actualPort}`);
 
@@ -106,7 +107,10 @@ async function main() {
     remoteHttpServer.on('error', reject);
   });
 
-  const remoteBoundAddr = remoteHttpServer.address() as any;
+  const remoteBoundAddr = remoteHttpServer.address();
+  if (!remoteBoundAddr || typeof remoteBoundAddr === 'string') {
+    throw new Error('Remote HTTP server has no TCP address');
+  }
   const actualRemotePort = remoteBoundAddr.port;
   console.log(`[agentd] Dedicated remote listener bound to 127.0.0.1:${actualRemotePort}`);
   remoteManager.setListenerPort(actualRemotePort);

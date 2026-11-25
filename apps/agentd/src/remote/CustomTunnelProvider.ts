@@ -1,6 +1,7 @@
 import * as child_process from 'node:child_process';
 import { validateCustomTunnelUrl } from '../config/config.js';
 import { BaseTunnelProvider, killProcessTree, parseCommandLine, type TunnelStartResult } from './TunnelProvider.js';
+import { errorMessage } from '../errors/errors.js';
 
 export interface CustomTunnelOptions {
   url?: string;
@@ -30,8 +31,8 @@ export class CustomTunnelProvider extends BaseTunnelProvider {
     let url: string;
     try {
       url = validateCustomTunnelUrl(this.options.url);
-    } catch (err: any) {
-      const message = this.options.url ? err.message : 'Custom tunnel requires a public https URL';
+    } catch (err: unknown) {
+      const message = this.options.url ? errorMessage(err) : 'Custom tunnel requires a public https URL';
       this.setState('error', { error: message });
       throw new Error(message);
     }
@@ -45,8 +46,8 @@ export class CustomTunnelProvider extends BaseTunnelProvider {
         if (first === undefined) throw new Error('Empty tunnel command.');
         exe = first;
         args = rest;
-      } catch (err: any) {
-        this.setState('error', { error: err.message });
+      } catch (err: unknown) {
+        this.setState('error', { error: errorMessage(err) });
         throw err;
       }
 
@@ -63,15 +64,15 @@ export class CustomTunnelProvider extends BaseTunnelProvider {
           proc.once('spawn', () => resolve());
           proc.once('error', reject);
         });
-      } catch (err: any) {
+      } catch (err: unknown) {
         this.process = undefined;
-        this.setState('error', { error: `Tunnel command failed to start: ${err.message}` });
-        throw new Error(`Tunnel command failed to start: ${err.message}`);
+        this.setState('error', { error: `Tunnel command failed to start: ${errorMessage(err)}` });
+        throw new Error(`Tunnel command failed to start: ${errorMessage(err)}`);
       }
 
       proc.on('error', (err) => {
         if (this.process !== proc) return;
-        this.setState('error', { error: err.message, url: null });
+        this.setState('error', { error: errorMessage(err), url: null });
       });
       proc.on('exit', (code, signal) => {
         if (this.process !== proc) return;
