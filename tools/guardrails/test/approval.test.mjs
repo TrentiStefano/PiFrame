@@ -317,3 +317,49 @@ test('golden reference images are guarded, so a visual change needs approval', (
     assert.match(result.reasons.join('\n'), /golden reference image changed/, path);
   }
 });
+
+const GOLDEN_LINK = (path) => `https://github.com/acme/app/pull/7/files#diff-${path}`;
+
+test('the comment lists each changed golden image by file name, linked to its Files changed anchor', () => {
+  const result = approvalStatus({
+    baseBaseline: baseline(40),
+    headBaseline: baseline(40),
+    changedPaths: ['apps/pi_frame/test/goldens/settings_dark.png', 'apps/pi_frame/test/goldens/welcome_light.png'],
+    labelEvents: [],
+    ciRunTimes: ['2026-11-20T10:00:00Z'],
+    goldenFileLink: GOLDEN_LINK
+  });
+  assert.equal(result.status, 'needed');
+  assert.match(
+    result.comment,
+    /\[welcome_light\.png\]\(https:\/\/github\.com\/acme\/app\/pull\/7\/files#diff-apps\/pi_frame\/test\/goldens\/welcome_light\.png\)/
+  );
+  assert.match(result.comment, /\[settings_dark\.png\]\(https:\/\/github\.com\/acme\/app\/pull\/7\/files#diff-/);
+});
+
+test('golden images are listed in an approved comment too', () => {
+  const result = approvalStatus({
+    baseBaseline: baseline(40),
+    headBaseline: baseline(40),
+    changedPaths: ['apps/pi_frame/test/goldens/welcome_light.png'],
+    labelEvents: [{ action: 'labeled', label: 'human-approved', at: '2026-11-20T10:05:00Z', actor: 'maintainer' }],
+    ciRunTimes: ['2026-11-20T10:00:00Z'],
+    goldenFileLink: GOLDEN_LINK
+  });
+  assert.equal(result.status, 'approved');
+  assert.match(result.comment, /\[welcome_light\.png\]\(https:\/\/github\.com\/acme\/app\/pull\/7\/files#diff-/);
+});
+
+test('without golden images the comment is unchanged by the link function', () => {
+  const input = {
+    baseBaseline: baseline(40),
+    headBaseline: baseline(41),
+    changedPaths: ['tools/guardrails/escape-hatch-baseline.json', 'apps/agentd/src/server.ts'],
+    labelEvents: [],
+    ciRunTimes: ['2026-11-20T10:00:00Z']
+  };
+  const without = approvalStatus(input);
+  const withLink = approvalStatus({ ...input, goldenFileLink: GOLDEN_LINK });
+  assert.equal(withLink.comment, without.comment);
+  assert.doesNotMatch(withLink.comment, /golden/i);
+});

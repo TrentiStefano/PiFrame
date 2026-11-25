@@ -88,6 +88,22 @@ function guardedChanges(changedPaths) {
   });
 }
 
+/**
+ * The changed golden reference images, listed by file name (each linked to its diff when `fileLink` is given).
+ * Empty when no golden image changed, so the comment is unchanged in that case.
+ */
+function goldenLines(changedPaths, fileLink) {
+  const goldens = [...new Set(changedPaths.map(toPosix))]
+    .sort()
+    .filter((path) => guardedKind(path) === 'golden reference image');
+  if (goldens.length === 0) return [];
+  const items = goldens.map((path) => {
+    const name = basename(path);
+    return fileLink ? `- [${name}](${fileLink(path)})` : `- ${name}`;
+  });
+  return ['', 'Golden reference images changed (open each in Files changed):', ...items];
+}
+
 /** Every baseline count that is higher on the head than on the base (a new entry counts from 0). */
 function baselineIncreases(base, head) {
   const out = [];
@@ -144,6 +160,9 @@ const NOT_NEEDED_ANY_MORE =
  * @param {string} [input.runCreatedAt] when GitHub created this run (ISO 8601)
  * @param {string[]} [input.ciRunTimes] creation times of the `ci.yml` pull-request runs for the head commit
  * @param {string | null} [input.previousComment] the body of this job's earlier comment on the PR, if any
+ * @param {((path: string) => string) | undefined} [input.goldenFileLink] maps a repository-relative path to its link in
+ *   the PR's "Files changed" view; the adapter supplies it (it knows the repository, PR number and hash), so this module
+ *   stays free of I/O. Without it, golden images are listed by file name only.
  * @returns {{ status: 'not-needed' | 'needed' | 'approved', reasons: string[], stale: boolean,
  *   latestPushAt: string | null, comment: string | null }} `comment` is the body the PR's one comment should have,
  *   or null when the PR needs no comment; any label counts as stale when `latestPushAt` is null
@@ -158,7 +177,8 @@ export function approvalStatus({
   eventAction,
   runCreatedAt,
   ciRunTimes = [],
-  previousComment = null
+  previousComment = null,
+  goldenFileLink
 }) {
   const reasons = [
     ...baselineIncreases(baseBaseline, headBaseline),
@@ -173,6 +193,7 @@ export function approvalStatus({
   }
 
   const list = reasons.map((r) => `- ${r}`);
+  const golden = goldenLines(changedPaths, goldenFileLink);
   const label = currentLabel(labelEvents);
   const pushedAt = latestPushAt ? Date.parse(latestPushAt) : NaN;
   if (label && Date.parse(label.at) > pushedAt) {
@@ -183,6 +204,7 @@ export function approvalStatus({
       '',
       'Approved changes:',
       ...list,
+      ...golden,
       '',
       'A new push makes this approval stale.'
     ].join('\n');
@@ -196,6 +218,7 @@ export function approvalStatus({
       `\`${APPROVAL_LABEL}\` label:`,
     '',
     ...list,
+    ...golden,
     '',
     ...(stale
       ? [

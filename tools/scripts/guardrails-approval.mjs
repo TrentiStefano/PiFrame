@@ -15,6 +15,7 @@
  * pull-request runs) and `approvalStatus` picks the latest push from them. A stale label is also removed, so
  * approving again is one click.
  */
+import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -132,7 +133,12 @@ const result = approvalStatus({
   eventAction: env.EVENT_ACTION,
   runCreatedAt,
   ciRunTimes,
-  previousComment: mine?.body ?? null
+  previousComment: mine?.body ?? null,
+  // A link to the file's diff in the PR's "Files changed" view; only known in CI (the PR number is set there).
+  goldenFileLink: ci
+    ? (file) =>
+        `https://github.com/${env.GITHUB_REPOSITORY}/pull/${env.PR_NUMBER}/files#diff-${createHash('sha256').update(file).digest('hex')}`
+    : undefined
 });
 const { latestPushAt } = result;
 console.log(`Guardrail approval: ${result.status}${result.stale ? ' (stale label)' : ''}`);
