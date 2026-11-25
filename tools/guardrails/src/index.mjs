@@ -8,6 +8,7 @@ export { checkDocLinks, inDocLinkScope } from './doc-links.mjs';
 export { checkAgentMap, AGENT_MAP_PATH, AGENT_MAP_MAX_LINES } from './agent-map.mjs';
 export { checkBoundaries, BOUNDARY_CONFIG_PATH } from './boundary.mjs';
 export { checkTimers } from './timers.mjs';
+export { guardrailsStatus } from './status.mjs';
 export {
   checkDiagnostics,
   parseDartAnalyzeMachine,

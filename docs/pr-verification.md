@@ -268,6 +268,10 @@ The logic is `checkDesignTokens` in `tools/guardrails/src/design-tokens.mjs` (pu
 - **A mismatch fails the step** and the failure names the screen (for example `workspace (dark)`) and `pnpm run goldens:update`. The expected, actual and diff images stay in `apps/pi_frame/test/failures/` (git-ignored) until the next golden run clears that folder.
 - **An intended change:** run `pnpm run goldens:update` and review the regenerated PNGs in the PR. The reference folder is a guarded path, so it needs the `human-approved` label like any other guardrail.
 
+## Guardrail status
+
+`pnpm run guardrails:status` (`node tools/scripts/guardrails-status.mjs`) prints the progress toward zero of the three committed baselines: the escape-hatch counts, the import-boundary baseline entries and the diagnostics counts, in total and per package (the audited package names, such as `agentd` or `pi_frame`). A package is `done` when all three count zero there, and the report says `All clear` when every baseline is zero. It is a report, not a gate step: it always exits 0, and it is not in the step list, so `check`, `verify` and CI do not run it. The logic is `guardrailsStatus` in `tools/guardrails/src/status.mjs` (pure, tested in `tools/guardrails/test/status.test.mjs`); the script only reads the three baseline files.
+
 ## Guardrail approval
 
 `.github/workflows/guardrails-approval.yml` runs on every pull-request event (`opened`, `synchronize`, `reopened`, `labeled`, `unlabeled`). It is a separate workflow, not a `ci.yml` job, because `ci.yml`'s jobs must equal the step list's `ci` tier. It fails while the PR changes a guardrail without a current `human-approved` label:

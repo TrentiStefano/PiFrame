@@ -54,13 +54,13 @@ apps/agentd  --one `pi --mode rpc` worker per session-->  Pi  --history-->  ~/.p
 | drive the app off-screen, real screenshots | `pnpm run harness` (`tools/harness/README.md`) |
 | refresh the tracked design and website captures, on purpose | `pnpm run capture:evidence` |
 | all tests / end-to-end tests | `pnpm run test` / `pnpm run test:e2e` |
+| progress toward zero for the guardrail baselines (a report, not a gate) | `pnpm run guardrails:status` |
 
 `check` runs in the working tree: the escape-hatch audit, the doc link, map and named-timer checks, the DESIGN.md lint and
 token match, the TypeScript build, the TypeScript (`tsc`) and ESLint analysis, and the Dart analysis, all under the diagnostics
 ratchet. It never installs: run `pnpm install` after a dependency change (yours or pulled). `*_test.dart` files run with
 `flutter test`, `*.test.mjs` with `node --test`, and `apps/agentd/src/**/*.test.ts` from its compiled copy under dist. `verify`
-runs the CI steps on the committed HEAD merged with origin/main.
-Details: `docs/pr-verification.md`.
+runs the CI steps on the committed HEAD merged with origin/main. Details: `docs/pr-verification.md`.
 
 ## Conventions
 
