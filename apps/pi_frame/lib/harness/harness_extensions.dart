@@ -678,9 +678,9 @@ _HarnessSelector? _selector(Map<String, String> params) {
 bool _isTrue(String? value) => value == 'true' || value == '1';
 
 void _sendKeyData(PhysicalKeyboardKey physical, LogicalKeyboardKey logical, ui.KeyEventType type, {String? character}) {
-  // The key data manager is the same framework path used by native platform events.
-  // ignore: deprecated_member_use
-  ServicesBinding.instance.keyEventManager.handleKeyData(
+  // The platform key-data callback is the handler the framework installs for native key events
+  // (the key event manager's handleKeyData), so the synthesized event takes the same path.
+  ServicesBinding.instance.platformDispatcher.onKeyData?.call(
     ui.KeyData(
       timeStamp: _keyClock.elapsed,
       type: type,

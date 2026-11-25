@@ -27,6 +27,7 @@ dependencies:
   ffi: ^2.2.0
   meta: ^1.18.3
   webview_win_floating: ^3.0.3
+  web: ^1.1.2
 dev_dependencies:
   flutter_test:
     sdk: flutter

@@ -374,8 +374,7 @@ void main() {
       await _recordFrames(tester, boundaryKey, 25);
     }
 
-    // ignore: avoid_print
-    print('CAPTURED REAL APP FRAMES: $_frameCounter');
+    debugPrint('CAPTURED REAL APP FRAMES: $_frameCounter');
     expect(_frameCounter, greaterThan(150));
   });
 }
