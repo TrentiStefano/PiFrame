@@ -51,21 +51,21 @@ apps/agentd  --one `pi --mode rpc` worker per session-->  Pi  --history-->  ~/.p
 | format / check formatting | `pnpm run format` / `pnpm run format:check` |
 | regenerate PCP types after a schema change | `pnpm run codegen` |
 | drive the app off-screen, real screenshots | `pnpm run harness` (`tools/harness/README.md`) |
+| refresh the tracked design and website captures, on purpose | `pnpm run capture:evidence` |
 | all tests / end-to-end tests | `pnpm run test` / `pnpm run test:e2e` |
 
 `check` runs in the working tree: the escape-hatch audit, the doc link, map and named-timer checks, the DESIGN.md lint and
 token match, the TypeScript build, the TypeScript (`tsc`) and ESLint analysis, and the Dart analysis, all under the diagnostics
 ratchet. It never installs: run `pnpm install` after a dependency change (yours or pulled). `*_test.dart` files run with
 `flutter test`, `*.test.mjs` with `node --test`, and `apps/agentd/src/**/*.test.ts` from its compiled copy under dist. `verify`
-runs the CI steps on the committed HEAD merged with origin/main. Tests regenerate screenshots under `docs/design-evidence/` and
-`website/assets/`: restore them with `git checkout -- docs/design-evidence website/assets` instead of committing.
+runs the CI steps on the committed HEAD merged with origin/main.
 Details: `docs/pr-verification.md`.
 
 ## Conventions
 
 - **Flutter app** (`apps/pi_frame/README.md`), layers in `apps/pi_frame/lib/`: app (shell, routing), data (Riverpod
   providers and services, `docs/adr/0004-flutter-state-management.md`), domain (plain models), features (one folder
-  per UI area), ui (shared widgets). Colours, spacing and motion come from `packages/pi_frame_theme/` (a lint rejects
+  per UI area), ui (shared widgets), harness (harness hooks, used only by the app shell and entry points). Colours, spacing and motion come from `packages/pi_frame_theme/` (a lint rejects
   hardcoded colours); user-facing text goes through `apps/pi_frame/lib/data/language/`.
 - **Design**: `DESIGN.md` (Google's DESIGN.md format) is the design system: tokens, components, states, the anti-slop
   gate and the definition of done for UI work. Its tokens must match `themes/` and `packages/pi_frame_theme/` (gate).
