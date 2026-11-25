@@ -9,6 +9,16 @@ import type { PiEvent, PiModelInfo } from '../pi/piCommands.js';
 import { UiRequestBroker } from '../ui/UiRequestBroker.js';
 import { readContextPolicy, DEFAULT_COMPACTION_RESERVE_PERCENT } from '../pi/contextPolicy.js';
 
+/**
+ * The model as the snapshot protocol carries it. Pi reports either the model object or, when it
+ * reported only an id (read back from the transcript), a bare string; the protocol's model is an
+ * object, so a bare id is normalised to `{ id }`.
+ */
+export function snapshotModelOf(model: PiModelInfo | string | null | undefined): PiModelInfo | null {
+  if (typeof model === 'string') return model ? { id: model } : null;
+  return model ?? null;
+}
+
 export interface SessionOptions {
   id: string;
   name?: string;
@@ -128,8 +138,7 @@ export class Session {
     return {
       sessionMeta: this.getSessionMeta(),
       runtimeStatus: this.status,
-      // The protocol types the snapshot model as a record, but a bare model id is stored when Pi reported only that.
-      model: this.model as Record<string, unknown> | null | undefined,
+      model: snapshotModelOf(this.model),
       thinkingLevel: this.thinkingLevel,
       steeringMode: this.steeringMode,
       followUpMode: this.followUpMode,
