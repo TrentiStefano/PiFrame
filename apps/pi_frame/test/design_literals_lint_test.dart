@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Ratchet for design literals (root DESIGN.md, section "Do's and Don'ts", plan task 2.5).
@@ -109,8 +110,7 @@ void main() {
     for (final entry in _baselines.entries) {
       report.writeln('  ${entry.key.padRight(34)} ${hits[entry.key]!.length} / ${entry.value}');
     }
-    // ignore: avoid_print
-    print(report.toString());
+    debugPrint(report.toString());
 
     final failures = <String>[];
     for (final entry in _baselines.entries) {

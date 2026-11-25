@@ -79,8 +79,8 @@
   },
   "pi_frame": {
     "lib": {
-      "// ignore:": 1,
-      "// ignore_for_file:": 2,
+      "// ignore:": 0,
+      "// ignore_for_file:": 0,
       "@ts-ignore": 0,
       "@ts-expect-error": 0,
       "@ts-nocheck": 0,
@@ -91,7 +91,7 @@
       "// coverage:ignore": 0
     },
     "test": {
-      "// ignore:": 7,
+      "// ignore:": 2,
       "// ignore_for_file:": 0,
       "@ts-ignore": 0,
       "@ts-expect-error": 0,

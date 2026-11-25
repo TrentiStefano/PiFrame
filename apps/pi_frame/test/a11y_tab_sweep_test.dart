@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -42,10 +43,7 @@ SemanticsNode? _focusedSemantics() {
   SemanticsNode? found;
   void visit(SemanticsNode node) {
     if (found != null) return;
-    // hasFlag is deprecated in favour of flagsCollection, which reports the same flag
-    // for this tree; flagsCollection did not match the focused node here.
-    // ignore: deprecated_member_use
-    if (node.hasFlag(SemanticsFlag.isFocused)) {
+    if (node.flagsCollection.isFocused == ui.Tristate.isTrue) {
       found = node;
       return;
     }
@@ -195,11 +193,9 @@ void main() {
       );
     }
 
-    // ignore: avoid_print
-    print('TAB SWEEP ${stops.length} focus stops');
+    debugPrint('TAB SWEEP ${stops.length} focus stops');
     for (final stop in stops) {
-      // ignore: avoid_print
-      print('TAB SWEEP $stop');
+      debugPrint('TAB SWEEP $stop');
     }
     expect(stops.length, greaterThanOrEqualTo(25));
     expect(

@@ -376,7 +376,8 @@ void main() {
 
       final divider = find.byKey(const ValueKey('pane-divider-WorkspacePane.chat-WorkspacePane.git'));
       final node = tester.getSemantics(find.descendant(of: divider, matching: find.byType(Semantics)).first);
-      // The semantics owner the test binding dispatches actions through.
+      // The semantics owner the test binding dispatches actions through. rootPipelineOwner
+      // does not dispatch this divider's actions, so the deprecated pipelineOwner stays.
       // ignore: deprecated_member_use
       final owner = tester.binding.pipelineOwner.semanticsOwner!;
       final git = find.byKey(const ValueKey('pane-enter-WorkspacePane.git'));
