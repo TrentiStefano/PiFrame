@@ -33,11 +33,12 @@ import type {
   PcpCommand,
   PcpAck,
   PcpResult,
-  PcpError,
+  PcpErrorCode,
   PcpResultState,
   PiAvailableModel,
   PcpEvent
 } from '@piframe/pcp-ts';
+import { isPcpErrorCode } from '@piframe/pcp-ts';
 import { createCodedError, errorCode, errorMessage, isRecord, readProperty } from '../errors/errors.js';
 
 /** The display name: Pi's name, else its id. Empty when neither is set (never the string "undefined"). */
@@ -350,6 +351,8 @@ export class Dispatcher {
       const state = isRejected ? 'rejected' : 'failed';
       const payload = this.deduplicator.complete(commandId, state, undefined, errorMessage(err));
 
+      // Codes outside the protocol list fall back to the generic code for their class.
+      const payloadCode: PcpErrorCode = isPcpErrorCode(code) ? code : isRejected ? 'COMMAND_REJECTED' : 'INTERNAL';
       // Send detailed PcpError envelope first, before terminal command.result
       conn.send({
         protocol: 1,
@@ -359,12 +362,12 @@ export class Dispatcher {
         commandId,
         type: 'error',
         payload: {
-          code: code || (isRejected ? 'COMMAND_REJECTED' : 'INTERNAL'),
+          code: payloadCode,
           message: errorMessage(err),
           hint: hintOf(err),
           details: detailsOf(err)
         }
-      } as PcpError);
+      });
 
       this.sendResult(conn, commandId, state, undefined, payload.error);
     }
