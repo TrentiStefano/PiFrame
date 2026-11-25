@@ -8,7 +8,7 @@ import { WorkerSupervisor } from './WorkerSupervisor.js';
 import type { ConnectionManager } from '../server/wsServer.js';
 import type { Connection } from '../server/connection.js';
 import type { PiCapabilities } from '../pi/piCommands.js';
-import type { PcpSnapshot, PcpSnapshotPayload } from '@piframe/pcp-ts';
+import type { PcpSnapshot, PcpSnapshotPayload, PcpEvent, PcpAck } from '@piframe/pcp-ts';
 import { hasInteractivePiInCwd } from './PiTerminalDetector.js';
 import { writeContextPolicy, deleteContextPolicy } from '../pi/contextPolicy.js';
 
@@ -205,7 +205,7 @@ export class SessionRegistry {
           seq: 0,
           type: 'session.indexChanged',
           payload: { updated: result.sessions }
-        } as any);
+        } as PcpEvent);
       })
       .catch((error) => {
         console.error('Error refreshing fast Pi sessions index:', error);
@@ -241,7 +241,7 @@ export class SessionRegistry {
           seq: 0,
           type: 'session.indexChanged',
           payload: { refreshing: true }
-        } as any);
+        } as PcpEvent);
       }, INDEX_PROGRESS_EVENT_DELAY_MS);
       progressTimer.unref();
     };
@@ -286,7 +286,7 @@ export class SessionRegistry {
           seq: 0,
           type: 'session.indexChanged',
           payload: { updated }
-        } as any);
+        } as PcpEvent);
       })
       .catch((error) => {
         console.error('Error refreshing Pi sessions index:', error);
@@ -401,7 +401,7 @@ export class SessionRegistry {
       payload: {
         added: [session.getSessionMeta()]
       }
-    } as any);
+    } as PcpEvent);
   }
 
   private async refreshTerminalOwnership(session: Session): Promise<boolean | null> {
@@ -625,7 +625,7 @@ export class SessionRegistry {
         type: 'command.ack',
         sessionId,
         payload: { state: 'resume' }
-      } as any);
+      } as PcpAck);
 
       if (lastSeq < currentSeq) {
         const events = session.journal.getRange(lastSeq + 1, currentSeq);
@@ -663,7 +663,7 @@ export class SessionRegistry {
           fromSeq: lastSeq,
           toSeq: minSeq
         }
-      } as any);
+      } as PcpEvent);
       return;
     }
 
@@ -694,7 +694,7 @@ export class SessionRegistry {
         toSeq: currentSeq,
         reset: true
       }
-    } as any);
+    } as PcpEvent);
   }
 
   public async detachClient(sessionId: string, conn: Connection): Promise<void> {
@@ -752,7 +752,7 @@ export class SessionRegistry {
       payload: {
         removed: [sessionId]
       }
-    } as any);
+    } as PcpEvent);
 
     return true;
   }

@@ -43,22 +43,27 @@ export interface SubagentRuntime {
   workerGone: boolean;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
+}
+
 const num = (value: unknown): number | undefined =>
   typeof value === 'number' && Number.isFinite(value) ? value : undefined;
 
 /** Parses the bridge's status text; null when it is not a valid report. */
 export function parseLiveSubagents(text: unknown, now = Date.now()): LiveSubagentState | null {
   if (typeof text !== 'string' || !text) return null;
-  let raw: any;
+  let raw: unknown;
   try {
     raw = JSON.parse(text);
   } catch {
     return null;
   }
-  if (!raw || raw.v !== 1 || !Array.isArray(raw.agents)) return null;
+  if (!isRecord(raw) || raw.v !== 1 || !Array.isArray(raw.agents)) return null;
+  const rawAgents: unknown[] = raw.agents;
   const agents: LiveSubagent[] = [];
-  for (const agent of raw.agents) {
-    if (!agent || typeof agent.id !== 'string' || !agent.id) continue;
+  for (const agent of rawAgents) {
+    if (!isRecord(agent) || typeof agent.id !== 'string' || !agent.id) continue;
     agents.push({
       id: agent.id,
       status: typeof agent.status === 'string' ? agent.status : 'running',

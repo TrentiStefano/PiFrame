@@ -19,6 +19,7 @@ import {
   type AgentFileChange
 } from './agentFileOverrides.js';
 import type { LockOptions } from './lockfile.js';
+import { errorMessage } from '../../errors/errors.js';
 
 export const THINKING_LEVELS = ['off', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'];
 
@@ -71,10 +72,10 @@ export class AgentsService {
     if (this.getAvailableModelsFn) {
       try {
         return await this.getAvailableModelsFn();
-      } catch (err: any) {
+      } catch (err: unknown) {
         return {
           models: [],
-          warning: `Failed to query available models from Pi: ${err?.message || 'unknown error'}`
+          warning: `Failed to query available models from Pi: ${errorMessage(err) || 'unknown error'}`
         };
       }
     }

@@ -31,7 +31,12 @@ export class CommandDeduplicator {
     return record;
   }
 
-  public complete(commandId: string, state: PcpResultState, data?: any, error?: string): PcpResultPayload {
+  public complete(
+    commandId: string,
+    state: PcpResultState,
+    data?: Record<string, unknown>,
+    error?: string
+  ): PcpResultPayload {
     const record = this.records.get(commandId);
     const payload: PcpResultPayload = {
       state,

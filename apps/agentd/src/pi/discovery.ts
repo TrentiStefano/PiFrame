@@ -5,6 +5,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { resolvePiLaunch } from './executable.js';
 import { getAugmentedPath, getAugmentedEnv } from './env.js';
+import { errorMessage } from '../errors/errors.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -124,13 +125,13 @@ export async function discoverPi(customPath?: string): Promise<PiInstallation> {
       error: isSupported ? undefined : 'PI_VERSION_UNSUPPORTED',
       hint: isSupported ? undefined : `Version ${rawVersion} found. Required >= ${MINIMUM_PI_VERSION}. Update Pi.`
     };
-  } catch (err: any) {
+  } catch (err: unknown) {
     return {
       found: true,
       path: foundPath,
       supported: false,
       error: 'PI_EXECUTION_FAILED',
-      hint: `Error running ${foundPath} --version: ${err.message}`
+      hint: `Error running ${foundPath} --version: ${errorMessage(err)}`
     };
   }
 }

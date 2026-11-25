@@ -1,3 +1,5 @@
+import type { PcpEventType } from '@piframe/pcp-ts';
+
 export interface PendingUiRequest {
   requestId: string;
   method: string;
@@ -8,33 +10,33 @@ export interface PendingUiRequest {
   claimedAt: number | null;
   leaseExpiresAt: number | null;
   leaseTimer?: NodeJS.Timeout | null;
-  raw: Record<string, any>;
+  raw: Record<string, unknown>;
 }
 
 export interface UiRequestBrokerOptions {
   sessionId: string;
-  onEmitEvent: (event: { type: string; payload: Record<string, any> }) => void;
+  onEmitEvent: (event: { type: PcpEventType; payload: Record<string, unknown> }) => void;
 }
 
 export class UiRequestBroker {
-  private onEmitEvent: (event: { type: string; payload: Record<string, any> }) => void;
+  private onEmitEvent: (event: { type: PcpEventType; payload: Record<string, unknown> }) => void;
   private requests = new Map<string, PendingUiRequest>();
 
   constructor(opts: UiRequestBrokerOptions) {
     this.onEmitEvent = opts.onEmitEvent;
   }
 
-  public addRequest(raw: Record<string, any>): void {
-    const requestId = raw.requestId || raw.id;
-    if (!requestId) return;
+  public addRequest(raw: Record<string, unknown>): void {
+    const rawId = raw.requestId || raw.id;
+    if (typeof rawId !== 'string' || !rawId) return;
+    const requestId: string = rawId;
 
-    const dialog = raw.dialog ?? true;
     const req: PendingUiRequest = {
       requestId,
-      method: raw.method || 'confirm',
-      title: raw.title,
-      message: raw.message,
-      dialog,
+      method: String(raw.method || 'confirm'),
+      title: typeof raw.title === 'string' ? raw.title : undefined,
+      message: typeof raw.message === 'string' ? raw.message : undefined,
+      dialog: Boolean(raw.dialog ?? true),
       claimedBy: null,
       claimedAt: null,
       leaseExpiresAt: null,
@@ -103,7 +105,7 @@ export class UiRequestBroker {
     // Broadcast that the request is once again unclaimed
     this.onEmitEvent({
       type: 'ui.claimed',
-      payload: { requestId, clientId: null as any }
+      payload: { requestId, clientId: null }
     });
   }
 

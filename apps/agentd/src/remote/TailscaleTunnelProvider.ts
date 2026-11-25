@@ -1,6 +1,7 @@
 import * as child_process from 'node:child_process';
 import * as fs from 'node:fs';
 import { BaseTunnelProvider, type TunnelStartResult } from './TunnelProvider.js';
+import { errorMessage } from '../errors/errors.js';
 
 export interface TailscaleStatusInfo {
   installed: boolean;
@@ -86,8 +87,8 @@ export class TailscaleTunnelProvider extends BaseTunnelProvider {
         timeout: 5000,
         windowsHide: true
       });
-    } catch (err: any) {
-      throw new Error(`Error updating the Tailscale host name: ${err.message}`);
+    } catch (err: unknown) {
+      throw new Error(`Error updating the Tailscale host name: ${errorMessage(err)}`);
     }
 
     const info = TailscaleTunnelProvider.getTailscaleInfo();
@@ -102,7 +103,7 @@ export class TailscaleTunnelProvider extends BaseTunnelProvider {
           ['install', '--id', 'Tailscale.Tailscale', '-e', '--accept-package-agreements', '--accept-source-agreements'],
           { windowsHide: true },
           (err) => {
-            if (err) return reject(new Error(`Error installing Tailscale with winget: ${err.message}`));
+            if (err) return reject(new Error(`Error installing Tailscale with winget: ${errorMessage(err)}`));
             resolve({ ok: true, message: 'Tailscale installation started.' });
           }
         );
@@ -144,8 +145,8 @@ export class TailscaleTunnelProvider extends BaseTunnelProvider {
         timeout: 6000,
         windowsHide: true
       });
-    } catch (err: any) {
-      const msg = `Error starting tailscale serve: ${err.message}`;
+    } catch (err: unknown) {
+      const msg = `Error starting tailscale serve: ${errorMessage(err)}`;
       this.setState('error', { error: msg });
       throw new Error(msg);
     }

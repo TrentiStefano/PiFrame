@@ -1,4 +1,5 @@
 import type { PiTransport } from '../pi/PiTransport.js';
+import type { CodedError } from '../errors/errors.js';
 import type { PiCommand, PiResponse, PiEvent, TransportHealth, PiCapabilities, ExitInfo } from '../pi/piCommands.js';
 
 export const SIDE_ALLOWED_RPC_COMMANDS = new Set(['prompt', 'abort', 'get_state']);
@@ -12,8 +13,8 @@ export class SideTransport implements PiTransport {
 
   public async send(cmd: PiCommand): Promise<PiResponse> {
     if (!SIDE_ALLOWED_RPC_COMMANDS.has(cmd.command)) {
-      const err = new Error(`RPC command "${cmd.command}" is blocked for side conversation worker`);
-      (err as any).code = 'SIDE_RPC_BLOCKED';
+      const err: CodedError = new Error(`RPC command "${cmd.command}" is blocked for side conversation worker`);
+      err.code = 'SIDE_RPC_BLOCKED';
       throw err;
     }
     return this.inner.send(cmd);

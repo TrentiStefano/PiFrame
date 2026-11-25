@@ -4,7 +4,7 @@ import { Connection } from './connection.js';
 import { isLoopbackHost, isOriginAllowed, hasProxyHeaders } from './origin.js';
 import type { DaemonConfig } from '../config/config.js';
 import type { RemoteManager } from '../remote/RemoteManager.js';
-import type { ServerMessage, PcpEnvelope } from '@piframe/pcp-ts';
+import type { ServerMessage, PcpEnvelope, PcpCommand } from '@piframe/pcp-ts';
 
 export interface WsServerOptions {
   httpServer: http.Server;
@@ -16,7 +16,7 @@ export interface WsServerOptions {
   piInfo: { path: string; version: string; supported: boolean };
   port: number;
   remoteManager?: RemoteManager;
-  onCommand: (conn: Connection, cmd: any) => Promise<void>;
+  onCommand: (conn: Connection, cmd: PcpCommand) => Promise<void>;
   onAttach?: (conn: Connection, sessionId: string, lastSeq: number | null, commandId?: string) => Promise<void>;
   onDetach?: (conn: Connection, sessionId: string) => Promise<void>;
   onConnectionClose?: (conn: Connection) => void;

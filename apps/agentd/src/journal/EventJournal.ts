@@ -41,7 +41,7 @@ export class EventJournal {
     }
   }
 
-  public append(rawEvent: { type: PcpEventType; payload: any }): PcpEvent {
+  public append(rawEvent: { type: PcpEventType; payload: Record<string, unknown> }): PcpEvent {
     // Monotonic sequential ID assignment without await
     const seq = ++this.seqCounter;
 

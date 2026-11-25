@@ -1,5 +1,6 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { errorCode } from '../../errors/errors.js';
 
 export interface LockOptions {
   staleMs?: number;
@@ -125,14 +126,14 @@ export async function acquireLock(filePath: string, options: LockOptions = {}): 
         }
       };
 
-      const handle: any = () => release();
+      const handle = (): void => release();
       handle.release = release;
       handle.check = checkOwnership;
       handle.isCompromised = () => compromised;
 
-      return handle as LockHandle;
-    } catch (err: any) {
-      if (err?.code !== 'EEXIST') {
+      return handle;
+    } catch (err: unknown) {
+      if (errorCode(err) !== 'EEXIST') {
         throw err;
       }
 
@@ -150,9 +151,9 @@ export async function acquireLock(filePath: string, options: LockOptions = {}): 
           }
           continue;
         }
-      } catch (statErr: any) {
+      } catch (statErr: unknown) {
         // Lock might have been released between mkdir and stat
-        if (statErr?.code === 'ENOENT') {
+        if (errorCode(statErr) === 'ENOENT') {
           continue;
         }
       }

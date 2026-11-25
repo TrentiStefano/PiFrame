@@ -8,14 +8,14 @@ export interface ContextPolicy {
   compactionReservePercent: number;
 }
 
-export function validateContextLimit(value: unknown, modelMaximum: number): number | null {
+export function validateContextLimit(value: unknown, modelMaximum: number | undefined): number | null {
   if (value === null) return null;
   if (typeof value !== 'number' || !Number.isSafeInteger(value) || value <= 0) {
     throw Object.assign(new Error('The context limit must be a positive integer.'), {
       code: 'COMMAND_REJECTED'
     });
   }
-  if (!Number.isSafeInteger(modelMaximum) || modelMaximum <= 0) {
+  if (typeof modelMaximum !== 'number' || !Number.isSafeInteger(modelMaximum) || modelMaximum <= 0) {
     throw Object.assign(new Error('Model maximum size not available.'), { code: 'COMMAND_REJECTED' });
   }
   if (value > modelMaximum)

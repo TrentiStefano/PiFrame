@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as crypto from 'node:crypto';
 import { getPiFrameBaseDir } from '../config/config.js';
+import { errorMessage } from '../errors/errors.js';
 
 /**
  * Attachment uploads from the phone / browser client.
@@ -96,8 +97,8 @@ export function receiveBlob(req: http.IncomingMessage, res: http.ServerResponse)
 
   try {
     fs.mkdirSync(dir, { recursive: true });
-  } catch (err: any) {
-    json(res, 500, { ok: false, error: err.message });
+  } catch (err: unknown) {
+    json(res, 500, { ok: false, error: errorMessage(err) });
     req.resume();
     return;
   }
@@ -133,7 +134,7 @@ export function receiveBlob(req: http.IncomingMessage, res: http.ServerResponse)
   out.on('error', (err) => {
     if (aborted) return;
     aborted = true;
-    json(res, 500, { ok: false, error: err.message });
+    json(res, 500, { ok: false, error: errorMessage(err) });
     discard();
   });
 }

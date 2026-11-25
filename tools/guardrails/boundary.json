@@ -1,18 +1,71 @@
 {
   "daemonAllowedDependencies": {
     "auth": [],
-    "main": ["commands","config","pi","remote","server","sessions"],
-    "commands": ["config","journal","metrics","pi","remote","server","sessions","side","workspace"],
-    "config": [],
-    "journal": ["config"],
-    "metrics": ["server"],
-    "pi": ["config","workspace"],
-    "remote": ["auth","config"],
-    "server": ["auth","config","remote"],
-    "sessions": ["config","journal","pi","server","ui"],
-    "side": ["config","pi","server","sessions"],
+    "main": [
+      "commands",
+      "config",
+      "pi",
+      "remote",
+      "server",
+      "sessions"
+    ],
+    "commands": [
+      "config",
+      "errors",
+      "journal",
+      "metrics",
+      "pi",
+      "remote",
+      "server",
+      "sessions",
+      "side",
+      "workspace"
+    ],
+    "config": [
+      "errors"
+    ],
+    "journal": [
+      "config"
+    ],
+    "metrics": [
+      "server"
+    ],
+    "pi": [
+      "config",
+      "errors",
+      "workspace"
+    ],
+    "remote": [
+      "auth",
+      "config",
+      "errors"
+    ],
+    "server": [
+      "auth",
+      "config",
+      "errors",
+      "remote"
+    ],
+    "sessions": [
+      "config",
+      "errors",
+      "journal",
+      "pi",
+      "server",
+      "ui"
+    ],
+    "side": [
+      "config",
+      "errors",
+      "pi",
+      "server",
+      "sessions"
+    ],
     "ui": [],
-    "workspace": []
+    "workspace": [
+      "errors"
+    ],
+    "errors": []
   },
   "baseline": []
 }
