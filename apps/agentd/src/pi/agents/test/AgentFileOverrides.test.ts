@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { at } from '../../test/fakes.js';
 import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -41,7 +42,7 @@ const REVIEWER =
   '\r\n' +
   'You are a reviewer.\r\n';
 
-function setup(opts: { tintinweb?: boolean; nicobailon?: boolean; settings?: any } = {}): Fixture {
+function setup(opts: { tintinweb?: boolean; nicobailon?: boolean; settings?: Record<string, unknown> } = {}): Fixture {
   const agentDir = tempDir('pi-fm-agent-');
   const piframeDir = tempDir('pi-fm-piframe-');
   if (opts.tintinweb !== false) {
@@ -177,7 +178,8 @@ test('tintinweb: stale settings.json overrides are shown as ignored, reset clear
 
     await assert.rejects(
       f.service.updateAgents([{ kind: 'agent', name: 'reviewer', contextLimit: 272000 }]),
-      (err: any) => err.code === 'AGENTS_VALIDATION_FAILED' && err.details[0].field === 'contextLimit'
+      (err: unknown) =>
+        at(err, 'code') === 'AGENTS_VALIDATION_FAILED' && at(err, 'details', '0', 'field') === 'contextLimit'
     );
 
     await f.service.updateAgents([{ kind: 'agent', name: 'reviewer', model: null }]);
@@ -234,7 +236,7 @@ test('tintinweb: project agents stay read-only and their files are untouched', a
     assert.equal(planner.editable, false);
     await assert.rejects(
       f.service.updateAgents([{ kind: 'agent', name: 'planner', model: 'github-copilot/claude-haiku-5.5' }], cwd),
-      (err: any) => err.code === 'AGENTS_VALIDATION_FAILED'
+      (err: unknown) => at(err, 'code') === 'AGENTS_VALIDATION_FAILED'
     );
     assert.equal(fs.readFileSync(projectAgent, 'utf8'), '---\nname: planner\nmodel: github-copilot/gpt-6-luna\n---\n');
   } finally {

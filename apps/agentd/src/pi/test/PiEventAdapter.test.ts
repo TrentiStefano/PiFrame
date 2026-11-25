@@ -51,7 +51,7 @@ test('PiEventAdapter: processes real fixture file text-only.jsonl', () => {
     .split('\n')
     .filter((l) => l.trim().length > 0);
   const ctx = { sessionId: 'session_fixture' };
-  const allEvents: any[] = [];
+  const allEvents: ReturnType<typeof adaptPiEvent> = [];
 
   for (const line of lines) {
     const raw = JSON.parse(line);

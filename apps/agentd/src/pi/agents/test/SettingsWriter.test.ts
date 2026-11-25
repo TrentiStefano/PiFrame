@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { at } from '../../test/fakes.js';
 import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -30,7 +31,7 @@ test('readSettingsFile: parses valid JSON and throws AGENTS_CONFIG_UNREADABLE on
     fs.writeFileSync(invalidFile, '{"broken json: true');
     assert.throws(
       () => readSettingsFile(invalidFile),
-      (err: any) => err?.code === 'AGENTS_CONFIG_UNREADABLE'
+      (err: unknown) => at(err, 'code') === 'AGENTS_CONFIG_UNREADABLE'
     );
 
     const nonExistent = path.join(dir, 'does-not-exist.json');
@@ -78,7 +79,7 @@ test('lock contention: fresh lock times out with AGENTS_CONFIG_LOCKED; stale loc
           { maxAttempts: 3, delayMs: 10, staleMs: 10_000 }
         );
       },
-      (err: any) => err?.code === 'AGENTS_CONFIG_LOCKED'
+      (err: unknown) => at(err, 'code') === 'AGENTS_CONFIG_LOCKED'
     );
 
     // Release held lock
@@ -258,7 +259,7 @@ test('renameWithRetry on Windows: retries on transient errors and unlinks temp f
           { renameFn: permanentRename, maxRetries: 3, delayMs: 5 }
         );
       },
-      (err: any) => err?.code === 'EPERM'
+      (err: unknown) => at(err, 'code') === 'EPERM'
     );
 
     // Verify temp file was unlinked
@@ -292,7 +293,7 @@ test('stolen-lock scenario: aborts write with AGENTS_CONFIG_LOCKED and never del
       async () => {
         await writeJsonAtomicallyWithBackup(targetFile, { overwritten: true }, { lockHandle: lockA });
       },
-      (err: any) => err?.code === 'AGENTS_CONFIG_LOCKED'
+      (err: unknown) => at(err, 'code') === 'AGENTS_CONFIG_LOCKED'
     );
 
     // Verify target file was NOT overwritten
@@ -340,7 +341,7 @@ test('lock mtime tolerance: sub-millisecond differences (< 1ms) preserve ownersh
     // check() must detect the stolen lock and throw AGENTS_CONFIG_LOCKED
     assert.throws(
       () => lock.check(),
-      (err: any) => err?.code === 'AGENTS_CONFIG_LOCKED'
+      (err: unknown) => at(err, 'code') === 'AGENTS_CONFIG_LOCKED'
     );
     assert.equal(lock.isCompromised(), true);
 

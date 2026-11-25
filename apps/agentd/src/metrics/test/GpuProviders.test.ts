@@ -1,18 +1,21 @@
 import test from 'node:test';
 import * as assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
+import type { ExecFileOptions } from 'node:child_process';
 import { WindowsTypeperfGpuProvider } from '../gpu/WindowsTypeperfGpuProvider.js';
 import { NvidiaGpuProvider } from '../gpu/NvidiaGpuProvider.js';
 import { MacIoregGpuProvider } from '../gpu/MacIoregGpuProvider.js';
+import { asChild, execFileDouble, spawnDouble } from './fakes.js';
 
 class FakeChildProcess extends EventEmitter {
-  public stdout = new EventEmitter();
+  public stdout: EventEmitter & { setEncoding: (encoding: string) => void } = Object.assign(new EventEmitter(), {
+    setEncoding: () => {}
+  });
   public killed = false;
   public killCallCount = 0;
 
   constructor(private readonly onKill?: (child: FakeChildProcess) => void) {
     super();
-    (this.stdout as any).setEncoding = () => {};
   }
 
   public kill(): boolean {
@@ -38,10 +41,10 @@ test('WindowsTypeperfGpuProvider: child emitting exit(1) after stop/kill does no
       });
     });
     spawnedChildren.push(fakeChild);
-    return fakeChild as any;
+    return asChild(fakeChild);
   };
 
-  const provider = new (WindowsTypeperfGpuProvider as any)(fakeSpawn);
+  const provider = new WindowsTypeperfGpuProvider(spawnDouble(fakeSpawn));
   provider.start();
   assert.equal(spawnCount, 1);
 
@@ -61,10 +64,10 @@ test('NvidiaGpuProvider: stdout data and exit after stop() are ignored and do no
   const fakeSpawn = () => {
     spawnCount++;
     activeChild = new FakeChildProcess();
-    return activeChild as any;
+    return asChild(activeChild);
   };
 
-  const provider = new (NvidiaGpuProvider as any)(fakeSpawn);
+  const provider = new NvidiaGpuProvider(spawnDouble(fakeSpawn));
   provider.start();
   assert.equal(spawnCount, 1);
 
@@ -83,23 +86,27 @@ test('NvidiaGpuProvider: stdout data and exit after stop() are ignored and do no
 
 test('MacIoregGpuProvider: in-flight execFile resolving after stop() does not update sample and uses windowsHide', async () => {
   let execCount = 0;
-  let execCallback: ((err: any, stdout: string) => void) | undefined;
-  let passedOptions: any;
+  let execCallback: ((error: Error | null, stdout: string, stderr: string) => void) | undefined;
+  let passedOptions: ExecFileOptions | undefined;
 
-  const fakeExecFile = (_file: string, _args: string[], options: any, cb: any) => {
+  const fakeExecFile = (
+    _file: string,
+    _args: readonly string[],
+    options: ExecFileOptions,
+    cb: (error: Error | null, stdout: string, stderr: string) => void
+  ) => {
     execCount++;
     passedOptions = options;
     execCallback = cb;
-    const fakeChild = new FakeChildProcess();
-    return fakeChild as any;
+    return new FakeChildProcess();
   };
 
-  const provider = new (MacIoregGpuProvider as any)(fakeExecFile);
+  const provider = new MacIoregGpuProvider(execFileDouble(fakeExecFile));
   provider.start();
 
   const samplePromise = provider.getSample();
   assert.equal(execCount, 1);
-  assert.equal(passedOptions.windowsHide, true, 'windowsHide must be true in execFile options');
+  assert.equal(passedOptions?.windowsHide, true, 'windowsHide must be true in execFile options');
 
   // stop() while execFile is in flight
   provider.stop();
@@ -111,7 +118,7 @@ test('MacIoregGpuProvider: in-flight execFile resolving after stop() does not up
 |   "PerformanceStatistics" = {"Device Utilization %"=42}
 | }
 `;
-  execCallback!(null, sampleOutput);
+  execCallback!(null, sampleOutput, '');
 
   const sampleFromPromise = await samplePromise;
   assert.equal(sampleFromPromise.percent, null);

@@ -2,6 +2,9 @@ import test from 'node:test';
 import * as assert from 'node:assert/strict';
 import { SystemMetricsService } from '../SystemMetricsService.js';
 import type { GpuMetricsProvider, GpuSample } from '../types.js';
+import type { Connection } from '../../server/connection.js';
+import { at, parseSent, type SentMessage } from '../../commands/test/fakes.js';
+import { fakeConnection, gpuFactoryDouble, timerHandle } from './fakes.js';
 
 class MockGpuProvider implements GpuMetricsProvider {
   public source = 'nvidia-smi' as const;
@@ -31,14 +34,18 @@ class MockGpuProvider implements GpuMetricsProvider {
 
 class MockConnection {
   public id: string;
-  public sentMessages: any[] = [];
+  public sentMessages: SentMessage[] = [];
+  public readonly connection: Connection;
 
   constructor(id: string) {
     this.id = id;
-  }
-
-  public send(msg: any): void {
-    this.sentMessages.push(msg);
+    this.connection = fakeConnection({
+      id,
+      send: (msg) => {
+        this.sentMessages.push(parseSent(msg));
+        return true;
+      }
+    });
   }
 }
 
@@ -55,7 +62,7 @@ test('SystemMetricsService: with zero subscribers, no timers, no samplers, no GP
     timerProvider: {
       setInterval: () => {
         setIntervalCalled++;
-        return 1 as any;
+        return timerHandle();
       },
       clearInterval: () => {
         clearIntervalCalled++;
@@ -88,7 +95,8 @@ test('SystemMetricsService: with zero subscribers, no timers, no samplers, no GP
 
 test('SystemMetricsService: lifecycle on subscribe, tick, and unsubscribe', async () => {
   let timerFn: (() => void) | undefined;
-  let clearedTimer: any;
+  const handle42 = timerHandle();
+  let clearedTimer: NodeJS.Timeout | undefined;
   const gpu = new MockGpuProvider();
 
   let cpuCallCount = 0;
@@ -97,7 +105,7 @@ test('SystemMetricsService: lifecycle on subscribe, tick, and unsubscribe', asyn
     timerProvider: {
       setInterval: (fn) => {
         timerFn = fn;
-        return 42 as any;
+        return handle42;
       },
       clearInterval: (t) => {
         clearedTimer = t;
@@ -118,7 +126,7 @@ test('SystemMetricsService: lifecycle on subscribe, tick, and unsubscribe', asyn
   const nonSubConn = new MockConnection('c_other');
 
   // 1. Subscribe conn1
-  const subResult = await service.subscribe(conn1 as any);
+  const subResult = await service.subscribe(conn1.connection);
   assert.equal(subResult.intervalMs, 1000);
   assert.equal(service.getSubscriberCount(), 1);
   assert.equal(service.isSampling(), true);
@@ -131,17 +139,18 @@ test('SystemMetricsService: lifecycle on subscribe, tick, and unsubscribe', asyn
   assert.equal(nonSubConn.sentMessages.length, 0);
 
   const event1 = conn1.sentMessages[0];
+  assert.ok(event1);
   assert.equal(event1.kind, 'event');
   assert.equal(event1.type, 'system.metrics');
   assert.equal(event1.sessionId, '@daemon');
   assert.equal(event1.seq, 0);
-  assert.equal(event1.payload.cpu, null); // first tick null
-  assert.equal(event1.payload.memory.percent, 50.0);
-  assert.equal(event1.payload.disk.percent, 20.0);
-  assert.equal(event1.payload.gpu.percent, 30.5);
+  assert.equal(at(event1, 'payload', 'cpu'), null); // first tick null
+  assert.equal(at(event1, 'payload', 'memory', 'percent'), 50.0);
+  assert.equal(at(event1, 'payload', 'disk', 'percent'), 20.0);
+  assert.equal(at(event1, 'payload', 'gpu', 'percent'), 30.5);
 
   // 3. Subscribe conn2 (second subscriber)
-  await service.subscribe(conn2 as any);
+  await service.subscribe(conn2.connection);
   assert.equal(service.getSubscriberCount(), 2);
   assert.equal(gpu.startCalls, 1); // Not restarted
 
@@ -152,7 +161,7 @@ test('SystemMetricsService: lifecycle on subscribe, tick, and unsubscribe', asyn
   assert.equal(nonSubConn.sentMessages.length, 0);
 
   const event2 = conn2.sentMessages[0];
-  assert.equal(event2.payload.cpu.percent, 25.5);
+  assert.equal(at(event2, 'payload', 'cpu', 'percent'), 25.5);
 
   // 5. Unsubscribe conn1
   service.unsubscribe(conn1.id);
@@ -165,7 +174,7 @@ test('SystemMetricsService: lifecycle on subscribe, tick, and unsubscribe', asyn
   assert.equal(service.getSubscriberCount(), 0);
   assert.equal(service.isSampling(), false);
   assert.equal(gpu.stopCalls, 1);
-  assert.equal(clearedTimer, 42);
+  assert.equal(clearedTimer, handle42);
 });
 
 test('SystemMetricsService: connection close hook stops sampling on last subscriber', async () => {
@@ -174,7 +183,7 @@ test('SystemMetricsService: connection close hook stops sampling on last subscri
 
   const service = new SystemMetricsService({
     timerProvider: {
-      setInterval: () => 10 as any,
+      setInterval: () => timerHandle(),
       clearInterval: () => {
         cleared = true;
       }
@@ -186,7 +195,7 @@ test('SystemMetricsService: connection close hook stops sampling on last subscri
   });
 
   const conn = new MockConnection('c_will_close');
-  await service.subscribe(conn as any);
+  await service.subscribe(conn.connection);
   assert.equal(service.getSubscriberCount(), 1);
   assert.equal(service.isSampling(), true);
 
@@ -202,15 +211,15 @@ test('SystemMetricsService: idempotency on repeated subscribe / unsubscribe', as
   const gpu = new MockGpuProvider();
   const service = new SystemMetricsService({
     timerProvider: {
-      setInterval: () => 99 as any,
+      setInterval: () => timerHandle(),
       clearInterval: () => {}
     },
     gpuProvider: gpu
   });
 
   const conn = new MockConnection('c_repeat');
-  await service.subscribe(conn as any);
-  await service.subscribe(conn as any);
+  await service.subscribe(conn.connection);
+  await service.subscribe(conn.connection);
   assert.equal(service.getSubscriberCount(), 1);
   assert.equal(gpu.startCalls, 1);
 
@@ -229,15 +238,15 @@ test('SystemMetricsService: deferred getProvider resolving after unsubscribe doe
     resolveProvider = resolve;
   });
 
-  const fakeGpuFactory = {
+  const fakeGpuFactory = gpuFactoryDouble({
     getProvider: async () => deferredProviderPromise
-  } as any;
+  });
 
   const service = new SystemMetricsService({
     timerProvider: {
       setInterval: () => {
         timerStarted = true;
-        return 123 as any;
+        return timerHandle();
       },
       clearInterval: () => {}
     },
@@ -245,7 +254,7 @@ test('SystemMetricsService: deferred getProvider resolving after unsubscribe doe
   });
 
   const conn = new MockConnection('c_race');
-  const subPromise = service.subscribe(conn as any);
+  const subPromise = service.subscribe(conn.connection);
 
   // While getProvider is awaiting in-flight, unsubscribe the connection
   service.unsubscribe(conn.id);
@@ -269,15 +278,15 @@ test('SystemMetricsService: service.stop() during startup is honored', async () 
     resolveProvider = resolve;
   });
 
-  const fakeGpuFactory = {
+  const fakeGpuFactory = gpuFactoryDouble({
     getProvider: async () => deferredProviderPromise
-  } as any;
+  });
 
   const service = new SystemMetricsService({
     timerProvider: {
       setInterval: () => {
         timerStarted = true;
-        return 123 as any;
+        return timerHandle();
       },
       clearInterval: () => {}
     },
@@ -285,7 +294,7 @@ test('SystemMetricsService: service.stop() during startup is honored', async () 
   });
 
   const conn = new MockConnection('c_stop');
-  const subPromise = service.subscribe(conn as any);
+  const subPromise = service.subscribe(conn.connection);
 
   // stop() called during startup
   service.stop();
@@ -309,18 +318,18 @@ test('SystemMetricsService: concurrent subscribes share single start promise and
   });
 
   let getProviderCallCount = 0;
-  const fakeGpuFactory = {
+  const fakeGpuFactory = gpuFactoryDouble({
     getProvider: async () => {
       getProviderCallCount++;
       return deferredProviderPromise;
     }
-  } as any;
+  });
 
   const service = new SystemMetricsService({
     timerProvider: {
       setInterval: () => {
         timerStartCount++;
-        return 123 as any;
+        return timerHandle();
       },
       clearInterval: () => {}
     },
@@ -330,8 +339,8 @@ test('SystemMetricsService: concurrent subscribes share single start promise and
   const conn1 = new MockConnection('c_conc_1');
   const conn2 = new MockConnection('c_conc_2');
 
-  const p1 = service.subscribe(conn1 as any);
-  const p2 = service.subscribe(conn2 as any);
+  const p1 = service.subscribe(conn1.connection);
+  const p2 = service.subscribe(conn2.connection);
 
   assert.equal(service.getSubscriberCount(), 2);
   assert.equal(getProviderCallCount, 1);
@@ -358,14 +367,13 @@ test('SystemMetricsService: repeated unsubscribe/subscribe cycles always restart
   // subscribe returned the stale promise without restarting the timer
   // (Nerd stats stuck on n/d after toggling the setting off and on).
   let active = 0;
-  let nextHandle = 1;
   const gpu = new MockGpuProvider();
   const service = new SystemMetricsService({
     gpuProvider: gpu,
     timerProvider: {
       setInterval: () => {
         active++;
-        return nextHandle++ as any;
+        return timerHandle();
       },
       clearInterval: () => {
         active--;
@@ -378,7 +386,7 @@ test('SystemMetricsService: repeated unsubscribe/subscribe cycles always restart
   const conn = new MockConnection('conn-cycle');
 
   for (let cycle = 1; cycle <= 5; cycle++) {
-    await service.subscribe(conn as any);
+    await service.subscribe(conn.connection);
     assert.equal(service.isSampling(), true, `cycle ${cycle}: sampling after subscribe`);
     assert.equal(active, 1, `cycle ${cycle}: exactly one timer`);
     service.unsubscribe('conn-cycle');

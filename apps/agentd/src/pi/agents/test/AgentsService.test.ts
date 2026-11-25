@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { at } from '../../test/fakes.js';
 import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -183,7 +184,7 @@ runner:
           { kind: 'agent', name: 'nonexistent-agent', model: 'anthropic/claude-3-5-sonnet' }
         ]);
       },
-      (err: any) => err?.code === 'AGENTS_VALIDATION_FAILED' && err.details[0].field === 'name'
+      (err: unknown) => at(err, 'code') === 'AGENTS_VALIDATION_FAILED' && at(err, 'details', '0', 'field') === 'name'
     );
 
     // 2. Readonly agent (external CLI)
@@ -191,7 +192,7 @@ runner:
       async () => {
         await service.updateAgents([{ kind: 'agent', name: 'cursor-agent', model: 'anthropic/claude-3-5-sonnet' }]);
       },
-      (err: any) => err?.code === 'AGENTS_VALIDATION_FAILED' && err.details[0].field === 'agent'
+      (err: unknown) => at(err, 'code') === 'AGENTS_VALIDATION_FAILED' && at(err, 'details', '0', 'field') === 'agent'
     );
 
     // 3. Unavailable model
@@ -199,7 +200,7 @@ runner:
       async () => {
         await service.updateAgents([{ kind: 'agent', name: 'worker', model: 'unknown-provider/fake-model' }]);
       },
-      (err: any) => err?.code === 'AGENTS_VALIDATION_FAILED' && err.details[0].field === 'model'
+      (err: unknown) => at(err, 'code') === 'AGENTS_VALIDATION_FAILED' && at(err, 'details', '0', 'field') === 'model'
     );
 
     // 4. Bad thinking level
@@ -207,7 +208,8 @@ runner:
       async () => {
         await service.updateAgents([{ kind: 'agent', name: 'worker', thinking: 'super-high' }]);
       },
-      (err: any) => err?.code === 'AGENTS_VALIDATION_FAILED' && err.details[0].field === 'thinking'
+      (err: unknown) =>
+        at(err, 'code') === 'AGENTS_VALIDATION_FAILED' && at(err, 'details', '0', 'field') === 'thinking'
     );
 
     // 5. Reasoning=false model (Haiku) with thinking!=off
@@ -222,7 +224,8 @@ runner:
           }
         ]);
       },
-      (err: any) => err?.code === 'AGENTS_VALIDATION_FAILED' && err.details[0].field === 'thinking'
+      (err: unknown) =>
+        at(err, 'code') === 'AGENTS_VALIDATION_FAILED' && at(err, 'details', '0', 'field') === 'thinking'
     );
 
     // 6. Context limit on model without tiers (Haiku)
@@ -238,7 +241,8 @@ runner:
           }
         ]);
       },
-      (err: any) => err?.code === 'AGENTS_VALIDATION_FAILED' && err.details[0].field === 'contextLimit'
+      (err: unknown) =>
+        at(err, 'code') === 'AGENTS_VALIDATION_FAILED' && at(err, 'details', '0', 'field') === 'contextLimit'
     );
 
     // 7. Context limit not in options (tiers are [64000, 128000], window 200000; 50000 is invalid)
@@ -253,7 +257,8 @@ runner:
           }
         ]);
       },
-      (err: any) => err?.code === 'AGENTS_VALIDATION_FAILED' && err.details[0].field === 'contextLimit'
+      (err: unknown) =>
+        at(err, 'code') === 'AGENTS_VALIDATION_FAILED' && at(err, 'details', '0', 'field') === 'contextLimit'
     );
   } finally {
     cleanupAgent();
@@ -278,7 +283,7 @@ test('AgentsService: rejects package modifications when package is not installed
       async () => {
         await service.updateAgents([{ kind: 'subagentDefaults', model: 'anthropic/claude-3-5-sonnet' }]);
       },
-      (err: any) => err?.code === 'AGENTS_PACKAGE_NOT_INSTALLED'
+      (err: unknown) => at(err, 'code') === 'AGENTS_PACKAGE_NOT_INSTALLED'
     );
   } finally {
     cleanupAgent();
@@ -372,10 +377,10 @@ test('AgentsService: sessionDefaults model must be provider/id format and null r
           }
         ]);
       },
-      (err: any) =>
-        err?.code === 'AGENTS_VALIDATION_FAILED' &&
-        err.details[0].field === 'model' &&
-        err.details[0].message.includes('provider/id')
+      (err: unknown) =>
+        at(err, 'code') === 'AGENTS_VALIDATION_FAILED' &&
+        at(err, 'details', '0', 'field') === 'model' &&
+        String(at(err, 'details', '0', 'message')).includes('provider/id')
     );
 
     // 2. Accepts valid provider/id format: sets both defaultProvider and defaultModel

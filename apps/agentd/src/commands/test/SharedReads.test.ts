@@ -1,57 +1,66 @@
 import test from 'node:test';
 import * as assert from 'node:assert/strict';
 import { Dispatcher } from '../Dispatcher.js';
+import type { Session } from '../../sessions/Session.js';
+import type { SessionRegistry } from '../../sessions/SessionRegistry.js';
+import type { PcpCommandType } from '@piframe/pcp-ts';
+import {
+  at,
+  commandEnvelope,
+  fakeConnection,
+  fakeConnectionManager,
+  fakeIndex,
+  fakePiPackages,
+  fakeRegistry,
+  fakeRemoteManager,
+  parseSent,
+  type SentMessage
+} from './fakes.js';
 
 function fixture() {
   let calls = 0;
   let release: () => void = () => {};
-  const registry: any = {
-    getSession: () => ({ id: 's1', readOnly: false }),
+  const registry = fakeRegistry({
+    getSession: () => ({ id: 's1', readOnly: false }) as Session,
     getSubagents: async () => {
       calls += 1;
       await new Promise<void>((resolve) => {
         release = resolve;
       });
-      return [{ id: `agent-${calls}` }];
+      return [{ id: `agent-${calls}` }] as Awaited<ReturnType<SessionRegistry['getSubagents']>>;
     },
     subagentRuntime: () => ({ live: null, workerAlive: false, workerGone: false }),
-    getIndex: () => ({}),
+    getIndex: () => fakeIndex(),
     getPiExecutablePath: () => 'node'
-  };
+  });
   const dispatcher = new Dispatcher(
     registry,
-    { broadcast() {}, broadcastLocal() {} } as any,
-    {
+    fakeConnectionManager({ broadcast() {}, broadcastLocal() {} }),
+    fakePiPackages({
       list: async () => [],
       update: async () => ({}),
       remove: async () => ({}),
       pin: async () => ({})
-    } as any,
-    {
+    }),
+    fakeRemoteManager({
       on() {},
       getAuthManager: () => ({ getDevice: () => ({ mode: 'control' }) })
-    } as any
+    })
   );
-  const sent: any[] = [];
-  const conn = {
+  const sent: SentMessage[] = [];
+  const conn = fakeConnection({
     id: 'c1',
     deviceId: 'd1',
     isRemote: false,
-    send: (m: any) => sent.push(typeof m === 'string' ? JSON.parse(m) : m)
-  } as any;
+    send: (m) => sent.push(parseSent(m)) > 0
+  });
   let counter = 0;
-  const run = (type: string) => {
+  const run = (type: PcpCommandType) => {
     counter += 1;
-    return dispatcher.handle(conn, {
-      protocol: 1,
-      kind: 'command',
-      id: `m${counter}`,
-      ts: Date.now(),
-      commandId: `cmd_${counter}`,
-      type,
-      sessionId: 's1',
-      payload: {}
-    } as any);
+    return dispatcher.handle(
+      conn,
+      commandEnvelope(type, {}, { id: `m${counter}`, commandId: `cmd_${counter}`, sessionId: 's1' })
+    );
   };
   return { run, sent, calls: () => calls, release: () => release() };
 }
@@ -66,13 +75,13 @@ test('identical reads in flight on one connection share one execution and both g
   await Promise.all([first, second]);
   const results = f.sent.filter((m) => m.kind === 'result');
   assert.deepEqual(
-    results.map((m) => [m.commandId, m.payload.state]),
+    results.map((m) => [m.commandId, at(m, 'payload', 'state')]),
     [
       ['cmd_1', 'completed'],
       ['cmd_2', 'completed']
     ]
   );
-  assert.deepEqual(results[1].payload.data, results[0].payload.data);
+  assert.deepEqual(at(results[1], 'payload', 'data'), at(results[0], 'payload', 'data'));
 
   // Once finished, the next request runs again instead of reusing a stale result.
   const third = f.run('session.subagents');

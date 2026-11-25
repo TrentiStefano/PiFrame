@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { at } from '../../test/fakes.js';
 import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -48,14 +49,15 @@ test('subagentContextLimitExtension logic: applies limit only when model has tie
     // 1. Setup subagent-context.json with worker=64000
     fs.writeFileSync(path.join(piframeDir, 'subagent-context.json'), JSON.stringify({ worker: 64000 }));
 
-    let registeredHandlers: Record<string, (event: any, ctx: any) => Promise<void>> = {};
-    let modelSetCalls: any[] = [];
+    type Handler = (event: Record<string, unknown>, ctx: Record<string, unknown>) => Promise<void>;
+    const registeredHandlers: Record<string, Handler | undefined> = {};
+    const modelSetCalls: Array<Record<string, unknown>> = [];
 
     const fakePi = {
-      on: (event: string, handler: any) => {
+      on: (event: string, handler: Handler) => {
         registeredHandlers[event] = handler;
       },
-      setModel: async (model: any) => {
+      setModel: async (model: Record<string, unknown>) => {
         modelSetCalls.push(model);
         return true;
       }
@@ -67,7 +69,7 @@ test('subagentContextLimitExtension logic: applies limit only when model has tie
     assert.ok(registeredHandlers['before_agent_start']);
 
     // Case A: No active_agent tag -> NO setModel call
-    await registeredHandlers['session_start'](
+    await registeredHandlers['session_start']?.(
       { systemPrompt: 'Standard instructions without active agent tag' },
       {
         model: {
@@ -80,7 +82,7 @@ test('subagentContextLimitExtension logic: applies limit only when model has tie
     assert.equal(modelSetCalls.length, 0);
 
     // Case B: Active agent tag for 'scout' which has no configured limit -> NO setModel call
-    await registeredHandlers['before_agent_start'](
+    await registeredHandlers['before_agent_start']?.(
       { systemPrompt: '<active_agent name="scout"/>\n\nPrompt' },
       {
         model: {
@@ -93,7 +95,7 @@ test('subagentContextLimitExtension logic: applies limit only when model has tie
     assert.equal(modelSetCalls.length, 0);
 
     // Case C: Active agent tag for 'worker', but model has NO tiers -> NO setModel call
-    await registeredHandlers['before_agent_start'](
+    await registeredHandlers['before_agent_start']?.(
       { systemPrompt: '<active_agent name="worker"/>\n\nPrompt' },
       {
         model: {
@@ -105,7 +107,7 @@ test('subagentContextLimitExtension logic: applies limit only when model has tie
     assert.equal(modelSetCalls.length, 0);
 
     // Case D: Active agent tag for 'worker', model has tiers, but limit >= contextWindow (e.g. window is 64000) -> NO call
-    await registeredHandlers['before_agent_start'](
+    await registeredHandlers['before_agent_start']?.(
       { systemPrompt: '<active_agent name="worker"/>\n\nPrompt' },
       {
         model: {
@@ -118,7 +120,7 @@ test('subagentContextLimitExtension logic: applies limit only when model has tie
     assert.equal(modelSetCalls.length, 0);
 
     // Case E: Active agent tag for 'worker', model has tiers, limit (64000) < contextWindow (200000) -> setModel IS called!
-    await registeredHandlers['session_start'](
+    await registeredHandlers['session_start']?.(
       { systemPrompt: '<active_agent name="worker"/>\n\nPrompt' },
       {
         model: {
@@ -129,8 +131,8 @@ test('subagentContextLimitExtension logic: applies limit only when model has tie
       }
     );
     assert.equal(modelSetCalls.length, 1);
-    assert.equal(modelSetCalls[0].contextWindow, 64000);
-    assert.equal(modelSetCalls[0].id, 'claude-3-5-sonnet');
+    assert.equal(at(modelSetCalls[0], 'contextWindow'), 64000);
+    assert.equal(at(modelSetCalls[0], 'id'), 'claude-3-5-sonnet');
   } finally {
     if (prevEnv !== undefined) {
       process.env.PI_FRAME_HOME = prevEnv;

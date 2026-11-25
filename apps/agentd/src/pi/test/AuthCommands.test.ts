@@ -3,10 +3,15 @@ import * as assert from 'node:assert/strict';
 import { contextLimitExtension } from '../contextLimitExtension.js';
 import { adaptPiEvent } from '../PiEventAdapter.js';
 
+/** The slash-command definition the extension registers: its handler takes the argument text and the context. */
+interface CommandDefinition {
+  handler: (args: string, ctx: unknown) => Promise<unknown>;
+}
+
 test('PiFrame auth commands use Pi auth runtime, mask secret prompts, and never return credentials', async () => {
-  const commands = new Map<string, any>();
+  const commands = new Map<string, CommandDefinition>();
   const notices: string[] = [];
-  const calls: any[] = [];
+  const calls: Array<Record<string, unknown>> = [];
   const labels: string[] = [];
   const credentials = [{ providerId: 'anthropic', type: 'api_key' }];
   const runtime = {
@@ -14,7 +19,15 @@ test('PiFrame auth commands use Pi auth runtime, mask secret prompts, and never 
       { id: 'anthropic', name: 'Anthropic', auth: { apiKey: { login: async () => ({}) } } },
       { id: 'oauth-only', name: 'OAuth only', auth: { oauth: { login: async () => ({}) } } }
     ],
-    login: async (providerId: string, type: string, interaction: any, options: any) => {
+    login: async (
+      providerId: string,
+      type: string,
+      interaction: {
+        prompt: (request: unknown) => Promise<unknown>;
+        notify: (notice: unknown) => void;
+      },
+      options: { getDeviceId: () => string; agentName: string }
+    ) => {
       calls.push({ providerId, type, deviceId: options.getDeviceId(), agentName: options.agentName });
       const secret = await interaction.prompt({ type: 'secret', message: 'API key', placeholder: 'sk-' });
       const selection = await interaction.prompt({
@@ -50,13 +63,13 @@ test('PiFrame auth commands use Pi auth runtime, mask secret prompts, and never 
     }
   };
   contextLimitExtension({
-    registerCommand: (name: string, definition: any) => commands.set(name, definition),
+    registerCommand: (name: string, definition: CommandDefinition) => commands.set(name, definition),
     on() {},
     getSettings: () => ({})
   });
 
   const loginResult = await commands
-    .get('piframe-auth-login')
+    .get('piframe-auth-login')!
     .handler('{"deviceId":"123e4567-e89b-12d3-a456-426614174000"}', ctx);
   assert.equal(loginResult, undefined);
   assert.deepEqual(calls[0], {
@@ -73,7 +86,7 @@ test('PiFrame auth commands use Pi auth runtime, mask secret prompts, and never 
   );
   assert.ok(notices.some((message) => message.includes('https://example.test')));
 
-  await commands.get('piframe-auth-logout').handler('', ctx);
+  await commands.get('piframe-auth-logout')!.handler('', ctx);
   assert.deepEqual(calls.at(-1), { logout: 'anthropic' });
   assert.ok(notices.includes('Signed out of anthropic.'));
 });
