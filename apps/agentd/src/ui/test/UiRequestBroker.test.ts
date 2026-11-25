@@ -1,9 +1,11 @@
 import test from 'node:test';
 import * as assert from 'node:assert';
-import { UiRequestBroker } from '../UiRequestBroker.js';
+import { UiRequestBroker, type UiRequestBrokerOptions } from '../UiRequestBroker.js';
+
+type BrokerEvent = Parameters<UiRequestBrokerOptions['onEmitEvent']>[0];
 
 test('UiRequestBroker: claim, conflict, and resolve lifecycle', async () => {
-  const events: any[] = [];
+  const events: BrokerEvent[] = [];
   const broker = new UiRequestBroker({
     sessionId: 's_test',
     onEmitEvent: (evt) => events.push(evt)
@@ -49,7 +51,7 @@ test('UiRequestBroker: claim, conflict, and resolve lifecycle', async () => {
 });
 
 test('UiRequestBroker: lease expiration returns request to unclaimed', async () => {
-  const events: any[] = [];
+  const events: BrokerEvent[] = [];
   const broker = new UiRequestBroker({
     sessionId: 's_test_expiry',
     onEmitEvent: (evt) => events.push(evt)

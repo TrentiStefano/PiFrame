@@ -3,7 +3,12 @@ import * as assert from 'node:assert';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
-import { SessionIndex } from '../sessions/SessionIndex.js';
+import { SessionIndex, type ModelUsage } from '../sessions/SessionIndex.js';
+
+/** The cost a model bucket reports; a missing bucket reads as NaN so the comparison fails. */
+function costOf(byModel: Record<string, ModelUsage> | undefined, model: string): number {
+  return byModel?.[model]?.cost ?? Number.NaN;
+}
 
 test('SessionIndex: extractSessionMetadata correctly extracts usage, model, thinking, and cost', async (t) => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentd-cost-test-'));
@@ -45,9 +50,9 @@ test('SessionIndex: extractSessionMetadata correctly extracts usage, model, thin
   assert.strictEqual(meta.model, 'claude-3-5-sonnet');
   assert.strictEqual(meta.thinkingLevel, 'high');
   assert.ok(meta.usage);
-  assert.ok((meta.usage as any).byModel);
-  assert.strictEqual(Math.abs((meta.usage as any).byModel['claude-3-5-sonnet'].cost - 0.04) < 0.0001, true);
-  assert.strictEqual((meta.usage.tokens as any).total, 6500);
+  assert.ok(meta.usage?.byModel);
+  assert.strictEqual(Math.abs(costOf(meta.usage?.byModel, 'claude-3-5-sonnet') - 0.04) < 0.0001, true);
+  assert.strictEqual(meta.usage?.tokens?.total, 6500);
 
   // Text read asynchronously once gives the same result as reading the file synchronously.
   const text = await index.readSessionText(sessionFile);
@@ -89,11 +94,11 @@ test('SessionIndex: extractSessionMetadata extracts per-model costs across multi
   const meta = index.extractSessionMetadata(sessionFile);
 
   assert.ok(meta.usage);
-  const byModel = (meta.usage as any).byModel;
+  const byModel = meta.usage?.byModel;
   assert.ok(byModel);
-  assert.strictEqual(Math.abs(byModel['github-copilot/gpt-6.1-sol'].cost - 46.818) < 0.001, true);
-  assert.strictEqual(Math.abs(byModel['github-copilot/claude-haiku-5-5'].cost - 27.539) < 0.001, true);
-  assert.strictEqual(Math.abs(byModel['Tools/summaries'].cost - 1.183) < 0.001, true);
+  assert.strictEqual(Math.abs(costOf(byModel, 'github-copilot/gpt-6.1-sol') - 46.818) < 0.001, true);
+  assert.strictEqual(Math.abs(costOf(byModel, 'github-copilot/claude-haiku-5-5') - 27.539) < 0.001, true);
+  assert.strictEqual(Math.abs(costOf(byModel, 'Tools/summaries') - 1.183) < 0.001, true);
 });
 
 test('SessionIndex: tool usage is not attributed to the parent model and missing cost is not zero', (t) => {
@@ -114,11 +119,11 @@ test('SessionIndex: tool usage is not attributed to the parent model and missing
       .map((entry) => JSON.stringify(entry))
       .join('\n')
   );
-  const usage = new SessionIndex().extractSessionMetadata(sessionFile).usage as any;
-  assert.equal(usage.byModel['parent-model'].cost, 0.02);
-  assert.equal(usage.byModel['Tools/summaries'].cost, 0.0125);
-  assert.equal(usage.byModel['unknown-price-model'].cost, undefined);
-  assert.ok(Math.abs(usage.cost - 0.0325) < 0.000001);
+  const usage = new SessionIndex().extractSessionMetadata(sessionFile).usage;
+  assert.equal(costOf(usage?.byModel, 'parent-model'), 0.02);
+  assert.equal(costOf(usage?.byModel, 'Tools/summaries'), 0.0125);
+  assert.equal(usage?.byModel?.['unknown-price-model']?.cost, undefined);
+  assert.ok(Math.abs((usage?.cost ?? Number.NaN) - 0.0325) < 0.000001);
 });
 
 test('SessionIndex: getSubagents accumulates nested Pi usage as child sessions grow', async (t) => {

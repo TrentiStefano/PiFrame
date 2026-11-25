@@ -82,7 +82,7 @@ test('Dispatcher: branch commands remote permissions (view allowed for list, for
     // Create remote connection in 'view' mode
     const viewWs = new MockWebSocket();
     const viewConn = new Connection({
-      ws: viewWs as any,
+      ws: viewWs,
       expectedToken: 'tok',
       daemonVersion: '0.1.0',
       startedAt: Date.now(),
@@ -138,7 +138,7 @@ test('Dispatcher: branch commands remote permissions (view allowed for list, for
     // Create remote connection in 'control' mode
     const ctrlWs = new MockWebSocket();
     const ctrlConn = new Connection({
-      ws: ctrlWs as any,
+      ws: ctrlWs,
       expectedToken: 'tok',
       daemonVersion: '0.1.0',
       startedAt: Date.now(),
@@ -187,7 +187,7 @@ test('Dispatcher: switchBranch is rejected while session is read-only or busy', 
 
     const ws = new MockWebSocket();
     const conn = new Connection({
-      ws: ws as any,
+      ws: ws,
       expectedToken: 'tok',
       daemonVersion: '0.1.0',
       startedAt: Date.now(),

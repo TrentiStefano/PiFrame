@@ -10,6 +10,13 @@ import {
   validateRemotePatch,
   DEFAULT_CONFIG
 } from '../../config/config.js';
+import type { ConnectionSocket } from '../../server/connection.js';
+
+function listeningPort(server: { address(): { port: number } | string | null }): number {
+  const address = server.address();
+  if (address === null || typeof address === 'string') throw new Error('server is not listening on a TCP port');
+  return address.port;
+}
 import { parseCommandLine } from '../TunnelProvider.js';
 import { RemoteAuthManager } from '../RemoteAuthManager.js';
 import { RemoteManager } from '../RemoteManager.js';
@@ -90,7 +97,7 @@ test('Security: 25 unauthenticated remote WS attempts do NOT block or delay loca
     listener: 'local'
   });
   await new Promise<void>((r) => localServer.listen(0, '127.0.0.1', () => r()));
-  localPort = (localServer.address() as any).port;
+  localPort = listeningPort(localServer);
 
   const remoteServer = createHttpServer({
     config: DEFAULT_CONFIG,
@@ -101,7 +108,7 @@ test('Security: 25 unauthenticated remote WS attempts do NOT block or delay loca
     listener: 'remote'
   });
   await new Promise<void>((r) => remoteServer.listen(0, '127.0.0.1', () => r()));
-  remotePort = (remoteServer.address() as any).port;
+  remotePort = listeningPort(remoteServer);
   remoteManager.setListenerPort(remotePort);
 
   const { wss } = createWsServer({
@@ -233,7 +240,7 @@ test('Security: remote.installCloudflared is blocked for remote connections', as
   const pairing = auth.generatePairing(60000);
   const paired = auth.pair(pairing.secret, 'Test Client', '127.0.0.1', 'control');
 
-  const remoteWs = new (class extends (await import('node:events')).EventEmitter {
+  const remoteWs = new (class extends (await import('node:events')).EventEmitter implements ConnectionSocket {
     readyState = 1;
     sentMessages: string[] = [];
     send(data: string, cb?: () => void) {
@@ -244,7 +251,7 @@ test('Security: remote.installCloudflared is blocked for remote connections', as
   })();
 
   const remoteConn = new Connection({
-    ws: remoteWs as any,
+    ws: remoteWs,
     expectedToken: 'tok',
     daemonVersion: '0.1.0',
     startedAt: Date.now(),

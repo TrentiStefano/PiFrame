@@ -6,6 +6,10 @@ import * as path from 'node:path';
 import { SessionIndex } from '../SessionIndex.js';
 import { SessionRegistry } from '../SessionRegistry.js';
 import { Session } from '../Session.js';
+import { readProperty } from '../../errors/errors.js';
+import { EventEmitter } from 'node:events';
+import { ConnectionManager } from '../../server/wsServer.js';
+import { Connection, type ConnectionSocket } from '../../server/connection.js';
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'pi-session-lifecycle-'));
 const previousHome = process.env.PI_FRAME_HOME;
@@ -61,12 +65,40 @@ process.stdin.on('data', chunk => {
 `
 );
 
+/** A socket that keeps the JSON text of every frame the connection writes. */
+class RecordingSocket extends EventEmitter implements ConnectionSocket {
+  public readyState = 1;
+  public sent: string[] = [];
+
+  public send(data: string, cb: () => void): void {
+    this.sent.push(data);
+    cb();
+  }
+
+  public close(): void {
+    this.readyState = 3;
+  }
+}
+
+/** The fields this test reads from a frame the daemon wrote. */
+interface CapturedFrame {
+  kind?: string;
+  seq?: number;
+  payload?: { transcript?: { entries: Array<{ content?: unknown }> } };
+}
+
+/** The content blocks a stored message carries, read without asserting their shape. */
+function blocksOf(message: Record<string, unknown> | null | undefined): Array<Record<string, unknown>> {
+  const content = message?.content;
+  return Array.isArray(content) ? content : [];
+}
+
 function registry(checkTerminalOwner: (cwd: string) => Promise<boolean | null> = async () => false) {
   return new SessionRegistry({
     piExecutablePath: workerFile,
     capabilities: { version: '0.99.2', supported: true, modes: ['rpc'], features: [] },
     workerIdleTimeoutMs: 0,
-    connectionManager: { broadcast: () => {} } as any,
+    connectionManager: new ConnectionManager(),
     checkTerminalOwner,
     sessionIndex: new SessionIndex({ sessionsDir, cachePath: path.join(root, 'index.json') })
   });
@@ -231,11 +263,20 @@ test('daemon shutdown rejects replacement already waiting on worker stop', async
 test('external resume always snapshots unjournaled terminal file changes', async () => {
   const r = registry(async () => true);
   const original = fs.readFileSync(sourceFile);
-  const messages: any[] = [];
-  const conn = { id: 'reader', attachedSessions: new Set(), send: (message: any) => messages.push(message) } as any;
+  const socket = new RecordingSocket();
+  const conn = new Connection({
+    ws: socket,
+    expectedToken: 'tok',
+    daemonVersion: 'test',
+    startedAt: Date.now(),
+    piInfo: { path: 'pi', version: '0.85.1', supported: true },
+    onCommand: async () => {},
+    onClose: () => {}
+  });
+  const frames = (): CapturedFrame[] => socket.sent.map((text) => JSON.parse(text));
   try {
     await r.attachClient('external', conn, null);
-    const previousSeq = messages[0].seq;
+    const previousSeq = frames()[0]?.seq ?? null;
     fs.appendFileSync(
       sourceFile,
       JSON.stringify({
@@ -245,10 +286,10 @@ test('external resume always snapshots unjournaled terminal file changes', async
         message: { role: 'user', content: 'Terminal continued', timestamp: 2 }
       }) + '\n'
     );
-    messages.length = 0;
+    socket.sent.length = 0;
     await r.attachClient('external', conn, previousSeq);
-    assert.equal(messages[0].kind, 'snapshot');
-    assert.equal(messages[0].payload.transcript.entries.at(-1).content, 'Terminal continued');
+    assert.equal(frames()[0]?.kind, 'snapshot');
+    assert.equal(frames()[0]?.payload?.transcript?.entries.at(-1)?.content, 'Terminal continued');
   } finally {
     fs.writeFileSync(sourceFile, original);
     await r.closeAll();
@@ -288,7 +329,7 @@ test('snapshots retain execution start times and compute missing tool durations'
   const snapshot = session.getSnapshot();
   assert.equal(snapshot.runtime.runStartedAt, 10000);
   assert.equal(snapshot.activeTools[0]!.startedAt, 12000);
-  assert.equal((snapshot.activeTools[0]!.args as any).timeout, 1800);
+  assert.equal(readProperty(snapshot.activeTools[0]!.args, 'timeout'), 1800);
 
   t.mock.timers.setTime(20000);
   const [completed] = session.dispatchPiEvent({
@@ -307,7 +348,7 @@ test('snapshots retain execution start times and compute missing tool durations'
   const settledSnapshot = session.getSnapshot();
   assert.equal(settledSnapshot.runtime.runStartedAt, null);
   assert.equal(settledSnapshot.activeTools.length, 0);
-  const savedCall = (settledSnapshot.transcript.entries[0]!.content as any[])[0];
+  const savedCall = blocksOf(settledSnapshot.transcript.entries[0])[0]!;
   assert.equal(savedCall.startedAt, 12000);
   assert.equal(savedCall.durationMs, 8000);
   t.mock.timers.setTime(30000);
@@ -344,7 +385,7 @@ test('crash and recovery snapshots cannot revive running timers', async (t) => {
   assert.equal(snapshot.runtime.status, 'settled');
   assert.equal(snapshot.runtime.runStartedAt, null);
   assert.deepEqual(snapshot.activeTools, []);
-  assert.equal((snapshot.transcript.entries[0]!.content as any[])[0].durationMs, 3000);
+  assert.equal(blocksOf(snapshot.transcript.entries[0])[0]!.durationMs, 3000);
 });
 
 test('full snapshot preserves live text, thinking, tools, queue and UI requests', async () => {
@@ -369,8 +410,8 @@ test('full snapshot preserves live text, thinking, tools, queue and UI requests'
     timeout: 5000
   });
   const snapshot = s.getSnapshot();
-  assert.equal((snapshot.liveMessage as any).content[0].text, 'Hello');
-  assert.equal((snapshot.liveMessage as any).content[1].thinking, 'Thinking');
+  assert.equal(blocksOf(snapshot.liveMessage)[0]!.text, 'Hello');
+  assert.equal(blocksOf(snapshot.liveMessage)[1]!.thinking, 'Thinking');
   assert.equal(snapshot.activeTools?.length, 1);
   assert.deepEqual(snapshot.runtime.queue?.steering, ['next']);
   assert.equal(snapshot.pendingUiRequests[0]!.timeoutMs, 5000);

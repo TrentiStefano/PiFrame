@@ -53,7 +53,7 @@ function createTestSetup(piPackages?: PiPackageOperations, sessionIndex?: Sessio
 
   const ws = new MockWebSocket();
   const conn = new Connection({
-    ws: ws as any,
+    ws: ws,
     expectedToken: 'tok',
     daemonVersion: '0.1.0',
     startedAt: Date.now(),
@@ -443,7 +443,7 @@ test('Dispatcher: executes remote.* commands and enforces remote allowlist', asy
 
   const ws = new MockWebSocket();
   const conn = new Connection({
-    ws: ws as any,
+    ws: ws,
     expectedToken: 'tok',
     daemonVersion: '0.1.0',
     startedAt: Date.now(),
@@ -496,7 +496,7 @@ test('Dispatcher: executes remote.* commands and enforces remote allowlist', asy
   // 3. Remote connection in 'view' mode:
   const remoteWs = new MockWebSocket();
   const remoteConn = new Connection({
-    ws: remoteWs as any,
+    ws: remoteWs,
     expectedToken: 'tok',
     daemonVersion: '0.1.0',
     startedAt: Date.now(),

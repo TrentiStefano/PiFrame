@@ -54,6 +54,21 @@ function parseCost(value: unknown): number | undefined {
   return typeof raw === 'number' && Number.isFinite(raw) && raw >= 0 ? raw : undefined;
 }
 
+/** Token counts and cost one model (or the tools bucket) reported across a session. */
+export interface ModelUsage {
+  cost?: number;
+  tokens: { total: number; input: number; output: number };
+}
+
+/** Usage totals a session file reports; `byModel` and `models` hold the same per-model buckets. */
+export type SessionUsage = {
+  cost?: number;
+  totalTokens?: number;
+  tokens?: { total: number; input: number; output: number };
+  byModel?: Record<string, ModelUsage>;
+  models?: Record<string, ModelUsage>;
+};
+
 export interface SessionSummary {
   id: string;
   name?: string;
@@ -1251,7 +1266,7 @@ export class SessionIndex {
     filePath: string,
     preloaded?: string
   ): {
-    usage?: Record<string, unknown>;
+    usage?: SessionUsage;
     model?: string | null;
     thinkingLevel?: string | null;
   } {
@@ -1360,7 +1375,7 @@ export class SessionIndex {
       }
     } catch {}
 
-    const usage: Record<string, unknown> = {};
+    const usage: SessionUsage = {};
     if (hasCost) {
       usage.cost = totalCost;
     }

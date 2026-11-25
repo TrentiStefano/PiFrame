@@ -7,6 +7,12 @@ import { createHttpServer } from '../httpServer.js';
 import { createWsServer } from '../wsServer.js';
 import { DEFAULT_CONFIG } from '../../config/config.js';
 
+function listeningPort(server: { address(): { port: number } | string | null }): number {
+  const address = server.address();
+  if (address === null || typeof address === 'string') throw new Error('server is not listening on a TCP port');
+  return address.port;
+}
+
 test('Security Review Suite: constant-time comparison, origin validation, token enforcement', async (t) => {
   // 1. Test timingSafeEqualStrings
   await t.test('timingSafeEqualStrings correctly validates matching and non-matching tokens', () => {
@@ -55,7 +61,7 @@ test('Security Review Suite: constant-time comparison, origin validation, token 
       httpServer.on('error', reject);
     });
 
-    const port = (httpServer.address() as any).port;
+    const port = listeningPort(httpServer);
 
     const { wss } = createWsServer({
       httpServer,
@@ -115,9 +121,9 @@ test('Security Review Suite: constant-time comparison, origin validation, token 
           settleReject(new Error('Connection should not have opened for disallowed origin'));
         });
 
-        ws.on('error', (err: any) => {
-          const msg = err?.message || '';
-          const code = err?.code || '';
+        ws.on('error', (err: Error & { code?: string }) => {
+          const msg = err.message;
+          const code = err.code ?? '';
           if (
             msg.includes('403') ||
             msg.includes('Unexpected server response') ||
@@ -180,7 +186,7 @@ test('Security Review Suite: constant-time comparison, origin validation, token 
           }
         });
 
-        ws.on('error', (err: any) => {
+        ws.on('error', (err: unknown) => {
           settleReject(err instanceof Error ? err : new Error(String(err)));
         });
       });

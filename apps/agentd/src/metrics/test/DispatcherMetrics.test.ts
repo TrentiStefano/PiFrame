@@ -58,7 +58,7 @@ function createSetup() {
   // Local connection
   const localWs = new MockWebSocket();
   const localConn = new Connection({
-    ws: localWs as any,
+    ws: localWs,
     expectedToken: 'tok',
     daemonVersion: '0.1.0',
     startedAt: Date.now(),
@@ -77,7 +77,7 @@ function createSetup() {
   // Remote connection (view mode)
   const remoteViewWs = new MockWebSocket();
   const remoteViewConn = new Connection({
-    ws: remoteViewWs as any,
+    ws: remoteViewWs,
     expectedToken: 'tok',
     daemonVersion: '0.1.0',
     startedAt: Date.now(),
@@ -94,7 +94,7 @@ function createSetup() {
   // Remote connection (control mode)
   const remoteControlWs = new MockWebSocket();
   const remoteControlConn = new Connection({
-    ws: remoteControlWs as any,
+    ws: remoteControlWs,
     expectedToken: 'tok',
     daemonVersion: '0.1.0',
     startedAt: Date.now(),

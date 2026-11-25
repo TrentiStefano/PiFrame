@@ -6,6 +6,12 @@ import * as path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { WorkspaceService } from '../WorkspaceService.js';
 import { validateBranchName, listGitBranches } from '../gitClient.js';
+import { errorCode, readProperty } from '../../errors/errors.js';
+
+/** A field of a rejected operation's `details`, read without asserting the shape. */
+function detailOf(err: unknown, key: string): unknown {
+  return readProperty(readProperty(err, 'details'), key);
+}
 
 function createTempRepo(opts: { initBranch?: string; commit?: boolean } = {}): {
   root: string;
@@ -66,8 +72,8 @@ test('validateBranchName: accepts weird valid names and rejects invalid names', 
     for (const name of invalidNames) {
       await assert.rejects(
         async () => validateBranchName(repo.root, name),
-        (err: any) => {
-          assert.equal(err.code, 'BRANCH_INVALID_NAME');
+        (err: unknown) => {
+          assert.equal(errorCode(err), 'BRANCH_INVALID_NAME');
           return true;
         },
         `Expected rejection for branch name: ${String(name)}`
@@ -259,10 +265,10 @@ test('switchBranch: dirty working directory with onDirty block leaves files unto
     // Default onDirty is 'block'
     await assert.rejects(
       async () => service.switchBranch(repo.root, 'feature'),
-      (err: any) => {
-        assert.equal(err.code, 'WORKSPACE_DIRTY');
-        assert.equal(err.details?.changedFiles, 2); // file.txt (mod) + staged.txt (staged)
-        assert.equal(err.details?.untrackedFiles, 1); // untracked.txt
+      (err: unknown) => {
+        assert.equal(errorCode(err), 'WORKSPACE_DIRTY');
+        assert.equal(detailOf(err, 'changedFiles'), 2); // file.txt (mod) + staged.txt (staged)
+        assert.equal(detailOf(err, 'untrackedFiles'), 1); // untracked.txt
         return true;
       }
     );
@@ -329,20 +335,21 @@ test('switchBranch: stash + switch failure path pops stash back with nothing los
     // Inject switch failure
     const hooks = {
       injectSwitchFailure: async () => {
-        const error: any = new Error('Simulated git switch checkout failure');
-        error.code = 'GIT_FAILED';
-        error.stderr = 'fatal: simulated collision in switch';
+        const error = Object.assign(new Error('Simulated git switch checkout failure'), {
+          code: 'GIT_FAILED',
+          stderr: 'fatal: simulated collision in switch'
+        });
         throw error;
       }
     };
 
     await assert.rejects(
       async () => service.switchBranch(repo.root, 'feature', 'stash', undefined, hooks),
-      (err: any) => {
-        assert.equal(err.code, 'BRANCH_SWITCH_FAILED');
-        assert.ok(err.details?.stderr?.includes('simulated collision in switch'));
+      (err: unknown) => {
+        assert.equal(errorCode(err), 'BRANCH_SWITCH_FAILED');
+        assert.ok(String(detailOf(err, 'stderr')).includes('simulated collision in switch'));
         // stashRetained should not be true because pop succeeded
-        assert.equal(err.details?.stashRetained, undefined);
+        assert.equal(detailOf(err, 'stashRetained'), undefined);
         return true;
       }
     );
@@ -372,26 +379,28 @@ test('switchBranch: stash + switch failure + pop failure leaves stash and report
     // Inject switch failure AND pop failure
     const hooks = {
       injectSwitchFailure: async () => {
-        const error: any = new Error('Simulated switch failure');
-        error.code = 'GIT_FAILED';
-        error.stderr = 'fatal: switch exploded';
+        const error = Object.assign(new Error('Simulated switch failure'), {
+          code: 'GIT_FAILED',
+          stderr: 'fatal: switch exploded'
+        });
         throw error;
       },
       injectPopFailure: async () => {
-        const error: any = new Error('Simulated pop conflict failure');
-        error.code = 'GIT_FAILED';
-        error.stderr = 'fatal: stash pop collision';
+        const error = Object.assign(new Error('Simulated pop conflict failure'), {
+          code: 'GIT_FAILED',
+          stderr: 'fatal: stash pop collision'
+        });
         throw error;
       }
     };
 
     await assert.rejects(
       async () => service.switchBranch(repo.root, 'feature', 'stash', undefined, hooks),
-      (err: any) => {
-        assert.equal(err.code, 'BRANCH_SWITCH_FAILED');
-        assert.equal(err.details?.stashRetained, true);
-        assert.ok(err.details?.stashMessage?.startsWith('piframe: before switching to feature'));
-        assert.ok(err.details?.stderr?.includes('switch exploded'));
+      (err: unknown) => {
+        assert.equal(errorCode(err), 'BRANCH_SWITCH_FAILED');
+        assert.equal(detailOf(err, 'stashRetained'), true);
+        assert.ok(String(detailOf(err, 'stashMessage')).startsWith('piframe: before switching to feature'));
+        assert.ok(String(detailOf(err, 'stderr')).includes('switch exploded'));
         return true;
       }
     );
@@ -419,19 +428,20 @@ test('switchBranch: rollback restores PiFrame stash and preserves interim foreig
       injectSwitchFailure: async () => {
         fs.writeFileSync(path.join(repo.root, 'foreign.txt'), 'foreign uncommitted\n');
         repo.git(['stash', 'push', '--include-untracked', '-m', 'foreign interim stash']);
-        const error: any = new Error('Simulated git switch checkout failure');
-        error.code = 'GIT_FAILED';
-        error.stderr = 'fatal: simulated collision in switch';
+        const error = Object.assign(new Error('Simulated git switch checkout failure'), {
+          code: 'GIT_FAILED',
+          stderr: 'fatal: simulated collision in switch'
+        });
         throw error;
       }
     };
 
     await assert.rejects(
       async () => service.switchBranch(repo.root, 'feature', 'stash', undefined, hooks),
-      (err: any) => {
-        assert.equal(err.code, 'BRANCH_SWITCH_FAILED');
-        assert.equal(err.details?.stashRetained, undefined);
-        assert.ok(err.details?.stderr?.includes('simulated collision in switch'));
+      (err: unknown) => {
+        assert.equal(errorCode(err), 'BRANCH_SWITCH_FAILED');
+        assert.equal(detailOf(err, 'stashRetained'), undefined);
+        assert.ok(String(detailOf(err, 'stderr')).includes('simulated collision in switch'));
         return true;
       }
     );
@@ -470,19 +480,20 @@ test('switchBranch: rollback when PiFrame stash commit sha is missing reports st
       injectSwitchFailure: async () => {
         // Externally clear all stashes so the recorded SHA is not in the stash list
         repo.git(['stash', 'clear']);
-        const error: any = new Error('Simulated switch failure');
-        error.code = 'GIT_FAILED';
-        error.stderr = 'fatal: switch exploded';
+        const error = Object.assign(new Error('Simulated switch failure'), {
+          code: 'GIT_FAILED',
+          stderr: 'fatal: switch exploded'
+        });
         throw error;
       }
     };
 
     await assert.rejects(
       async () => service.switchBranch(repo.root, 'feature', 'stash', undefined, hooks),
-      (err: any) => {
-        assert.equal(err.code, 'BRANCH_SWITCH_FAILED');
-        assert.equal(err.details?.stashRetained, true);
-        assert.match(err.details?.stashMessage, /^piframe: before switching to feature/);
+      (err: unknown) => {
+        assert.equal(errorCode(err), 'BRANCH_SWITCH_FAILED');
+        assert.equal(detailOf(err, 'stashRetained'), true);
+        assert.match(String(detailOf(err, 'stashMessage')), /^piframe: before switching to feature/);
         return true;
       }
     );

@@ -5,6 +5,12 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
 import { DEFAULT_CONFIG } from '../../config/config.js';
+
+function listeningPort(server: { address(): { port: number } | string | null }): number {
+  const address = server.address();
+  if (address === null || typeof address === 'string') throw new Error('server is not listening on a TCP port');
+  return address.port;
+}
 import { createHttpServer } from '../httpServer.js';
 import { safeBlobName, pruneOldBlobs, getBlobsDir } from '../blobs.js';
 
@@ -23,7 +29,7 @@ test('blob upload over the authenticated listener stores the file and serves it 
   const token = 'test-blob-token-1234567890';
   const server = createHttpServer({ config: DEFAULT_CONFIG, token, version: '0', startedAt: Date.now() });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const port = (server.address() as any).port;
+  const port = listeningPort(server);
   t.after(async () => {
     server.closeAllConnections?.();
     await new Promise<void>((resolve) => server.close(() => resolve()));
