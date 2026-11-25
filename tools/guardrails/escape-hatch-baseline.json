@@ -19,8 +19,8 @@
       "@ts-expect-error": 0,
       "@ts-nocheck": 0,
       "eslint-disable": 0,
-      "as any": 151,
-      ": any": 131,
+      "as any": 70,
+      ": any": 55,
       "as unknown as": 11,
       "// coverage:ignore": 0
     }
