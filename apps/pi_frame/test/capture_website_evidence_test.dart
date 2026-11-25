@@ -17,6 +17,8 @@ import 'package:pi_frame/features/command_palette/command_palette.dart';
 import 'package:pi_frame/features/settings/theme_editor_dialog.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+import 'support/capture_support.dart';
+
 Directory _resolveRepoRoot() {
   var dir = Directory.current;
   for (var i = 0; i < 5; i++) {
@@ -34,12 +36,10 @@ Directory _resolveRepoRoot() {
 /// captures go to a temporary folder that tearDownAll deletes, so a plain `flutter test` leaves nothing behind.
 bool get _writesTrackedCaptures => Platform.environment['PI_FRAME_CAPTURE_EVIDENCE'] == '1';
 
-Directory? _temporaryCaptures;
+final _temporaryCaptures = TemporaryCaptureFolder('pi_frame_website_captures_');
 
 List<Directory> _captureTargets() {
-  if (!_writesTrackedCaptures) {
-    return [_temporaryCaptures ??= Directory.systemTemp.createTempSync('pi_frame_website_captures_')];
-  }
+  if (!_writesTrackedCaptures) return [_temporaryCaptures.directory];
   final root = _resolveRepoRoot();
   return [
     Directory('${root.path}/docs/design-evidence/recordly-projects'),
@@ -202,23 +202,11 @@ class ThemeTokensController {
 }
 
 void main() {
-  tearDownAll(() {
-    _temporaryCaptures?.deleteSync(recursive: true);
-    _temporaryCaptures = null;
-  });
+  _temporaryCaptures.deleteOnTearDownAll();
 
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
-    final uiFont = FontLoader('SchibstedGrotesk')..addFont(rootBundle.load('assets/fonts/SchibstedGrotesk.ttf'));
-    await uiFont.load();
-    final monoFont = FontLoader('SourceCodePro')..addFont(rootBundle.load('assets/fonts/SourceCodePro.ttf'));
-    await monoFont.load();
-    final headingFont = FontLoader('BarlowCondensed')
-      ..addFont(rootBundle.load('assets/fonts/BarlowCondensed-SemiBold.ttf'))
-      ..addFont(rootBundle.load('assets/fonts/BarlowCondensed-Bold.ttf'));
-    await headingFont.load();
-    final iconsFont = FontLoader('MaterialIcons')..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
-    await iconsFont.load();
+    await loadAppFonts();
   });
 
   Widget createHarness({

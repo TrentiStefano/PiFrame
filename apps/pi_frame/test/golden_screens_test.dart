@@ -1,6 +1,7 @@
-// Golden tests for the four key screens (welcome, workspace with a transcript, composer with a command chip and the
-// slash menu, settings), each in light and dark at 1920x1032 logical pixels. They run only in `verify`, on Windows,
-// through `pnpm run goldens:update` (regenerate) or the golden step of the gate (compare). See docs/pr-verification.md.
+// Golden tests for five key screens (welcome, workspace with a transcript, composer with the slash menu open, composer
+// with a staged command chip, settings), each in light and dark at 1920x1032 logical pixels: ten references. They run
+// only in `verify`, on Windows, through `pnpm run goldens:update` (regenerate) or the golden step of the gate (compare).
+// See docs/pr-verification.md.
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -17,6 +18,8 @@ import 'package:pi_frame/features/composer/composer.dart';
 import 'package:pi_frame/features/settings/diagnostics.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+import 'support/capture_support.dart';
+
 /// The window the screens are rendered in: a full-screen window with the taskbar, at device pixel ratio 1.
 const _screenSize = Size(1920, 1032);
 
@@ -27,10 +30,10 @@ const _settleTimers = Duration(seconds: 15);
 /// Ignored by git and cleared at the start of every run.
 final _failuresDir = Directory('test/failures');
 
-// Synthetic data is confined to tests; the product never displays demo sessions. Same fixtures as redesign_layout_test.
+// Synthetic data is confined to tests; the product never displays demo sessions. English only, like the app's copy.
 const _sampleSession = SessionState(
   sessionId: 'design-session',
-  sessionName: 'Rendere affidabile la riconnessione',
+  sessionName: 'Make reconnection reliable',
   cwd: 'C:/Projects/pi-frame',
   currentModel: 'claude-sonnet',
   currentThinkingLevel: 'medium',
@@ -45,13 +48,13 @@ const _sampleSession = SessionState(
       id: 'u1',
       role: 'user',
       timestamp: 1,
-      text: 'Controlla il flusso di riconnessione. Voglio preservare la cronologia e recuperare gli eventi senza duplicati.',
+      text: 'Check the reconnect flow. I want to keep the history and recover events without duplicates.',
     ),
     SessionEntry(
       id: 'a1',
       role: 'assistant',
       timestamp: 2,
-      thinking: 'Controllo il journal e la sequenza degli eventi prima di modificare il client.',
+      thinking: 'Check the journal and the event order before changing the client.',
       toolCalls: [
         ToolExecutionState(
           toolCallId: 't1',
@@ -61,7 +64,7 @@ const _sampleSession = SessionState(
           durationMs: 42,
         ),
       ],
-      text: 'Il client mantiene il cursore di replay. Possiamo isolare il recupero della connessione senza cambiare la proprietà delle sessioni.\n\n```dart\nfinal cursor = session.lastAppliedSeq;\nawait client.attach(sessionId);\n```\n\nLa cronologia resta gestita da Pi. Il prossimo passo è verificare il comportamento con una disconnessione durante lo streaming.',
+      text: 'The client keeps the replay cursor. We can isolate the reconnect path without changing session ownership.\n\n```dart\nfinal cursor = session.lastAppliedSeq;\nawait client.attach(sessionId);\n```\n\nPi keeps the history. The next step is to verify the behaviour with a disconnect during streaming.',
     ),
   ],
 );
@@ -76,24 +79,24 @@ const _commands = [
 const _sessions = [
   {
     'id': 'design-session',
-    'name': 'Rendere affidabile la riconnessione',
+    'name': 'Make reconnection reliable',
     'cwd': 'C:/Projects/pi-frame',
     'isActive': true,
-    'lastMessagePreview': 'Verifica del journal e del replay',
+    'lastMessagePreview': 'Verify the journal and replay',
   },
   {
     'id': 's2',
-    'name': 'Semplificare il composer',
+    'name': 'Simplify the composer',
     'cwd': 'C:/Projects/pi-frame',
     'isActive': false,
-    'lastMessagePreview': 'Gestione delle istruzioni in coda',
+    'lastMessagePreview': 'Queued instructions handling',
   },
   {
     'id': 's3',
-    'name': 'Esplorare il protocollo PCP',
+    'name': 'Explore the PCP protocol',
     'cwd': 'C:/Projects/pcp',
     'isActive': false,
-    'lastMessagePreview': 'Contratti e tipi generati',
+    'lastMessagePreview': 'Contracts and generated types',
   },
 ];
 
@@ -200,7 +203,7 @@ Future<GlobalKey> _pumpApp(WidgetTester tester, {required bool dark, required Se
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
-        diagnosticsFixtureLabelProvider.overrideWithValue('DATI SINTETICI · GOLDEN'),
+        diagnosticsFixtureLabelProvider.overrideWithValue('SYNTHETIC DATA · GOLDEN'),
         themeRepositoryProvider.overrideWithValue(repo),
         daemonEndpointProvider.overrideWith((ref) async => null),
         pcpClientProvider.overrideWithValue(_GoldenWorkspaceClient()),
@@ -255,16 +258,7 @@ void main() {
       );
       return;
     }
-    for (final font in ['SchibstedGrotesk', 'SourceCodePro']) {
-      final loader = FontLoader(font)..addFont(rootBundle.load('assets/fonts/$font.ttf'));
-      await loader.load();
-    }
-    final heading = FontLoader('BarlowCondensed')
-      ..addFont(rootBundle.load('assets/fonts/BarlowCondensed-SemiBold.ttf'))
-      ..addFont(rootBundle.load('assets/fonts/BarlowCondensed-Bold.ttf'));
-    await heading.load();
-    final icons = FontLoader('MaterialIcons')..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
-    await icons.load();
+    await loadAppFonts();
   });
 
   _goldenTests('welcome', (tester, {required bool dark}) async {
@@ -279,16 +273,32 @@ void main() {
     return key;
   });
 
-  _goldenTests('composer', (tester, {required bool dark}) async {
+  // Two composer states: the slash menu open, and a staged command chip with the menu closed. They never show together:
+  // a chip is the active command, and the menu only opens without one (composer_command_chip_test covers the behaviour).
+  _goldenTests('composer-menu', (tester, {required bool dark}) async {
     final key = await _pumpApp(tester, dark: dark, session: _sampleSession);
     final field = find.descendant(of: find.byType(Composer), matching: find.byType(TextField));
     await tester.tap(field);
     await tester.pumpAndSettle();
-    // Typing "/" opens the slash menu. The menu and a staged command chip never show together: a chip is the active
-    // command, and the menu only opens without one (composer_command_chip_test covers the chip).
     await tester.enterText(field, '/');
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('composer-slash-menu')), findsOneWidget);
+    expect(find.byKey(const ValueKey('composer-command-chip')), findsNothing);
+    return key;
+  });
+
+  _goldenTests('composer-chip', (tester, {required bool dark}) async {
+    final key = await _pumpApp(tester, dark: dark, session: _sampleSession);
+    final field = find.descendant(of: find.byType(Composer), matching: find.byType(TextField));
+    await tester.tap(field);
+    await tester.pumpAndSettle();
+    // Enter on a filtered menu item stages it as a chip; the menu closes.
+    await tester.enterText(field, '/rel');
+    await tester.pumpAndSettle();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('composer-command-chip')), findsOneWidget);
+    expect(find.byKey(const ValueKey('composer-slash-menu')), findsNothing);
     return key;
   });
 

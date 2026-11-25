@@ -19,6 +19,8 @@ import 'package:pi_frame/features/workspace/repository_workspace.dart';
 import 'package:pi_frame/ui/precision.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
 
+import 'support/capture_support.dart';
+
 // Synthetic data is confined to tests; the product never displays demo sessions.
 const sampleSession = SessionState(
   sessionId: 'design-session',
@@ -62,11 +64,11 @@ const sampleSession = SessionState(
 /// the captures go to a temporary folder that tearDownAll deletes, so a plain `flutter test` leaves nothing behind.
 bool get _writesTrackedCaptures => Platform.environment['PI_FRAME_CAPTURE_EVIDENCE'] == '1';
 
-Directory? _temporaryCaptures;
+final _temporaryCaptures = TemporaryCaptureFolder('pi_frame_redesign_captures_');
 
 String _captureDirectory() {
   if (_writesTrackedCaptures) return '../../docs/design-evidence';
-  return (_temporaryCaptures ??= Directory.systemTemp.createTempSync('pi_frame_redesign_captures_')).path;
+  return _temporaryCaptures.directory.path;
 }
 
 Future<void> capture(WidgetTester tester, GlobalKey boundaryKey, String name, {String? outputDirectory}) async {
@@ -167,23 +169,9 @@ final Finder _gitPaneHeader = find.byWidgetPredicate(
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  tearDownAll(() {
-    _temporaryCaptures?.deleteSync(recursive: true);
-    _temporaryCaptures = null;
-  });
+  _temporaryCaptures.deleteOnTearDownAll();
 
-  setUpAll(() async {
-    for (final font in ['SchibstedGrotesk', 'SourceCodePro']) {
-      final loader = FontLoader(font)..addFont(rootBundle.load('assets/fonts/$font.ttf'));
-      await loader.load();
-    }
-    final heading = FontLoader('BarlowCondensed')
-      ..addFont(rootBundle.load('assets/fonts/BarlowCondensed-SemiBold.ttf'))
-      ..addFont(rootBundle.load('assets/fonts/BarlowCondensed-Bold.ttf'));
-    await heading.load();
-    final icons = FontLoader('MaterialIcons')..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
-    await icons.load();
-  });
+  setUpAll(loadAppFonts);
   for (final size in [const Size(1440, 960), const Size(1100, 800), const Size(390, 844)]) {
     testWidgets('shell remains usable at ${size.width.toInt()}px', (tester) async {
       tester.view.physicalSize = size;

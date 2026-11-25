@@ -1,0 +1,6 @@
+# Test tags. The golden screens (test/golden_screens_test.dart) are compared on Windows only, by
+# tools/scripts/goldens.mjs; every other run leaves them out (tools/scripts/test-flutter.js excludes the tag).
+tags:
+  golden:
+    # Pixel comparisons of the whole app: slow, and bound to the Windows font rendering the references were made with.
+    timeout: 5x
