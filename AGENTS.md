@@ -1,6 +1,6 @@
 # PiFrame agent map
 
-A desktop and web frontend for the Pi coding agent. This file is a map: it stays under 100 lines, and the gate
+A desktop and web frontend for the Pi coding agent. This file is a map: it stays at most 100 lines, and the gate
 fails when it names a path or `pnpm run` script that does not exist (`tools/guardrails/src/agent-map.mjs`).
 
 ## Rules
