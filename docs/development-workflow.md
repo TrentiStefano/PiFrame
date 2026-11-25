@@ -38,19 +38,23 @@ flowchart TD
 
     s1 --> pr
 
+    b1 -. design decision found mid-way .-> f1
+    s1 -. design decision found mid-way .-> f1
+
     pr[pnpm run check, then pnpm run pr<br/>pr skill writes the body] --> ci{verify and CI green?}
     ci -->|no| fix[fix the root cause, check again] --> pr
     ci -->|guarded path changed| appr[maintainer adds human-approved label]
     appr --> merge([merged])
     ci -->|yes| merge
 
-    merge --> retro["retro: run after a closed spec or a hard bug"]
+    merge --> route{which route was the PR from?}
+    route -->|feature: closed spec| retro["retro: run after a closed spec or a hard bug"]
+    route -->|feature: closed spec| arch[improve-codebase-architecture, run manually<br/>last step of every closed spec]
+    route -->|hard bug| retro
+    route -->|bug or small change| none([no retro, no architecture review])
     retro -->|lint, test or check to add| triage[needs-triage issue naming the check]
     retro -->|decision to record| adr[ADR in docs/adr/]
-    f2 -. feedback .-> retro
-    merge --> arch[improve-codebase-architecture, run manually<br/>last step of every closed spec]
     arch -->|findings| f1
-    triage -. becomes a ticket .-> f3
 ```
 
 The loops in the flowchart are the only two feedback paths:
