@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import * as os from 'node:os';
 import * as readline from 'node:readline';
 import { getPiFrameBaseDir } from '../config/config.js';
+import { isRecord, type JsonRecord } from '../errors/errors.js';
 
 export function isTemporarySessionCwd(cwd: string, tempDir = os.tmpdir()): boolean {
   const pathApi = path.win32.isAbsolute(cwd) || path.win32.isAbsolute(tempDir) ? path.win32 : path;
@@ -13,21 +14,15 @@ export function isTemporarySessionCwd(cwd: string, tempDir = os.tmpdir()): boole
 }
 
 /** A transcript entry or message as read from JSON. Fields are narrowed where they are read. */
-type JsonRecord = Record<string, unknown>;
-
-function isJsonRecord(value: unknown): value is JsonRecord {
-  return typeof value === 'object' && value !== null;
-}
-
 function messageText(message: unknown): string {
-  if (!isJsonRecord(message)) return '';
+  if (!isRecord(message)) return '';
   const content = message.content;
   let text =
     typeof content === 'string'
       ? content
       : Array.isArray(content)
         ? content
-            .filter((block): block is JsonRecord => isJsonRecord(block) && block.type === 'text')
+            .filter((block): block is JsonRecord => isRecord(block) && block.type === 'text')
             .map((block) => String(block.text || ''))
             .join('')
         : '';
@@ -45,12 +40,12 @@ export const FIRST_PROMPT_MAX_LENGTH = 120;
 
 /** The prompt text when [message] is a user message, else an empty string. */
 function firstPromptOf(message: unknown): string {
-  if (!isJsonRecord(message) || message.role !== 'user') return '';
+  if (!isRecord(message) || message.role !== 'user') return '';
   return messageText(message).replace(/\s+/g, ' ').trim().slice(0, FIRST_PROMPT_MAX_LENGTH);
 }
 
 function parseCost(value: unknown): number | undefined {
-  const raw = isJsonRecord(value) ? (value.total ?? value.amount) : value;
+  const raw = isRecord(value) ? (value.total ?? value.amount) : value;
   return typeof raw === 'number' && Number.isFinite(raw) && raw >= 0 ? raw : undefined;
 }
 
@@ -701,7 +696,7 @@ export class SessionIndex {
     for (const line of (content ?? fs.readFileSync(filePath, 'utf8')).split('\n')) {
       try {
         const entry: unknown = JSON.parse(line);
-        if (isJsonRecord(entry) && entry.type !== 'session') entries.push(entry);
+        if (isRecord(entry) && entry.type !== 'session') entries.push(entry);
       } catch {
         /* An active terminal may have an unfinished final line. */
       }
@@ -719,7 +714,7 @@ export class SessionIndex {
       branch.unshift(cursor);
       cursor = byId.get(cursor.parentId);
     }
-    const messageOf = (entry: JsonRecord): JsonRecord => (isJsonRecord(entry.message) ? entry.message : entry);
+    const messageOf = (entry: JsonRecord): JsonRecord => (isRecord(entry.message) ? entry.message : entry);
     return (branch.length ? branch : entries)
       .filter((entry) => (entry.type === 'message' || entry.role) && messageOf(entry).role !== 'system')
       .map((entry) => ({ ...messageOf(entry), id: entry.id }));
@@ -1422,14 +1417,14 @@ function oneLine(text: string, max: number): string {
 
 /** Folds one session-file entry into the child's live state. */
 export function trackChildLiveState(live: ChildLiveState, entry: unknown): void {
-  if (!isJsonRecord(entry)) return;
+  if (!isRecord(entry)) return;
   if (entry.type === 'session' && typeof entry.timestamp === 'string') {
     const startedAt = Date.parse(entry.timestamp);
     if (Number.isFinite(startedAt)) live.startedAt = startedAt;
     return;
   }
   const message = entry.type === 'message' ? entry.message : undefined;
-  if (!isJsonRecord(message)) return;
+  if (!isRecord(message)) return;
   if (message.role === 'user') {
     if (live.prompt === undefined) {
       const lines = messageText(message)
@@ -1450,10 +1445,10 @@ export function trackChildLiveState(live: ChildLiveState, entry: unknown): void 
   }
   if (message.role !== 'assistant') return;
   const blocks: unknown[] = Array.isArray(message.content) ? message.content : [];
-  const calls = blocks.filter((block): block is JsonRecord => isJsonRecord(block) && block.type === 'toolCall');
+  const calls = blocks.filter((block): block is JsonRecord => isRecord(block) && block.type === 'toolCall');
   const lastCall = calls[calls.length - 1];
   if (lastCall) {
-    const args: JsonRecord = isJsonRecord(lastCall.arguments) ? lastCall.arguments : {};
+    const args: JsonRecord = isRecord(lastCall.arguments) ? lastCall.arguments : {};
     const key = ACTIVITY_ARG_KEYS.find((name) => {
       const value = args[name];
       return typeof value === 'string' && value.trim() !== '';
@@ -1462,7 +1457,7 @@ export function trackChildLiveState(live: ChildLiveState, entry: unknown): void 
   } else {
     const text =
       blocks
-        .filter((block): block is JsonRecord => isJsonRecord(block) && block.type === 'text')
+        .filter((block): block is JsonRecord => isRecord(block) && block.type === 'text')
         .map((block) => block.text)
         .join('\n') || (typeof message.content === 'string' ? message.content : '');
     const lastLine = text

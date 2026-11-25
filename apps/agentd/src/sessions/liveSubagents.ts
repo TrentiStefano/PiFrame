@@ -1,3 +1,5 @@
+import { isRecord } from '../errors/errors.js';
+
 /**
  * Live subagent state reported by PiFrame's bridge inside a Pi worker
  * (src/pi/subagentBridgeExtension.ts), and the rules that combine it with what
@@ -41,10 +43,6 @@ export interface SubagentRuntime {
   workerAlive: boolean;
   /** PiFrame ran a worker for this session earlier and it has since gone. */
   workerGone: boolean;
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
 }
 
 const num = (value: unknown): number | undefined =>

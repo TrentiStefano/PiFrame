@@ -50,6 +50,9 @@ export interface PiModelInfo {
   name?: string;
   contextWindow?: number;
   piframeOriginalContextWindow?: number;
+  /** Pi's reasoning flag and price table; the daemon narrows each before reading it. */
+  reasoning?: unknown;
+  cost?: unknown;
   [key: string]: unknown;
 }
 

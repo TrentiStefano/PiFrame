@@ -10,7 +10,11 @@ export interface CodedError extends Error {
   details?: unknown;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+/** A JSON object read from a parsed file or a Pi event. Arrays are objects too; check Array.isArray when they matter. */
+export type JsonRecord = Record<string, unknown>;
+
+/** True for any non-null object. Use it to narrow `unknown` before reading properties. */
+export function isRecord(value: unknown): value is JsonRecord {
   return typeof value === 'object' && value !== null;
 }
 
@@ -30,9 +34,10 @@ export function errorMessage(error: unknown): string | undefined {
   return typeof error.message === 'string' ? error.message : undefined;
 }
 
-/** Creates an Error with a code set, for throwing a rejection the dispatcher can classify. */
-export function createCodedError(message: string, code?: string): CodedError {
+/** Creates an Error with a code and an optional UI hint, for throwing a rejection the dispatcher can classify. */
+export function createCodedError(message: string, code?: string, hint?: string): CodedError {
   const error: CodedError = new Error(message);
   if (code !== undefined) error.code = code;
+  if (hint !== undefined) error.hint = hint;
   return error;
 }

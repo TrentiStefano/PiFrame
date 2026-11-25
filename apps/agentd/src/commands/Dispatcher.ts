@@ -1,4 +1,4 @@
-import { modelInfoOf } from '../pi/piCommands.js';
+import { modelInfoOf, type PiModelInfo } from '../pi/piCommands.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as os from 'node:os';
@@ -38,16 +38,41 @@ import type {
   PiAvailableModel,
   PcpEvent
 } from '@piframe/pcp-ts';
-import { createCodedError, errorCode, errorMessage, readProperty, type CodedError } from '../errors/errors.js';
+import {
+  createCodedError,
+  errorCode,
+  errorMessage,
+  isRecord,
+  readProperty
+} from '../errors/errors.js';
 
-/** One model as Pi reports it in get_available_models. Fields are unchecked until narrowed. */
-interface RawModel {
-  provider?: string;
-  id?: unknown;
-  name?: unknown;
-  contextWindow?: unknown;
-  reasoning?: unknown;
-  cost?: { tiers?: Array<{ inputTokensAbove?: unknown }> };
+/** The display name: Pi's name, else its id. Empty when neither is set (never the string "undefined"). */
+export function modelName(model: PiModelInfo): string {
+  if (model.name != null) return String(model.name);
+  return model.id != null ? String(model.id) : '';
+}
+
+/** The sorted input-token thresholds of a model's price tiers; anything that is not a finite number is dropped. */
+export function inputTierThresholds(cost: unknown): number[] {
+  const tiers: unknown = readProperty(cost, 'tiers');
+  if (!Array.isArray(tiers)) return [];
+  return tiers
+    .map((tier: unknown) => readProperty(tier, 'inputTokensAbove'))
+    .filter((n): n is number => typeof n === 'number' && Number.isFinite(n))
+    .sort((a, b) => a - b);
+}
+
+/** The error hint a caught value carries, when it is a string. */
+function hintOf(err: unknown): string | undefined {
+  const hint = readProperty(err, 'hint');
+  return typeof hint === 'string' ? hint : undefined;
+}
+
+/** The structured details a caught value carries: an object or an array; anything else is dropped. */
+function detailsOf(err: unknown): Record<string, unknown> | unknown[] | undefined {
+  const details = readProperty(err, 'details');
+  if (Array.isArray(details)) return details;
+  return isRecord(details) ? details : undefined;
 }
 
 function getOrCreateAuthDeviceId(): string {
@@ -197,7 +222,7 @@ export class Dispatcher {
   }
 
   private async fetchAvailableModelsForAgents(): Promise<{ models: PiAvailableModel[]; warning?: string }> {
-    let rawModels: RawModel[] = [];
+    let rawModels: PiModelInfo[] = [];
     let warning: string | undefined;
 
     const activeWorker = this.registry.getSupervisor().getActiveWorker();
@@ -249,7 +274,7 @@ export class Dispatcher {
 
     const filtered = filterModelsByEnabledPatterns(
       rawModels.filter(
-        (model: RawModel) =>
+        (model: PiModelInfo) =>
           model.provider !== 'github-copilot' ||
           (entitlements.diagnostic.available &&
             typeof model.id === 'string' &&
@@ -258,20 +283,14 @@ export class Dispatcher {
       readEnabledModelPatterns()
     );
 
-    const mapped: PiAvailableModel[] = filtered.map((m: RawModel) => {
+    const mapped: PiAvailableModel[] = filtered.map((m: PiModelInfo) => {
       const fullId = m.provider ? `${m.provider}/${m.id}` : String(m.id);
-      const tiers = Array.isArray(m.cost?.tiers)
-        ? m.cost.tiers
-            .map((t) => t.inputTokensAbove)
-            .filter((n): n is number => typeof n === 'number' && Number.isFinite(n))
-            .sort((a: number, b: number) => a - b)
-        : [];
       return {
         id: fullId,
-        name: String(m.name ?? m.id),
+        name: modelName(m),
         contextWindow: typeof m.contextWindow === 'number' ? m.contextWindow : 0,
         reasoning: !!m.reasoning,
-        tiers
+        tiers: inputTierThresholds(m.cost)
       };
     });
 
@@ -322,7 +341,8 @@ export class Dispatcher {
       const payload = this.deduplicator.complete(commandId, 'completed', data);
       this.sendResult(conn, commandId, 'completed', payload.data);
     } catch (err: unknown) {
-      const code = errorCode(err);
+      const rawCode = errorCode(err);
+      const code = typeof rawCode === 'string' ? rawCode : undefined;
       const isRejected =
         code === 'COMMAND_REJECTED' ||
         code === 'CONFIG_INVALID' ||
@@ -330,9 +350,9 @@ export class Dispatcher {
         code === 'BRANCH_INVALID_NAME' ||
         code === 'BRANCH_NOT_FOUND' ||
         code === 'WORKSPACE_DIRTY' ||
-        String(code || '').startsWith('WORKSPACE_') ||
-        String(code || '').startsWith('REMOTE_') ||
-        String(code || '').startsWith('SIDE_');
+        (code ?? '').startsWith('WORKSPACE_') ||
+        (code ?? '').startsWith('REMOTE_') ||
+        (code ?? '').startsWith('SIDE_');
       const state = isRejected ? 'rejected' : 'failed';
       const payload = this.deduplicator.complete(commandId, state, undefined, errorMessage(err));
 
@@ -347,8 +367,8 @@ export class Dispatcher {
         payload: {
           code: code || (isRejected ? 'COMMAND_REJECTED' : 'INTERNAL'),
           message: errorMessage(err),
-          hint: readProperty(err, 'hint'),
-          details: readProperty(err, 'details')
+          hint: hintOf(err),
+          details: detailsOf(err)
         }
       } as PcpError);
 
@@ -988,8 +1008,7 @@ export class Dispatcher {
         if (!sessionId) throw new Error('sessionId required for agent.prompt');
         const session = this.registry.getSession(sessionId);
         if (!session) {
-          const err: CodedError = new Error(`Session ${sessionId} not found`);
-          err.code = 'SESSION_NOT_FOUND';
+          const err = createCodedError(`Session ${sessionId} not found`, 'SESSION_NOT_FOUND');
           throw err;
         }
 
@@ -999,19 +1018,13 @@ export class Dispatcher {
           if (builtin.name === 'reload' && !builtin.args && !payload.images?.length) {
             return this.reloadWorkerSession(sessionId);
           }
-          const err: CodedError = new Error(
-            `/${builtin.name} is a Pi built-in command and cannot be sent as model text.`
-          );
-          err.code = 'COMMAND_REJECTED';
-          err.hint = 'Use the PiFrame slash-command action.';
+          const err = createCodedError(`/${builtin.name} is a Pi built-in command and cannot be sent as model text.`, 'COMMAND_REJECTED', 'Use the PiFrame slash-command action.');
           throw err;
         }
 
         // §2.8 Rule: If streaming is active, require explicit streamingBehavior
         if (session.isStreaming && !payload.streamingBehavior) {
-          const err: CodedError = new Error('Agent is streaming. Specify streamingBehavior ("steer" or "followUp").');
-          err.code = 'COMMAND_REJECTED';
-          err.hint = 'Use Steer or Follow-up while the agent is streaming.';
+          const err = createCodedError('Agent is streaming. Specify streamingBehavior ("steer" or "followUp").', 'COMMAND_REJECTED', 'Use Steer or Follow-up while the agent is streaming.');
           throw err;
         }
 
@@ -1366,8 +1379,7 @@ export class Dispatcher {
         if (!sessionId) throw new Error('sessionId required for ui.claim');
         const session = this.registry.getSession(sessionId);
         if (!session) {
-          const err: CodedError = new Error(`Session ${sessionId} not found`);
-          err.code = 'SESSION_NOT_FOUND';
+          const err = createCodedError(`Session ${sessionId} not found`, 'SESSION_NOT_FOUND');
           throw err;
         }
         if (conn.isRemote && session.uiBroker.isLocalOnly(payload.requestId)) {
@@ -1377,8 +1389,7 @@ export class Dispatcher {
         }
         const claimRes = session.uiBroker.claimRequest(payload.requestId, conn.id);
         if (!claimRes.success) {
-          const err: CodedError = new Error(claimRes.reason || 'Failed to claim UI request');
-          err.code = 'UI_REQUEST_NOT_CLAIMED';
+          const err = createCodedError(claimRes.reason || 'Failed to claim UI request', 'UI_REQUEST_NOT_CLAIMED');
           throw err;
         }
         return { claimed: true, requestId: payload.requestId };
@@ -1388,8 +1399,7 @@ export class Dispatcher {
         if (!sessionId) throw new Error('sessionId required');
         const session = this.registry.getSession(sessionId);
         if (!session) {
-          const err: CodedError = new Error(`Session ${sessionId} not found`);
-          err.code = 'SESSION_NOT_FOUND';
+          const err = createCodedError(`Session ${sessionId} not found`, 'SESSION_NOT_FOUND');
           throw err;
         }
 
@@ -1404,8 +1414,7 @@ export class Dispatcher {
           payload.cancelled ? 'cancelled' : payload.confirmed ? 'confirmed' : 'value'
         );
         if (!resolveRes.success) {
-          const err: CodedError = new Error(resolveRes.reason || 'Failed to resolve UI request');
-          err.code = 'UI_REQUEST_NOT_CLAIMED';
+          const err = createCodedError(resolveRes.reason || 'Failed to resolve UI request', 'UI_REQUEST_NOT_CLAIMED');
           throw err;
         }
 
@@ -1560,8 +1569,7 @@ export class Dispatcher {
       case 'daemon.getStatus':
       case 'session.getForkPoints':
       default: {
-        const err: CodedError = new Error(`Unsupported command type: ${cmd.type}`);
-        err.code = 'COMMAND_REJECTED';
+        const err = createCodedError(`Unsupported command type: ${cmd.type}`, 'COMMAND_REJECTED');
         throw err;
       }
     }
