@@ -25,3 +25,4 @@ export {
   THEME_PACKAGE_FILES
 } from './design-tokens.mjs';
 export { markdownLines, linkTargets, isExternalLink, normalizeLineEndings } from './markdown.mjs';
+export { selectStaleVerifyWorktrees, leftoverVerifyFailure } from './verify-worktrees.mjs';
