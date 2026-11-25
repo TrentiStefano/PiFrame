@@ -1,4 +1,4 @@
-import { readProperty } from '../errors/errors.js';
+import { isRecord, readProperty, type JsonRecord } from '../errors/errors.js';
 import { PIFRAME_SUBAGENTS_STATUS_KEY, parseLiveSubagents, type LiveSubagentState } from './liveSubagents.js';
 import { EventJournal } from '../journal/EventJournal.js';
 import { SnapshotBuilder, type SnapshotContext } from '../journal/SnapshotBuilder.js';
@@ -19,17 +19,11 @@ export interface SessionOptions {
   onBroadcast?: (event: PcpEvent) => void;
 }
 
-type JsonRecord = Record<string, unknown>;
-
 /** A Pi or daemon event payload. Fields are narrowed where they are read. */
 type EventPayload = JsonRecord;
 
 /** The assistant message being streamed, before Pi reports it as complete. */
 type LiveMessage = JsonRecord & { content: JsonRecord[] };
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
-}
 
 export class Session {
   public readonly id: string;
@@ -42,7 +36,8 @@ export class Session {
   public readOnlyReason: 'terminal' | 'unknown' | null = null;
   public allowAmbiguousTerminal = false;
   public liveMessage: LiveMessage | null = null;
-  public activeTools = new Map<string, JsonRecord>();
+  /** Keyed by the Pi tool call id exactly as reported (a missing id is an undefined key, not the string "undefined"). */
+  public activeTools = new Map<unknown, JsonRecord>();
   public usage: Record<string, unknown> = {};
   public createdAt: number;
   public lastActivityAt: number;
@@ -278,7 +273,7 @@ export class Session {
       case 'text.delta':
       case 'thinking.delta': {
         const live: LiveMessage = (this.liveMessage ??= { role: 'assistant', content: [] });
-        const index = typeof payload.contentIndex === 'number' ? payload.contentIndex : 0;
+        const index = Number(payload.contentIndex) || 0;
         const field = type === 'text.delta' ? 'text' : 'thinking';
         const block: JsonRecord = live.content[index] || { type: field, [field]: '' };
         block[field] = String(block[field]) + String(payload.delta || '');
@@ -287,20 +282,20 @@ export class Session {
       }
 
       case 'tool.started': {
-        const toolKey = String(payload.toolCallId);
+        const toolKey = payload.toolCallId;
         payload.startedAt ??= this.activeTools.get(toolKey)?.startedAt ?? this.lastActivityAt;
         this.activeTools.set(toolKey, { ...payload, isRunning: true });
         this.recordToolTiming(payload);
         break;
       }
       case 'tool.progress': {
-        const toolKey = String(payload.toolCallId);
+        const toolKey = payload.toolCallId;
         const tool = this.activeTools.get(toolKey) || {};
         this.activeTools.set(toolKey, { ...tool, ...payload, output: payload.partialResult });
         break;
       }
       case 'tool.completed': {
-        const toolKey = String(payload.toolCallId);
+        const toolKey = payload.toolCallId;
         const tool = this.activeTools.get(toolKey) || {};
         if (payload.durationMs == null && tool.startedAt != null) {
           payload.durationMs = Math.max(0, this.lastActivityAt - Number(tool.startedAt));
