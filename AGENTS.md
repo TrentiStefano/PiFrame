@@ -47,7 +47,7 @@ apps/agentd  --one `pi --mode rpc` worker per session-->  Pi  --history-->  ~/.p
 | run the daemon only | `pnpm run run:daemon` |
 | inner loop, after every small change | `pnpm run check`, plus test files: `pnpm run check -- tools/guardrails/test/steps.test.mjs` |
 | full gate, before a PR (commit first) | `pnpm run verify`; add `-- --release` before a release, `-- --e2e` for the remote web test |
-| open a PR (verify, push, `gh pr create`) | `pnpm run pr` |
+| open a PR (body check, verify, push, `gh pr create`) | `pnpm run pr` |
 | format / check formatting | `pnpm run format` / `pnpm run format:check` |
 | regenerate PCP types after a schema change | `pnpm run codegen` |
 | drive the app off-screen, real screenshots | `pnpm run harness` (`tools/harness/README.md`) |
