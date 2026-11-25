@@ -38,6 +38,62 @@ function waitForEvent() {
   return { promise, resolve };
 }
 
+test('session scans preserve numeric message timestamps', { timeout: 10_000 }, async () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'piframe-numeric-timestamps-'));
+  const dir = path.join(root, 'sessions');
+  const cache = path.join(root, 'index.json');
+  fs.mkdirSync(dir);
+  const expected = new Map([
+    ['older', 1_700_000_100_000],
+    ['newer', 1_700_000_200_000]
+  ]);
+  const staleCache = [];
+  for (const [id, timestamp] of expected) {
+    const file = path.join(dir, `${id}.jsonl`);
+    fs.writeFileSync(
+      file,
+      [
+        { type: 'session', id, cwd: process.cwd() },
+        { type: 'message', message: { role: 'user', content: id, timestamp } }
+      ]
+        .map((row) => JSON.stringify(row))
+        .join('\n') + '\n'
+    );
+    fs.utimesSync(file, 1_800_000_000, 1_800_000_000);
+    const stat = fs.statSync(file);
+    staleCache.push({
+      id: file,
+      mtime: stat.mtimeMs,
+      summary: {
+        id,
+        cwd: process.cwd(),
+        sessionFile: file,
+        createdAt: stat.mtimeMs,
+        lastActivityAt: stat.mtimeMs,
+        sizeBytes: stat.size,
+        firstUserPrompt: '',
+        isActive: false
+      }
+    });
+  }
+  fs.writeFileSync(cache, JSON.stringify(staleCache));
+  try {
+    const index = new SessionIndex({ sessionsDir: dir, cachePath: cache });
+    const fast = await index.scanFast();
+    assert.deepEqual(
+      Object.fromEntries(fast.sessions.map((session) => [session.id, session.lastActivityAt])),
+      Object.fromEntries(expected)
+    );
+    const full = await index.scan();
+    assert.deepEqual(
+      Object.fromEntries(full.map((session) => [session.id, session.lastActivityAt])),
+      Object.fromEntries(expected)
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test(
   'cold listing returns provisional title and later publishes the exact historical title',
   { timeout: 10_000 },
@@ -781,7 +837,7 @@ test('opening a listed session resolves only that session, not the global scan',
     cwd: process.cwd(),
     sessionFile: 'listed.jsonl',
     createdAt: 1,
-    lastActivityAt: 1,
+    lastActivityAt: 2,
     sizeBytes: 1,
     isActive: false
   };
@@ -800,6 +856,7 @@ test('opening a listed session resolves only that session, not the global scan',
   try {
     const opened = await registry.openSession('listed');
     assert.equal(opened.name, 'Authoritative name');
+    assert.equal(opened.lastActivityAt, row.lastActivityAt);
     assert.equal(scans, 0);
   } finally {
     await registry.closeAll();
