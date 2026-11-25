@@ -37,16 +37,6 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: git fetch --no-tags origin "+refs/pull/${PR_NUMBER}/head:refs/remotes/pull/head"
 
-      # Bootstrap only: until the base branch has the approval script, run the PR's copy.
-      - name: Use the PR's approval script if the base has none
-        env:
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-        run: |
-          if [ ! -f tools/scripts/guardrails-approval.mjs ]; then
-            echo "::warning::The base branch has no approval script yet; running the pull request's copy."
-            git checkout --detach "$HEAD_SHA"
-          fi
-
       - uses: actions/setup-node@v6
         with:
           node-version: 22
