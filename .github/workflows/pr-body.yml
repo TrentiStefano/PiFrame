@@ -28,17 +28,6 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.base.sha }}
 
-      # Bootstrap only: until the base branch has the check's adapter, run the PR's copy.
-      - name: Use the PR's check if the base has none
-        env:
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-        run: |
-          if [ ! -f tools/scripts/check-pr-body.mjs ]; then
-            echo "::warning::The base branch has no PR-body check yet; running the pull request's copy."
-            git fetch --no-tags origin "+refs/pull/${PR_NUMBER}/head:refs/remotes/pull/head"
-            git checkout --detach refs/remotes/pull/head
-          fi
-
       - uses: actions/setup-node@v6
         with:
           node-version: 22
