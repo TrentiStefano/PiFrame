@@ -82,19 +82,19 @@ Details: `docs/pr-verification.md`.
   `.github/workflows/ci.yml` (the parity test prints the YAML). Guarded paths (`tools/guardrails/src/approval.mjs`)
   need the human-approved label on the PR.
 - **Import boundaries**: Flutter layers (domain pure, no Flutter or Riverpod; data not features/ui/app; ui not features/app/data
-  except data/language; features not app; no raw I/O in features or ui) and daemon module edges and cycles, checked by `tools/scripts/check-boundaries.mjs` against
-  `tools/guardrails/boundary.json` (rules, daemon table, baseline). Rules: [docs/pr-verification.md](docs/pr-verification.md#import-boundaries).
+  except data/language; features not app; no raw I/O in features or ui) and daemon module edges and cycles, checked by `tools/scripts/check-boundaries.mjs` against `tools/guardrails/boundary.json` (rules, daemon table, baseline). Rules: [docs/pr-verification.md](docs/pr-verification.md#import-boundaries).
 
 ## Workflow
 
-grill the idea (`grilling` skill) → spec as a GitHub issue → tickets as sub-issues → implement test-first (`tdd`
-skill) → PR with `pnpm run pr` (`pr` skill for the body). Decisions go to `docs/adr/`.
+- **Feature or design decision**: grill → spec → tickets → implement → `pnpm run pr`
+- **Bug**: diagnose → failing regression test → fix → `pnpm run pr`
+- **Small change, no decision**: implement test-first → `pnpm run pr`
+
+Steps, skills and commands per route: [docs/development-workflow.md](docs/development-workflow.md).
 
 ## Agent skills
 
 - **Issue tracker**: GitHub Issues for TrentiStefano/PiFrame via the `gh` CLI; see `docs/agents/issue-tracker.md`.
-- **Triage labels**: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`; see
-  `docs/agents/triage-labels.md`.
-- **Domain docs**: single context, one root `GLOSSARY.md` plus the ADRs in `docs/adr/`; see `docs/agents/domain.md`.
-- **Glossary**: `GLOSSARY.md` gives each core concept one name; use it, not the aliases it lists to avoid.
+- **Triage labels**: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`; see `docs/agents/triage-labels.md`.
+- **Domain docs and glossary**: single context; `GLOSSARY.md` gives each concept one name (not its aliases); ADRs in `docs/adr/`; see `docs/agents/domain.md`.
 - **UI**: `.agents/skills/piframe-ui-harness/SKILL.md` (drive and capture the app) and `.agents/skills/piframe-ui-preview/SKILL.md`.
