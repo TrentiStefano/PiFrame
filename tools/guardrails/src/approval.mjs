@@ -44,6 +44,7 @@ const TOOLING_FILES = new Set([
   'tools/scripts/check-pr-body.mjs',
   'tools/scripts/verify-ci.mjs',
   'tools/scripts/check.mjs',
+  'tools/scripts/guardrails-status.mjs',
   // Not run by a step itself, but the gate adapters list the repository's files through it.
   'tools/scripts/repo-files.mjs',
   'pnpm-workspace.yaml'
