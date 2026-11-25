@@ -149,6 +149,7 @@ function staleVerifyFolders() {
           isDirectory: fs.statSync(longPath(dir), { throwIfNoEntry: false })?.isDirectory() ?? false,
           registered: registered.has(normalizePath(dir)),
           linkedToRepo: linkedToRepository(dir),
+          gitEntry: fs.existsSync(longPath(path.join(dir, '.git'))),
           pidAlive: Number.isInteger(pid) && isProcessAlive(pid)
         };
       });

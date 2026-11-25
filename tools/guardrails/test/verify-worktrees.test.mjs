@@ -8,6 +8,7 @@ const folder = (name, overrides = {}) => ({
   isDirectory: true,
   registered: true,
   linkedToRepo: true,
+  gitEntry: true,
   pidAlive: false,
   ...overrides
 });
@@ -20,6 +21,11 @@ test('selects a registered verify worktree left by an earlier run', () => {
 test('selects a removed verify worktree that is still linked to this repository', () => {
   const removed = folder('PiFrame-verify-42', { registered: false, linkedToRepo: true });
   assert.deepEqual(select([removed]), ['PiFrame-verify-42']);
+});
+
+test('selects a verify folder whose git link is gone (a failed removal left only its content)', () => {
+  const orphan = folder('PiFrame-verify-42', { registered: false, linkedToRepo: false, gitEntry: false });
+  assert.deepEqual(select([orphan]), ['PiFrame-verify-42']);
 });
 
 test('keeps the folder of the current run', () => {
