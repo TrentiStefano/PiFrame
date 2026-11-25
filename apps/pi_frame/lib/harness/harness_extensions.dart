@@ -488,14 +488,14 @@ void registerHarnessExtensions(GlobalKey rootBoundaryKey) {
       final pressedModifiers = <(PhysicalKeyboardKey, LogicalKeyboardKey)>[];
       try {
         for (final modifier in modifiers) {
-          _sendKeyData(modifier.$1, modifier.$2, ui.KeyEventType.down);
+          sendSyntheticKeyData(modifier.$1, modifier.$2, ui.KeyEventType.down);
           pressedModifiers.add(modifier);
         }
-        _sendKeyData(key.$1, key.$2, ui.KeyEventType.down, character: key.$3);
-        _sendKeyData(key.$1, key.$2, ui.KeyEventType.up);
+        sendSyntheticKeyData(key.$1, key.$2, ui.KeyEventType.down, character: key.$3);
+        sendSyntheticKeyData(key.$1, key.$2, ui.KeyEventType.up);
       } finally {
         for (final modifier in pressedModifiers.reversed) {
-          _sendKeyData(modifier.$1, modifier.$2, ui.KeyEventType.up);
+          sendSyntheticKeyData(modifier.$1, modifier.$2, ui.KeyEventType.up);
         }
       }
       return _result({'ok': true, 'key': keyName});
@@ -677,10 +677,19 @@ _HarnessSelector? _selector(Map<String, String> params) {
 
 bool _isTrue(String? value) => value == 'true' || value == '1';
 
-void _sendKeyData(PhysicalKeyboardKey physical, LogicalKeyboardKey logical, ui.KeyEventType type, {String? character}) {
+/// Delivers one synthetic key event through the platform key-data handler. Fails loudly when none is installed.
+@visibleForTesting
+void sendSyntheticKeyData(PhysicalKeyboardKey physical, LogicalKeyboardKey logical, ui.KeyEventType type, {String? character}) {
   // The platform key-data callback is the handler the framework installs for native key events
   // (the key event manager's handleKeyData), so the synthesized event takes the same path.
-  ServicesBinding.instance.platformDispatcher.onKeyData?.call(
+  final onKeyData = ServicesBinding.instance.platformDispatcher.onKeyData;
+  if (onKeyData == null) {
+    throw StateError(
+      'No platform key-data handler is installed, so the harness cannot send a synthesized key event. '
+      'The key event was dropped; check that the framework finished initialising before driving keys.',
+    );
+  }
+  onKeyData(
     ui.KeyData(
       timeStamp: _keyClock.elapsed,
       type: type,

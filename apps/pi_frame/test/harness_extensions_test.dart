@@ -1,4 +1,7 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_frame/data/runtime/harness_mode.dart';
 import 'package:pi_frame/harness/harness_extensions.dart';
@@ -184,5 +187,20 @@ void main() {
     );
     await tester.pump();
     expect(dragUpdates, greaterThan(0));
+  });
+
+  test('a synthetic key event fails loudly when no platform key-data handler is installed', () {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    final dispatcher = ServicesBinding.instance.platformDispatcher;
+    final previous = dispatcher.onKeyData;
+    dispatcher.onKeyData = null;
+    try {
+      expect(
+        () => sendSyntheticKeyData(PhysicalKeyboardKey.enter, LogicalKeyboardKey.enter, ui.KeyEventType.down),
+        throwsStateError,
+      );
+    } finally {
+      dispatcher.onKeyData = previous;
+    }
   });
 }
