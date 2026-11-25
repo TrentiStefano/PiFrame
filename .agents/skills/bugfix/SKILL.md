@@ -10,6 +10,12 @@ The maintainer gives a bug report; you run the whole bug route of `docs/developm
 pull request. Running `/bugfix` is the maintainer's go-ahead to create the issue, the branch, the commits, the push and
 the PR. Never merge the PR, and never add, remove or name the approval label in a command (the agent guard blocks it).
 
+**Nothing local goes to GitHub.** Issues, comments, commit messages and the PR are public. Never write an absolute
+local path (`C:\Users\...`, `/Users/...`, `/home/...`), a username or a machine name, even when the report contains
+one. Refer to a file the maintainer attached by its name only ("the attached screenshot"), and to repository files by
+their path relative to the repository root. The PR-body check refuses local paths; for issues, comments and commit
+messages, you are the check.
+
 ## 1. Understand the report
 
 Read `AGENTS.md`, `GLOSSARY.md` and the "Route 2: bug" section of `docs/development-workflow.md`, then the ADRs of the
@@ -23,7 +29,7 @@ what should happen instead?" — and wait. Otherwise do not ask; start.
 
    ```markdown
    ## Symptom
-   <what the maintainer sees, in their words>
+   <what the maintainer sees, in their words, with every local path removed>
    ## Expected
    <what should happen>
    ## Repro
