@@ -1,0 +1,51 @@
+name: PR body
+
+# Fails while the pull request body lacks a part of the review shape the template asks for (a linked issue, Summary,
+# Evidence, Merge Danger with Door and Blast Radius, Guardrail changes, no leftover placeholder). Logic:
+# tools/guardrails/src/pr-body.mjs; adapter: tools/scripts/check-pr-body.mjs. See docs/pr-verification.md#pr-body-check.
+#
+# Kept out of ci.yml on purpose: ci.yml's jobs must equal the shared step list's `ci` tier (parity test).
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: read # the body, read with the default token
+
+concurrency:
+  group: pr-body-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  pr-body:
+    name: PR body
+    runs-on: ubuntu-24.04
+    steps:
+      # The base commit, so the check is the reviewed one on the base branch, not the PR's own copy.
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+
+      # Bootstrap only: until the base branch has the check's adapter, run the PR's copy.
+      - name: Use the PR's check if the base has none
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ ! -f tools/scripts/check-pr-body.mjs ]; then
+            echo "::warning::The base branch has no PR-body check yet; running the pull request's copy."
+            git fetch --no-tags origin "+refs/pull/${PR_NUMBER}/head:refs/remotes/pull/head"
+            git checkout --detach refs/remotes/pull/head
+          fi
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+
+      - name: Check the pull request body
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: node tools/scripts/check-pr-body.mjs --pr "$PR_NUMBER"
