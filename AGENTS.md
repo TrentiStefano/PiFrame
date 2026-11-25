@@ -54,6 +54,7 @@ apps/agentd  --one `pi --mode rpc` worker per session-->  Pi  --history-->  ~/.p
 | drive the app off-screen, real screenshots | `pnpm run harness` (`tools/harness/README.md`) |
 | refresh the tracked design and website captures, on purpose | `pnpm run capture:evidence` |
 | all tests / end-to-end tests | `pnpm run test` / `pnpm run test:e2e` |
+| progress toward zero for the guardrail baselines (a report, not a gate) | `pnpm run guardrails:status` |
 
 `check` runs in the working tree: the escape-hatch audit, the doc link, map and named-timer checks, the DESIGN.md lint and
 token match, the TypeScript build, the TypeScript (`tsc`) and ESLint analysis, and the Dart analysis, all under the diagnostics
@@ -93,8 +94,7 @@ skill) → PR with `pnpm run pr` (`pr` skill for the body). Decisions go to `doc
 ## Agent skills
 
 - **Issue tracker**: GitHub Issues for TrentiStefano/PiFrame via the `gh` CLI; see `docs/agents/issue-tracker.md`.
-- **Triage labels**: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`; see
-  `docs/agents/triage-labels.md`.
+- **Triage labels**: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`; see `docs/agents/triage-labels.md`.
 - **Domain docs**: single context, one root `GLOSSARY.md` plus the ADRs in `docs/adr/`; see `docs/agents/domain.md`.
 - **Glossary**: `GLOSSARY.md` gives each core concept one name; use it, not the aliases it lists to avoid.
 - **UI**: `.agents/skills/piframe-ui-harness/SKILL.md` (drive and capture the app) and `.agents/skills/piframe-ui-preview/SKILL.md`.

@@ -12,7 +12,7 @@ import { DART_FILE, SCRIPT_FILE, SOURCE_FILE, TEST_FILE_NAME, toPosix } from './
 export const BASELINE_PATH = 'tools/guardrails/escape-hatch-baseline.json';
 
 /** Package name → directory, in baseline order. Files outside these directories are not audited. */
-const PACKAGES = [
+export const PACKAGES = [
   ['agentd', 'apps/agentd/'],
   ['pcp-ts', 'packages/pcp-ts/'],
   ['pcp-spec', 'packages/pcp-spec/'],
