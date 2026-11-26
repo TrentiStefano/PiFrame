@@ -107,6 +107,25 @@ describe('fake-pi simulator', () => {
     assert.match(response.error, /canonical flat RPC command/);
   });
 
+  // #113: a prompt that reached Pi without its text (#106) was accepted here, so the side-conversation
+  // end-to-end test could not see the bug. Like Pi, fake-pi now refuses it.
+  it('rejects a prompt without a text message', async () => {
+    const p = spawn(process.execPath, [fakePiBin, '--mode', 'rpc', '--no-session']);
+    let output = '';
+    p.stdout.on('data', (d) => (output += d.toString()));
+    p.stdin.write(JSON.stringify({ type: 'prompt', id: 'empty' }) + '\n');
+    p.stdin.end();
+    await new Promise((resolve) => p.on('close', resolve));
+    const responses = output
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line));
+    assert.strictEqual(responses.length, 1);
+    assert.strictEqual(responses[0].command, 'prompt');
+    assert.strictEqual(responses[0].success, false);
+    assert.match(responses[0].error, /message/);
+  });
+
   it('accepts canonical bash command field and rejects unknown types', async () => {
     const p = spawn(process.execPath, [fakePiBin, '--mode', 'rpc', '--no-session']);
     let output = '';
