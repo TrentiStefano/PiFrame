@@ -5,7 +5,7 @@ import { SnapshotBuilder, type SnapshotContext } from '../journal/SnapshotBuilde
 import { adaptPiEvent, type SessionContext } from '../pi/PiEventAdapter.js';
 import type { StdioPiTransport } from '../pi/StdioPiTransport.js';
 import type { PcpEvent, PcpEventType, PcpSnapshotPayload, SessionMeta } from '@piframe/pcp-ts';
-import type { PiEvent, PiModelInfo } from '../pi/piCommands.js';
+import { isKnownPiEvent, type PiEvent, type PiModelInfo } from '../pi/piCommands.js';
 import { UiRequestBroker } from '../ui/UiRequestBroker.js';
 import { readContextPolicy, DEFAULT_COMPACTION_RESERVE_PERCENT } from '../pi/contextPolicy.js';
 
@@ -183,6 +183,7 @@ export class Session {
     // The subagent bridge reports through a reserved status key: keep it as
     // live state, never as a visible status line or a journal event.
     if (
+      isKnownPiEvent(rawEvent) &&
       rawEvent.type === 'extension_ui_request' &&
       rawEvent.method === 'setStatus' &&
       rawEvent.statusKey === PIFRAME_SUBAGENTS_STATUS_KEY
