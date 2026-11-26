@@ -11,6 +11,15 @@ import '../../domain/session/session_reducer.dart';
 import '../../domain/session/session_state.dart';
 import '../../domain/session/snapshot_reducer.dart';
 
+/// The label of a side conversation's model: the daemon sends Pi's model object ({provider, id, name}) or a plain id.
+String? sideModelLabel(Object? model) {
+  if (model is Map) {
+    final label = model['name'] ?? model['id'];
+    return label?.toString();
+  }
+  return model?.toString();
+}
+
 class SideConversationRecord {
   final String id;
   final String title;
@@ -249,7 +258,7 @@ class SideThreadNotifier extends StateNotifier<SideThreadState> {
       final data = res['data'] as Map<String, dynamic>? ?? res;
       final sideId = (data['sideId'] ?? res['sideId'])?.toString() ?? tempRecordId;
       final streamId = (data['streamId'] ?? res['streamId'])?.toString() ?? sideId;
-      final model = (data['model'] ?? res['model'])?.toString();
+      final model = sideModelLabel(data['model'] ?? res['model']);
 
       final activeConversations = state.conversations.map((c) {
         if (c.id == tempRecordId) {
@@ -334,7 +343,7 @@ class SideThreadNotifier extends StateNotifier<SideThreadState> {
   void _handleSideEvent(PcpEvent event, String sideId) {
     if (event is SideOpenedEvent) {
       if (event.sideId == sideId || event.sideId.isEmpty) {
-        final newModel = event.model?.toString() ?? state.model;
+        final newModel = sideModelLabel(event.model) ?? state.model;
         final updatedList = state.conversations.map((c) {
           if (c.id == sideId) {
             return c.copyWith(model: newModel, status: 'active');

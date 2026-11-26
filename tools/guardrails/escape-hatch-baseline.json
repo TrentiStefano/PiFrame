@@ -8,7 +8,7 @@
       "@ts-nocheck": 0,
       "eslint-disable": 0,
       "as any": 3,
-      ": any": 52,
+      ": any": 51,
       "as unknown as": 0,
       "// coverage:ignore": 0
     },

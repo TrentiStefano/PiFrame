@@ -342,7 +342,7 @@ export class SideConversationManager {
     }
 
     this.touch(sideId);
-    await thread.worker.send({ command: 'prompt', message: text });
+    await thread.worker.send({ command: 'prompt', arguments: { message: text } });
     return { prompted: true };
   }
 

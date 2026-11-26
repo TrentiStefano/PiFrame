@@ -5,7 +5,6 @@ export interface PiCommand {
   arguments?: Record<string, any>;
   /** Local transport timeout override; never sent to Pi. */
   timeoutMs?: number;
-  [key: string]: any;
 }
 
 export interface PiResponse {
