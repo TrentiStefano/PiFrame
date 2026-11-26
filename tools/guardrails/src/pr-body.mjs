@@ -1,7 +1,8 @@
 /**
  * PR-body check: a pull request body must have the review shape the template asks for (.github/pull_request_template.md):
  * a linked issue under Closes, non-empty Summary and Evidence, Merge Danger with Door and Blast Radius, Guardrail
- * changes that say "none" or describe the change, and no leftover placeholder text. Screenshots are not required.
+ * changes that say "none" or describe the change, no leftover placeholder text, and no local absolute path (a Windows
+ * drive path or a macOS or Linux home folder). Screenshots are not required.
  *
  * Pure: no I/O. tools/scripts/check-pr-body.mjs (run by .github/workflows/pr-body.yml, and by `pnpm run pr` before it
  * creates the pull request) reads the body and calls it. See docs/pr-verification.md#pr-body-check.
@@ -20,6 +21,12 @@ const HTML_COMMENT = /<!--[\s\S]*?-->/g;
  */
 const TEMPLATE_PLACEHOLDERS = ['<one-way or two-way>', '<one word>'];
 const LEFTOVER_MARKER = /^\s*(?:[-*]\s+)?(?:TODO|TBD|FIXME)\s*:/i;
+/**
+ * A local absolute path: a Windows drive path (`C:\...`, `D:/...`) or a macOS or Linux home folder (`/Users/...`,
+ * `/home/...`). It names the author's machine and user, and no reader can open it. The drive letter must not follow a
+ * letter or digit, so `https://` is not one.
+ */
+const LOCAL_PATH = /(?<![A-Za-z0-9])[A-Za-z]:[\\/][^\s`'")]*|(?<![\w.~-])\/(?:Users|home)\/[^\s`'")]+/;
 const ISSUE_REFERENCE = /#\d+\b|github\.com\/[^\s)]+\/(?:issues|pull)\/\d+/;
 /** Door is exactly one-way or two-way; an explanation may follow after a space or a punctuation mark. */
 const DOOR = /^(?:one-way|two-way)(?=$|[\s.,;:(—–-])/i;
@@ -103,6 +110,14 @@ export function checkPrBody(body) {
   if (placeholder !== undefined) {
     problems.push(
       `Leftover placeholder text in the body: \`${placeholder.trim()}\`. Replace it with the real content.`
+    );
+  }
+
+  // The raw body, code fences included: the whole body is public.
+  const localPath = normalizeLineEndings(body).match(LOCAL_PATH)?.[0];
+  if (localPath !== undefined) {
+    problems.push(
+      `Local path in the body: \`${localPath}\`. Use a path relative to the repository, or just the file name.`
     );
   }
 

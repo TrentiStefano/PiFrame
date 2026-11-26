@@ -203,3 +203,29 @@ test('a line that starts with a leftover TODO marker is refused', () => {
   const marker = COMPLETE.replace('Adds the PR template and the body check.', 'TODO: describe the change');
   assert.match(problemsOf(marker).join('\n'), /placeholder/);
 });
+
+test('a local absolute path is refused: it exposes the author machine and helps no reader', () => {
+  for (const path of [
+    String.raw`C:\Users\someone\Pictures\Screenshot 2026-11-24.png`,
+    'D:/Work/PiFrame/apps/agentd/src/main.ts',
+    '/Users/someone/Desktop/log.txt',
+    '/home/someone/.pi/agent/sessions/a.jsonl'
+  ]) {
+    const leaked = COMPLETE.replace('(see the attached output)', `(see \`${path}\`)`);
+    assert.match(problemsOf(leaked).join('\n'), /Local path/, path);
+  }
+});
+
+test('a local path inside a code fence is refused too: the body is public either way', () => {
+  const log = String.raw`C:\Users\someone\verify.log`;
+  const fenced = COMPLETE.replace('(see the attached output).', `(output below).\n\n\`\`\`\n${log}\n\`\`\``);
+  assert.match(problemsOf(fenced).join('\n'), /Local path/);
+});
+
+test('repository-relative paths, home-relative paths and URLs are not local paths', () => {
+  const fine = COMPLETE.replace(
+    'Adds the PR template and the body check.',
+    'Adds the check in `tools/guardrails/src/pr-body.mjs`, keeps `~/.piframe-dev`, see https://github.com/x/y/pull/1.'
+  );
+  assert.equal(checkPrBody(fine).ok, true);
+});
