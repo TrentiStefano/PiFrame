@@ -302,7 +302,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     // The finished card sits in the collapsed Completed Subagents group.
-    expect(find.text('Completed Subagents (1)'), findsOneWidget);
+    expect(find.text('Completed subagents (1)'), findsOneWidget);
     expect(find.text('In progress'), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 1));

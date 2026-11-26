@@ -913,7 +913,10 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
     super.dispose();
   }
 
-  void _toggle(String id) => ref.read(subagentTreeExpansionProvider(widget.sessionId).notifier).toggleEntry(id);
+  /// The expansion state of this session's tree, changed only through this notifier.
+  SubagentTreeExpansionNotifier get _expansion => ref.read(subagentTreeExpansionProvider(widget.sessionId).notifier);
+
+  void _toggle(String id) => _expansion.toggleEntry(id);
 
   /// Top-level rows in tree order, each with its workflow children. Placement among siblings is
   /// set later by [_flattenBlocks].
@@ -977,6 +980,7 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
       working > 0 ? strings.subagentsWorking(working) : strings.subagentsAllIdle,
     ].join(' · ');
 
+    final allIds = {for (final n in nodes) n.id};
     final fresh = <String>{
       if (!_firstBuild)
         for (final n in nodes)
@@ -985,37 +989,31 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
     _firstBuild = false;
     _seenIds.addAll(nodes.map((n) => n.id));
 
-    // Finished top-level rows (with their workflow children) go into the Completed Subagents group,
-    // unless the user expanded them to read them.
+    // A top-level block (a subagent, or a workflow with its children) joins the Completed subagents group only
+    // when nothing in it runs and the user did not expand it. Running or stuck children keep their block in the tree.
     final expandedIds = expansion.expandedIds;
+    bool settled(_TreeBlock block) => block.nodes.every((n) => !n.isRunning);
     final groupBlocks = [
       for (final block in blocks)
-        if (!block.top.isRunning && !expandedIds.contains(block.top.id)) block,
+        if (settled(block) && !expandedIds.contains(block.top.id)) block,
     ];
     final activeBlocks = [
       for (final block in blocks)
-        if (block.top.isRunning || expandedIds.contains(block.top.id)) block,
+        if (!settled(block) || expandedIds.contains(block.top.id)) block,
     ];
     final activeNodes = _flattenBlocks(activeBlocks);
     final groupNodes = _flattenBlocks(groupBlocks);
-    // New work closes the group again; the closed state is stored once the frame is drawn.
-    final newWork = fresh.isNotEmpty;
-    final groupOpen = expansion.completedOpen && !newWork;
-    if (newWork && expansion.completedOpen) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) ref.read(subagentTreeExpansionProvider(widget.sessionId).notifier).collapseCompleted();
-      });
-    }
+    // The group closes by itself when new work appears: its open state is derived from the ids it was opened with.
+    final groupOpen = expansion.completedOpenFor(allIds);
     final finished = [
       for (final node in groupNodes)
-        if (node.agent != null && !node.isRunning) node,
+        if (node.agent != null) node,
     ];
     final failed = finished.where((node) => node.agent!.isError).length;
-    final completedTitle = '${strings.subagentCompletedGroup} (${finished.length}';
-    final failedSuffix = failed > 0 ? strings.subagentCompletedFailed(failed) : '';
-    final headerLabel = '$completedTitle$failedSuffix)';
+    final header = strings.subagentCompletedHeader(count: finished.length, failed: failed);
+    final headerLabel = header.map((part) => part.text).join();
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
-    void toggleGroup() => ref.read(subagentTreeExpansionProvider(widget.sessionId).notifier).toggleCompleted();
+    void toggleGroup() => _expansion.toggleCompleted(allIds);
 
     final groupBody = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1050,6 +1048,8 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
               button: true,
               expanded: groupOpen,
               label: headerLabel,
+              // Screen readers activate the header through this action, so it is the one place the header
+              // is wired to a tap; the row's own tap handler below serves pointers and keys.
               excludeSemantics: true,
               onTap: toggleGroup,
               child: _TreeRow(
@@ -1066,14 +1066,13 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
                   running: false,
                   pulse: _pulse,
                 ),
-                title: completedTitle,
+                title: header.first.text,
                 titleExtra: [
-                  if (failed > 0)
+                  for (final part in header.skip(1))
                     TextSpan(
-                      text: failedSuffix,
-                      style: TextStyle(color: context.tokens.danger),
+                      text: part.text,
+                      style: part.failed ? TextStyle(color: context.tokens.danger) : null,
                     ),
-                  const TextSpan(text: ')'),
                 ],
                 trailing: Icon(
                   groupOpen ? Icons.expand_less : Icons.expand_more,

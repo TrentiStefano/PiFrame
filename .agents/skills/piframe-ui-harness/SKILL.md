@@ -79,6 +79,7 @@ Example feature → route recipes:
 - MCP settings: `start --seed`, Settings → Pi CLI → Manage MCP servers.
 - Provider errors/retries/abort: `provider-error`, `provider-error-after-reply`, `retry-exhausted`, `aborted-turn`.
 - File changes, subagents, todos, status widgets: `edit-files`, `subagents`, `todos`, `ui-status-widgets`.
+- Agents pane with finished work: scenario `subagents`, then `tap key:agent-activity-open-btn` opens the pane and `tap key:agent-tree-completed-toggle` opens the Completed subagents group. The `docs/design/screens/agents-completed-group-*.png` captures come from this run.
 - Composer/editor/question previews: `ui-input`, `ui-editor`, `ui-question-preview`.
 - Rich transcript, context, sessions, slash commands, steer queue: `rich-content`, `transcript-entries`, `context-high`, `session-tree`, `long-history`, `slash-commands`, `steer-queue`.
 
