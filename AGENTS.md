@@ -58,8 +58,8 @@ apps/agentd  --one `pi --mode rpc` worker per session-->  Pi  --history-->  ~/.p
 
 `check` runs in the working tree: the escape-hatch audit, the doc link, map, named-timer and test-timeout checks, the DESIGN.md lint and
 token match, the TypeScript build, the TypeScript (`tsc`) and ESLint analysis, and the Dart analysis, all under the diagnostics
-ratchet. It never installs: run `pnpm install` after a dependency change (yours or pulled). `*_test.dart` files run with
-`flutter test`, `*.test.mjs` with `node --test`, and `apps/agentd/src/**/*.test.ts` from its compiled copy under dist. `verify`
+ratchet, then the Flutter tests the change reaches through imports. It never installs: run `pnpm install` after a
+dependency change (yours or pulled). `*_test.dart` files run with `flutter test`, `*.test.mjs` with `node --test`, and `apps/agentd/src/**/*.test.ts` from its compiled copy under dist. `verify`
 runs the CI steps on the committed HEAD merged with origin/main. Details: `docs/pr-verification.md`.
 
 ## Conventions

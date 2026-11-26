@@ -5,7 +5,7 @@
 ## Commands
 
 ```bash
-pnpm run check             # inner loop: escape-hatch audit, doc link, agent map, design lint and design token checks, type checking, the Dart analysis under the diagnostics ratchet (+ the test files you pass)
+pnpm run check             # inner loop: escape-hatch audit, doc link, agent map, design lint and design token checks, type checking, the Dart analysis under the diagnostics ratchet, the Flutter tests your change reaches (+ the test files you pass)
 pnpm run verify            # CI checks + release validation
 pnpm run pr                # verify + push the branch + open the PR (gh pr create)
 ```
@@ -38,6 +38,7 @@ Options (they work for both commands; with `pnpm` they go after `--`):
    - `*_test.dart` inside one of the Flutter projects → `flutter test <path>` in that project
    - `*.test.mjs`, `*.test.cjs`, `*.test.js` → `node --test <path>` from the repository root
    - `<package>/src/**/*.test.ts` (also `.mts`, `.cts`, `.tsx`) → `node --test` on its compiled copy `<package>/dist/**/*.test.js` (`.mjs`, `.cjs`), which step 2 refreshes: `apps/agentd/src/pi/test/jsonlFramer.test.ts` runs `apps/agentd/dist/pi/test/jsonlFramer.test.js`. A TypeScript test outside a `src/` folder fails; pass its compiled file instead.
+7. the Flutter tests affected by the change (see [below](#affected-flutter-tests)): one `flutter test --exclude-tags golden <files>` per Flutter project
 
 Any other path fails before anything runs, with a message naming the supported kinds. Paths may be relative to the folder you run the command from.
 
@@ -232,6 +233,12 @@ The rules, the daemon table and the **baseline** are in `tools/guardrails/bounda
 A baseline entry that matches no violation any more fails too, and names the entry to delete, so the baseline only shrinks. To fix a violation, move the I/O into a service in `data/`, read it through a provider and test the feature with a fake of that service. An exception needs the `human-approved` label (the config is a guarded path): add the `{ "file", "import" }` entry to `baseline` and say why in the PR; a new daemon edge goes into `daemonAllowedDependencies` and is recorded in `docs/adr/`.
 
 The logic is `checkBoundaries` in `tools/guardrails/src/boundary.mjs` (pure, tested with in-memory fixtures in `tools/guardrails/test/boundary.test.mjs`); the script only reads the files and the config.
+
+## Affected Flutter tests
+
+`pnpm run check` also runs the Flutter tests that a change reaches. A Dart file counts as changed when it differs from the merge base of `HEAD` and `origin/main` (committed or not) or is untracked. A `*_test.dart` file is affected when it, or any file it imports, exports or includes as a `part`, directly or through other files, is changed. `package:<name>/` imports of the repository's own Flutter projects and relative imports are followed; `dart:` and third-party packages are not. Each project runs its affected tests in one `flutter test --exclude-tags golden` step, after the test files you pass by name, which are not run twice.
+
+A change deep in the data layer reaches many tests (`apps/pi_frame/lib/data/daemon/daemon_providers.dart` reaches about 110 of 176 test files), a widget change about 40. This catches a failure in a test that reaches the change only indirectly, such as the app-shell showcase test that caught a timer left pending after a notifier was disposed (#116), before `verify`. The logic is `affectedDartTests` in `tools/guardrails/src/affected-tests.mjs`, tested in `tools/guardrails/test/affected-tests.test.mjs`; `tools/scripts/check.mjs` reads the files and the changed paths.
 
 ## Named timers
 

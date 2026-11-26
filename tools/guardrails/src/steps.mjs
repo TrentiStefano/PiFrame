@@ -157,6 +157,8 @@ const GATE = [
  * @property {string[]} [tests] repository-relative test files to run after analysis (`*_test.dart`,
  *   `*.test.mjs|cjs|js`, or a TypeScript `<package>/src/**\/*.test.ts` run from its compiled `dist/` copy)
  * @property {string[]} [flutterProjects] the Flutter project folders a Dart test file may belong to
+ * @property {Record<string, string[]>} [affected] per Flutter project folder, the test files (relative to it) that
+ *   the change reaches through imports (tools/guardrails/src/affected-tests.mjs); each project runs them in one step
  */
 
 const TIERS = ['verify', 'ci', 'check'];
@@ -230,9 +232,22 @@ const CHECK = [
   FLUTTER_ANALYZE
 ];
 
-function checkSteps({ tests = [], flutterProjects = [] } = {}) {
+function checkSteps({ tests = [], flutterProjects = [], affected = {} } = {}) {
   const steps = CHECK.map(copy);
-  for (const test of tests) steps.push(testStep(toPosix(test).replace(/^\.\//, ''), flutterProjects));
+  const named = tests.map((test) => toPosix(test).replace(/^\.\//, ''));
+  for (const test of named) steps.push(testStep(test, flutterProjects));
+  // The Flutter tests the change reaches through its imports (#116), one run per project; files named above are
+  // already running on their own.
+  for (const [project, files] of Object.entries(affected)) {
+    const rest = files.filter((file) => !named.includes(`${project}/${file}`));
+    if (rest.length === 0) continue;
+    steps.push({
+      job: 'flutter',
+      name: `Flutter tests affected by the change in ${project} (${rest.length})`,
+      command: ['flutter', 'test', '--exclude-tags', 'golden', ...rest],
+      cwd: project
+    });
+  }
   return steps;
 }
 
