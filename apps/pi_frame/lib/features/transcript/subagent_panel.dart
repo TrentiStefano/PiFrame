@@ -20,6 +20,7 @@ import '../../data/language/strings_transcript.dart';
 import '../side/side_panel.dart';
 import '../side/side_provider.dart';
 import 'subagents_provider.dart';
+import 'subagent_tree_expansion.dart';
 import 'todo_panel.dart';
 import 'todo_provider.dart';
 import 'workflows_provider.dart';
@@ -653,7 +654,14 @@ class _AgentActivityPanelState extends ConsumerState<AgentActivityPanel> {
           ),
         ),
         Expanded(
-          child: _AgentTree(sessionId: widget.sessionId, workflows: workflows, subagents: subagents),
+          // Keyed by session: the rows already shown belong to this session only, so a session shown
+          // through the same panel is not new work.
+          child: _AgentTree(
+            key: ValueKey(widget.sessionId),
+            sessionId: widget.sessionId,
+            workflows: workflows,
+            subagents: subagents,
+          ),
         ),
       ],
     );
@@ -744,6 +752,42 @@ class _TreeNode {
   });
 
   bool get isRunning => agent?.isRunning ?? run?.isRunning ?? false;
+
+  /// The same row, placed among its siblings (tree lines depend on it).
+  _TreeNode placed({required bool isLast, required List<bool> guides}) => _TreeNode(
+    id: id,
+    depth: depth,
+    isLast: isLast,
+    hasChildren: hasChildren,
+    guides: guides,
+    agent: agent,
+    run: run,
+    runChildren: runChildren,
+  );
+}
+
+/// A top-level row with its workflow children. Grouping moves whole blocks.
+class _TreeBlock {
+  final _TreeNode top;
+  final List<_TreeNode> children;
+
+  const _TreeBlock(this.top, this.children);
+
+  List<_TreeNode> get nodes => [top, ...children];
+}
+
+/// Flattens top-level blocks into rows, placing each block among its siblings.
+List<_TreeNode> _flattenBlocks(List<_TreeBlock> blocks) {
+  final out = <_TreeNode>[];
+  for (var i = 0; i < blocks.length; i++) {
+    final block = blocks[i];
+    final last = i == blocks.length - 1;
+    out.add(block.top.placed(isLast: last, guides: const []));
+    for (var j = 0; j < block.children.length; j++) {
+      out.add(block.children[j].placed(isLast: j == block.children.length - 1, guides: [!last]));
+    }
+  }
+  return out;
 }
 
 /// Running items first, then settled ones; each group newest launch first.
@@ -851,18 +895,16 @@ class _AgentTree extends ConsumerStatefulWidget {
   final List<WorkflowItem> workflows;
   final List<SubagentItem> subagents;
 
-  const _AgentTree({required this.sessionId, required this.workflows, required this.subagents});
+  const _AgentTree({super.key, required this.sessionId, required this.workflows, required this.subagents});
 
   @override
   ConsumerState<_AgentTree> createState() => _AgentTreeState();
 }
 
 class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProviderStateMixin {
-  final Set<String> _expandedIds = <String>{};
   // Row ids already shown once; only rows missing here play the entrance.
   final Set<String> _seenIds = <String>{};
   bool _firstBuild = true;
-  bool _completedExpanded = false;
   late final AnimationController _pulse = AnimationController(vsync: this, duration: FrameMotion.pulseLoop);
 
   @override
@@ -871,11 +913,14 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
     super.dispose();
   }
 
-  void _toggle(String id) => setState(() {
-    if (!_expandedIds.remove(id)) _expandedIds.add(id);
-  });
+  /// The expansion state of this session's tree, changed only through this notifier.
+  SubagentTreeExpansionNotifier get _expansion => ref.read(subagentTreeExpansionProvider(widget.sessionId).notifier);
 
-  List<_TreeNode> _nodes() {
+  void _toggle(String id) => _expansion.toggleEntry(id);
+
+  /// Top-level rows in tree order, each with its workflow children. Placement among siblings is
+  /// set later by [_flattenBlocks].
+  List<_TreeBlock> _blocks() {
     final split = workflowChildren(widget.workflows, widget.subagents.where((s) => s.isUnlinked).toList());
     final top = _byActivityThenLaunch<({WorkflowItem? run, SubagentItem? agent})>(
       [
@@ -886,10 +931,8 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
       (i) => i.run?.isRunning ?? i.agent!.isRunning,
       (i) => i.run?.timestamp ?? i.agent!.startedAt ?? i.agent!.timestamp,
     );
-    final nodes = <_TreeNode>[];
-    for (var i = 0; i < top.length; i++) {
-      final item = top[i];
-      final isLast = i == top.length - 1;
+    final blocks = <_TreeBlock>[];
+    for (final item in top) {
       final children = item.run == null
           ? const <SubagentItem>[]
           : _byActivityThenLaunch<SubagentItem>(
@@ -897,35 +940,28 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
               (a) => a.isRunning,
               (a) => a.startedAt ?? a.timestamp,
             );
-      nodes.add(
-        _TreeNode(
-          id: item.run?.id ?? item.agent!.id,
-          depth: 1,
-          isLast: isLast,
-          hasChildren: children.isNotEmpty,
-          agent: item.agent,
-          run: item.run,
-          runChildren: children,
+      blocks.add(
+        _TreeBlock(
+          _TreeNode(
+            id: item.run?.id ?? item.agent!.id,
+            depth: 1,
+            isLast: false,
+            hasChildren: children.isNotEmpty,
+            agent: item.agent,
+            run: item.run,
+            runChildren: children,
+          ),
+          [for (final child in children) _TreeNode(id: child.id, depth: 2, isLast: false, agent: child)],
         ),
       );
-      for (var j = 0; j < children.length; j++) {
-        nodes.add(
-          _TreeNode(
-            id: children[j].id,
-            depth: 2,
-            isLast: j == children.length - 1,
-            guides: [!isLast],
-            agent: children[j],
-          ),
-        );
-      }
     }
-    return nodes;
+    return blocks;
   }
 
   @override
   Widget build(BuildContext context) {
-    final nodes = _nodes();
+    final blocks = _blocks();
+    final nodes = [for (final block in blocks) ...block.nodes];
     final anyRunning = nodes.any((n) => n.isRunning);
     if (anyRunning && !isWidgetTestBinding && !MediaQuery.disableAnimationsOf(context)) {
       if (!_pulse.isAnimating) _pulse.repeat();
@@ -934,6 +970,7 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
     }
     final strings = ref.watch(appStringsProvider);
     final notifier = ref.read(subagentsFamily(widget.sessionId).notifier);
+    final expansion = ref.watch(subagentTreeExpansionProvider(widget.sessionId));
     final agentNodes = nodes.where((n) => n.agent != null);
     final working = agentNodes.where((n) => n.isRunning).length;
     final runCount = widget.workflows.length;
@@ -943,6 +980,7 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
       working > 0 ? strings.subagentsWorking(working) : strings.subagentsAllIdle,
     ].join(' · ');
 
+    final allIds = {for (final n in nodes) n.id};
     final fresh = <String>{
       if (!_firstBuild)
         for (final n in nodes)
@@ -951,15 +989,37 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
     _firstBuild = false;
     _seenIds.addAll(nodes.map((n) => n.id));
 
-    final activeNodes = <_TreeNode>[];
-    final completedNodes = <_TreeNode>[];
-    for (final node in nodes) {
-      if (node.depth == 1 && node.agent != null && !node.isRunning && !_expandedIds.contains(node.id) && anyRunning) {
-        completedNodes.add(node);
-      } else {
-        activeNodes.add(node);
-      }
-    }
+    // A top-level block (a subagent, or a workflow with its children) joins the Completed subagents group only
+    // when nothing in it runs and the user did not expand it. Running or stuck children keep their block in the tree.
+    final expandedIds = expansion.expandedIds;
+    bool settled(_TreeBlock block) => block.nodes.every((n) => !n.isRunning);
+    final groupBlocks = [
+      for (final block in blocks)
+        if (settled(block) && !expandedIds.contains(block.top.id)) block,
+    ];
+    final activeBlocks = [
+      for (final block in blocks)
+        if (!settled(block) || expandedIds.contains(block.top.id)) block,
+    ];
+    final activeNodes = _flattenBlocks(activeBlocks);
+    final groupNodes = _flattenBlocks(groupBlocks);
+    // The group closes by itself when new work appears: its open state is derived from the ids it was opened with.
+    final groupOpen = expansion.completedOpenFor(allIds);
+    final finished = [
+      for (final node in groupNodes)
+        if (node.agent != null) node,
+    ];
+    final failed = finished.where((node) => node.agent!.isError).length;
+    final header = strings.subagentCompletedHeader(count: finished.length, failed: failed);
+    final headerLabel = header.map((part) => part.text).join();
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    void toggleGroup() => _expansion.toggleCompleted(allIds);
+
+    final groupBody = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: groupOpen ? [for (final node in groupNodes) _entry(node, fresh, notifier, strings)] : const [],
+    );
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(10, 8, 10, 12),
@@ -967,8 +1027,8 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
         _TreeRow(
           key: const ValueKey('agent-tree-root'),
           depth: 0,
-          isLast: activeNodes.isEmpty && completedNodes.isEmpty,
-          hasChildren: activeNodes.isNotEmpty || completedNodes.isNotEmpty,
+          isLast: activeNodes.isEmpty && groupNodes.isEmpty,
+          hasChildren: activeNodes.isNotEmpty || groupNodes.isNotEmpty,
           running: anyRunning,
           color: context.tokens.accent,
           pulse: _pulse,
@@ -979,48 +1039,64 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
             style: TextStyle(color: context.tokens.textMuted, fontSize: FrameText.of(context).caption.fontSize),
           ),
         ),
-        for (final node in activeNodes)
-          _Entrance(
-            key: ValueKey(node.run != null ? 'workflow-entry-${node.id}' : 'subagent-entry-${node.id}'),
-            animate: fresh.contains(node.id),
-            child: node.run != null ? _workflowRow(node, strings) : _agentRow(node, notifier, strings),
-          ),
-        if (completedNodes.isNotEmpty) ...[
+        for (final node in activeNodes) _entry(node, fresh, notifier, strings),
+        if (groupBlocks.isNotEmpty) ...[
           _Entrance(
             key: const ValueKey('agent-tree-completed-header'),
             animate: false,
             child: _TreeRow(
               key: const ValueKey('agent-tree-completed-toggle'),
+              semanticsLabel: headerLabel,
+              expanded: groupOpen,
               depth: 1,
               isLast: true,
               running: false,
               color: context.tokens.textMuted,
               pulse: _pulse,
-              onTap: () => setState(() => _completedExpanded = !_completedExpanded),
+              onTap: toggleGroup,
               avatar: _NodeAvatar(
                 icon: Icons.check_circle_outline,
                 color: context.tokens.textMuted,
                 running: false,
                 pulse: _pulse,
               ),
-              title: '${strings.subagentStatusCompleted} (${completedNodes.length})',
+              title: header.first.text,
+              titleExtra: [
+                for (final part in header.skip(1))
+                  TextSpan(
+                    text: part.text,
+                    style: part.failed ? TextStyle(color: context.tokens.danger) : null,
+                  ),
+              ],
               trailing: Icon(
-                _completedExpanded ? Icons.expand_less : Icons.expand_more,
+                groupOpen ? Icons.expand_less : Icons.expand_more,
                 size: FrameSize.icon,
                 color: context.tokens.textMuted,
               ),
               subtitle: null,
             ),
           ),
-          if (_completedExpanded)
-            for (final node in completedNodes)
-              _Entrance(
-                key: ValueKey('subagent-entry-${node.id}'),
-                animate: fresh.contains(node.id),
-                child: _agentRow(node, notifier, strings),
-              ),
+          // Reduced motion opens and closes the group at once, like the rest of the panel.
+          if (reduceMotion)
+            groupBody
+          else
+            AnimatedSize(
+              duration: FrameMotion.fade(context, FrameMotion.panel),
+              curve: FrameMotion.enterCurve,
+              alignment: Alignment.topLeft,
+              child: groupBody,
+            ),
         ],
       ],
+    );
+  }
+
+  Widget _entry(_TreeNode node, Set<String> fresh, SubagentsNotifier notifier, AppStrings strings) {
+    final isWorkflow = node.run != null;
+    return _Entrance(
+      key: ValueKey(isWorkflow ? 'workflow-entry-${node.id}' : 'subagent-entry-${node.id}'),
+      animate: fresh.contains(node.id),
+      child: isWorkflow ? _workflowRow(node, strings) : _agentRow(node, notifier, strings),
     );
   }
 
@@ -1033,7 +1109,7 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
     final counts = node.runChildren.isEmpty
         ? (run.summary.isNotEmpty ? run.summary : (run.isRunning ? strings.workflowStarting : ''))
         : strings.subagentsFinishedWorking(done, node.runChildren.length, working);
-    final expanded = _expandedIds.contains(run.id);
+    final expanded = ref.watch(subagentTreeExpansionProvider(widget.sessionId)).expandedIds.contains(run.id);
     return _TreeRow(
       key: ValueKey('workflow-card-${run.id}'),
       depth: node.depth,
@@ -1088,7 +1164,7 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
     final agent = node.agent!;
     final (statusLabel, statusColor) = _statusStyle(tokens, strings, agent.status);
     final color = _typeColor(tokens, agent.agentType ?? agent.name);
-    final expanded = _expandedIds.contains(agent.id);
+    final expanded = ref.watch(subagentTreeExpansionProvider(widget.sessionId)).expandedIds.contains(agent.id);
     // Workflow children have no name of their own; their task line says what they do.
     final title = agent.isUnlinked ? (agent.prompt ?? agent.name) : agent.name;
     final type = agent.agentType ?? (agent.isUnlinked ? agent.name.split('#').first : null);
@@ -1186,6 +1262,9 @@ class _TreeRow extends StatelessWidget {
   final String title;
   final int titleMaxLines;
 
+  /// Extra title spans after [title], for a header that colours part of its text.
+  final List<InlineSpan> titleExtra;
+
   /// Settled agents read as done, like a ticked-off task.
   final bool struck;
   final String? badge;
@@ -1193,6 +1272,11 @@ class _TreeRow extends StatelessWidget {
   final Widget? subtitle;
   final Widget? details;
   final VoidCallback? onTap;
+
+  /// When set, screen readers announce the row as one button with this label (instead of its visible texts)
+  /// and, when [expanded] is set, its expanded state; the row's own [onTap] stays its only handler.
+  final String? semanticsLabel;
+  final bool? expanded;
 
   const _TreeRow({
     super.key,
@@ -1206,12 +1290,15 @@ class _TreeRow extends StatelessWidget {
     required this.avatar,
     required this.title,
     this.titleMaxLines = 1,
+    this.titleExtra = const [],
     this.struck = false,
     this.badge,
     this.trailing,
     this.subtitle,
     this.details,
     this.onTap,
+    this.semanticsLabel,
+    this.expanded,
   });
 
   @override
@@ -1255,8 +1342,8 @@ class _TreeRow extends StatelessWidget {
                         ),
                       ],
                       Expanded(
-                        child: Text(
-                          title,
+                        child: Text.rich(
+                          TextSpan(text: title, children: titleExtra),
                           maxLines: titleMaxLines,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -1300,13 +1387,27 @@ class _TreeRow extends StatelessWidget {
         padding: EdgeInsets.only(left: indent),
         child: Material(
           type: MaterialType.transparency,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(tokens.radiusSm),
-            child: Padding(padding: const EdgeInsets.fromLTRB(0, _rowTopPad, 4, 7), child: content),
+          child: _withSemantics(
+            InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(tokens.radiusSm),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(0, _rowTopPad, 4, 7),
+                child: semanticsLabel == null ? content : ExcludeSemantics(child: content),
+              ),
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  /// Merges the label, the button role and the expanded state with the InkWell's own tap action into one node.
+  Widget _withSemantics(Widget inkWell) {
+    final label = semanticsLabel;
+    if (label == null) return inkWell;
+    return MergeSemantics(
+      child: Semantics(button: true, expanded: expanded, label: label, child: inkWell),
     );
   }
 }

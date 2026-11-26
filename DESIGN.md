@@ -821,6 +821,8 @@ capture of the state.
 | Steering | Expanded composer during the run with Stop, steer and follow-up | [composer during a run](docs/design/screens/composer-steer-dark.png) |
 | Error | The failing item outlined in `danger`, the provider's message, a retry action | [send failed](docs/design/screens/send-failed-dark.png) |
 | Subagents | Agents pane with each agent's status; task notification cards in the transcript | [task notifications](docs/design/screens/task-notifications-dark.png) |
+| Completed subagents group, collapsed | The Agents tab shows the Main session and one collapsed "Completed subagents (N)" header; the failed count, when any, in `danger` (for example "Completed subagents (6 · 1 failed)") | [collapsed](docs/design/screens/agents-completed-group-dark.png) |
+| Completed subagents group, expanded | The finished subagents and workflows listed in launch order under the header, the chevron pointing up; Enter or Space closes it | [expanded](docs/design/screens/agents-completed-group-expanded-dark.png) |
 | Changes to review | "Review changes (n)" in the composer, Git Changes counts, the diff in place | [review](docs/design/screens/review-diff-dark.png) |
 | After compaction | The context pill shows Pi's estimate of the tokens left, or "post-compaction" until Pi reports real use; never the pre-compaction total | — |
 | Composer with a command | The command chip, argument hint "Enter runs /name"; on failure the chip stays and a notice shows the error | — |

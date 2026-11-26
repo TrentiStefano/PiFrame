@@ -88,6 +88,16 @@ extension TranscriptStrings on AppStrings {
   String get subagentStatusError => isItalian ? 'Errore' : 'Error';
   String get subagentStatusStopped => isItalian ? 'Fermato' : 'Stopped';
   String get subagentStatusCompleted => isItalian ? 'Completato' : 'Completed';
+  String get subagentCompletedGroup => isItalian ? 'Subagent completati' : 'Completed subagents';
+
+  /// The Completed subagents group header as ordered parts, so a translation can move the failed count.
+  /// A part is marked [failed] when it is the failed count, which the caller colours as an error.
+  List<({String text, bool failed})> subagentCompletedHeader({required int count, required int failed}) => [
+    (text: '$subagentCompletedGroup ($count', failed: false),
+    if (failed > 0)
+      (text: isItalian ? ' · $failed ${failed == 1 ? 'fallito' : 'falliti'}' : ' · $failed failed', failed: true),
+    (text: ')', failed: false),
+  ];
   String get subagentStatusSteered => isItalian ? 'Guidato' : 'Steered';
   String get subagentMainSession => isItalian ? 'Sessione principale' : 'Main session';
   String subagentsCount(int count) => isItalian ? '$count agenti' : (count == 1 ? '1 agent' : '$count agents');
