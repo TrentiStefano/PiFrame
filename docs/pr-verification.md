@@ -29,7 +29,7 @@ Options (they work for both commands; with `pnpm` they go after `--`):
 
 `check` never installs dependencies. After a dependency change (one you made, or one you pulled, such as the `@google/design.md` and `yaml` packages the design checks use), run `pnpm install` first; otherwise the step that needs the missing package fails with `Cannot find package`.
 
-1. the escape-hatch audit (see [below](#escape-hatch-ratchet)), the doc link check (see [below](#doc-link-check)), the named-timer check (see [below](#named-timers)), the agent map check (see [below](#agent-map-check)), the import-boundary check (see [below](#import-boundaries)), the design lint (see [below](#design-lint)) and the design token check (see [below](#design-token-check))
+1. the escape-hatch audit (see [below](#escape-hatch-ratchet)), the doc link check (see [below](#doc-link-check)), the named-timer check (see [below](#named-timers)), the Node test timeout check (see [below](#node-test-timeouts)), the agent map check (see [below](#agent-map-check)), the import-boundary check (see [below](#import-boundaries)), the design lint (see [below](#design-lint)) and the design token check (see [below](#design-token-check))
 2. `pnpm -r run build` (agentd and the e2e tests type-check against the other packages' built `.d.ts`; a fresh or stale `dist/` would give false errors)
 3. the TypeScript and ESLint ratchet (`tsc --noEmit` for every TypeScript package and type-aware ESLint, see [TypeScript ratchet](#typescript-ratchet)), after the build
 4. `node tools/scripts/sync-changelog.mjs` (what `pnpm run sync:changelog` runs): generates the in-app changelog, which the app's `pubspec.yaml` lists, so the Dart analysis and the Flutter tests find it
@@ -240,6 +240,12 @@ The logic is `checkBoundaries` in `tools/guardrails/src/boundary.mjs` (pure, tes
 Name the delay with a constant next to its use, named for why the wait exists (for example `_copiedFeedbackDuration` or `PONG_TIMEOUT_MS`), and pass that name to the timer. There are no exceptions: a literal duration fails the gate.
 
 The Dart design-literals ratchet (`apps/pi_frame/test/design_literals_lint_test.dart`) is separate and unchanged: a millisecond timer constant there still needs an entry in its `_allowedTimerConstants`, so a named Dart timer in seconds or hours passes both checks without one.
+
+## Node test timeouts
+
+`node tools/scripts/check-node-test-timeouts.mjs` (in `check`, `verify` and CI) fails when a `node --test` command has no `--test-timeout`. It reads the `scripts` of every tracked `package.json`, the gate's own steps and the `run:` lines of `.github/workflows/ci.yml`, and checks each command of an `&&` chain on its own. Without a limit, a test that leaks a handle (an open timer, server or child process) keeps Node alive and the run hangs instead of failing with the test's name.
+
+The gate's own commands use `NODE_TEST_TIMEOUT_MS` (120 seconds per test) from `tools/guardrails/src/node-test-timeouts.mjs`; the package scripts use the same value, and the end-to-end tests (`test/e2e`) 300 seconds. The logic is `checkNodeTestTimeouts` in that module, tested in `tools/guardrails/test/node-test-timeouts.test.mjs`.
 
 The logic is `checkTimers` in `tools/guardrails/src/timers.mjs` (pure, tested with in-memory sources in `tools/guardrails/test/timers.test.mjs`); the script only reads the files.
 

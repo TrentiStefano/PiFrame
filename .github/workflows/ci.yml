@@ -49,6 +49,8 @@ jobs:
         run: node tools/scripts/check-boundaries.mjs
       - name: Named timers (no literal timer durations)
         run: node tools/scripts/check-timers.mjs
+      - name: Node test timeouts (every node --test has --test-timeout)
+        run: node tools/scripts/check-node-test-timeouts.mjs
       - name: DESIGN.md lint (@google/design.md)
         run: node tools/scripts/lint-design.mjs
 
@@ -83,7 +85,7 @@ jobs:
         run: pnpm run smoke:agentd-bundle
 
       - name: Windows release-name tests
-        run: node --test tools/scripts/test-windows-release-name.test.mjs
+        run: node --test --test-timeout=120000 tools/scripts/test-windows-release-name.test.mjs
 
   flutter:
     name: Flutter (Analyze & Test)
