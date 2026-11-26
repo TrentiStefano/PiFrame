@@ -654,7 +654,14 @@ class _AgentActivityPanelState extends ConsumerState<AgentActivityPanel> {
           ),
         ),
         Expanded(
-          child: _AgentTree(sessionId: widget.sessionId, workflows: workflows, subagents: subagents),
+          // Keyed by session: the rows already shown belong to this session only, so a session shown
+          // through the same panel is not new work.
+          child: _AgentTree(
+            key: ValueKey(widget.sessionId),
+            sessionId: widget.sessionId,
+            workflows: workflows,
+            subagents: subagents,
+          ),
         ),
       ],
     );
@@ -888,7 +895,7 @@ class _AgentTree extends ConsumerStatefulWidget {
   final List<WorkflowItem> workflows;
   final List<SubagentItem> subagents;
 
-  const _AgentTree({required this.sessionId, required this.workflows, required this.subagents});
+  const _AgentTree({super.key, required this.sessionId, required this.workflows, required this.subagents});
 
   @override
   ConsumerState<_AgentTree> createState() => _AgentTreeState();
