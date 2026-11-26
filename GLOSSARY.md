@@ -178,6 +178,10 @@ _Avoid_: prompt (that is the user's message), popup
 The developer tool in `tools/harness` that runs an isolated desktop build, drives the real app and saves real screenshots.
 _Avoid_: test runner, simulator
 
+**Development agent**:
+A coding agent a contributor uses to work on the PiFrame repository itself: Claude Code, Pi, Codex or Antigravity. Not one of the agents PiFrame discovers for its users.
+_Avoid_: agent harness, harness
+
 **Fake Pi**:
 The scripted stand-in for Pi in `tools/fake-pi` that replays a scenario, so tests and the harness run without a real model.
 _Avoid_: mock Pi, Pi stub
