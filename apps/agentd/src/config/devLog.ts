@@ -50,27 +50,66 @@ export function startDevCpuProfile(
   return true;
 }
 
-let devWrite: ((level: string, message: string) => void) | null = null;
+let logWrite: ((level: string, message: string) => void) | null = null;
 
-/** Dev-only: records a command that took at least `thresholdMs`, so a stall can be matched to what the app asked for. */
+/** Records a command that took at least `thresholdMs`, so a slow screen can be matched to what the app asked for. */
 export function reportSlowCommand(type: string, sessionId: string | undefined, ms: number, thresholdMs = 300): void {
-  if (devWrite && ms >= thresholdMs) devWrite('slow', `command ${type} session=${sessionId ?? '-'} took ${ms}ms`);
+  if (logWrite && ms >= thresholdMs) logWrite('slow', `command ${type} session=${sessionId ?? '-'} took ${ms}ms`);
+}
+
+/** The size at which runtime/daemon.log rotates, and how many files it keeps (docs/install.md). */
+export const DAEMON_LOG_MAX_BYTES = 5 * 1024 * 1024;
+export const DAEMON_LOG_FILES = 5;
+
+/** Appends lines to `file`, rotating to `file.1` ... `file.<files - 1>` before a line would pass `maxBytes`. */
+function rotatingAppender(file: string, maxBytes: number, files: number): (line: string) => void {
+  let size = fs.existsSync(file) ? fs.statSync(file).size : 0;
+  return (line) => {
+    const bytes = Buffer.byteLength(line);
+    if (size > 0 && size + bytes > maxBytes) {
+      for (let i = files - 1; i >= 1; i--) {
+        const from = i === 1 ? file : `${file}.${i - 1}`;
+        if (fs.existsSync(from)) fs.renameSync(from, `${file}.${i}`);
+      }
+      size = 0;
+    }
+    fs.appendFileSync(file, line);
+    size += bytes;
+  };
 }
 
 /**
- * Dev-only: mirrors console output and loop stalls into runtime/daemon.log. Only the dev launcher sets
- * PIFRAME_DEV_LOG=1, so release daemons write nothing extra. Writes are synchronous so lines survive a crash.
+ * Every daemon writes runtime/daemon.log: its start, slow commands and event-loop stalls, so a slow screen leaves
+ * evidence on the user's machine (#114). The log stays local (ADR 0016) and rotates across `files` files of
+ * `maxBytes`. Console output is mirrored only in dev builds (PIFRAME_DEV_LOG=1, set by the dev launcher and the
+ * harness), since it can carry paths and other details. Writes are synchronous so lines survive a crash.
  */
-export function enableDevFileLog(
+export function enableDaemonFileLog(
   env: NodeJS.ProcessEnv = process.env,
-  file: string = getLogPath()
-): (() => void) | null {
-  if (env.PIFRAME_DEV_LOG !== '1') return null;
+  file: string = getLogPath(),
+  { maxBytes = DAEMON_LOG_MAX_BYTES, files = DAEMON_LOG_FILES } = {}
+): () => void {
+  const append = rotatingAppender(file, maxBytes, files);
   const write = (level: string, message: string) => {
-    fs.appendFileSync(file, `${new Date().toISOString()} ${level} ${message}\n`);
+    try {
+      append(`${new Date().toISOString()} ${level} ${message}\n`);
+    } catch {
+      // A full or read-only disk must not stop the daemon.
+    }
   };
-  devWrite = write;
+  logWrite = write;
   write('start', `--- daemon pid=${process.pid} ---`);
+  const stopMonitor = startEventLoopMonitor((blockedMs) => write('stall', `event loop blocked for ${blockedMs}ms`));
+  const restoreConsole = env.PIFRAME_DEV_LOG === '1' ? mirrorConsole(write) : () => {};
+  return () => {
+    stopMonitor();
+    restoreConsole();
+    logWrite = null;
+  };
+}
+
+/** Dev-only: copies console output into the log. Returns the function that restores the console. */
+function mirrorConsole(write: (level: string, message: string) => void): () => void {
   const levels = ['log', 'info', 'warn', 'error'] as const;
   const originals = {
     log: console.log,
@@ -84,10 +123,7 @@ export function enableDevFileLog(
       write(level, format(...args));
     };
   });
-  const stopMonitor = startEventLoopMonitor((blockedMs) => write('stall', `event loop blocked for ${blockedMs}ms`));
   return () => {
-    stopMonitor();
-    devWrite = null;
     levels.forEach((level) => {
       console[level] = originals[level];
     });

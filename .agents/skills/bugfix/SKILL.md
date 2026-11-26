@@ -60,6 +60,9 @@ shows the reported symptom: a failing test, a replay, a fake-pi scenario (`tools
 real app through `.agents/skills/piframe-ui-harness/SKILL.md`. Then minimise it, rank 3–5 falsifiable hypotheses and
 probe one variable at a time. Remove every temporary probe and log line afterwards.
 
+For a slow or stuck screen, read the daemon log first: `~/.piframe/runtime/daemon.log` (dev builds:
+`~/.piframe-dev/runtime/daemon.log`) lists every slow command with its duration and every event-loop stall.
+
 When the cause is verified, comment it on the issue (body file): the root cause in one or two sentences, and the
 file and function it lives in.
 
