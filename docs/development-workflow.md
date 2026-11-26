@@ -86,7 +86,9 @@ Details of each check are in [pr-verification.md](pr-verification.md).
    testing decisions and what is out of scope.
 3. **Tickets.** Split the spec into tickets, filed as sub-issues. Each ticket fits one agent session and one PR.
 4. **Implement.** Work each ticket with the `tdd` skill (failing test first, then the change). `implement-spec` runs the
-   tickets of one spec in order when the maintainer wants that.
+   tickets of one spec in order when the maintainer wants that; each ticket goes to the `implementer` subagent
+   (`.claude/agents/implementer.md`: Haiku, its own worktree and ticket branch, the integration branch left to the
+   coordinator).
 5. **Check.** `pnpm run check` after every small change; `pnpm run check -- <test file>` for the test you are writing.
 6. **Open the PR.** `pnpm run pr`. The `pr` skill writes the body: linked issue, summary, evidence, merge danger, guardrail
    changes.
