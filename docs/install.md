@@ -80,7 +80,7 @@ The daemon starts on demand and is not a system service ([ADR 0008](adr/0008-dae
   - `daemon.json`: the port and the process id.
   - `daemon.lock`: prevents a second daemon from starting.
   - `daemon.token`: the 256-bit authentication token, readable only by you (permissions 0600).
-- **Log**: `~/.piframe/runtime/daemon.log`, rotated across 5 files of 5 MB each.
+- **Log**: `~/.piframe/runtime/daemon.log`, rotated across 5 files of 5 MB each (`daemon.log`, `daemon.log.1` to `daemon.log.4`). It records each daemon start, every command that took 300 ms or more (its type, session id and duration, never its content) and every event-loop stall of 500 ms or more. Attach it when you report a slow or stuck screen.
 - **Pi worker idle timeout** ([ADR 0009](adr/0009-worker-idle-timeout.md)): a Pi worker with nothing to do is stopped after 30 minutes by default (adjustable in Settings). A Pi worker that is working, retrying, compacting or waiting for your answer is never stopped for inactivity.
 - **Restart**: **Settings → Daemon → Restart daemon** restarts it; running sessions reconnect, and PiFrame asks first if an agent is running.
 

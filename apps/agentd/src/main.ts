@@ -13,14 +13,14 @@ import { Dispatcher } from './commands/Dispatcher.js';
 import { RemoteManager } from './remote/RemoteManager.js';
 import { ensureContextLimitExtension } from './pi/contextLimitExtension.js';
 import { ensureSubagentContextLimitExtensionIfReferenced } from './pi/agents/subagentContextLimitExtension.js';
-import { enableDevFileLog, reportSlowCommand, startDevCpuProfile } from './config/devLog.js';
+import { enableDaemonFileLog, reportSlowCommand, startDevCpuProfile } from './config/devLog.js';
 import { getRuntimeDir } from './config/runtime.js';
 
 const VERSION = '1.5.1'; // x-release-please-version
 
 async function main() {
-  // Dev builds only (PIFRAME_DEV_LOG=1): mirror logs and loop stalls into runtime/daemon.log.
-  enableDevFileLog();
+  // runtime/daemon.log: slow commands and loop stalls in every daemon, console output too in dev builds.
+  enableDaemonFileLog();
   startDevCpuProfile(process.env, path.join(getRuntimeDir(), 'cpu-profile.cpuprofile'), (file) => {
     console.log(`[agentd] CPU profile written to ${file}`);
   });

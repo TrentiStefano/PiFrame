@@ -3,7 +3,7 @@ import * as assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { enableDevFileLog, reportSlowCommand, startDevCpuProfile, startEventLoopMonitor } from '../devLog.js';
+import { enableDaemonFileLog, reportSlowCommand, startDevCpuProfile, startEventLoopMonitor } from '../devLog.js';
 
 function tempLogFile(): { dir: string; file: string } {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'piframe-devlog-'));
@@ -46,12 +46,36 @@ test('dev CPU profile is written after the requested seconds and stays off witho
   }
 });
 
-test('dev file log is off unless PIFRAME_DEV_LOG=1, so release daemons write nothing', () => {
+// #114: the timing evidence for #104 and #105 existed only in dev builds' log. Every daemon now keeps the
+// documented runtime/daemon.log, with slow commands and loop stalls but without console output.
+test('a release daemon logs slow commands but not console output', () => {
+  const { dir, file } = tempLogFile();
+  const originalLog = console.log;
+  try {
+    const stop = enableDaemonFileLog({}, file);
+    console.log('[agentd] private detail');
+    reportSlowCommand('agent.getModels', 's_1', 30720);
+    stop();
+    const content = fs.readFileSync(file, 'utf8');
+    assert.match(content, /start --- daemon pid=\d+ ---/);
+    assert.match(content, / slow command agent\.getModels session=s_1 took 30720ms/);
+    assert.doesNotMatch(content, /private detail/);
+  } finally {
+    console.log = originalLog;
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('the log rotates across a fixed number of files of a fixed size', () => {
   const { dir, file } = tempLogFile();
   try {
-    const stop = enableDevFileLog({}, file);
-    assert.equal(stop, null);
-    assert.equal(fs.existsSync(file), false);
+    const stop = enableDaemonFileLog({}, file, { maxBytes: 200, files: 3 });
+    for (let i = 0; i < 40; i++) reportSlowCommand('session.list', undefined, 1000 + i);
+    stop();
+    const logs = fs.readdirSync(dir).sort();
+    assert.deepEqual(logs, ['daemon.log', 'daemon.log.1', 'daemon.log.2']);
+    for (const name of logs) assert.ok(fs.statSync(path.join(dir, name)).size <= 200, name);
+    assert.match(fs.readFileSync(file, 'utf8'), /took 1039ms/);
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -60,7 +84,7 @@ test('dev file log is off unless PIFRAME_DEV_LOG=1, so release daemons write not
 test('slow commands are logged with their type and session only above the threshold', () => {
   const { dir, file } = tempLogFile();
   try {
-    const stop = enableDevFileLog({ PIFRAME_DEV_LOG: '1' }, file);
+    const stop = enableDaemonFileLog({ PIFRAME_DEV_LOG: '1' }, file);
     assert.ok(stop);
     reportSlowCommand('session.open', 's_1', 120);
     reportSlowCommand('session.create', undefined, 1400);
@@ -75,12 +99,12 @@ test('slow commands are logged with their type and session only above the thresh
   }
 });
 
-test('dev file log mirrors console output into the log file', () => {
+test('a dev daemon also mirrors console output into the log file', () => {
   const { dir, file } = tempLogFile();
   const originalLog = console.log;
   const originalWarn = console.warn;
   try {
-    const stop = enableDevFileLog({ PIFRAME_DEV_LOG: '1' }, file);
+    const stop = enableDaemonFileLog({ PIFRAME_DEV_LOG: '1' }, file);
     assert.ok(stop);
     console.log('[agentd] probe %s', 'alpha');
     console.warn('probe warning');
