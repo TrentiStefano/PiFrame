@@ -56,6 +56,12 @@ pnpm harness record <label> [--duration 2000] [--fps 12] [--scale 0.5] [--crop x
 - The output folder holds `frame-NNN.png`, `manifest.json` (each frame's time and the real frame rate), and, when ffmpeg is on PATH, `sheet.png` (up to 12 evenly spaced frames, numbered, in one image) and `anim.gif`.
 - Read `sheet.png` first to see the whole animation at once, then open single frames for detail. Capture runs at about 10 fps at the default scale (5-6 fps at `--scale 1`), so very fast motion (under ~150 ms) shows as a few steps.
 
+### Measuring lag
+
+For a report that the app lags or stutters, measure frame times in a profile build instead of judging screenshots:
+`pnpm harness start --profile`, then `pnpm harness frames <label> [--duration 2000] [--do "<harness command>"]`. It
+prints build and raster p50/p90 and `overBudget` (frames over 16.7 ms); see `tools/harness/README.md`.
+
 `media --reduce-motion on` checks the reduced-motion version, `media --reduce-motion system` follows the OS and the app setting (needed to test the Settings toggle), and `media --reset` goes back to animations on.
 
 Run `pnpm harness stop` when done. Always stop the run, including after screenshot review.

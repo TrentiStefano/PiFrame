@@ -7,6 +7,8 @@ import {
   actionFailed,
   assertSafeHome,
   encodeParams,
+  flutterArgs,
+  framesPlan,
   isMissingProcessError,
   listScenarios,
   parseArgs,
@@ -144,4 +146,22 @@ test('record --do keeps a selector with spaces whole and spots failed actions', 
   assert.equal(actionFailed(0, '{ "ok": false, "error": "Target not found" }'), true);
   assert.equal(actionFailed(1, ''), true);
   assert.equal(actionFailed(0, '{ "ok": true }'), false);
+});
+
+// #118: lag needs a number. 'frames' measures frame times, and 'start --profile' runs a build that measures fairly.
+test('frames plans default to 2 s, validate the duration and keep a --do action', () => {
+  assert.deepEqual(framesPlan({}), { duration: 2000, action: null });
+  assert.deepEqual(framesPlan({ duration: '500', do: 'tap key:step_group_header_steps_u1' }), {
+    duration: 500,
+    action: ['tap', 'key:step_group_header_steps_u1']
+  });
+  assert.throws(() => framesPlan({ duration: '0' }), /--duration/);
+  assert.throws(() => framesPlan({ duration: '61000' }), /--duration/);
+});
+
+test('start --profile runs the profile build; the default stays a debug build', () => {
+  assert.equal(parseArgs(['--profile']).options.profile, true);
+  const base = { device: 'windows', size: '1920x1032' };
+  assert.ok(!flutterArgs(base).includes('--profile'));
+  assert.ok(flutterArgs({ ...base, profile: true }).includes('--profile'));
 });
