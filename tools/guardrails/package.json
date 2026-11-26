@@ -7,6 +7,6 @@
   "description": "Pure decision logic for PiFrame's verification gate (step list, escape-hatch audit, agent guard, guardrail approval)",
   "main": "src/index.mjs",
   "scripts": {
-    "test": "node --test \"test/**/*.test.mjs\""
+    "test": "node --test --test-timeout=120000 \"test/**/*.test.mjs\""
   }
 }

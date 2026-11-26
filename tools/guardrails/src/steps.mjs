@@ -7,6 +7,10 @@
  * To add a check, add it here, then add the matching step to ci.yml (the parity test prints the exact YAML).
  */
 import { toPosix } from './paths.mjs';
+import { NODE_TEST_TIMEOUT_MS } from './node-test-timeouts.mjs';
+
+/** `node --test` with the per-test limit, so a test that leaks a handle fails instead of hanging the gate (#115). */
+const NODE_TEST = ['node', '--test', `--test-timeout=${NODE_TEST_TIMEOUT_MS}`];
 
 /** @typedef {'node' | 'flutter'} CiJob */
 /** @typedef {{ name: string, command: string[], job: CiJob, cwd?: string }} Step */
@@ -41,6 +45,12 @@ const TIMER_CHECK = {
   job: 'node',
   name: 'Named timers (no literal timer durations)',
   command: ['node', 'tools/scripts/check-timers.mjs']
+};
+/** @type {Step} */
+const NODE_TEST_TIMEOUT_CHECK = {
+  job: 'node',
+  name: 'Node test timeouts (every node --test has --test-timeout)',
+  command: ['node', 'tools/scripts/check-node-test-timeouts.mjs']
 };
 /** @type {Step} */
 const TS_BUILD = { job: 'node', name: 'Build TypeScript packages', command: ['pnpm', '-r', 'run', 'build'] };
@@ -98,6 +108,7 @@ const GATE = [
   AGENT_MAP_CHECK,
   BOUNDARY_CHECK,
   TIMER_CHECK,
+  NODE_TEST_TIMEOUT_CHECK,
   DESIGN_LINT,
   DESIGN_TOKENS,
   { job: 'node', name: 'Verify Pi target recon', command: ['node', 'tools/recon/verify.ts'] },
@@ -112,7 +123,7 @@ const GATE = [
   {
     job: 'node',
     name: 'Windows release-name tests',
-    command: ['node', '--test', 'tools/scripts/test-windows-release-name.test.mjs']
+    command: [...NODE_TEST, 'tools/scripts/test-windows-release-name.test.mjs']
   },
   // Flutter setup generates the in-app changelog (apps/pi_frame/assets/CHANGELOG.md, untracked) from CHANGELOG.md.
   { job: 'flutter', name: 'Flutter dependencies', command: ['node', 'tools/scripts/setup-flutter.js'] },
@@ -206,6 +217,7 @@ const CHECK = [
   AGENT_MAP_CHECK,
   BOUNDARY_CHECK,
   TIMER_CHECK,
+  NODE_TEST_TIMEOUT_CHECK,
   DESIGN_LINT,
   DESIGN_TOKENS,
   // agentd and e2e type-check against the other workspace packages' dist/*.d.ts, so they must be built first. The
@@ -244,7 +256,7 @@ function testStep(file, flutterProjects) {
     }
   }
   if (/\.test\.(mjs|cjs|js)$/.test(file)) {
-    return { job: 'node', name: `Node test ${file}`, command: ['node', '--test', file] };
+    return { job: 'node', name: `Node test ${file}`, command: [...NODE_TEST, file] };
   }
   const ts = file.match(TS_TEST);
   if (ts && SRC_SEGMENT.test(file)) {
@@ -254,7 +266,7 @@ function testStep(file, flutterProjects) {
     return {
       job: 'node',
       name: `Node test ${compiled} (compiled from ${file})`,
-      command: ['node', '--test', compiled]
+      command: [...NODE_TEST, compiled]
     };
   }
   throw new Error(
