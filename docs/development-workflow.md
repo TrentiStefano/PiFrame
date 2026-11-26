@@ -112,7 +112,10 @@ as its own PR with `pnpm run pr`. When the last ticket merges, the architecture 
 
 `/bugfix <description>` (the `bugfix` skill, `.agents/skills/bugfix/SKILL.md`) runs this whole route from a bug report:
 it opens the issue and the branch, diagnoses, writes the failing test, fixes, and opens the PR with `pnpm run pr`. It
-stops only for a decision that is the maintainer's, and never merges.
+stops only for a decision that is the maintainer's, and never merges. Given a list (one bug per line), it opens one issue
+per bug and works through them one at a time in its own worktree, with one commit per bug. Bugs in the same area share
+a PR; a risky or guarded fix gets its own. A bug that needs the maintainer's answer is skipped (`needs-info`) and the
+questions come together at the end. It never runs two fixes, or two `verify`s, at once.
 
 1. **Diagnose.** Use the `diagnosing-bugs` skill. It builds a feedback loop first, then narrows the cause to one
    function or one data path. Write down what you observed.

@@ -87,7 +87,7 @@ runs the CI steps on the committed HEAD merged with origin/main. Details: `docs/
 ## Workflow
 
 - **Feature or design decision**: grill → spec → tickets → implement → `pnpm run pr`
-- **Bug**: diagnose → failing regression test → fix → `pnpm run pr` (all of it: `/bugfix <description>`)
+- **Bug**: diagnose → failing regression test → fix → `pnpm run pr` (all of it: `/bugfix <description or list>`)
 - **Small change, no decision**: implement test-first → `pnpm run pr`
 
 Steps, skills and commands per route: [docs/development-workflow.md](docs/development-workflow.md).
