@@ -86,6 +86,9 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
   String? _configStatusMessage;
   bool _isLoadingPackages = true;
   bool _isWorkingWithPackage = false;
+
+  /// The npm update check runs after the installed list is shown; update controls wait for it.
+  bool _isCheckingPackageUpdates = false;
   double? _packageUpdateProgress;
   String? _packageUpdateError;
   bool _isRestartingDaemon = false;
@@ -190,14 +193,10 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
       }
       setState(() => _packageLoadSlow = true);
     });
+    // The installed list comes from `pi list` and is quick; the update check asks npm about every package
+    // and can take tens of seconds or fail. Show the list first, then fill in the check (#104).
     try {
-      final result = await client.listPiPackages(checkUpdates: true);
-      final data = result['data'] as Map<String, dynamic>? ?? result;
-      final rawPackages = data['packages'];
-      if (rawPackages is! List) {
-        throw const FormatException('Invalid Pi package list.');
-      }
-      final packages = rawPackages.cast<Map<String, dynamic>>().toList();
+      final packages = await _readPackageList(client, checkUpdates: false);
       if (mounted && request == _packageListRequest) {
         setState(() => _packages = packages);
       }
@@ -205,6 +204,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
       if (mounted && request == _packageListRequest) {
         setState(() => _packageError = error);
       }
+      return;
     } finally {
       if (request == _packageListRequest) {
         _cancelPackageLoadTimer();
@@ -216,6 +216,32 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
         }
       }
     }
+    if (!mounted || request != _packageListRequest) return;
+    setState(() => _isCheckingPackageUpdates = true);
+    try {
+      final packages = await _readPackageList(client, checkUpdates: true);
+      if (mounted && request == _packageListRequest) {
+        setState(() => _packages = packages);
+      }
+    } catch (error) {
+      if (mounted && request == _packageListRequest) {
+        setState(() => _packageUpdateError = strings.packageUpdateCheckFailed('$error'));
+      }
+    } finally {
+      if (mounted && request == _packageListRequest) {
+        setState(() => _isCheckingPackageUpdates = false);
+      }
+    }
+  }
+
+  Future<List<Map<String, dynamic>>> _readPackageList(PcpClient client, {required bool checkUpdates}) async {
+    final result = await client.listPiPackages(checkUpdates: checkUpdates);
+    final data = result['data'] as Map<String, dynamic>? ?? result;
+    final rawPackages = data['packages'];
+    if (rawPackages is! List) {
+      throw const FormatException('Invalid Pi package list.');
+    }
+    return rawPackages.cast<Map<String, dynamic>>().toList();
   }
 
   Future<bool> _confirmPackageAction(
@@ -307,7 +333,10 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
 
   Future<void> _updatePackage(Map<String, dynamic> package) async {
     final strings = ref.read(appStringsProvider);
-    if (_isWorkingWithPackage || _isLoadingPackages || !hasAvailablePiPackageUpdate(package)) {
+    if (_isWorkingWithPackage ||
+        _isLoadingPackages ||
+        _isCheckingPackageUpdates ||
+        !hasAvailablePiPackageUpdate(package)) {
       return;
     }
     final source = package['source'].toString();
@@ -346,7 +375,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
   }
 
   Future<void> _updateAllPackages() async {
-    if (_isWorkingWithPackage || _isLoadingPackages) {
+    if (_isWorkingWithPackage || _isLoadingPackages || _isCheckingPackageUpdates) {
       return;
     }
     final strings = ref.read(appStringsProvider);
@@ -369,7 +398,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
       FrameSnackBar.show(context, message: strings.packagesDaemonDisconnected);
       return;
     }
-    if (_isWorkingWithPackage || _isLoadingPackages) return;
+    if (_isWorkingWithPackage || _isLoadingPackages || _isCheckingPackageUpdates) return;
     final availableSources = _packages
         .where(hasAvailablePiPackageUpdate)
         .map((package) => package['source'].toString())
@@ -590,7 +619,7 @@ class _SettingsViewState extends ConsumerState<SettingsView> {
           slow: _packageLoadSlow,
           loadError: _packageError,
           packages: _packages,
-          isWorking: _isWorkingWithPackage,
+          isWorking: _isWorkingWithPackage || _isCheckingPackageUpdates,
           updateProgress: _packageUpdateProgress,
           updateErrorMessage: _packageUpdateError,
           onRetry: _fetchPiPackages,

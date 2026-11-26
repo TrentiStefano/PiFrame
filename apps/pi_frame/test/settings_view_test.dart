@@ -171,8 +171,8 @@ void main() {
     await confirmUpdateAll(tester, expectedCount: 2);
 
     expect(client.updatedSources, ['npm:pi-caveman', 'npm:pi-ranged@^1.0.0']);
-    expect(client.listRequests, 2);
-    expect(client.packageCheckRequests, [true, true]);
+    expect(client.listRequests, 4);
+    expect(client.packageCheckRequests, [false, true, false, true]);
     expect(find.textContaining('All 2 packages have been updated.'), findsOneWidget);
     expect(tester.widget<FilledButton>(find.byKey(const ValueKey('update-all-pi-packages'))).onPressed, isNull);
   });
@@ -187,7 +187,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(client.updatedSources, isEmpty);
-    expect(client.listRequests, 1);
+    expect(client.listRequests, 2);
   });
 
   testWidgets('updates are sequential and package controls stay disabled', (tester) async {
@@ -245,7 +245,7 @@ void main() {
     await pumpPackages(tester, client);
     await confirmUpdateAll(tester);
     expect(client.updatedSources, ['npm:broken', 'npm:working']);
-    expect(client.listRequests, 2);
+    expect(client.listRequests, 4);
     final error = tester.widget<Text>(find.byKey(const ValueKey('pi-package-update-error'))).data!;
     expect(error, contains('Packages updated: 1.'));
     expect(error, contains('Updates failed: 1.'));
@@ -326,7 +326,7 @@ void main() {
     // The daemon's reason text is a protocol message and is shown inline.
     expect(error, contains('npm:pi-caveman: installed 0.1.15, expected 1.2.0'));
     expect(client.updateChecks, 1);
-    expect(client.listRequests, 2);
+    expect(client.listRequests, 4);
   });
 
   testWidgets('incompatible update reasons are visible beside the installed package', (tester) async {
@@ -375,7 +375,7 @@ void main() {
       );
       expect(tester.widget<FilledButton>(find.byKey(const ValueKey('update-all-pi-packages'))).onPressed, isNull);
       expect(client.updatedSources, isEmpty);
-      expect(client.packageCheckRequests, [true]);
+      expect(client.packageCheckRequests, [false, true]);
     });
   }
 
@@ -410,7 +410,7 @@ void main() {
     await container.read(startupUpdatesProvider.notifier).refreshPackages();
     await tester.pumpAndSettle();
     expect(tester.widget<FilledButton>(find.byKey(const ValueKey('update-all-pi-packages'))).onPressed, isNotNull);
-    expect(client.packageCheckRequests, [true, true]);
+    expect(client.packageCheckRequests, [false, true, false, true]);
   });
 
   testWidgets('a stale list cannot re-enable buttons after a newer check', (tester) async {
@@ -556,7 +556,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('packages-load-retry')));
       await tester.pumpAndSettle();
 
-      expect(client.listRequests, 2);
+      expect(client.listRequests, 3);
       expect(find.byKey(const ValueKey('packages-loading-slow')), findsNothing);
       expect(find.text('pi-caveman'), findsOneWidget);
     });
@@ -594,9 +594,38 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('packages-load-retry')));
       await tester.pumpAndSettle();
 
-      expect(client.listRequests, 2);
+      expect(client.listRequests, 3);
       expect(find.byKey(const ValueKey('packages-load-error')), findsNothing);
       expect(find.text('pi-caveman'), findsOneWidget);
+    });
+
+    // Regression for #104: the page waited for the npm update check of every package before it
+    // showed any, and a failed check hid the whole list.
+    testWidgets('installed packages show before the update check, and stay when it fails', (tester) async {
+      final check = Completer<Map<String, dynamic>>();
+      final client = _PackageClient();
+      client.onList = () => client.packageCheckRequests.last
+          ? check.future
+          : Future.value({
+              'data': {
+                'packages': [
+                  {'source': 'npm:pi-caveman', 'name': 'pi-caveman', 'version': '0.1.15', 'pinnedVersion': null},
+                ],
+              },
+            });
+      await pumpPackages(tester, client, settle: false);
+      await tester.pump();
+
+      expect(find.byKey(const ValueKey('packages-loading')), findsNothing);
+      expect(find.text('pi-caveman'), findsOneWidget);
+      expect(tester.widget<FilledButton>(find.byKey(const ValueKey('update-all-pi-packages'))).onPressed, isNull);
+
+      check.completeError(StateError('npm registry unreachable'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('pi-caveman'), findsOneWidget);
+      expect(find.byKey(const ValueKey('packages-load-error')), findsNothing);
+      expect(find.textContaining('npm registry unreachable'), findsOneWidget);
     });
 
     testWidgets('leaving settings while loading cancels the slow timer', (tester) async {
@@ -627,7 +656,7 @@ void main() {
     pending.complete(_updatedResult());
     await tester.pumpAndSettle();
     expect(client.updatedSources, ['npm:first', 'npm:second']);
-    expect(client.listRequests, 1);
+    expect(client.listRequests, 2);
     expect(tester.takeException(), isNull);
   });
 
