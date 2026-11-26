@@ -146,6 +146,11 @@ class FakePiTransport implements PiTransport {
     }
 
     if (cmd.command === 'prompt') {
+      // Pi reads the prompt text from the command's arguments (StdioPiTransport sends only those);
+      // without it Pi answers with an error, as a real worker does.
+      if (typeof cmd.arguments?.message !== 'string') {
+        throw new Error('Pi rejected the prompt: message is required');
+      }
       // Simulate streaming events
       setTimeout(() => {
         this.pushEvent({ type: 'agent_start' });
@@ -318,7 +323,7 @@ test('SideTransport RPC allowlist: allows prompt, abort, get_state; blocks every
   const sRes = await side.send({ command: 'get_state' });
   assert.equal(sRes.success, true);
 
-  const pRes = await side.send({ command: 'prompt', message: 'test' });
+  const pRes = await side.send({ command: 'prompt', arguments: { message: 'test' } });
   assert.equal(pRes.success, true);
 
   const aRes = await side.send({ command: 'abort' });
@@ -1463,6 +1468,35 @@ test('SideConversationManager: connectionManager onClose automatically triggers 
       'ConnectionManager remove must automatically trigger purge'
     );
 
+    await ctx.sideManager.close(sideId, 'user');
+  } finally {
+    ctx.cleanup();
+  }
+});
+
+// Regression for #106: the side conversation sent its prompt text outside the command's arguments,
+// so Pi received an empty prompt, rejected it, and the side conversation closed with an error.
+test('a side question reaches Pi as the prompt message and gets an answer', async () => {
+  const ctx = createSideTestContext();
+  try {
+    const parentSession = await ctx.sessionRegistry.createSession({ cwd: ctx.tmpBaseDir, name: 'Side prompt' });
+    const { sideId } = await ctx.sideManager.open({
+      parentSessionId: parentSession.id,
+      question: 'is this feature working?'
+    });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    const worker = ctx.fakeTransports[0];
+    assert.ok(worker);
+    const prompt = worker.sentCommands.find((cmd) => cmd.command === 'prompt');
+    assert.equal(prompt?.arguments?.message, 'is this feature working?');
+    assert.ok(ctx.sideManager.getActiveCount() === 1, `side ${sideId} must stay open`);
+
+    await ctx.sideManager.prompt(sideId, 'and the follow-up?');
+    assert.equal(
+      worker.sentCommands.filter((cmd) => cmd.command === 'prompt').at(-1)?.arguments?.message,
+      'and the follow-up?'
+    );
     await ctx.sideManager.close(sideId, 'user');
   } finally {
     ctx.cleanup();

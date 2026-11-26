@@ -9,6 +9,7 @@ export { checkAgentMap, AGENT_MAP_PATH, AGENT_MAP_MAX_LINES } from './agent-map.
 export { checkBoundaries, BOUNDARY_CONFIG_PATH } from './boundary.mjs';
 export { checkTimers } from './timers.mjs';
 export { affectedDartTests } from './affected-tests.mjs';
+export { checkNodeTestTimeouts, NODE_TEST_TIMEOUT_MS } from './node-test-timeouts.mjs';
 export { guardrailsStatus } from './status.mjs';
 export {
   checkDiagnostics,

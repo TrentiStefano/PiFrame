@@ -11,6 +11,11 @@ import '../../domain/session/snapshot_reducer.dart';
 import 'pcp_client.dart';
 import 'daemon_locator.dart';
 
+/// How long a session's model and thinking defaults may take. Reading them starts the session's Pi worker,
+/// which the daemon log shows taking up to about 35 seconds; a 4-second limit left new sessions without a
+/// model label (#105).
+const sessionDefaultsTimeout = Duration(seconds: 60);
+
 final daemonEndpointProvider = FutureProvider<DaemonEndpoint?>((ref) async {
   return DaemonLocator.locateOrProbe();
 });
@@ -178,6 +183,21 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
   }
 
   bool _defaultsLoading = false;
+  Timer? _defaultsTimer;
+
+  /// Fails [request] after [sessionDefaultsTimeout]; the timer stops when the notifier is disposed.
+  Future<T> _withDefaultsTimeout<T>(Future<T> request) async {
+    final expired = Completer<T>();
+    _defaultsTimer?.cancel();
+    _defaultsTimer = Timer(sessionDefaultsTimeout, () {
+      expired.completeError(TimeoutException('Session defaults', sessionDefaultsTimeout));
+    });
+    try {
+      return await Future.any([request, expired.future]);
+    } finally {
+      _defaultsTimer?.cancel();
+    }
+  }
 
   Future<void> refreshDefaults() async {
     if (client == null || state.readOnly || _defaultsLoading) return;
@@ -194,7 +214,7 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
       String? resolvedThinking;
 
       if (needsModel || needsModelIdentity) {
-        final res = await client!.getAvailableModels(sessionId).timeout(const Duration(seconds: 4));
+        final res = await _withDefaultsTimeout(client!.getAvailableModels(sessionId));
         final data = res['data'] as Map<String, dynamic>? ?? res;
         final currentModelRaw = data['currentModel'] ?? data['model'];
         if (currentModelRaw is Map) {
@@ -239,7 +259,7 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
       }
 
       if (needsThinking && (resolvedThinking == null || resolvedThinking.isEmpty)) {
-        final tRes = await client!.getAvailableThinkingLevels(sessionId).timeout(const Duration(seconds: 4));
+        final tRes = await _withDefaultsTimeout(client!.getAvailableThinkingLevels(sessionId));
         final tData = tRes['data'] as Map<String, dynamic>? ?? tRes;
         final levelRaw = tData['currentLevel'] ?? tData['thinkingLevel'] ?? tData['defaultLevel'];
         if (levelRaw != null) {
@@ -614,6 +634,7 @@ class SessionStateNotifier extends StateNotifier<SessionState> {
 
   @override
   void dispose() {
+    _defaultsTimer?.cancel();
     unawaited(_sub?.cancel());
     unawaited(_snapSub?.cancel());
     super.dispose();

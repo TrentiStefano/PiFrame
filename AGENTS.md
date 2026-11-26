@@ -56,7 +56,7 @@ apps/agentd  --one `pi --mode rpc` worker per session-->  Pi  --history-->  ~/.p
 | all tests / end-to-end tests | `pnpm run test` / `pnpm run test:e2e` |
 | progress toward zero for the guardrail baselines (a report, not a gate) | `pnpm run guardrails:status` |
 
-`check` runs in the working tree: the escape-hatch audit, the doc link, map and named-timer checks, the DESIGN.md lint and
+`check` runs in the working tree: the escape-hatch audit, the doc link, map, named-timer and test-timeout checks, the DESIGN.md lint and
 token match, the TypeScript build, the TypeScript (`tsc`) and ESLint analysis, and the Dart analysis, all under the diagnostics
 ratchet, then the Flutter tests the change reaches through imports. It never installs: run `pnpm install` after a
 dependency change (yours or pulled). `*_test.dart` files run with `flutter test`, `*.test.mjs` with `node --test`, and `apps/agentd/src/**/*.test.ts` from its compiled copy under dist. `verify`

@@ -12,7 +12,7 @@
     "build:bundle": "esbuild src/main.ts --bundle --platform=node --target=node22 --outfile=dist/pi-agentd.cjs --sourcemap",
     "build:sea": "pnpm build:bundle && node --experimental-sea-config sea-config.json",
     "dev": "node --watch dist/main.js",
-    "test": "node --test dist/**/*.test.js"
+    "test": "node --test --test-timeout=120000 dist/**/*.test.js"
   },
   "dependencies": {
     "@piframe/pcp-ts": "workspace:*",

@@ -107,7 +107,7 @@ Ordinary test results, a successful check and routine diagnosis are not reasons 
 
 Remove the worktree (`git worktree remove ../PiFrame-bugfix-<first issue>`; the branches stay on GitHub). Then report,
 for a list as a table, each bug with its issue, its PR (or "skipped" and the open question), the root cause and the
-regression test. Say which PRs touch a guarded path (`tools/guardrails/src/approval.mjs`: gate scripts, baselines,
-workflows, agent guard, goldens, `DESIGN.md`) and so wait for the maintainer's label. If a bug was hard — long to find,
-or the gate should have caught it — suggest `/retro`: its findings become a `needs-triage` issue naming a check, or an
-ADR, never a new prose rule in `AGENTS.md`.
+regression test. Say which PRs touch a guarded path (`tools/guardrails/src/approval.mjs`: gate scripts, baseline
+increases (lowering one is free), workflows, agent guard, goldens, `DESIGN.md`) and so wait for the maintainer's label.
+If a bug was hard — long to find, or the gate should have caught it — suggest `/retro`: its findings become a
+`needs-triage` issue naming a check, or an ADR, never a new prose rule in `AGENTS.md`.

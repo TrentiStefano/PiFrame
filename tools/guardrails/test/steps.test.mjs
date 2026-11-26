@@ -13,6 +13,7 @@ test('verify runs the full gate in order, including codegen parity and an explic
     'node tools/scripts/check-agent-map.mjs',
     'node tools/scripts/check-boundaries.mjs',
     'node tools/scripts/check-timers.mjs',
+    'node tools/scripts/check-node-test-timeouts.mjs',
     'node tools/scripts/lint-design.mjs',
     'node tools/scripts/check-design-tokens.mjs',
     'node tools/recon/verify.ts',
@@ -24,7 +25,7 @@ test('verify runs the full gate in order, including codegen parity and an explic
     'pnpm run check:notices',
     'pnpm run check:agentd-bundle',
     'pnpm run smoke:agentd-bundle',
-    'node --test tools/scripts/test-windows-release-name.test.mjs',
+    'node --test --test-timeout=120000 tools/scripts/test-windows-release-name.test.mjs',
     'node tools/scripts/setup-flutter.js',
     'node tools/scripts/check-version-sync.mjs',
     'node tools/scripts/format.mjs --check dart',
@@ -109,6 +110,7 @@ test('check is the inner loop: escape-hatch audit, doc link, agent map and DESIG
     'node tools/scripts/check-agent-map.mjs',
     'node tools/scripts/check-boundaries.mjs',
     'node tools/scripts/check-timers.mjs',
+    'node tools/scripts/check-node-test-timeouts.mjs',
     'node tools/scripts/lint-design.mjs',
     'node tools/scripts/check-design-tokens.mjs',
     'pnpm -r run build',
@@ -119,7 +121,7 @@ test('check is the inner loop: escape-hatch audit, doc link, agent map and DESIG
   ]);
 });
 
-const ANALYSIS_STEPS = 11;
+const ANALYSIS_STEPS = 12;
 
 test('check never installs, creates a worktree or merges', () => {
   const steps = check(['apps/pi_frame/test/a_test.dart', 'tools/guardrails/test/steps.test.mjs']);
@@ -148,9 +150,9 @@ test('check runs a TypeScript test from its compiled output, after the build ste
     'tools/fake-pi/src/test/a.test.mts'
   ]);
   assert.deepEqual(withCwd(steps).slice(ANALYSIS_STEPS), [
-    { command: 'node --test apps/agentd/dist/pi/test/jsonlFramer.test.js', cwd: undefined },
-    { command: 'node --test packages/pcp-ts/dist/test/index.test.js', cwd: undefined },
-    { command: 'node --test tools/fake-pi/dist/test/a.test.mjs', cwd: undefined }
+    { command: 'node --test --test-timeout=120000 apps/agentd/dist/pi/test/jsonlFramer.test.js', cwd: undefined },
+    { command: 'node --test --test-timeout=120000 packages/pcp-ts/dist/test/index.test.js', cwd: undefined },
+    { command: 'node --test --test-timeout=120000 tools/fake-pi/dist/test/a.test.mjs', cwd: undefined }
   ]);
 });
 
@@ -181,9 +183,9 @@ test('check refuses a TypeScript test outside a src folder, naming the compiled 
 test('check runs a Node test file with node --test from the repository root', () => {
   const steps = check(['tools/guardrails/test/steps.test.mjs', 'tools/scripts/x.test.js', 'tools/a/b.test.cjs']);
   assert.deepEqual(withCwd(steps).slice(ANALYSIS_STEPS), [
-    { command: 'node --test tools/guardrails/test/steps.test.mjs', cwd: undefined },
-    { command: 'node --test tools/scripts/x.test.js', cwd: undefined },
-    { command: 'node --test tools/a/b.test.cjs', cwd: undefined }
+    { command: 'node --test --test-timeout=120000 tools/guardrails/test/steps.test.mjs', cwd: undefined },
+    { command: 'node --test --test-timeout=120000 tools/scripts/x.test.js', cwd: undefined },
+    { command: 'node --test --test-timeout=120000 tools/a/b.test.cjs', cwd: undefined }
   ]);
 });
 

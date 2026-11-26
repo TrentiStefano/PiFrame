@@ -59,6 +59,23 @@ Future<void> _setWindow(WidgetTester tester) async {
 }
 
 void main() {
+  // Regression for #107: expanding a group of many aggregated steps built, laid out and painted every
+  // step row at once, so the app lagged; the compact list now builds only the rows it shows.
+  testWidgets('a large expanded group builds only the step rows it shows', (tester) async {
+    await _setWindow(tester);
+    await tester.pumpWidget(_app(StepsGroup(sessionId: _sid, block: _block(steps: 500), tokens: FrameTokens.dark)));
+    await tester.tap(_header());
+    await tester.pumpAndSettle();
+
+    final built = find.byWidgetPredicate(
+      (widget) =>
+          widget.key is ValueKey<String> && (widget.key! as ValueKey<String>).value.startsWith('tool_step_header_'),
+      skipOffstage: false,
+    );
+    expect(built.evaluate().length, lessThan(60));
+    expect(find.text('Show all steps (500)'), findsOneWidget);
+  });
+
   testWidgets('many steps: compact list capped at half the window, then expand all', (tester) async {
     await _setWindow(tester);
     await tester.pumpWidget(_app(StepsGroup(sessionId: _sid, block: _block(steps: 60), tokens: FrameTokens.dark)));

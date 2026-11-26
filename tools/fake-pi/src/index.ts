@@ -676,6 +676,11 @@ async function main() {
     }
 
     if (type === 'prompt') {
+      // Like Pi, a prompt needs its text: accepting an empty one hid a daemon that sent none (#106, #113).
+      if (typeof cmd.message !== 'string') {
+        send({ id, type: 'response', command: 'prompt', success: false, error: 'prompt requires a text message' });
+        return;
+      }
       if (isStreaming && !cmd.streamingBehavior) {
         send({
           id,
