@@ -5,7 +5,7 @@ Runs an isolated desktop PiFrame build, drives the app through `ext.piframe.*` D
 From the repository root:
 
 ```sh
-pnpm harness start [--scenario hello-world] [--seed] [--size 1920x1032] [--device windows|macos|linux] [--run name] [--no-daemon-build] [--real-pi]
+pnpm harness start [--scenario hello-world] [--seed] [--size 1920x1032] [--device windows|macos|linux] [--run name] [--no-daemon-build] [--real-pi] [--profile]
 pnpm harness seed [--run name]
 pnpm harness scenarios
 pnpm harness scenario <name> [--run name]
@@ -75,6 +75,20 @@ pnpm harness type "hello" --into key:composer-input-area
 pnpm harness record send --duration 2500 --do "tap key:composer-send-btn"
 pnpm harness record composer --scale 1 --crop 0,820,800,80
 ```
+
+## Measuring frame times
+
+`pnpm harness frames <label>` measures how smoothly the app draws: it collects every frame's build time (UI thread) and raster time (raster thread) for `--duration` ms (default 2000), then prints and saves to `scratch/harness/<run>/<time>-<label>-frames.json` the p50 and p90 of both, the worst frame, and `overBudget`: the frames whose build or raster alone took longer than a 60 Hz frame (16.7 ms).
+
+- Start the run with `--profile` (`pnpm harness start --profile`): the default debug build is many times slower, and `frames` warns when it measures one. A profile build takes longer to build and has no hot reload, so `reload` and `restart` need a debug run.
+- `--do "<command>"` runs one harness command first, so the numbers cover what it triggers, e.g. `--do "tap text:Workspace planning"`.
+
+```sh
+pnpm harness start --profile --seed --run perf
+pnpm harness frames open-session --run perf --duration 2500 --do "tap text:Workspace planning"
+```
+
+Compare `buildP90Ms` and `overBudget` before and after a change: a lag report is red when they exceed the budget and green when the fix brings them under it.
 
 ## Feature → how to reach it
 

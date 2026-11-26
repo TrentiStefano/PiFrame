@@ -4,11 +4,14 @@ import 'dart:developer' as developer;
 import 'dart:io';
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
+import 'frame_stats.dart';
 import 'harness_window.dart';
 
 import '../data/runtime/harness_mode.dart';
@@ -330,6 +333,23 @@ int _nextPointer = 1;
 final Stopwatch _keyClock = Stopwatch()..start();
 
 void registerHarnessExtensions(GlobalKey rootBoundaryKey) {
+  // Frame timings for the harness frames command (#118): start collects, stop returns the statistics.
+  developer.registerExtension('ext.piframe.frames', (method, params) async {
+    switch (params['action']) {
+      case 'start':
+        _frameSamples.clear();
+        SchedulerBinding.instance.removeTimingsCallback(_collectFrames);
+        SchedulerBinding.instance.addTimingsCallback(_collectFrames);
+        return _result({'ok': true});
+      case 'stop':
+        SchedulerBinding.instance.removeTimingsCallback(_collectFrames);
+        final mode = kProfileMode ? 'profile' : (kReleaseMode ? 'release' : 'debug');
+        return _result({'ok': true, 'mode': mode, ...FrameStats.of(List.of(_frameSamples)).toJson()});
+      default:
+        return _result({'ok': false, 'error': 'action must be start or stop'});
+    }
+  });
+
   developer.registerExtension('ext.piframe.ping', (method, params) async {
     return _result({'ok': true});
   });
@@ -727,6 +747,14 @@ void sendSyntheticKeyData(
     'pagedown': (PhysicalKeyboardKey.pageDown, LogicalKeyboardKey.pageDown, null),
   };
   return keys[normalized];
+}
+
+final List<FrameSample> _frameSamples = [];
+
+void _collectFrames(List<ui.FrameTiming> timings) {
+  for (final timing in timings) {
+    _frameSamples.add(FrameSample(build: timing.buildDuration, raster: timing.rasterDuration));
+  }
 }
 
 developer.ServiceExtensionResponse _result(Map<String, Object?> value) =>

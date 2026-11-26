@@ -164,7 +164,19 @@ export function parseArgs(argv) {
     if (arg.startsWith('--')) {
       const [key, inline] = arg.slice(2).split('=', 2);
       if (
-        ['no-daemon-build', 'real-pi', 'daemon', 'all', 'seed', 'reset', 'ctrl', 'shift', 'alt', 'meta'].includes(key)
+        [
+          'no-daemon-build',
+          'real-pi',
+          'profile',
+          'daemon',
+          'all',
+          'seed',
+          'reset',
+          'ctrl',
+          'shift',
+          'alt',
+          'meta'
+        ].includes(key)
       )
         options[key] = true;
       else {
@@ -435,7 +447,7 @@ export async function seedHarnessHome(home, userHome = os.homedir()) {
   return { ok: true, home: safeHome, gitAvailable, created };
 }
 
-function prepareHome(home, scenario, size, device, useRealPi) {
+function prepareHome(home, scenario, size, device, useRealPi, profile = false) {
   assertSafeHome(home);
   fs.mkdirSync(path.join(home, 'runtime'), { recursive: true });
   fs.mkdirSync(path.join(home, 'pi-agent', 'sessions'), { recursive: true });
@@ -461,7 +473,8 @@ function prepareHome(home, scenario, size, device, useRealPi) {
     controlPort: null,
     controlToken: null,
     piShim: shim,
-    realPi: useRealPi
+    realPi: useRealPi,
+    profile
   };
   writeState(home, state);
   return state;
@@ -481,7 +494,8 @@ async function refuseRunningWindowsDebug(home) {
     );
 }
 
-function flutterArgs(state) {
+/** The `flutter run` arguments of a run: a debug build, or with `start --profile` a profile build for `frames`. */
+export function flutterArgs(state) {
   return [
     'run',
     '-d',
@@ -489,6 +503,7 @@ function flutterArgs(state) {
     '-t',
     'lib/main_harness.dart',
     '--machine',
+    ...(state.profile ? ['--profile'] : []),
     `--dart-define=PIFRAME_HARNESS_SIZE=${state.size}`
   ];
 }
@@ -652,14 +667,15 @@ async function requestControl(state, method) {
   return data;
 }
 
-async function supervise(home, device, size, scenario, realPi) {
+async function supervise(home, device, size, scenario, realPi, profile = false) {
   assertSafeHome(home);
-  const state = readState(home) || prepareHome(home, scenario, size, device, realPi);
+  const state = readState(home) || prepareHome(home, scenario, size, device, realPi, profile);
   state.home = home;
   state.device = device || state.device;
   state.size = size || state.size;
   state.scenario = scenario || state.scenario || 'hello-world';
   state.realPi = Boolean(realPi || state.realPi);
+  state.profile = Boolean(profile || state.profile);
   const server = await controlServer(home, state);
   startFlutter(home, state);
   const shutdown = async () => {
@@ -802,6 +818,7 @@ async function launchSupervisor(home, state) {
     state.scenario
   ];
   if (state.realPi) args.push('--real-pi');
+  if (state.profile) args.push('--profile');
   const child = spawn(process.execPath, args, { cwd: ROOT, detached: true, stdio: 'ignore', windowsHide: true });
   child.unref();
   // Supervisor writes its own PID; parent records only as a fallback until then.
@@ -840,7 +857,7 @@ async function startCommand(options) {
       '*** WARNING: --real-pi enabled. Harness may invoke a real Pi binary; its environment remains isolated to this run. ***'
     );
   await ensureBuilds(Boolean(options['no-daemon-build']));
-  const state = prepareHome(home, scenario, size, device, Boolean(options['real-pi']));
+  const state = prepareHome(home, scenario, size, device, Boolean(options['real-pi']), Boolean(options.profile));
   await launchSupervisor(home, state);
   const ready = await waitReady(home);
   console.log(JSON.stringify({ ok: true, run: runName, wsUri: ready.wsUri, home }));
@@ -1025,6 +1042,23 @@ export function recordPlan(options = {}) {
 }
 
 /** Evenly picks up to `max` frame indexes, always keeping the first and last. */
+/** A `frames` measurement: how long to collect frame timings, and the harness command to run meanwhile. */
+export function framesPlan(options = {}) {
+  const duration = Number(options.duration ?? 2000);
+  if (!Number.isFinite(duration) || duration <= 0 || duration > 60000)
+    throw new Error('--duration must be between 1 and 60000 ms');
+  let action = options.do === undefined ? null : splitCommandLine(options.do);
+  if (
+    action &&
+    SINGLE_SELECTOR_COMMANDS.has(action[0]) &&
+    action.length > 2 &&
+    !action.slice(2).some((arg) => arg.startsWith('--'))
+  ) {
+    action = [action[0], action.slice(1).join(' ')];
+  }
+  return { duration, action };
+}
+
 export function sampleFrames(count, max = 12) {
   if (count <= max) return Array.from({ length: count }, (_, i) => i);
   return Array.from({ length: max }, (_, i) => Math.round((i * (count - 1)) / (max - 1)));
@@ -1193,6 +1227,49 @@ async function recordCommand(positional, options, runName) {
   );
 }
 
+/**
+ * Collects the app's frame timings for --duration ms while an optional --do command runs, then prints build and raster
+ * percentiles and the frames over the 60 Hz budget, and saves them as JSON. Measure in a run started with --profile:
+ * debug builds are many times slower.
+ */
+async function framesCommand(positional, options, runName) {
+  const { state } = requireState(runName);
+  const plan = framesPlan(options);
+  const label = (positional[0] || 'frames').replace(/[^a-zA-Z0-9._-]+/g, '-');
+  const started = await invokeExtension(state, 'frames', { action: 'start' });
+  if (started?.ok === false) throw new Error(`frames start failed: ${started.error}`);
+  let action = null;
+  if (plan.action) {
+    action = await new Promise((resolve) => {
+      const child = spawn(process.execPath, [SCRIPT, ...plan.action, '--run', runName], {
+        cwd: ROOT,
+        windowsHide: true,
+        stdio: ['ignore', 'pipe', 'pipe']
+      });
+      let output = '';
+      child.stdout.on('data', (chunk) => {
+        output += chunk;
+      });
+      child.stderr.on('data', (chunk) => {
+        output += chunk;
+      });
+      child.on('close', (code) => resolve({ code, output: output.trim() }));
+    });
+  }
+  await new Promise((resolve) => setTimeout(resolve, plan.duration));
+  const stats = await invokeExtension(state, 'frames', { action: 'stop' });
+  if (stats?.ok === false) throw new Error(`frames stop failed: ${stats.error}`);
+  const outDir = path.join(ROOT, 'scratch', 'harness', runName);
+  fs.mkdirSync(outDir, { recursive: true });
+  const file = path.join(outDir, `${new Date().toISOString().replace(/[:.]/g, '-')}-${label}-frames.json`);
+  const result = { ...stats, label, durationMs: plan.duration, action, file };
+  fs.writeFileSync(file, JSON.stringify(result, null, 2));
+  if (stats.mode === 'debug')
+    console.warn('Measured a debug build: start the run with --profile for real frame times.');
+  console.log(JSON.stringify(result));
+  if (action && actionFailed(action.code, action.output)) process.exitCode = 1;
+}
+
 async function tailFile(file, lines) {
   try {
     const content = fs.readFileSync(file, 'utf8').trimEnd().split(/\r?\n/);
@@ -1233,14 +1310,21 @@ async function main(argv) {
   const runName = options.run || 'default';
   if (!command || command === 'help' || command === '--help') {
     console.log(
-      'Usage: pnpm harness <start|seed|scenarios|scenario|call|tap|tapAt|rightClick|doubleTap|drag|longPress|hover|type|key|scroll|tree|media|state|resize|shot|record|reload|restart|rebuild|logs|status|stop> [options]'
+      'Usage: pnpm harness <start|seed|scenarios|scenario|call|tap|tapAt|rightClick|doubleTap|drag|longPress|hover|type|key|scroll|tree|media|state|resize|shot|record|frames|reload|restart|rebuild|logs|status|stop> [options]'
     );
     return;
   }
   if (command === '__supervise') {
     const home = options.home;
     if (!home) throw new Error('Missing supervisor home');
-    await supervise(path.resolve(home), options.device, options.size, options.scenario, Boolean(options['real-pi']));
+    await supervise(
+      path.resolve(home),
+      options.device,
+      options.size,
+      options.scenario,
+      Boolean(options['real-pi']),
+      Boolean(options.profile)
+    );
     return;
   }
   if (command === 'start') return startCommand(options);
@@ -1260,6 +1344,7 @@ async function main(argv) {
   }
   if (command === 'call') return callCommand(positional[0], positional[1], runName);
   if (command === 'record') return recordCommand(positional, options, runName);
+  if (command === 'frames') return framesCommand(positional, options, runName);
   if (
     [
       'tap',
