@@ -414,6 +414,95 @@ void main() {
       expect(y('new-done'), lessThan(y('old-done')));
     });
 
+    testWidgets('Agents tab keeps the Completed row and expanded entries per session', (tester) async {
+      final container = ProviderContainer(
+        overrides: [
+          subagentsFamily('sess_a').overrideWith(
+            (ref) => _MockSubagentsNotifier(ref, 'sess_a', const [
+              SubagentItem(id: 'run_a', name: 'runner-a', status: 'running', startedAt: 300),
+              SubagentItem(id: 'done_a1', name: 'finished-a1', status: 'completed', startedAt: 100),
+              SubagentItem(id: 'done_a2', name: 'finished-a2', status: 'completed', startedAt: 200),
+            ]),
+          ),
+          subagentsFamily('sess_b').overrideWith(
+            (ref) => _MockSubagentsNotifier(ref, 'sess_b', const [
+              SubagentItem(id: 'run_b', name: 'runner-b', status: 'running', startedAt: 300),
+              SubagentItem(id: 'done_b1', name: 'finished-b1', status: 'completed', startedAt: 100),
+            ]),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final currentSession = ValueNotifier<String>('sess_a');
+      addTearDown(currentSession.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+            home: Scaffold(
+              body: ValueListenableBuilder<String>(
+                valueListenable: currentSession,
+                builder: (context, sid, _) => AgentActivityPanel(key: ValueKey(sid), sessionId: sid),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Session A: open the Completed row, then expand one finished entry.
+      await tester.tap(find.byKey(const ValueKey('agent-tree-completed-toggle')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('subagent-card-done_a1')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('subagent-stop-btn-done_a1')), findsOneWidget);
+
+      // Session B starts with its own, collapsed state.
+      currentSession.value = 'sess_b';
+      await tester.pumpAndSettle();
+      expect(find.text('finished-b1'), findsNothing);
+      expect(find.byKey(const ValueKey('subagent-stop-btn-done_a1')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('agent-tree-completed-toggle')));
+      await tester.pumpAndSettle();
+      expect(find.text('finished-b1'), findsOneWidget);
+
+      // Back to session A: the open row and the expanded entry are as the user left them.
+      currentSession.value = 'sess_a';
+      await tester.pumpAndSettle();
+      expect(find.text('finished-a2'), findsOneWidget);
+      expect(find.byKey(const ValueKey('subagent-stop-btn-done_a1')), findsOneWidget);
+    });
+
+    testWidgets('a fresh provider container starts the Completed row collapsed with nothing expanded', (tester) async {
+      final container = ProviderContainer(
+        overrides: [
+          subagentsFamily('sess_a').overrideWith(
+            (ref) => _MockSubagentsNotifier(ref, 'sess_a', const [
+              SubagentItem(id: 'run_a', name: 'runner-a', status: 'running', startedAt: 300),
+              SubagentItem(id: 'done_a1', name: 'finished-a1', status: 'completed', startedAt: 100),
+            ]),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+            home: const Scaffold(body: AgentActivityPanel(sessionId: 'sess_a')),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('agent-tree-completed-toggle')), findsOneWidget);
+      expect(find.text('finished-a1'), findsNothing);
+      expect(find.byKey(const ValueKey('subagent-stop-btn-done_a1')), findsNothing);
+    });
+
     testWidgets('agent rows built while scrolling do not jitter horizontally', (tester) async {
       tester.view.physicalSize = const Size(800, 500);
       tester.view.devicePixelRatio = 1;

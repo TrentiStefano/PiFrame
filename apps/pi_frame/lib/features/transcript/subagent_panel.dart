@@ -20,6 +20,7 @@ import '../../data/language/strings_transcript.dart';
 import '../side/side_panel.dart';
 import '../side/side_provider.dart';
 import 'subagents_provider.dart';
+import 'subagent_tree_expansion.dart';
 import 'todo_panel.dart';
 import 'todo_provider.dart';
 import 'workflows_provider.dart';
@@ -858,11 +859,9 @@ class _AgentTree extends ConsumerStatefulWidget {
 }
 
 class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProviderStateMixin {
-  final Set<String> _expandedIds = <String>{};
   // Row ids already shown once; only rows missing here play the entrance.
   final Set<String> _seenIds = <String>{};
   bool _firstBuild = true;
-  bool _completedExpanded = false;
   late final AnimationController _pulse = AnimationController(vsync: this, duration: FrameMotion.pulseLoop);
 
   @override
@@ -871,9 +870,7 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
     super.dispose();
   }
 
-  void _toggle(String id) => setState(() {
-    if (!_expandedIds.remove(id)) _expandedIds.add(id);
-  });
+  void _toggle(String id) => ref.read(subagentTreeExpansionProvider(widget.sessionId).notifier).toggleEntry(id);
 
   List<_TreeNode> _nodes() {
     final split = workflowChildren(widget.workflows, widget.subagents.where((s) => s.isUnlinked).toList());
@@ -934,6 +931,7 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
     }
     final strings = ref.watch(appStringsProvider);
     final notifier = ref.read(subagentsFamily(widget.sessionId).notifier);
+    final expansion = ref.watch(subagentTreeExpansionProvider(widget.sessionId));
     final agentNodes = nodes.where((n) => n.agent != null);
     final working = agentNodes.where((n) => n.isRunning).length;
     final runCount = widget.workflows.length;
@@ -954,7 +952,11 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
     final activeNodes = <_TreeNode>[];
     final completedNodes = <_TreeNode>[];
     for (final node in nodes) {
-      if (node.depth == 1 && node.agent != null && !node.isRunning && !_expandedIds.contains(node.id) && anyRunning) {
+      if (node.depth == 1 &&
+          node.agent != null &&
+          !node.isRunning &&
+          !expansion.expandedIds.contains(node.id) &&
+          anyRunning) {
         completedNodes.add(node);
       } else {
         activeNodes.add(node);
@@ -996,7 +998,7 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
               running: false,
               color: context.tokens.textMuted,
               pulse: _pulse,
-              onTap: () => setState(() => _completedExpanded = !_completedExpanded),
+              onTap: () => ref.read(subagentTreeExpansionProvider(widget.sessionId).notifier).toggleCompleted(),
               avatar: _NodeAvatar(
                 icon: Icons.check_circle_outline,
                 color: context.tokens.textMuted,
@@ -1005,14 +1007,14 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
               ),
               title: '${strings.subagentStatusCompleted} (${completedNodes.length})',
               trailing: Icon(
-                _completedExpanded ? Icons.expand_less : Icons.expand_more,
+                expansion.completedOpen ? Icons.expand_less : Icons.expand_more,
                 size: FrameSize.icon,
                 color: context.tokens.textMuted,
               ),
               subtitle: null,
             ),
           ),
-          if (_completedExpanded)
+          if (expansion.completedOpen)
             for (final node in completedNodes)
               _Entrance(
                 key: ValueKey('subagent-entry-${node.id}'),
@@ -1033,7 +1035,7 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
     final counts = node.runChildren.isEmpty
         ? (run.summary.isNotEmpty ? run.summary : (run.isRunning ? strings.workflowStarting : ''))
         : strings.subagentsFinishedWorking(done, node.runChildren.length, working);
-    final expanded = _expandedIds.contains(run.id);
+    final expanded = ref.watch(subagentTreeExpansionProvider(widget.sessionId)).expandedIds.contains(run.id);
     return _TreeRow(
       key: ValueKey('workflow-card-${run.id}'),
       depth: node.depth,
@@ -1088,7 +1090,7 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
     final agent = node.agent!;
     final (statusLabel, statusColor) = _statusStyle(tokens, strings, agent.status);
     final color = _typeColor(tokens, agent.agentType ?? agent.name);
-    final expanded = _expandedIds.contains(agent.id);
+    final expanded = ref.watch(subagentTreeExpansionProvider(widget.sessionId)).expandedIds.contains(agent.id);
     // Workflow children have no name of their own; their task line says what they do.
     final title = agent.isUnlinked ? (agent.prompt ?? agent.name) : agent.name;
     final type = agent.agentType ?? (agent.isUnlinked ? agent.name.split('#').first : null);
