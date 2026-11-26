@@ -1044,43 +1044,36 @@ class _AgentTreeState extends ConsumerState<_AgentTree> with SingleTickerProvide
           _Entrance(
             key: const ValueKey('agent-tree-completed-header'),
             animate: false,
-            child: Semantics(
-              button: true,
+            child: _TreeRow(
+              key: const ValueKey('agent-tree-completed-toggle'),
+              semanticsLabel: headerLabel,
               expanded: groupOpen,
-              label: headerLabel,
-              // Screen readers activate the header through this action, so it is the one place the header
-              // is wired to a tap; the row's own tap handler below serves pointers and keys.
-              excludeSemantics: true,
+              depth: 1,
+              isLast: true,
+              running: false,
+              color: context.tokens.textMuted,
+              pulse: _pulse,
               onTap: toggleGroup,
-              child: _TreeRow(
-                key: const ValueKey('agent-tree-completed-toggle'),
-                depth: 1,
-                isLast: true,
-                running: false,
+              avatar: _NodeAvatar(
+                icon: Icons.check_circle_outline,
                 color: context.tokens.textMuted,
+                running: false,
                 pulse: _pulse,
-                onTap: toggleGroup,
-                avatar: _NodeAvatar(
-                  icon: Icons.check_circle_outline,
-                  color: context.tokens.textMuted,
-                  running: false,
-                  pulse: _pulse,
-                ),
-                title: header.first.text,
-                titleExtra: [
-                  for (final part in header.skip(1))
-                    TextSpan(
-                      text: part.text,
-                      style: part.failed ? TextStyle(color: context.tokens.danger) : null,
-                    ),
-                ],
-                trailing: Icon(
-                  groupOpen ? Icons.expand_less : Icons.expand_more,
-                  size: FrameSize.icon,
-                  color: context.tokens.textMuted,
-                ),
-                subtitle: null,
               ),
+              title: header.first.text,
+              titleExtra: [
+                for (final part in header.skip(1))
+                  TextSpan(
+                    text: part.text,
+                    style: part.failed ? TextStyle(color: context.tokens.danger) : null,
+                  ),
+              ],
+              trailing: Icon(
+                groupOpen ? Icons.expand_less : Icons.expand_more,
+                size: FrameSize.icon,
+                color: context.tokens.textMuted,
+              ),
+              subtitle: null,
             ),
           ),
           // Reduced motion opens and closes the group at once, like the rest of the panel.
@@ -1280,6 +1273,11 @@ class _TreeRow extends StatelessWidget {
   final Widget? details;
   final VoidCallback? onTap;
 
+  /// When set, screen readers announce the row as one button with this label (instead of its visible texts)
+  /// and, when [expanded] is set, its expanded state; the row's own [onTap] stays its only handler.
+  final String? semanticsLabel;
+  final bool? expanded;
+
   const _TreeRow({
     super.key,
     required this.depth,
@@ -1299,6 +1297,8 @@ class _TreeRow extends StatelessWidget {
     this.subtitle,
     this.details,
     this.onTap,
+    this.semanticsLabel,
+    this.expanded,
   });
 
   @override
@@ -1387,13 +1387,27 @@ class _TreeRow extends StatelessWidget {
         padding: EdgeInsets.only(left: indent),
         child: Material(
           type: MaterialType.transparency,
-          child: InkWell(
-            onTap: onTap,
-            borderRadius: BorderRadius.circular(tokens.radiusSm),
-            child: Padding(padding: const EdgeInsets.fromLTRB(0, _rowTopPad, 4, 7), child: content),
+          child: _withSemantics(
+            InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(tokens.radiusSm),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(0, _rowTopPad, 4, 7),
+                child: semanticsLabel == null ? content : ExcludeSemantics(child: content),
+              ),
+            ),
           ),
         ),
       ),
+    );
+  }
+
+  /// Merges the label, the button role and the expanded state with the InkWell's own tap action into one node.
+  Widget _withSemantics(Widget inkWell) {
+    final label = semanticsLabel;
+    if (label == null) return inkWell;
+    return MergeSemantics(
+      child: Semantics(button: true, expanded: expanded, label: label, child: inkWell),
     );
   }
 }

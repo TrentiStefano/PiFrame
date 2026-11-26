@@ -888,7 +888,7 @@ void main() {
       );
       final label = find.bySemanticsLabel('Completed subagents (2)');
       expect(tester.getSemantics(label).flagsCollection.isButton, isTrue);
-      expect(tester.getSemantics(label), isSemantics(hasExpandedState: true, isExpanded: false));
+      expect(tester.getSemantics(label), isSemantics(hasExpandedState: true, isExpanded: false, hasTapAction: true));
 
       Focus.of(tester.element(find.descendant(of: find.byKey(_completedToggleKey), matching: find.byType(Text)).first))
           .requestFocus();
@@ -896,7 +896,7 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       await tester.pumpAndSettle();
       expect(find.text('agent-a'), findsOneWidget);
-      expect(tester.getSemantics(label), isSemantics(hasExpandedState: true, isExpanded: true));
+      expect(tester.getSemantics(label), isSemantics(hasExpandedState: true, isExpanded: true, hasTapAction: true));
 
       await tester.sendKeyEvent(LogicalKeyboardKey.space);
       await tester.pumpAndSettle();
