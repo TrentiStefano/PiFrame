@@ -154,6 +154,26 @@ test('check runs a TypeScript test from its compiled output, after the build ste
   ]);
 });
 
+test('check runs the Flutter tests the change reaches in one step per project, without repeating named ones', () => {
+  const steps = stepList('check', {
+    tests: ['apps/pi_frame/test/a_test.dart'],
+    flutterProjects: FLUTTER_PROJECTS,
+    affected: {
+      'apps/pi_frame': ['test/a_test.dart', 'test/b_test.dart', 'test/c_test.dart'],
+      'packages/pi_frame_theme': ['test/theme_test.dart']
+    }
+  });
+  assert.deepEqual(withCwd(steps).slice(ANALYSIS_STEPS), [
+    { command: 'flutter test test/a_test.dart', cwd: 'apps/pi_frame' },
+    { command: 'flutter test --exclude-tags golden test/b_test.dart test/c_test.dart', cwd: 'apps/pi_frame' },
+    { command: 'flutter test --exclude-tags golden test/theme_test.dart', cwd: 'packages/pi_frame_theme' }
+  ]);
+});
+
+test('check adds no affected-test step when the change reaches no Flutter test', () => {
+  assert.equal(stepList('check', { flutterProjects: FLUTTER_PROJECTS, affected: {} }).length, ANALYSIS_STEPS);
+});
+
 test('check refuses a TypeScript test outside a src folder, naming the compiled path convention', () => {
   assert.throws(() => check(['apps/agentd/test/a.test.ts']), /apps\/agentd\/test\/a\.test\.ts.*src\/.*dist\//s);
 });

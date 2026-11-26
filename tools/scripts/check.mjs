@@ -8,6 +8,9 @@
  *   pnpm run check -- tools/guardrails/test/x.test.mjs     + that Node test
  *   pnpm run check -- apps/agentd/src/pi/test/x.test.ts    + that TypeScript test, from apps/agentd/dist/.../x.test.js
  *
+ * It also runs the Flutter tests whose imports reach a Dart file changed on this branch (since its merge base with
+ * origin/main) or in the working tree, so a test that reaches a change only indirectly runs too (#116).
+ *
  * Exit code 0 only when every step passed. `pnpm run verify` stays the full gate before a PR.
  * See docs/pr-verification.md.
  */
@@ -15,7 +18,8 @@ import { spawnSync } from 'node:child_process';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { stepList } from '../guardrails/src/index.mjs';
+import { affectedDartTests, stepList, toPosix } from '../guardrails/src/index.mjs';
+import { repoFiles } from './repo-files.mjs';
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const IS_WIN = process.platform === 'win32';
@@ -33,9 +37,31 @@ const fail = (message) => {
 };
 
 const flutterProjects = JSON.parse(fs.readFileSync(path.join(REPO, 'tools/scripts/flutter-projects.json'), 'utf8'));
+
+/** Lines of a git command's output, or an empty list when it fails (no origin/main, not a repository). */
+const gitLines = (...args) => {
+  const result = spawnSync('git', args, { cwd: REPO, encoding: 'utf8' });
+  return result.status === 0 ? result.stdout.split(/\r?\n/).filter(Boolean) : [];
+};
+
+/** Per Flutter project, the test files whose imports reach a Dart file changed on this branch or in the tree. */
+function affectedTests() {
+  const base = gitLines('merge-base', 'HEAD', 'origin/main')[0] ?? 'HEAD';
+  const changed = [...gitLines('diff', '--name-only', base), ...gitLines('ls-files', '--others', '--exclude-standard')];
+  const projects = flutterProjects.map((dir) => ({
+    dir,
+    package: fs.readFileSync(path.join(REPO, dir, 'pubspec.yaml'), 'utf8').match(/^name:\s*(\S+)/m)?.[1] ?? ''
+  }));
+  const files = (repoFiles() ?? [])
+    .map(toPosix)
+    .filter((p) => p.endsWith('.dart') && flutterProjects.some((dir) => p.startsWith(`${dir}/`)))
+    .map((p) => ({ path: p, contents: fs.readFileSync(path.join(REPO, p), 'utf8') }));
+  return affectedDartTests({ files, projects, changed: changed.map(toPosix) });
+}
+
 let steps;
 try {
-  steps = stepList('check', { tests, flutterProjects });
+  steps = stepList('check', { tests, flutterProjects, affected: affectedTests() });
 } catch (err) {
   fail(err.message);
 }
