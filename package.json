@@ -4,7 +4,7 @@
   "private": true,
   "license": "MIT",
   "scripts": {
-    "setup": "pnpm install && node tools/scripts/setup-flutter.js",
+    "setup": "pnpm install && pnpm -r run build && node tools/scripts/setup-flutter.js",
     "codegen": "node tools/codegen/generate.js",
     "lint": "node tools/scripts/lint-typescript.mjs && node tools/scripts/lint-flutter.mjs",
     "format": "node tools/scripts/format.mjs",
