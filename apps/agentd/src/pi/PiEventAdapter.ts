@@ -1,5 +1,5 @@
 import { ulid } from 'ulid';
-import type { PiEvent } from './piCommands.js';
+import { isKnownPiEvent, type PiEvent, type PiMessage, type PiUsage } from './piCommands.js';
 import type { PcpEventType } from '@piframe/pcp-ts';
 
 export interface SessionContext {
@@ -8,7 +8,7 @@ export interface SessionContext {
 }
 
 function checkUsage(
-  rawEvent: PiEvent,
+  rawEvent: { usage?: PiUsage; message?: PiMessage },
   ctx: SessionContext,
   results: Array<{ type: PcpEventType; payload: Record<string, unknown> }>
 ) {
@@ -32,9 +32,21 @@ export function adaptPiEvent(
 ): Array<{ type: PcpEventType; payload: Record<string, unknown> }> {
   const results: Array<{ type: PcpEventType; payload: Record<string, unknown> }> = [];
 
-  const type = rawEvent.type;
+  if (!isKnownPiEvent(rawEvent)) {
+    // Unknown event: never drop silently
+    results.push({
+      type: 'worker.diagnostic',
+      payload: {
+        level: 'info',
+        message: `Unknown Pi event type: ${rawEvent.type}`,
+        source: 'supervisor',
+        raw: rawEvent
+      }
+    });
+    return results;
+  }
 
-  switch (type) {
+  switch (rawEvent.type) {
     case 'agent_start':
       results.push({ type: 'run.started', payload: {} });
       break;
@@ -292,19 +304,6 @@ export function adaptPiEvent(
           level: rawEvent.level || 'info',
           message: rawEvent.message || '',
           source: rawEvent.source || 'supervisor'
-        }
-      });
-      break;
-
-    default:
-      // Unknown event: never drop silently
-      results.push({
-        type: 'worker.diagnostic',
-        payload: {
-          level: 'info',
-          message: `Unknown Pi event type: ${type}`,
-          source: 'supervisor',
-          raw: rawEvent
         }
       });
       break;
