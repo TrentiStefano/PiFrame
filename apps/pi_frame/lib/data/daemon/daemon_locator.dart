@@ -5,7 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
 
 import '../runtime/app_version.dart';
-import '../../domain/update/semver.dart';
+import '../../domain/update/daemon_staleness.dart';
 import 'web_token_stub.dart' if (dart.library.html) 'web_token_html.dart';
 
 class DaemonEndpoint {
@@ -165,12 +165,17 @@ class DaemonLocator {
           final runningVersionStr = health['version'] as String?;
           final pid = (health['pid'] ?? data['pid']) as int?;
 
-          final appSemVer = SemVer.tryParse(piFrameVersion);
-          final runningSemVer = SemVer.tryParse(runningVersionStr);
+          final startedAtMs = data['startedAt'];
+          final sidecar = await _resolveSidecar();
 
-          // If the running daemon is an older version than this client, terminate it
-          // so that a matching sidecar is spawned.
-          if (appSemVer != null && runningSemVer != null && runningSemVer < appSemVer) {
+          // Replace a daemon from an older version, or from an earlier build of this version (#103), so the
+          // daemon this app ships is the one that runs.
+          if (isRunningDaemonStale(
+            appVersion: piFrameVersion,
+            runningVersion: runningVersionStr,
+            runningStartedAt: startedAtMs is int ? DateTime.fromMillisecondsSinceEpoch(startedAtMs) : null,
+            sidecarBuiltAt: sidecar == null ? null : await sidecar.file.lastModified(),
+          )) {
             if (pid != null) {
               Process.killPid(pid);
             }
@@ -233,58 +238,71 @@ class DaemonLocator {
         env['PI_FRAME_WEB_DIR'] = webDir;
       }
 
-      final envBin = Platform.environment['PI_FRAME_DAEMON_BIN'];
-      if (envBin != null && await File(envBin).exists()) {
-        final isScript = RegExp(r'\.(c?js|mjs)$', caseSensitive: false).hasMatch(envBin);
-        await Process.start(
-          isScript ? 'node' : envBin,
-          isScript ? [File(envBin).absolute.path] : [],
-          mode: ProcessStartMode.detached,
-          environment: env,
-        );
-        return true;
-      }
-
-      // Check next to executable (bundle sidecar)
-      final bundledExeName = Platform.isWindows ? 'pi-agentd.exe' : 'pi-agentd';
-      final bundledSidecar = File('$exeDir/$bundledExeName');
-      if (await bundledSidecar.exists()) {
-        await Process.start(bundledSidecar.path, [], mode: ProcessStartMode.detached, environment: env);
-        return true;
-      }
-
-      // Release installers bundle Node beside the daemon so users need no Node install.
-      final bundledDaemon = File('$exeDir/pi-agentd.cjs');
-      final bundledNode = File('$exeDir/${Platform.isWindows ? 'node.exe' : 'node'}');
-      if (await bundledDaemon.exists() && await bundledNode.exists()) {
-        await Process.start(bundledNode.path, [bundledDaemon.path], mode: ProcessStartMode.detached, environment: env);
-        return true;
-      }
-
-      // Development fallbacks: check repository paths
-      final devPaths = [
-        '$exeDir/pi-agentd.cjs',
-        '$exeDir/dist/pi-agentd.cjs',
-        '$exeDir/../../../../../../apps/agentd/dist/pi-agentd.cjs',
-        '$exeDir/../../../../../agentd/dist/pi-agentd.cjs',
-        '../agentd/dist/pi-agentd.cjs',
-        '../agentd/dist/main.js',
-        'apps/agentd/dist/pi-agentd.cjs',
-        'apps/agentd/dist/main.js',
-        '../../apps/agentd/dist/pi-agentd.cjs',
-        '../../apps/agentd/dist/main.js',
-      ];
-
-      for (final p in devPaths) {
-        final file = File(p);
-        if (await file.exists()) {
-          await Process.start('node', [file.absolute.path], mode: ProcessStartMode.detached, environment: env);
-          return true;
-        }
-      }
+      final sidecar = await _resolveSidecar();
+      if (sidecar == null) return false;
+      await Process.start(sidecar.executable, sidecar.arguments, mode: ProcessStartMode.detached, environment: env);
+      return true;
     } catch (_) {
       // Spawn error handled gracefully
     }
     return false;
   }
+
+  /// The daemon this app launches: `PI_FRAME_DAEMON_BIN`, the bundled sidecar, or a development build.
+  static Future<_Sidecar?> _resolveSidecar() async {
+    final exeDir = File(Platform.resolvedExecutable).parent.path;
+
+    final envBin = Platform.environment['PI_FRAME_DAEMON_BIN'];
+    if (envBin != null && await File(envBin).exists()) {
+      final file = File(envBin);
+      final isScript = RegExp(r'\.(c?js|mjs)$', caseSensitive: false).hasMatch(envBin);
+      return isScript ? _Sidecar('node', [file.absolute.path], file) : _Sidecar(envBin, const [], file);
+    }
+
+    // Check next to executable (bundle sidecar)
+    final bundledExeName = Platform.isWindows ? 'pi-agentd.exe' : 'pi-agentd';
+    final bundledSidecar = File('$exeDir/$bundledExeName');
+    if (await bundledSidecar.exists()) {
+      return _Sidecar(bundledSidecar.path, const [], bundledSidecar);
+    }
+
+    // Release installers bundle Node beside the daemon so users need no Node install.
+    final bundledDaemon = File('$exeDir/pi-agentd.cjs');
+    final bundledNode = File('$exeDir/${Platform.isWindows ? 'node.exe' : 'node'}');
+    if (await bundledDaemon.exists() && await bundledNode.exists()) {
+      return _Sidecar(bundledNode.path, [bundledDaemon.path], bundledDaemon);
+    }
+
+    // Development fallbacks: check repository paths
+    final devPaths = [
+      '$exeDir/pi-agentd.cjs',
+      '$exeDir/dist/pi-agentd.cjs',
+      '$exeDir/../../../../../../apps/agentd/dist/pi-agentd.cjs',
+      '$exeDir/../../../../../agentd/dist/pi-agentd.cjs',
+      '../agentd/dist/pi-agentd.cjs',
+      '../agentd/dist/main.js',
+      'apps/agentd/dist/pi-agentd.cjs',
+      'apps/agentd/dist/main.js',
+      '../../apps/agentd/dist/pi-agentd.cjs',
+      '../../apps/agentd/dist/main.js',
+    ];
+
+    for (final p in devPaths) {
+      final file = File(p);
+      if (await file.exists()) {
+        return _Sidecar('node', [file.absolute.path], file);
+      }
+    }
+    return null;
+  }
+}
+
+class _Sidecar {
+  final String executable;
+  final List<String> arguments;
+
+  /// The daemon code file; its write time is when this daemon was built.
+  final File file;
+
+  const _Sidecar(this.executable, this.arguments, this.file);
 }

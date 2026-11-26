@@ -69,7 +69,10 @@ export function readRuntimeInfo(): RuntimeInfo | null {
   }
 }
 
+/** Removes this daemon's runtime files; files that a newer daemon has already written stay in place. */
 export function cleanupRuntimeFiles(): void {
+  const owner = readRuntimeInfo();
+  if (owner?.pid !== process.pid) return;
   const files = [getDaemonJsonPath(), getPidPath(), getTokenPath()];
   for (const f of files) {
     try {
