@@ -311,21 +311,19 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
     required StepGroupExpansionNotifier expansionNotifier,
   }) {
     final groupKey = widget.block.groupId.isNotEmpty ? widget.block.groupId : widget.block.turnId;
-    final steps = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (int i = 0; i < widget.block.steps.length; i++)
-          _buildStepItem(
-            context: context,
-            step: widget.block.steps[i],
-            tokens: tokens,
-            strings: strings,
-            expansionState: expansionState,
-            expansionNotifier: expansionNotifier,
-          ),
-      ],
+    Widget stepAt(int i) => _buildStepItem(
+      context: context,
+      step: widget.block.steps[i],
+      tokens: tokens,
+      strings: strings,
+      expansionState: expansionState,
+      expansionNotifier: expansionNotifier,
     );
-    if (fullyExpanded) return steps;
+    Widget allSteps() => Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [for (int i = 0; i < widget.block.steps.length; i++) stepAt(i)],
+    );
+    if (fullyExpanded) return allSteps();
 
     final maxHeight = MediaQuery.sizeOf(context).height * kStepListMaxHeightFraction;
     return Column(
@@ -341,12 +339,24 @@ class _StepsGroupState extends ConsumerState<StepsGroup> {
               child: Scrollbar(
                 controller: _stepsScroll,
                 thumbVisibility: _stepsOverflow,
-                child: SingleChildScrollView(
-                  controller: _stepsScroll,
-                  primary: false,
-                  padding: EdgeInsets.only(right: _stepsOverflow ? 10 : 0),
-                  child: steps,
-                ),
+                // A settled group is built lazily: it can hold hundreds of steps, and building them all made
+                // the app lag after expanding it (#107). Shrink-wrapped so a short group stays as tall as its
+                // steps. A running group keeps the exact layout that follows streamed text without jumps.
+                child: widget.block.isRunning
+                    ? SingleChildScrollView(
+                        controller: _stepsScroll,
+                        primary: false,
+                        padding: EdgeInsets.only(right: _stepsOverflow ? 10 : 0),
+                        child: allSteps(),
+                      )
+                    : ListView.builder(
+                        controller: _stepsScroll,
+                        primary: false,
+                        shrinkWrap: true,
+                        padding: EdgeInsets.only(right: _stepsOverflow ? 10 : 0),
+                        itemCount: widget.block.steps.length,
+                        itemBuilder: (context, i) => stepAt(i),
+                      ),
               ),
             ),
           ),
