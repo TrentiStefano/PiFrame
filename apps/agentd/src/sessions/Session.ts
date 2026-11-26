@@ -26,6 +26,7 @@ export interface SessionOptions {
   gitRoot?: string | null;
   sessionFile?: string | null;
   createdAt?: number;
+  lastActivityAt?: number;
   onBroadcast?: (event: PcpEvent) => void;
 }
 
@@ -100,7 +101,7 @@ export class Session {
     this.gitRoot = opts.gitRoot;
     this.sessionFile = opts.sessionFile;
     this.createdAt = opts.createdAt || Date.now();
-    this.lastActivityAt = this.createdAt;
+    this.lastActivityAt = opts.lastActivityAt ?? this.createdAt;
     this.onBroadcast = opts.onBroadcast;
 
     this.adapterContext = {

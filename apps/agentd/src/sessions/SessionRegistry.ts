@@ -456,6 +456,7 @@ export class SessionRegistry {
       cwd: cwd || found?.cwd || process.cwd(),
       sessionFile: found?.sessionFile,
       createdAt: found?.createdAt,
+      lastActivityAt: found?.lastActivityAt,
       onBroadcast: (event) => {
         this.connectionManager.broadcast(id, event);
       }

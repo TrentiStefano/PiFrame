@@ -38,10 +38,17 @@ function messageText(message: unknown): string {
 /** Longest first prompt carried in a session summary, in characters. */
 export const FIRST_PROMPT_MAX_LENGTH = 120;
 
+const SESSION_INDEX_CACHE_VERSION = 2;
+
 /** The prompt text when [message] is a user message, else an empty string. */
 function firstPromptOf(message: unknown): string {
   if (!isRecord(message) || message.role !== 'user') return '';
   return messageText(message).replace(/\s+/g, ' ').trim().slice(0, FIRST_PROMPT_MAX_LENGTH);
+}
+
+function parseSessionTimestamp(value: unknown): number | undefined {
+  const timestamp = typeof value === 'number' ? value : typeof value === 'string' ? Date.parse(value) : NaN;
+  return Number.isFinite(timestamp) ? timestamp : undefined;
 }
 
 function parseCost(value: unknown): number | undefined {
@@ -86,7 +93,7 @@ export interface SessionSummary {
 export class SessionIndex {
   private cachePath: string;
   private sessionsDir: string;
-  private cache = new Map<string, { mtime: number; ctime?: number; summary: SessionSummary }>();
+  private cache = new Map<string, { mtime: number; ctime?: number; cacheVersion: number; summary: SessionSummary }>();
   private unstableFiles = false;
   private fastSnapshot = new Map<string, SessionSummary>();
   private fastSnapshotReady = false;
@@ -145,9 +152,15 @@ export class SessionIndex {
         const raw = fs.readFileSync(this.cachePath, 'utf8');
         const list = JSON.parse(raw);
         for (const item of list) {
-          // Entries written before firstUserPrompt existed are dropped so the
-          // next scan reads them once and fills the field in.
-          if (item.id && item.mtime && item.summary && 'firstUserPrompt' in item.summary) {
+          // Entries from before this cache version are reparsed so summary parsing
+          // fixes also apply to existing installations.
+          if (
+            item.id &&
+            item.mtime &&
+            item.cacheVersion === SESSION_INDEX_CACHE_VERSION &&
+            item.summary &&
+            'firstUserPrompt' in item.summary
+          ) {
             this.cache.set(item.id, item);
           }
         }
@@ -237,7 +250,10 @@ export class SessionIndex {
     return result;
   }
 
-  private cacheMatches(value: { mtime: number; ctime?: number; summary: SessionSummary }, stat: fs.Stats): boolean {
+  private cacheMatches(
+    value: { mtime: number; ctime?: number; cacheVersion: number; summary: SessionSummary },
+    stat: fs.Stats
+  ): boolean {
     return (
       value.mtime === stat.mtimeMs &&
       value.summary.sizeBytes === stat.size &&
@@ -253,7 +269,7 @@ export class SessionIndex {
       previous.ctime !== value.ctime ||
       JSON.stringify(previous.summary) !== JSON.stringify(value.summary)
     ) {
-      this.cache.set(filePath, value);
+      this.cache.set(filePath, { ...value, cacheVersion: SESSION_INDEX_CACHE_VERSION });
       this.bumpCacheRevision();
     }
   }
@@ -820,11 +836,8 @@ export class SessionIndex {
             const text = messageText(message);
             if (text) lastMessagePreview = text.slice(0, 100);
             if (!firstUserPrompt) firstUserPrompt = firstPromptOf(message);
-            const rawTs = message.timestamp || entry.timestamp;
-            if (rawTs) {
-              const parsed = Date.parse(rawTs);
-              if (!isNaN(parsed)) lastMessageTimestamp = parsed;
-            }
+            const timestamp = parseSessionTimestamp(message.timestamp) ?? parseSessionTimestamp(entry.timestamp);
+            if (timestamp !== undefined) lastMessageTimestamp = timestamp;
           }
         } catch {}
       }
@@ -913,11 +926,8 @@ export class SessionIndex {
             if (message.role === 'system') continue;
             const text = messageText(message);
             if (text) lastMessagePreview = text.slice(0, 100);
-            const rawTs = message.timestamp || entry.timestamp;
-            if (rawTs) {
-              const parsed = Date.parse(rawTs);
-              if (!isNaN(parsed)) lastMessageTimestamp = parsed;
-            }
+            const timestamp = parseSessionTimestamp(message.timestamp) ?? parseSessionTimestamp(entry.timestamp);
+            if (timestamp !== undefined) lastMessageTimestamp = timestamp;
           }
         } catch {}
       }
