@@ -447,15 +447,25 @@ export async function seedHarnessHome(home, userHome = os.homedir()) {
   return { ok: true, home: safeHome, gitAvailable, created };
 }
 
+/**
+ * The run home persists between runs, so app settings an earlier run saved would carry over. Every run starts
+ * in English, with the default theme and animations on, so screenshots and captures are comparable (#134).
+ */
+export function resetAppSettings(home) {
+  const settings = path.join(home, '.piframe');
+  fs.mkdirSync(settings, { recursive: true });
+  fs.writeFileSync(path.join(settings, 'language_settings.json'), JSON.stringify({ language: 'en' }));
+  fs.rmSync(path.join(settings, 'theme_settings.json'), { force: true });
+  fs.rmSync(path.join(settings, 'reduced_motion_settings.json'), { force: true });
+}
+
 function prepareHome(home, scenario, size, device, useRealPi, profile = false) {
   assertSafeHome(home);
   fs.mkdirSync(path.join(home, 'runtime'), { recursive: true });
   fs.mkdirSync(path.join(home, 'pi-agent', 'sessions'), { recursive: true });
   // Deliberately write a clean config. Never copy user's ~/.piframe config or piPath.
   fs.writeFileSync(path.join(home, 'config.json'), JSON.stringify({}), { mode: 0o600 });
-  // A "Reduce animations" toggle from an earlier run must not carry over:
-  // the run home persists between runs, and agents need to see the motion.
-  fs.rmSync(path.join(home, '.piframe', 'reduced_motion_settings.json'), { force: true });
+  resetAppSettings(home);
   const shim = writeFakePiShims(home);
   writeScenarioControlFile(home, scenario);
   const startedAt = new Date().toISOString();

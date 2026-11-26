@@ -112,6 +112,7 @@ Pass a scenario to `start --scenario <name>`:
 - If harness startup refuses because a non-harness Debug `PiFrame.exe` is running, tell the user. Do not kill it.
 - Use real screenshots from the actual Flutter app. Never fabricate or mock PiFrame UI.
 - Do not commit `scratch/harness/` PNGs or regenerated `docs/design-evidence/` captures.
+- Curated captures in `docs/design/screens/` match the existing ones: `start --size 1440x774`, English (every run starts in English), the dark theme and, where `DESIGN.md` shows both, the light one; save them with `shot --out docs/design/screens/<name>-<theme>.png`.
 
 ## Troubleshooting
 
