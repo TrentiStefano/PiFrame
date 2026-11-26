@@ -31,6 +31,16 @@ class MockDefaultsPcpClient extends PcpClient {
   }
 }
 
+/// Answers like a session whose Pi worker is still starting: the daemon log shows `agent.getModels`
+/// taking 7 to 33 seconds while a new session's worker starts.
+class SlowWorkerDefaultsPcpClient extends MockDefaultsPcpClient {
+  @override
+  Future<Map<String, dynamic>> getAvailableModels(String sessionId) async {
+    await Future<void>.delayed(const Duration(seconds: 8));
+    return super.getAvailableModels(sessionId);
+  }
+}
+
 void main() {
   test('current model matching includes provider and id', () {
     const state = SessionState(
@@ -80,6 +90,17 @@ void main() {
     expect(notifier.state.currentModel, 'Claude 3.7 Sonnet');
     expect(notifier.state.currentModelProvider, 'anthropic');
     expect(notifier.state.currentModelId, 'claude-3-7-sonnet');
+    expect(notifier.state.currentThinkingLevel, 'high');
+  });
+
+  // Regression for #105: a new session showed the generic "Model" label because the lookup gave up
+  // after 4 seconds, before the session's Pi worker had started.
+  testWidgets('refreshDefaults waits for a Pi worker that is still starting', (tester) async {
+    final notifier = SessionStateNotifier('s_cold_worker', SlowWorkerDefaultsPcpClient());
+    final refresh = notifier.refreshDefaults();
+    await tester.pump(const Duration(seconds: 9));
+    await refresh;
+    expect(notifier.state.currentModel, 'Claude 3.7 Sonnet');
     expect(notifier.state.currentThinkingLevel, 'high');
   });
 }
