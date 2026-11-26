@@ -1,3 +1,3 @@
-const piFrameVersionDefault = '1.5.1'; // x-release-please-version
+const piFrameVersionDefault = '1.6.0'; // x-release-please-version
 
 const piFrameVersion = String.fromEnvironment('PI_FRAME_VERSION', defaultValue: piFrameVersionDefault);
