@@ -237,6 +237,38 @@ void main() {
       expect(find.text('Read-only side conversation'), findsNWidgets(2));
     });
 
+    // Regression for #106: the daemon sends the side worker's model as an object, and the chip
+    // showed its raw text ("{id: gpt-6-...").
+    testWidgets('a side model sent as an object is labelled with its name', (tester) async {
+      final container = ProviderContainer(
+        overrides: [
+          pcpClientProvider.overrideWithValue(fakeClient),
+          activeSessionIdProvider.overrideWith((ref) => 'parent_session'),
+        ],
+      );
+      addTearDown(container.dispose);
+      await container.read(sideThreadFamily('parent_session').notifier).openSide(question: 'is this feature working?');
+
+      fakeClient.emitEvent(
+        'stream_test_1',
+        SideOpenedEvent(
+          protocol: 1,
+          id: 'evt_open_model',
+          ts: 100,
+          sessionId: 'stream_test_1',
+          seq: 1,
+          payload: {
+            'sideId': 'side_test_1',
+            'parentSessionId': 'parent_session',
+            'model': {'provider': 'openai-codex', 'id': 'gpt-6-luna', 'name': 'GPT-6 Luna'},
+          },
+        ),
+      );
+      await tester.pump();
+
+      expect(container.read(sideThreadFamily('parent_session')).model, 'GPT-6 Luna');
+    });
+
     testWidgets('Side stream events update side state but NOT main session state (isolation)', (tester) async {
       final container = ProviderContainer(
         overrides: [
