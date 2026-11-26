@@ -138,6 +138,10 @@ _Avoid_: side pane, sidecar; never use it for the Agents pane
 The column beside the chat pane with the Agents, Side and Tasks tabs, which shows a session's subagents and workflows, its side conversation and its task list.
 _Avoid_: sidecar, companion, Agents menu, Agents/Workflows panel
 
+**Completed Subagents group**:
+The collapsible row of the Agents tab that holds a session's finished subagents and workflows, collapsed unless the user opens it.
+_Avoid_: minimized agents, done list, Completed row
+
 **Composer**:
 The input area of the chat pane where the user writes prompts, steers and follow-ups and stages attachments and commands.
 _Avoid_: input box, prompt field

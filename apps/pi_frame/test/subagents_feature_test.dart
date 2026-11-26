@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pi_frame/data/daemon/daemon_providers.dart';
@@ -10,6 +11,7 @@ import 'package:pi_frame/features/sessions_sidebar/sessions_sidebar.dart';
 import 'package:pi_frame/features/side/side_provider.dart';
 import 'package:pi_frame/features/transcript/subagent_panel.dart';
 import 'package:pi_frame/features/transcript/subagents_provider.dart';
+import 'package:pi_frame/features/transcript/workflows_provider.dart';
 import 'package:pi_frame/features/transcript/todo_provider.dart';
 import 'package:pi_frame/features/transcript/transcript_view.dart';
 import 'package:pi_frame_theme/pi_frame_theme.dart';
@@ -54,6 +56,40 @@ class _MockTodoNotifier extends TodoNotifier {
     state = initial;
   }
 }
+
+Future<ProviderContainer> _pumpAgentsTab(
+  WidgetTester tester,
+  String sessionId, {
+  List<SubagentItem> subagents = const [],
+  List<WorkflowItem> workflows = const [],
+  bool reduceMotion = false,
+}) async {
+  final container = ProviderContainer(
+    overrides: [
+      subagentsFamily(sessionId).overrideWith((ref) => _MockSubagentsNotifier(ref, sessionId, subagents)),
+      workflowsFamily(sessionId).overrideWith((ref) => workflows),
+    ],
+  );
+  addTearDown(container.dispose);
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        theme: ThemeData.dark().copyWith(extensions: const [FrameTokens.dark]),
+        home: Builder(
+          builder: (context) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(disableAnimations: reduceMotion),
+            child: Scaffold(body: AgentActivityPanel(sessionId: sessionId)),
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+  return container;
+}
+
+const _completedToggleKey = ValueKey('agent-tree-completed-toggle');
 
 void main() {
   group('Subagents Feature & Subsession Filtering Tests', () {
@@ -304,6 +340,9 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('agent-activity-open-btn')));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('agent-activity-panel')), findsOneWidget);
+      // The finished agent sits in the collapsed Completed Subagents group.
+      await tester.tap(find.byKey(_completedToggleKey));
+      await tester.pumpAndSettle();
       expect(find.text('Side Agent'), findsOneWidget);
       expect(opened, 1, reason: 'the shell collapses Git when the panel opens');
 
@@ -503,6 +542,244 @@ void main() {
       expect(find.byKey(const ValueKey('subagent-stop-btn-done_a1')), findsNothing);
     });
 
+    testWidgets('finished subagents stay in one collapsed Completed Subagents group once all have finished', (
+      tester,
+    ) async {
+      await _pumpAgentsTab(
+        tester,
+        'sess_group',
+        subagents: const [
+          SubagentItem(id: 'done_1', name: 'finished-1', status: 'completed', startedAt: 100),
+          SubagentItem(id: 'done_2', name: 'finished-2', status: 'completed', startedAt: 200),
+        ],
+      );
+      expect(find.text('Completed Subagents (2)'), findsOneWidget);
+      expect(find.text('finished-1'), findsNothing);
+      expect(find.text('finished-2'), findsNothing);
+      expect(find.textContaining('failed'), findsNothing);
+
+      await tester.tap(find.byKey(_completedToggleKey));
+      await tester.pumpAndSettle();
+      expect(find.text('finished-1'), findsOneWidget);
+      expect(find.text('finished-2'), findsOneWidget);
+    });
+
+    testWidgets('a single finished subagent is grouped too', (tester) async {
+      await _pumpAgentsTab(
+        tester,
+        'sess_single',
+        subagents: const [SubagentItem(id: 'solo', name: 'solo-agent', status: 'completed', startedAt: 100)],
+      );
+      expect(find.text('Completed Subagents (1)'), findsOneWidget);
+      expect(find.text('solo-agent'), findsNothing);
+    });
+
+    testWidgets('running subagents stay outside the group while finished ones are grouped', (tester) async {
+      await _pumpAgentsTab(
+        tester,
+        'sess_mixed',
+        subagents: const [
+          SubagentItem(id: 'run_1', name: 'still-running', status: 'running', startedAt: 300),
+          SubagentItem(id: 'done_1', name: 'finished-one', status: 'completed', startedAt: 100),
+        ],
+      );
+      expect(find.text('still-running'), findsOneWidget);
+      expect(find.text('Completed Subagents (1)'), findsOneWidget);
+      expect(find.text('finished-one'), findsNothing);
+    });
+
+    testWidgets('a finished workflow joins the group with its child subagents under it', (tester) async {
+      await _pumpAgentsTab(
+        tester,
+        'sess_wf_group',
+        workflows: const [
+          WorkflowItem(
+            id: 'wf_1',
+            name: 'audit',
+            status: 'completed',
+            timestamp: 10,
+            endedAt: 50,
+            toolCallId: 'call_wf',
+          ),
+        ],
+        subagents: const [
+          SubagentItem(
+            id: 'child_1',
+            name: 'general-purpose#child_1',
+            status: 'completed',
+            isUnlinked: true,
+            prompt: 'COMPITO: finished child',
+            startedAt: 20,
+          ),
+        ],
+      );
+      expect(find.text('Completed Subagents (1)'), findsOneWidget);
+      expect(find.text('audit'), findsNothing);
+      expect(find.text('COMPITO: finished child'), findsNothing);
+
+      await tester.tap(find.byKey(_completedToggleKey));
+      await tester.pumpAndSettle();
+      expect(find.text('audit'), findsOneWidget);
+      expect(find.text('COMPITO: finished child'), findsOneWidget);
+    });
+
+    testWidgets('the header counts finished subagents, including those inside finished workflows', (tester) async {
+      await _pumpAgentsTab(
+        tester,
+        'sess_count',
+        workflows: const [
+          WorkflowItem(
+            id: 'wf_1',
+            name: 'audit',
+            status: 'completed',
+            timestamp: 10,
+            endedAt: 50,
+            toolCallId: 'call_wf',
+          ),
+        ],
+        subagents: const [
+          SubagentItem(id: 'c1', name: 'general-purpose#c1', status: 'completed', isUnlinked: true, startedAt: 20),
+          SubagentItem(id: 'c2', name: 'general-purpose#c2', status: 'completed', isUnlinked: true, startedAt: 30),
+          SubagentItem(id: 'top', name: 'top-level', status: 'completed', startedAt: 100),
+        ],
+      );
+      expect(find.text('Completed Subagents (3)'), findsOneWidget);
+    });
+
+    testWidgets('the failed count appears in the error colour only for errors, not for stopped subagents', (
+      tester,
+    ) async {
+      await _pumpAgentsTab(
+        tester,
+        'sess_failed',
+        subagents: const [
+          SubagentItem(id: 'ok', name: 'ok-agent', status: 'completed', startedAt: 100),
+          SubagentItem(id: 'bad', name: 'bad-agent', status: 'error', startedAt: 200),
+          SubagentItem(id: 'halted', name: 'halted-agent', status: 'stopped', startedAt: 300),
+        ],
+      );
+      expect(find.text('Completed Subagents (3 · 1 failed)'), findsOneWidget);
+      final header = tester.widget<Text>(find.text('Completed Subagents (3 · 1 failed)'));
+      final failedPart = (header.textSpan! as TextSpan).children!.whereType<TextSpan>().firstWhere(
+        (span) => span.text == ' · 1 failed',
+      );
+      expect(failedPart.style?.color, FrameTokens.dark.danger);
+    });
+
+    testWidgets('no failed part is shown when only stopped subagents finished', (tester) async {
+      await _pumpAgentsTab(
+        tester,
+        'sess_stopped_only',
+        subagents: const [SubagentItem(id: 'halted', name: 'halted-agent', status: 'stopped', startedAt: 300)],
+      );
+      expect(find.text('Completed Subagents (1)'), findsOneWidget);
+    });
+
+    testWidgets('group entries keep the tree order, newest launch first', (tester) async {
+      await _pumpAgentsTab(
+        tester,
+        'sess_order_group',
+        subagents: const [
+          SubagentItem(id: 'older', name: 'older-done', status: 'completed', startedAt: 100),
+          SubagentItem(id: 'newer', name: 'newer-done', status: 'completed', startedAt: 200),
+        ],
+      );
+      await tester.tap(find.byKey(_completedToggleKey));
+      await tester.pumpAndSettle();
+      double y(String name) => tester.getTopLeft(find.text(name)).dy;
+      expect(y('newer-done'), lessThan(y('older-done')));
+    });
+
+    testWidgets('a finished subagent the user expanded stays outside the group until collapsed', (tester) async {
+      await _pumpAgentsTab(
+        tester,
+        'sess_expanded',
+        subagents: const [
+          SubagentItem(id: 'a', name: 'agent-a', status: 'completed', startedAt: 100),
+          SubagentItem(id: 'b', name: 'agent-b', status: 'completed', startedAt: 200),
+        ],
+      );
+      expect(find.text('Completed Subagents (2)'), findsOneWidget);
+      await tester.tap(find.byKey(_completedToggleKey));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('subagent-card-a')));
+      await tester.pumpAndSettle();
+      expect(find.text('Completed Subagents (1)'), findsOneWidget);
+      expect(find.byKey(const ValueKey('subagent-stop-btn-a')), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('subagent-card-a')));
+      await tester.pumpAndSettle();
+      expect(find.text('Completed Subagents (2)'), findsOneWidget);
+      expect(find.byKey(const ValueKey('subagent-stop-btn-a')), findsNothing);
+    });
+
+    testWidgets('the group collapses again when a new subagent starts in the session', (tester) async {
+      final container = await _pumpAgentsTab(
+        tester,
+        'sess_new_work',
+        subagents: const [SubagentItem(id: 'a', name: 'agent-a', status: 'completed', startedAt: 100)],
+      );
+      await tester.tap(find.byKey(_completedToggleKey));
+      await tester.pumpAndSettle();
+      expect(find.text('agent-a'), findsOneWidget);
+
+      container.read(subagentsFamily('sess_new_work').notifier).state = const [
+        SubagentItem(id: 'a', name: 'agent-a', status: 'completed', startedAt: 100),
+        SubagentItem(id: 'fresh', name: 'fresh-runner', status: 'running', startedAt: 500),
+      ];
+      await tester.pumpAndSettle();
+      expect(find.text('fresh-runner'), findsOneWidget);
+      expect(find.text('Completed Subagents (1)'), findsOneWidget);
+      expect(find.text('agent-a'), findsNothing);
+    });
+
+    testWidgets('the header toggles with Enter and Space and exposes its label, count and expanded state', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await _pumpAgentsTab(
+        tester,
+        'sess_keys',
+        subagents: const [
+          SubagentItem(id: 'a', name: 'agent-a', status: 'completed', startedAt: 100),
+          SubagentItem(id: 'b', name: 'agent-b', status: 'completed', startedAt: 200),
+        ],
+      );
+      final label = find.bySemanticsLabel('Completed Subagents (2)');
+      expect(tester.getSemantics(label).flagsCollection.isButton, isTrue);
+      expect(tester.getSemantics(label).flagsCollection.isExpanded.toString(), 'Tristate.isFalse');
+
+      Focus.of(tester.element(find.descendant(of: find.byKey(_completedToggleKey), matching: find.byType(Text)).first))
+          .requestFocus();
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pumpAndSettle();
+      expect(find.text('agent-a'), findsOneWidget);
+      expect(tester.getSemantics(label).flagsCollection.isExpanded.toString(), 'Tristate.isTrue');
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      await tester.pumpAndSettle();
+      expect(find.text('agent-a'), findsNothing);
+      handle.dispose();
+    });
+
+    testWidgets('under reduced motion the group opens and collapses in a single frame', (tester) async {
+      await _pumpAgentsTab(
+        tester,
+        'sess_reduced',
+        reduceMotion: true,
+        subagents: const [SubagentItem(id: 'a', name: 'agent-a', status: 'completed', startedAt: 100)],
+      );
+      await tester.tap(find.byKey(_completedToggleKey));
+      await tester.pump();
+      expect(find.text('agent-a'), findsOneWidget);
+
+      await tester.tap(find.byKey(_completedToggleKey));
+      await tester.pump();
+      expect(find.text('agent-a'), findsNothing);
+    });
+
     testWidgets('agent rows built while scrolling do not jitter horizontally', (tester) async {
       tester.view.physicalSize = const Size(800, 500);
       tester.view.devicePixelRatio = 1;
@@ -522,6 +799,8 @@ void main() {
           ),
         ),
       );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(_completedToggleKey));
       await tester.pumpAndSettle();
       final titles = find.textContaining(RegExp(r'^agent-\d+$'));
       final restingDx = tester.getTopLeft(titles.first).dx;
@@ -1226,6 +1505,8 @@ Full transcript available at: C:\\Temp\\tasks\\3c52f51e-5f5f-408.output
       );
 
       await tester.pumpAndSettle();
+      await tester.tap(find.byKey(_completedToggleKey));
+      await tester.pumpAndSettle();
       expect(find.text('N/A · N/A'), findsOneWidget); // Unknown model and cost.
       expect(find.text('\$0.0000'), findsNothing);
     });
@@ -1256,6 +1537,8 @@ Full transcript available at: C:\\Temp\\tasks\\3c52f51e-5f5f-408.output
 
       await tester.pumpAndSettle();
 
+      await tester.tap(find.byKey(_completedToggleKey));
+      await tester.pumpAndSettle();
       // Check header cost badge and item row
       expect(find.textContaining('\$0.0250'), findsNWidgets(2));
     });

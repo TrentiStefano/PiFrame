@@ -25,10 +25,14 @@ class SubagentTreeExpansionState {
 class SubagentTreeExpansionNotifier extends StateNotifier<SubagentTreeExpansionState> {
   SubagentTreeExpansionNotifier() : super(const SubagentTreeExpansionState());
 
-  void toggleCompleted() => state = SubagentTreeExpansionState(
-    completedOpen: !state.completedOpen,
-    expandedIds: state.expandedIds,
-  );
+  void toggleCompleted() =>
+      state = SubagentTreeExpansionState(completedOpen: !state.completedOpen, expandedIds: state.expandedIds);
+
+  /// Closes the Completed Subagents group, e.g. when new work starts in the session.
+  void collapseCompleted() {
+    if (!state.completedOpen) return;
+    state = SubagentTreeExpansionState(completedOpen: false, expandedIds: state.expandedIds);
+  }
 
   void toggleEntry(String id) {
     final next = Set<String>.from(state.expandedIds);

@@ -301,7 +301,8 @@ void main() {
       ],
     );
     await tester.pumpAndSettle();
-    expect(find.text('Completed'), findsOneWidget);
+    // The finished card sits in the collapsed Completed Subagents group.
+    expect(find.text('Completed Subagents (1)'), findsOneWidget);
     expect(find.text('In progress'), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 1));
@@ -695,6 +696,9 @@ void main() {
       ),
     );
     await tester.pump();
+    // Both agents finished, so they sit in the collapsed Completed Subagents group until it is opened.
+    await tester.tap(find.byKey(const ValueKey('agent-tree-completed-toggle')));
+    await tester.pumpAndSettle();
     expect(find.text('Main session'), findsOneWidget);
     expect(find.byKey(const ValueKey('subagent-card-agent-1')), findsOneWidget);
     expect(find.byKey(const ValueKey('subagent-card-agent-2')), findsOneWidget);

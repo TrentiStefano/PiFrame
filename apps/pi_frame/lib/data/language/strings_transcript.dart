@@ -88,6 +88,8 @@ extension TranscriptStrings on AppStrings {
   String get subagentStatusError => isItalian ? 'Errore' : 'Error';
   String get subagentStatusStopped => isItalian ? 'Fermato' : 'Stopped';
   String get subagentStatusCompleted => isItalian ? 'Completato' : 'Completed';
+  String get subagentCompletedGroup => isItalian ? 'Subagent completati' : 'Completed Subagents';
+  String subagentCompletedFailed(int count) => isItalian ? ' · $count falliti' : ' · $count failed';
   String get subagentStatusSteered => isItalian ? 'Guidato' : 'Steered';
   String get subagentMainSession => isItalian ? 'Sessione principale' : 'Main session';
   String subagentsCount(int count) => isItalian ? '$count agenti' : (count == 1 ? '1 agent' : '$count agents');
