@@ -50,12 +50,12 @@ const TOOLING_FILES = new Set([
   'pnpm-workspace.yaml'
 ]);
 const TOOLING_DIRS = ['tools/guardrails/', 'tools/codegen/'];
-const AGENT_GUARD_FILES = new Set(['.claude/settings.json']);
+const AGENT_GUARD_FILES = new Set(['.claude/settings.json', '.agents/hooks.json']);
 /** Where the golden screens' reference images are committed (apps/pi_frame/test/goldens/). */
 export const GOLDEN_REFERENCE_DIR = 'apps/pi_frame/test/goldens/';
 /** The golden screens' Flutter test and the script that runs it (both guarded). */
 const GOLDEN_CHECK_FILES = new Set(['apps/pi_frame/test/golden_screens_test.dart', 'tools/scripts/goldens.mjs']);
-const AGENT_GUARD_DIRS = ['.claude/hooks/', '.pi/extensions/', '.codex/rules/'];
+const AGENT_GUARD_DIRS = ['.claude/hooks/', '.pi/extensions/', '.codex/rules/', '.agents/hooks/'];
 
 /** Why a path is guarded, or undefined when changing it needs no approval. */
 function guardedKind(path) {

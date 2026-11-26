@@ -88,7 +88,9 @@ Details of each check are in [pr-verification.md](pr-verification.md).
 4. **Implement.** Work each ticket with the `tdd` skill (failing test first, then the change). `implement-spec` runs the
    tickets of one spec in order when the maintainer wants that; each ticket goes to the `implementer` subagent
    (`.claude/agents/implementer.md`: Haiku, its own worktree and ticket branch, the integration branch left to the
-   coordinator).
+   coordinator). Antigravity has no named subagents, so there `implement-spec` runs the tickets one at a time in the
+   conversation; the swarm is not used. How each development agent is set up:
+   [agent guard](pr-verification.md#agent-guard).
 5. **Check.** `pnpm run check` after every small change; `pnpm run check -- <test file>` for the test you are writing.
 6. **Open the PR.** `pnpm run pr`. The `pr` skill writes the body: linked issue, summary, evidence, merge danger, guardrail
    changes.

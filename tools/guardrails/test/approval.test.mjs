@@ -82,6 +82,8 @@ test('a change to a guarded path needs approval, whichever way it goes', () => {
     '.claude/hooks/guard-command.mjs',
     '.pi/extensions/guard-command.ts',
     '.codex/rules/guard.rules',
+    '.agents/hooks.json',
+    '.agents/hooks/guard-command.mjs',
     'tools/scripts/lint-flutter.mjs',
     'tools/scripts/test-flutter.js',
     'tools/scripts/setup-flutter.js',

@@ -55,6 +55,8 @@ blob-report/
 .impeccable/
 **/.impeccable/
 .agents/*
+!.agents/hooks.json
+!.agents/hooks/
 !.agents/skills/
 .agents/skills/*
 !.agents/skills/piframe-ui-harness/
