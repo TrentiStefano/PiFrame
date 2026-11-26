@@ -14,6 +14,7 @@ import {
   parseArgs,
   parseSelector,
   recordPlan,
+  resetAppSettings,
   sampleFrames,
   seedHarnessHome,
   splitCommandLine,
@@ -164,4 +165,21 @@ test('start --profile runs the profile build; the default stays a debug build', 
   const base = { device: 'windows', size: '1920x1032' };
   assert.ok(!flutterArgs(base).includes('--profile'));
   assert.ok(flutterArgs({ ...base, profile: true }).includes('--profile'));
+});
+
+// #134: a run home keeps the app settings of earlier runs; captures came out in Italian.
+test('a run starts in English with the default theme and animations on, whatever an earlier run saved', () => {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'pf-harness-settings-'));
+  const settings = path.join(home, '.piframe');
+  fs.mkdirSync(settings, { recursive: true });
+  fs.writeFileSync(path.join(settings, 'language_settings.json'), JSON.stringify({ language: 'it' }));
+  fs.writeFileSync(path.join(settings, 'theme_settings.json'), JSON.stringify({ theme: 'light' }));
+  fs.writeFileSync(path.join(settings, 'reduced_motion_settings.json'), JSON.stringify({ reduceMotion: true }));
+  resetAppSettings(home);
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(settings, 'language_settings.json'), 'utf8')), {
+    language: 'en'
+  });
+  assert.equal(fs.existsSync(path.join(settings, 'theme_settings.json')), false);
+  assert.equal(fs.existsSync(path.join(settings, 'reduced_motion_settings.json')), false);
+  fs.rmSync(home, { recursive: true, force: true });
 });

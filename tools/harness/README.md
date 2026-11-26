@@ -61,7 +61,7 @@ Scenario user messages echo the prompt you send (`{{prompt}}`) with the current 
 
 In Git Bash on Windows, set `MSYS_NO_PATHCONV=1` before `pnpm harness type "/"`; otherwise the shell rewrites `/` to `C:/Program Files/Git/`.
 
-Media overrides exist only in harness mode. A harness `reduce-motion on` or `off` wins over the OS setting and the app's "Reduce animations" preference. Runs start with `off` (animations on), and `--reset` returns to it. `reduce-motion system` follows the OS and app settings again, which is what you need to test the Settings toggle. `start` deletes the run home's saved `reduced_motion_settings.json`, so a toggle from an earlier run does not carry over. `state` reports the effective media values and current harness overrides.
+Media overrides exist only in harness mode. A harness `reduce-motion on` or `off` wins over the OS setting and the app's "Reduce animations" preference. Runs start with `off` (animations on), and `--reset` returns to it. `reduce-motion system` follows the OS and app settings again, which is what you need to test the Settings toggle. `start` resets the app settings an earlier run saved in the run home: the language is set to English, and the saved theme and `reduced_motion_settings.json` are deleted, so every run starts in English with the default theme and animations on. `state` reports the effective media values and current harness overrides.
 
 ## Recording animations
 
