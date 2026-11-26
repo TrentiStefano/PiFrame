@@ -25,7 +25,7 @@ Options (they work for both commands; with `pnpm` they go after `--`):
 
 ## The inner loop: `check`
 
-`pnpm run check` is the fast tier to run after every small change. It runs the `check` tier of the shared step list in the **current working tree**, uncommitted changes included: no `pnpm install`, no worktree, no merge with `origin/main`, no cache. It assumes `pnpm run setup` has been run once.
+`pnpm run check` is the fast tier to run after every small change. It runs the `check` tier of the shared step list in the **current working tree**, uncommitted changes included: no `pnpm install`, no worktree, no merge with `origin/main`, no cache. It assumes `pnpm run setup` has been run once: it installs the dependencies, builds the TypeScript workspace packages (so a fresh worktree type-checks and the harness builds) and gets the Flutter dependencies. It also checks TypeScript and Dart formatting first, as `verify` does.
 
 `check` never installs dependencies. After a dependency change (one you made, or one you pulled, such as the `@google/design.md` and `yaml` packages the design checks use), run `pnpm install` first; otherwise the step that needs the missing package fails with `Cannot find package`.
 

@@ -95,14 +95,23 @@ export const VERIFY_ONLY_STEPS = [
   }
 ];
 
+/** @type {Step} */
+const TS_FORMAT = {
+  job: 'node',
+  name: 'TypeScript formatting (Prettier)',
+  command: ['node', 'tools/scripts/format.mjs', '--check', 'ts']
+};
+/** @type {Step} */
+const DART_FORMAT = {
+  job: 'flutter',
+  name: 'Dart formatting (dart format)',
+  command: ['node', 'tools/scripts/format.mjs', '--check', 'dart']
+};
+
 /** @type {Step[]} */
 const GATE = [
   { job: 'node', name: 'Install dependencies (frozen lockfile)', command: ['pnpm', 'install', '--frozen-lockfile'] },
-  {
-    job: 'node',
-    name: 'TypeScript formatting (Prettier)',
-    command: ['node', 'tools/scripts/format.mjs', '--check', 'ts']
-  },
+  TS_FORMAT,
   ESCAPE_HATCH_AUDIT,
   DOC_LINKS,
   AGENT_MAP_CHECK,
@@ -134,11 +143,7 @@ const GATE = [
     name: 'Version metadata and in-app changelog synchronized',
     command: ['node', 'tools/scripts/check-version-sync.mjs']
   },
-  {
-    job: 'flutter',
-    name: 'Dart formatting (dart format)',
-    command: ['node', 'tools/scripts/format.mjs', '--check', 'dart']
-  },
+  DART_FORMAT,
   FLUTTER_ANALYZE,
   // test-flutter.js generates the in-app changelog first, like every other Flutter test path.
   { job: 'flutter', name: 'Flutter tests (all projects)', command: ['node', 'tools/scripts/test-flutter.js'] }
@@ -211,7 +216,9 @@ export function stepList(tier, options = {}) {
 
 /** The `check` tier: the escape-hatch audit and static analysis only, in the current working tree. */
 const CHECK = [
-  // First: it needs only Node and fails in under a second when an escape hatch was added or removed.
+  // Formatting first: it fails in seconds, and verify would otherwise fail on it minutes later (#133).
+  TS_FORMAT,
+  // Node only and under a second: an escape hatch was added or removed.
   ESCAPE_HATCH_AUDIT,
   // Also Node only and under a second: a moved or deleted doc must not leave a broken link.
   DOC_LINKS,
@@ -229,6 +236,7 @@ const CHECK = [
   // The app's pubspec lists the untracked in-app changelog (apps/pi_frame/assets/CHANGELOG.md): flutter analyze
   // warns when it is missing and the Flutter tests bundle it, so generate it from CHANGELOG.md first.
   { job: 'node', name: 'Generate the in-app changelog', command: ['node', 'tools/scripts/sync-changelog.mjs'] },
+  DART_FORMAT,
   FLUTTER_ANALYZE
 ];
 

@@ -103,8 +103,10 @@ test('a release build without a platform or version is refused instead of buildi
 const FLUTTER_PROJECTS = ['packages/pi_frame_protocol', 'packages/pi_frame_theme', 'apps/pi_frame'];
 const check = (tests = []) => stepList('check', { tests, flutterProjects: FLUTTER_PROJECTS });
 
-test('check is the inner loop: escape-hatch audit, doc link, agent map and DESIGN.md checks, build (for the workspace type declarations), type checking and flutter analyze', () => {
+test('check is the inner loop: formatting, escape-hatch audit, doc link, agent map and DESIGN.md checks, build (for the workspace type declarations), type checking and flutter analyze', () => {
   assert.deepEqual(commandLines(check()), [
+    // #133: formatting is checked in the inner loop too, not only in verify.
+    'node tools/scripts/format.mjs --check ts',
     'node tools/scripts/audit-escape-hatches.mjs',
     'node tools/scripts/check-doc-links.mjs',
     'node tools/scripts/check-agent-map.mjs',
@@ -117,11 +119,12 @@ test('check is the inner loop: escape-hatch audit, doc link, agent map and DESIG
     'node tools/scripts/lint-typescript.mjs',
     // The app's pubspec lists the untracked in-app changelog: analyze and the Flutter tests both need it.
     'node tools/scripts/sync-changelog.mjs',
+    'node tools/scripts/format.mjs --check dart',
     'node tools/scripts/lint-flutter.mjs'
   ]);
 });
 
-const ANALYSIS_STEPS = 12;
+const ANALYSIS_STEPS = 14;
 
 test('check never installs, creates a worktree or merges', () => {
   const steps = check(['apps/pi_frame/test/a_test.dart', 'tools/guardrails/test/steps.test.mjs']);
