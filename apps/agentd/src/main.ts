@@ -16,7 +16,7 @@ import { ensureSubagentContextLimitExtensionIfReferenced } from './pi/agents/sub
 import { enableDaemonFileLog, reportSlowCommand, startDevCpuProfile } from './config/devLog.js';
 import { getRuntimeDir } from './config/runtime.js';
 
-const VERSION = '1.5.1'; // x-release-please-version
+const VERSION = '1.6.0'; // x-release-please-version
 
 async function main() {
   // runtime/daemon.log: slow commands and loop stalls in every daemon, console output too in dev builds.
